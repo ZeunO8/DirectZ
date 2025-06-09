@@ -288,10 +288,7 @@ void create_surface(Renderer* renderer)
 		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 		// surfaceCreateInfo.connection = xcbWindow.connection;
 		// surfaceCreateInfo.window = xcbWindow.window;
-		// if (!vk_check("vkCreateXcbSurfaceKHR", _vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, 0, &surface)))
-		// {
-		// 	throw std::runtime_error("VulkanRenderer-createSurface: failed to create XCB surface");
-		// }
+		// vk_check("vkCreateXcbSurfaceKHR", _vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, 0, &surface));
 	}
 #elif defined(ANDROID)
 #elif defined(_WIN32)
@@ -300,18 +297,12 @@ void create_surface(Renderer* renderer)
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 	surfaceCreateInfo.hinstance = window.hInstance;
 	surfaceCreateInfo.hwnd = window.hwnd;
-	if (!vk_check("vkCreateWin32SurfaceKHR", vkCreateWin32SurfaceKHR(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface)))
-	{
-		throw std::runtime_error("VulkanRenderer-createSurface: failed to create Xlib surface");
-	}
+	vk_check("vkCreateWin32SurfaceKHR", vkCreateWin32SurfaceKHR(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(MACOS)
     VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
     surfaceCreateInfo.pView = window.nsView;
-    if (!vk_check("vkCreateMacOSSurfaceMVK", vkCreateMacOSSurfaceMVK(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface)))
-    {
-        throw std::runtime_error("Failed to create MacOS surface!");
-    }
+    vk_check("vkCreateMacOSSurfaceMVK", vkCreateMacOSSurfaceMVK(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
 }
 
@@ -339,14 +330,12 @@ VkSampleCountFlagBits get_max_usable_sample_count(Renderer* renderer)
 void pick_physical_device(Renderer* renderer)
 {
 	uint32_t deviceCount = 0;
-	if (!vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, 0)))
-		throw std::runtime_error("VulkanRenderer-vkEnumeratePhysicalDevices failed");
+	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, 0));
 	if (deviceCount == 0)
 		throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find GPUs with Vulkan support!");
 	std::vector<VkPhysicalDevice> devices;
 	devices.resize(deviceCount);
-	if (!vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, devices.data())))
-		throw std::runtime_error("VulkanRenderer-vkEnumeratePhysicalDevices failed");
+	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, devices.data()));
 	std::map<uint32_t, VkPhysicalDevice> physicalDeviceScores;
 	for (auto& device : devices)
 	{
@@ -426,11 +415,7 @@ QueueFamilyIndices find_queue_families(Renderer* renderer, VkPhysicalDevice devi
 			indices.graphicsFamily = index;
 		}
 		VkBool32 presentSupport = false;
-		if (!vk_check("vkGetPhysicalDeviceSurfaceSupportKHR",
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, index, renderer->surface, &presentSupport)))
-		{
-			throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfaceSupportKHR failed");
-		}
+		vk_check("vkGetPhysicalDeviceSurfaceSupportKHR", vkGetPhysicalDeviceSurfaceSupportKHR(device, index, renderer->surface, &presentSupport));
 		if (presentSupport)
 		{
 			indices.presentFamily = index;
@@ -474,17 +459,11 @@ void create_logical_device(Renderer* renderer)
 	// check extensions
 	uint32_t extensionCount = 0;
 	// Query number of available extensions
-	if (!vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, 0)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkEnumerateDeviceExtensionProperties failed");
-	}
+	vk_check("vkEnumerateDeviceExtensionProperties",
+		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, 0));
 	std::vector<VkExtensionProperties> deviceExtensions(extensionCount);
-	if (!vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, deviceExtensions.data())))
-	{
-		throw std::runtime_error("VulkanRenderer-vkEnumerateDeviceExtensionProperties failed");
-	}
+	vk_check("vkEnumerateDeviceExtensionProperties",
+		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, deviceExtensions.data()));
 	for (const auto& ext : deviceExtensions)
 	{
 		if (std::strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0)
@@ -586,11 +565,8 @@ bool create_swap_chain(Renderer* renderer)
 	}
 	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
-	if (!vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &surfaceCapabilities)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed");
-	}
+	vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &surfaceCapabilities));
 	if (surfaceCapabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 	{
 		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -606,20 +582,11 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.presentMode = presentMode;
 	createInfo.clipped = VK_TRUE;
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
-	if (!vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(renderer->device, &createInfo, 0, &renderer->swapChain)))
-	{
-		throw std::runtime_error("VulkanRenderer-createSwapChain: failed to create Swapchain");
-	}
-	if (!vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, 0)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetSwapchainImagesKHR failed");
-	}
+	vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(renderer->device, &createInfo, 0, &renderer->swapChain));
+	vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, 0));
 	renderer->swapChainImages.resize(imageCount);
-	if (!vk_check("vkGetSwapchainImagesKHR",
-		vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data())))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetSwapchainImagesKHR failed");
-	}
+	vk_check("vkGetSwapchainImagesKHR",
+		vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
 	renderer->swapChainImageFormat = surfaceFormat.format;
 	renderer->swapChainExtent = extent;
 	return true;
@@ -628,41 +595,25 @@ bool create_swap_chain(Renderer* renderer)
 SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device)
 {
 	SwapChainSupportDetails details;
-	if (!vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &details.capabilities)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed");
-	}
+	vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &details.capabilities));
 	uint32_t formatCount;
-	if (!vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-		vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, 0)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfaceFormatsKHR failed");
-	}
+	vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
+		vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, 0));
 	if (formatCount != 0)
 	{
 		details.formats.resize(formatCount);
-		if (!vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-			vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, details.formats.data())))
-		{
-			throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfaceFormatsKHR failed");
-		}
+		vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
+			vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, details.formats.data()));
 	}
 	uint32_t presentModeCount;
-	if (!vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
-		vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, 0)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfacePresentModesKHR failed");
-	}
+	vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
+		vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, 0));
 	if (presentModeCount != 0)
 	{
 		details.presentModes.resize(presentModeCount);
-		if (!vk_check(
-					"vkGetPhysicalDeviceSurfacePresentModesKHR",
-			vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data())))
-		{
-			throw std::runtime_error("VulkanRenderer-vkGetPhysicalDeviceSurfacePresentModesKHR failed");
-		}
+		vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
+			vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data()));
 	}
 	return details;
 }
@@ -711,10 +662,7 @@ void create_command_pool(Renderer* renderer)
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-	if (!vk_check("vkCreateCommandPool", vkCreateCommandPool(renderer->device, &poolInfo, 0, &renderer->commandPool)))
-	{
-		throw std::runtime_error("VulkanRenderer-createCommandPool: failed to create command pool!");
-	}
+	vk_check("vkCreateCommandPool", vkCreateCommandPool(renderer->device, &poolInfo, 0, &renderer->commandPool));
 	return;
 }
 
@@ -726,10 +674,7 @@ void create_command_buffers(Renderer* renderer)
 	allocInfo.commandPool = renderer->commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = renderer->commandBuffers.size();
-	if (!vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(renderer->device, &allocInfo, &renderer->commandBuffers[0])))
-	{
-		throw std::runtime_error("VulkanRenderer-createCommandBuffers: failed to allocate command buffers!");
-	}
+	vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(renderer->device, &allocInfo, &renderer->commandBuffers[0]));
 	return;
 }
 
@@ -753,10 +698,7 @@ void create_image_views(Renderer* renderer)
 		createInfo.subresourceRange.levelCount = 1;
 		createInfo.subresourceRange.baseArrayLayer = 0;
 		createInfo.subresourceRange.layerCount = 1;
-		if (!vk_check("vkCreateImageView", vkCreateImageView(renderer->device, &createInfo, 0, &(renderer->swapChainImageViews[index]))))
-		{
-			throw std::runtime_error("VulkanRenderer-createImageViews: failed to create imageView");
-		}
+		vk_check("vkCreateImageView", vkCreateImageView(renderer->device, &createInfo, 0, &(renderer->swapChainImageViews[index])));
 	}
 	return;
 }
@@ -799,10 +741,7 @@ void create_render_pass(Renderer* renderer)
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
-	if (!vk_check("vkCreateRenderPass2", vkCreateRenderPass2(renderer->device, &renderPassInfo, 0, &renderer->renderPass)))
-	{
-		throw std::runtime_error("VulkanRenderer-createRenderPass: failed to create render pass!");
-	}
+	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(renderer->device, &renderPassInfo, 0, &renderer->renderPass));
 	return;
 }
 
@@ -822,11 +761,8 @@ void create_framebuffers(Renderer* renderer)
 		framebufferInfo.width = renderer->swapChainExtent.width;
 		framebufferInfo.height = renderer->swapChainExtent.height;
 		framebufferInfo.layers = 1;
-		if (!vk_check("vkCreateFramebuffer",
-			vkCreateFramebuffer(renderer->device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index]))))
-		{
-			throw std::runtime_error("VulkanRenderer-createFramebuffers: failed to create framebuffer!");
-		}
+		vk_check("vkCreateFramebuffer",
+			vkCreateFramebuffer(renderer->device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index])));
 	}
 	return;
 }
@@ -843,13 +779,9 @@ void create_sync_objects(Renderer* renderer)
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; j++)
 	{
-		if (!vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j])) ||
-				!vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j])) ||
-				!vk_check("vkCreateFence", vkCreateFence(renderer->device, &fenceInfo, 0, &renderer->inFlightFences[j])))
-		{
-			throw std::runtime_error(
-				"VulkanRenderer-createSyncObjects: failed to create synchronization objects for a frame!");
-		}
+		vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j]));
+		vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j]));
+		vk_check("vkCreateFence", vkCreateFence(renderer->device, &fenceInfo, 0, &renderer->inFlightFences[j]));
 	}
 	return;
 }
@@ -857,31 +789,14 @@ void create_sync_objects(Renderer* renderer)
 void pre_begin_render_pass(Renderer* renderer)
 {
 	renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-	if (!vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkWaitForFences failed");
-	}
-	if (!vk_check("vkAcquireNextImageKHR",
-		vkAcquireNextImageKHR(renderer->device, renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
-																			VK_NULL_HANDLE, &renderer->imageIndex)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkAcquireNextImageKHR failed");
-	}
-	if (!vk_check("vkResetFences", vkResetFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame])))
-	{
-		throw std::runtime_error("VulkanRenderer-vkResetFences failed");
-	}
+	vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(renderer->device, renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame], VK_NULL_HANDLE, &renderer->imageIndex));
+	vk_check("vkResetFences", vkResetFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
 	renderer->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
-	if (!vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*renderer->commandBuffer, 0)))
-	{
-		throw std::runtime_error("VulkanRenderer-vkResetCommandBuffer failed");
-	}
+	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*renderer->commandBuffer, 0));
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	if (!vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*renderer->commandBuffer, &beginInfo)))
-	{
-		throw std::runtime_error("failed to begin recording command buffer!");
-	}
+	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*renderer->commandBuffer, &beginInfo));
 }
 
 void begin_render_pass(Renderer* renderer)
@@ -904,10 +819,7 @@ void post_render_pass(Renderer* renderer)
 {
 	{
 		vkCmdEndRenderPass(*renderer->commandBuffer);
-		if (!vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*renderer->commandBuffer)))
-		{
-			throw std::runtime_error("failed to record command buffer!");
-		}
+		vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*renderer->commandBuffer));
 	}
 	VkSemaphore waitSemaphores[] = {renderer->imageAvailableSemaphores[renderer->currentFrame]};
 	{
@@ -917,16 +829,10 @@ void post_render_pass(Renderer* renderer)
 		renderer->signalSemaphores[0] = renderer->renderFinishedSemaphores[renderer->currentFrame];
 		renderer->submitInfo.signalSemaphoreCount = 1;
 		renderer->submitInfo.pSignalSemaphores = renderer->signalSemaphores;
-		if (!vk_check("vkQueueSubmit", vkQueueSubmit(renderer->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame])))
-		{
-			throw std::runtime_error("failed to submit draw command buffer!");
-		}
+		vk_check("vkQueueSubmit", vkQueueSubmit(renderer->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
 	}
     // {
-    //     if (!vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX)))
-    //     {
-    //          throw std::runtime_error("VulkanRenderer-vkWaitForFences failed");
-    //     }
+    //     vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
     // }
 	{
 		renderer->presentInfo.pWaitSemaphores = renderer->signalSemaphores;
@@ -945,9 +851,9 @@ bool swap_buffers(Renderer* renderer)
 		// 	return false;
 		// *viewportResized = false;
 	}
-	else if (result != VK_SUCCESS)
+	else
 	{
-		throw std::runtime_error("VulkanRenderer-vkQueuePresentKHR failed");
+		vk_check("vkQueuePresentKHR", result);
 	}
 	return true;
 }
@@ -1221,8 +1127,5 @@ bool vk_check(const char* fn, VkResult result)
 	}
 
 	// Print error message to standard error stream
-	std::cerr << "Vulkan Error: Function '" << fn << "' failed with " << resultString << " (" << result << ")"
-						<< std::endl;
-
-	return false; // Indicate failure
+	throw std::runtime_error("Vulkan Error: Function '" + std::string(fn) + "' failed with " + resultString + " (" + std::to_string(result) + ")");
 }
