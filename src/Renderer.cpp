@@ -26,6 +26,7 @@ struct Renderer
     std::vector<VkFence> inFlightFences;
     uint32_t currentFrame = 0;
     uint32_t imageIndex = -1;
+	VkCommandBufferBeginInfo beginInfo;
     VkSubmitInfo submitInfo;
     VkPresentInfoKHR presentInfo;
     VkPipelineStageFlags waitStages[1];
@@ -92,6 +93,7 @@ Renderer* renderer_init(Window* window)
         .window = window
     };
     //
+	renderer->beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	renderer->waitStages[0] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	renderer->submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	renderer->submitInfo.pNext = 0;
@@ -789,14 +791,20 @@ void create_sync_objects(Renderer* renderer)
 void pre_begin_render_pass(Renderer* renderer)
 {
 	renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-	vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
-	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(renderer->device, renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame], VK_NULL_HANDLE, &renderer->imageIndex));
+
+	vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1,
+		&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+
+	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(renderer->device,
+		renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
+		VK_NULL_HANDLE, &renderer->imageIndex));
+
 	vk_check("vkResetFences", vkResetFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
 	renderer->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
+
 	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*renderer->commandBuffer, 0));
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*renderer->commandBuffer, &beginInfo));
+
+	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*renderer->commandBuffer, &renderer->beginInfo));
 }
 
 void begin_render_pass(Renderer* renderer)
