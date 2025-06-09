@@ -117,38 +117,71 @@ void main()
     FragColor = inColor;
 }
 )");
+
+
+    // Instantiate the shader buffers with some counts
+
     shader_set_buffer_element_count(shader, "Materials", 1);
     shader_set_buffer_element_count(shader, "Meshes", 1);
     shader_set_buffer_element_count(shader, "Entities", 5);
+
+    
+    // 
+
     shader_create_resources(shader);
     shader_compile(shader);
     shader_update_descriptor_sets(shader);
+
+    // Get views into the shader buffers at index 0
+
     auto material_1_view = shader_get_buffer_element_view(shader, "Materials", 0);
+    auto mesh_1_view = shader_get_buffer_element_view(shader, "Meshes", 0);
+    auto entity_1_view = shader_get_buffer_element_view(shader, "Entities", 0);
+
+    //
+
     material_1_view.set_member("color", vec<float, 4>(0, 0, 1.0, 1.0));
     material_1_view.set_member("type", 0);
-    auto mesh_1_view = shader_get_buffer_element_view(shader, "Meshes", 0);
+
     mesh_1_view.set_member("shape_type", 0);
-    auto entity_1_view = shader_get_buffer_element_view(shader, "Entities", 0);
+
     entity_1_view.set_member("mesh_index", 0);
     entity_1_view.set_member("material_index", 0);
+
     auto& entity_1_model = entity_1_view.get_member<mat<float, 4, 4>>("model");
     auto& entity_1_inverseModel = entity_1_view.get_member<mat<float, 4, 4>>("inverseModel");
+
     entity_1_model = mat<float, 4, 4>(1.0f);
-    vec<float, 3> t_vec(1.00, 0, 0);
+
+    vec<float, 3> th_vec(1.00, 0, 0);
+    vec<float, 3> tv_vec(0, -1.00, 0);
     vec<float, 3> s_vec(1.01, 1.01, 1);
+
     auto& window_frametime = window_get_frametime_ref(window);
+
     bool entity_right = true;
+
     auto& right_pressed = window_get_keypress_ref(window, KEYCODE_RIGHT);
     auto& left_pressed = window_get_keypress_ref(window, KEYCODE_LEFT);
+    auto& up_pressed = window_get_keypress_ref(window, KEYCODE_UP);
+    auto& down_pressed = window_get_keypress_ref(window, KEYCODE_DOWN);
     auto& esc_pressed = window_get_keypress_ref(window, KEYCODE_ESCAPE);
+
     while (window_poll_events(window))
     {
         if (esc_pressed)
             break;
+
         if ((entity_right || right_pressed) && !left_pressed)
-            entity_1_model.translate(t_vec * window_frametime);
+            entity_1_model.translate(th_vec * window_frametime);
         else 
-            entity_1_model.translate(-t_vec * window_frametime);
+            entity_1_model.translate(-th_vec * window_frametime);
+
+        if (up_pressed)
+            entity_1_model.translate(tv_vec * window_frametime);
+        if (down_pressed)
+            entity_1_model.translate(-tv_vec * window_frametime);
+
         vec<float, 3> pos(entity_1_model[0][3], entity_1_model[1][3], entity_1_model[2][3]);
         if (pos[0] > 0.5)
         {
@@ -160,9 +193,20 @@ void main()
             entity_right = !entity_right;
             entity_1_model[0][3] = -0.5;
         }
+        if (pos[1] > 0.5)
+        {
+            entity_1_model[1][3] = 0.5;
+        }
+        else if (pos[1] < -0.5)
+        {
+            entity_1_model[1][3] = -0.5;
+        }
+
         entity_1_inverseModel = entity_1_model.inverse();
+
         window_render(window);
     }
+
     window_free(window);
     return 0;
 }
