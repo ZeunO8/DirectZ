@@ -23,7 +23,7 @@ struct Mesh
 {
     int shape_type;
 };
-layout(std430, binding = 1) buffer MeshBuffer
+layout(std430, binding = 0) buffer MeshBuffer
 {
     Mesh meshes[];
 } Meshes;
@@ -33,7 +33,7 @@ struct Material
     vec4 color;
     int type;
 };
-layout(std430, binding = 2) buffer MaterialBuffer
+layout(std430, binding = 1) buffer MaterialBuffer
 {
     Material materials[];
 } Materials;
@@ -46,10 +46,24 @@ struct Entity
     int material_index;
 };
 
-layout(std430, binding = 3) buffer EntitiesBuffer
+layout(std430, binding = 2) buffer EntitiesBuffer
 {
     Entity entities[];
 } Entities;
+
+struct Camera
+{
+    mat4 view;
+    mat4 projection;
+    mat4 inverse_view;
+    mat4 inverse_projection;
+};
+
+layout(std430, binding = 3) buffer CamerasBuffer
+{
+    Camera cameras[];
+} Cameras;
+
 int get_entity_id()
 {
     return gl_InstanceIndex;
@@ -124,7 +138,7 @@ void main()
     shader_set_buffer_element_count(shader, "Materials", 1);
     shader_set_buffer_element_count(shader, "Meshes", 1);
     shader_set_buffer_element_count(shader, "Entities", 5);
-
+    shader_set_buffer_element_count(shader, "Cameras", 1);
     
     // 
 
@@ -137,6 +151,12 @@ void main()
     auto material_1_view = shader_get_buffer_element_view(shader, "Materials", 0);
     auto mesh_1_view = shader_get_buffer_element_view(shader, "Meshes", 0);
     auto entity_1_view = shader_get_buffer_element_view(shader, "Entities", 0);
+    auto camera_1_view = shader_get_buffer_element_view(shader, "Cameras", 0);
+
+    camera_1_view.get_member<mat<float, 4, 4>>("view");
+    camera_1_view.get_member<mat<float, 4, 4>>("projection");
+    camera_1_view.get_member<mat<float, 4, 4>>("inverse_view");
+    camera_1_view.get_member<mat<float, 4, 4>>("inverse_projection");
 
     //
 
