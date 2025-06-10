@@ -1,0 +1,139 @@
+void buffer_group_destroy(BufferGroup* bg);
+
+BufferGroup* buffer_group_create(const std::string& group_name)
+{
+    auto& dr = *DZ_RGY;
+    auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
+        new BufferGroup{
+            .group_name = group_name
+        },
+        [](BufferGroup* bg) {
+            buffer_group_destroy(bg);
+            delete bg;
+        }
+    ));
+    return bg.get();
+}
+
+/**
+ * @brief For dynamic SSBOs, sets the number of elements the buffer should hold.
+ * This MUST be called before shader_create_resources().
+ * This function also allocates the initial CPU-side staging buffer.
+ *
+ * @param shader The shader object.
+ * @param buffer_name The GLSL variable name of the buffer.
+ * @param element_count The number of elements to allocate space for.
+ */
+void buffer_group_set_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t element_count)
+{
+    if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
+        std::cerr << "Warning: Cannot set element count for buffer '" << buffer_name << "'. It was not found in reflection." << std::endl;
+        return;
+    }
+
+    auto& buffer = buffer_group->buffers.at(buffer_name);
+    if (!buffer.is_dynamic_sized) {
+        std::cerr << "Warning: Buffer '" << buffer_name << "' is not a dynamic, runtime-sized buffer." << std::endl;
+        return;
+    }
+
+    buffer.element_count = element_count;
+    size_t new_size = buffer.element_count * buffer.element_stride;
+
+    // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
+    buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
+    memset(buffer.data_ptr.get(), 0, new_size);
+    std::cout << "Set dynamic buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
+}
+
+/**
+ * @brief Gets the shared pointer to the buffer's data.
+ * Initially, this points to a CPU-side buffer. After resource creation, it will point
+ * directly to the mapped GPU memory. The application can use this pointer to update data.
+ *
+ * @param shader The shader object.
+ * @param buffer_name The GLSL variable name of the buffer.
+ * @return A shared_ptr to the raw buffer data.
+ */
+std::shared_ptr<uint8_t> buffer_group_get_buffer_data_ptr(BufferGroup* buffer_group, const std::string& buffer_name)
+{
+    if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
+        std::cerr << "Error: Buffer '" << buffer_name << "' not found." << std::endl;
+        return nullptr;
+    }
+    auto& buffer = buffer_group->buffers.at(buffer_name);
+
+    // If this is a fixed-size buffer and the data hasn't been allocated yet, do it now.
+    if (!buffer.data_ptr && !buffer.is_dynamic_sized) {
+        buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[buffer.static_size], std::default_delete<uint8_t[]>());
+    }
+
+    return buffer.data_ptr;
+}
+
+/**
+ * @brief Gets a reflected view of a specific struct element within a shader buffer.
+ * This view allows updating individual members of the struct by name, handling
+ * memory layout differences (padding, alignment) automatically.
+ *
+ * This function is intended for buffers whose `element_type` is a struct (e.g., UBOs, SSBOs of structs).
+ *
+ * @param shader The shader object.
+ * @param buffer_name The GLSL variable name of the buffer (e.g., "ubo_scene", "particles").
+ * @param index The 0-based index of the element to view (for SSBOs). For UBOs, this is usually 0.
+ * @return A ReflectedStructView object.
+ * @throws std::runtime_error if the buffer/element is not found, data_ptr is null,
+ * index is out of bounds, or the element type is not a struct.
+ */
+ReflectedStructView buffer_group_get_buffer_element_view(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t index)
+{
+    // Find the ShaderBuffer
+    auto it = buffer_group->buffers.find(buffer_name);
+    if (it == buffer_group->buffers.end()) {
+        throw std::runtime_error("shader_get_buffer_element_view: Buffer '" + buffer_name + "' not found.");
+    }
+    ShaderBuffer& buffer = it->second;
+
+    // Ensure data_ptr is valid (allocated CPU-side or mapped GPU-side)
+    if (!buffer.data_ptr) {
+        // If it's a fixed-size buffer and data isn't allocated, attempt to allocate it now.
+        if (!buffer.is_dynamic_sized && buffer.static_size > 0) {
+            buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[buffer.static_size], std::default_delete<uint8_t[]>());
+            std::cout << "Info: Allocating CPU-side buffer for fixed-size buffer '" << buffer_name << "' on first view access." << std::endl;
+        } else {
+            throw std::runtime_error("shader_get_buffer_element_view: Buffer data_ptr is null for '" + buffer_name + "'. "
+                                     "Ensure shader_set_buffer_element_count() was called for dynamic buffers, or it's mapped/allocated.");
+        }
+    }
+
+    // Validate index for dynamic buffers
+    if (index >= buffer.element_count) {
+        throw std::out_of_range("shader_get_buffer_element_view: Index " + std::to_string(index) +
+                                " is out of bounds for buffer '" + buffer_name + "' (element count: " + std::to_string(buffer.element_count) + ").");
+    }
+
+    // Calculate the base address of the desired element within the buffer's data_ptr
+    uint8_t* element_base_ptr = buffer.data_ptr.get() + (index * buffer.element_stride);
+
+    // Get the ReflectedStruct definition for the element type
+    if (buffer.element_type.type_kind != "struct") {
+         throw std::runtime_error("shader_get_buffer_element_view: Buffer '" + buffer_name + "' element is not a struct type. Type kind: " + buffer.element_type.type_kind);
+    }
+
+    for (auto& shader_pair : buffer_group->shaders)
+    {
+        auto shader = shader_pair.first;
+        for (auto& shaderModulePair : shader->module_map)
+        {
+            const ReflectedStruct& reflected_struct_def = getCanonicalStruct(shaderModulePair.second.reflection, buffer.element_type);
+            // Return the ReflectedStructView
+            return ReflectedStructView(element_base_ptr, reflected_struct_def);
+        }
+    }
+    throw std::runtime_error("Could not get ReflectedStruct");
+}
+
+void buffer_group_destroy(BufferGroup* bg)
+{
+    return;
+}

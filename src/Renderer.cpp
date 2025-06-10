@@ -2,16 +2,10 @@
 struct Renderer
 {
     Window* window = 0;
-    VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
     VkSwapchainKHR swapChain;
     VkSwapchainKHR swapChains[1];
-    VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -34,7 +28,6 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
     // PFN_vkCreateDebugUtilsMessengerEXT _vkCreateDebugUtilsMessengerEXT;
-	inline static std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
 };
 constexpr int MAX_FRAMES_IN_FLIGHT = 4;
 struct QueueFamilyIndices
@@ -49,9 +42,8 @@ struct SwapChainSupportDetails
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
-void create_instance(Renderer* renderer);
 #ifndef NDEBUG
-bool check_validation_layers_support(Renderer* renderer);
+bool check_validation_layers_support();
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -62,12 +54,12 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 #endif
 void create_surface(Renderer* renderer);
 
-VkSampleCountFlagBits get_max_usable_sample_count(Renderer* renderer);
-void pick_physical_device(Renderer* renderer);
-uint32_t rate_device_suitability(Renderer* renderer, VkPhysicalDevice device);
-bool is_device_suitable(Renderer* renderer, VkPhysicalDevice device);
-QueueFamilyIndices find_queue_families(Renderer* renderer, VkPhysicalDevice device);
-void create_logical_device(Renderer* renderer);
+VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer);
+void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer);
+uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
+bool is_device_suitable(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
+QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
+void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer);
 bool create_swap_chain(Renderer* renderer);
 SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device);
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
@@ -105,10 +97,9 @@ Renderer* renderer_init(Window* window)
 	renderer->presentInfo.swapchainCount = 1;
 	renderer->presentInfo.pResults = 0;
     //
-    create_instance(renderer);
     create_surface(renderer);
-    pick_physical_device(renderer);
-    create_logical_device(renderer);
+    direct_registry_ensure_physical_device(DZ_RGY.get(), renderer);
+    direct_registry_ensure_logical_device(DZ_RGY.get(), renderer);
     create_swap_chain(renderer);
     create_command_pool(renderer);
     create_command_buffers(renderer);
@@ -124,11 +115,11 @@ void renderer_render(Renderer* renderer)
     pre_begin_render_pass(renderer);
     begin_render_pass(renderer);
     auto& window = *renderer->window;
-    auto& dr = window.registry;
+    auto& dr = *window.registry;
     for (auto& shader_pair : dr.uid_shader_map)
     {
         auto shader = shader_pair.second.get();
-        shader_bind(shader);
+        shader_bind(renderer, shader);
         renderer_draw_one(renderer, shader);
     }
     post_render_pass(renderer);
@@ -139,103 +130,16 @@ void renderer_free(Renderer* renderer)
 	renderer_destroy(renderer);
     delete renderer;
 }
-void create_instance(Renderer* renderer)
-{
-    auto& window = *renderer->window;
-	VkApplicationInfo appInfo{};
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = window.title.c_str();
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "DirectZ";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_2;
-	VkInstanceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
-	//
-	std::vector<const char*> extensions;
-	extensions.push_back("VK_KHR_surface");
-	auto& windowType = window.windowType;
-	switch (windowType)
-	{
-	case WINDOW_TYPE_XCB:
-		{
-			extensions.push_back("VK_KHR_xcb_surface");
-			break;
-		}
-	case WINDOW_TYPE_X11:
-		{
-			extensions.push_back("VK_KHR_xlib_surface");
-			break;
-		}
-	case WINDOW_TYPE_WAYLAND:
-		{
-			extensions.push_back("VK_KHR_wayland_surface");
-			break;
-		}
-	case WINDOW_TYPE_WIN32:
-		{
-			extensions.push_back("VK_KHR_win32_surface");
-			break;
-		}
-	case WINDOW_TYPE_ANDROID:
-		{
-			extensions.push_back("VK_KHR_android_surface");
-			break;
-		}
-	case WINDOW_TYPE_MACOS:
-		{
-			extensions.push_back("VK_MVK_macos_surface");
-			break;
-		}
-	case WINDOW_TYPE_IOS:
-		{
-			extensions.push_back("VK_MVK_ios_surface");
-			break;
-		}
-	}
-#if defined(MACOS)
-    extensions.push_back("VK_KHR_portability_enumeration");
-    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-#ifndef NDEBUG
-	extensions.push_back("VK_EXT_debug_utils");
-#endif
-	createInfo.enabledExtensionCount = extensions.size();
-	createInfo.ppEnabledExtensionNames = extensions.data();
-	//
-	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-	std::vector<const char*> layers;
-#if !defined(NDEBUG)
-	if (check_validation_layers_support(renderer))
-	{
-		layers.push_back("VK_LAYER_KHRONOS_validation");
-		createInfo.enabledLayerCount = layers.size();
-		createInfo.ppEnabledLayerNames = layers.data();
-		populate_debug_messenger_create_info(debugCreateInfo);
-		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-	}
-	else
-	{
-		std::cout << "Validation layers requested, but not available" << std::endl;
-		createInfo.enabledLayerCount = 0;
-	}
-#endif
-	auto createdInstance = vk_check("vkCreateInstance", vkCreateInstance(&createInfo, 0, &renderer->instance));
-	if (!createdInstance)
-	{
-		throw std::runtime_error("failed to create instance");
-	}
-}
 
 #ifndef NDEBUG
-bool check_validation_layers_support(Renderer* renderer)
+bool check_validation_layers_support()
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, 0);
 	std::vector<VkLayerProperties> availableLayers(layerCount);
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-	for (const char* layerName : renderer->validationLayers)
+	static std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
+	for (const char* layerName : validationLayers)
 	{
 		bool layerFound = false;
 		for (const auto& layerProperties : availableLayers)
@@ -277,11 +181,95 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 }
 #endif
 
+void direct_registry_create_instance(DirectRegistry* direct_registry)
+{
+	VkApplicationInfo appInfo{};
+	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	appInfo.pApplicationName = "DirectZ Application";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pEngineName = "DirectZ";
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_2;
+	VkInstanceCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pApplicationInfo = &appInfo;
+	//
+	std::vector<const char*> extensions;
+	extensions.push_back("VK_KHR_surface");
+	auto& windowType = direct_registry->windowType;
+	switch (windowType)
+	{
+	case WINDOW_TYPE_XCB:
+		{
+			extensions.push_back("VK_KHR_xcb_surface");
+			break;
+		}
+	case WINDOW_TYPE_X11:
+		{
+			extensions.push_back("VK_KHR_xlib_surface");
+			break;
+		}
+	case WINDOW_TYPE_WAYLAND:
+		{
+			extensions.push_back("VK_KHR_wayland_surface");
+			break;
+		}
+	case WINDOW_TYPE_WIN32:
+		{
+			extensions.push_back("VK_KHR_win32_surface");
+			break;
+		}
+	case WINDOW_TYPE_ANDROID:
+		{
+			extensions.push_back("VK_KHR_android_surface");
+			break;
+		}
+	case WINDOW_TYPE_MACOS:
+		{
+			extensions.push_back("VK_MVK_macos_surface");
+			break;
+		}
+	case WINDOW_TYPE_IOS:
+		{
+			extensions.push_back("VK_MVK_ios_surface");
+			break;
+		}
+	}
+#if defined(MACOS)
+	extensions.push_back("VK_KHR_portability_enumeration");
+	createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+#ifndef NDEBUG
+	extensions.push_back("VK_EXT_debug_utils");
+#endif
+	createInfo.enabledExtensionCount = extensions.size();
+	createInfo.ppEnabledExtensionNames = extensions.data();
+	//
+	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+	std::vector<const char*> layers;
+#if !defined(NDEBUG)
+	if (check_validation_layers_support())
+	{
+		layers.push_back("VK_LAYER_KHRONOS_validation");
+		createInfo.enabledLayerCount = layers.size();
+		createInfo.ppEnabledLayerNames = layers.data();
+		populate_debug_messenger_create_info(debugCreateInfo);
+		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+	}
+	else
+	{
+		std::cout << "Validation layers requested, but not available" << std::endl;
+		createInfo.enabledLayerCount = 0;
+	}
+#endif
+	vk_check("vkCreateInstance", vkCreateInstance(&createInfo, 0, &direct_registry->instance));
+}
 
 void create_surface(Renderer* renderer)
 {
     auto& window = *renderer->window;
-	auto& windowType = window.windowType;
+	auto& dr = *window.registry;
+	auto& windowType = dr.windowType;
 #ifdef __linux__
     if (windowType == WINDOW_TYPE_XCB)
 	{
@@ -299,19 +287,19 @@ void create_surface(Renderer* renderer)
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 	surfaceCreateInfo.hinstance = window.hInstance;
 	surfaceCreateInfo.hwnd = window.hwnd;
-	vk_check("vkCreateWin32SurfaceKHR", vkCreateWin32SurfaceKHR(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface));
+	vk_check("vkCreateWin32SurfaceKHR", vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(MACOS)
     VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
     surfaceCreateInfo.pView = window.nsView;
-    vk_check("vkCreateMacOSSurfaceMVK", vkCreateMacOSSurfaceMVK(renderer->instance, &surfaceCreateInfo, 0, &renderer->surface));
+    vk_check("vkCreateMacOSSurfaceMVK", vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
 }
 
-VkSampleCountFlagBits get_max_usable_sample_count(Renderer* renderer)
+VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer)
 {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
-	vkGetPhysicalDeviceProperties(renderer->physicalDevice, &physicalDeviceProperties);
+	vkGetPhysicalDeviceProperties(direct_registry->physicalDevice, &physicalDeviceProperties);
 
 	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
 		physicalDeviceProperties.limits.framebufferDepthSampleCounts;
@@ -329,19 +317,21 @@ VkSampleCountFlagBits get_max_usable_sample_count(Renderer* renderer)
 		return VK_SAMPLE_COUNT_2_BIT;
 	return VK_SAMPLE_COUNT_1_BIT;
 }
-void pick_physical_device(Renderer* renderer)
+void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer)
 {
+	if (direct_registry->physicalDevice)
+		return;
 	uint32_t deviceCount = 0;
-	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, 0));
+	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(direct_registry->instance, &deviceCount, 0));
 	if (deviceCount == 0)
 		throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find GPUs with Vulkan support!");
 	std::vector<VkPhysicalDevice> devices;
 	devices.resize(deviceCount);
-	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(renderer->instance, &deviceCount, devices.data()));
+	vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(direct_registry->instance, &deviceCount, devices.data()));
 	std::map<uint32_t, VkPhysicalDevice> physicalDeviceScores;
 	for (auto& device : devices)
 	{
-		physicalDeviceScores[rate_device_suitability(renderer, device)] = device;
+		physicalDeviceScores[rate_device_suitability(direct_registry, renderer, device)] = device;
 	}
 	auto end = physicalDeviceScores.end();
 	auto begin = physicalDeviceScores.begin();
@@ -349,26 +339,26 @@ void pick_physical_device(Renderer* renderer)
 	for (auto iter = begin; iter != end; ++iter)
 	{
 		auto device = iter->second;
-		if (is_device_suitable(renderer, device))
+		if (is_device_suitable(direct_registry, renderer, device))
 		{
-			renderer->physicalDevice = device;
-			renderer->maxMSAASamples = get_max_usable_sample_count(renderer);
+			direct_registry->physicalDevice = device;
+			direct_registry->maxMSAASamples = get_max_usable_sample_count(direct_registry, renderer);
 			selectedDeviceScore = iter->first;
 			break;
 		}
 		continue;
 	}
-	if (renderer->physicalDevice == VK_NULL_HANDLE)
+	if (direct_registry->physicalDevice == VK_NULL_HANDLE)
 	{
 		throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find a suitable GPU!");
 	}
 	VkPhysicalDeviceProperties physicalDeviceProperties;
-	vkGetPhysicalDeviceProperties(renderer->physicalDevice, &physicalDeviceProperties);
+	vkGetPhysicalDeviceProperties(direct_registry->physicalDevice, &physicalDeviceProperties);
 	std::cout << "Selected Physical Device: '" << physicalDeviceProperties.deviceName
 						<< "' with score of: " << selectedDeviceScore << std::endl;
 	return;
 }
-uint32_t rate_device_suitability(Renderer* renderer, VkPhysicalDevice device)
+uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device)
 {
 	uint32_t score = 0;
 	VkPhysicalDeviceProperties properties;
@@ -388,7 +378,7 @@ uint32_t rate_device_suitability(Renderer* renderer, VkPhysicalDevice device)
 	{
 		return 0;
 	}
-	auto indices = find_queue_families(renderer, device);
+	auto indices = find_queue_families(direct_registry, renderer, device);
 	if (indices.graphicsFamily != indices.presentFamily)
 	{
 		score += 1000;
@@ -396,12 +386,12 @@ uint32_t rate_device_suitability(Renderer* renderer, VkPhysicalDevice device)
 	std::cout << "Rated physical device [" << properties.deviceName << "] a score of: " << score << std::endl;
 	return score;
 }
-bool is_device_suitable(Renderer* renderer, VkPhysicalDevice device)
+bool is_device_suitable(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device)
 {
-	QueueFamilyIndices indices = find_queue_families(renderer, device);
+	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, device);
 	return indices.isComplete();
 }
-QueueFamilyIndices find_queue_families(Renderer* renderer, VkPhysicalDevice device)
+QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device)
 {
 	QueueFamilyIndices indices;
 	uint32_t queueFamilyCount = 0;
@@ -432,9 +422,11 @@ QueueFamilyIndices find_queue_families(Renderer* renderer, VkPhysicalDevice devi
 	return indices;
 }
 
-void create_logical_device(Renderer* renderer)
+void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer)
 {
-	QueueFamilyIndices indices = find_queue_families(renderer, renderer->physicalDevice);
+	if (direct_registry->device)
+		return;
+	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::vector<int32_t> uniqueQueueFamilies({indices.graphicsFamily, indices.presentFamily});
 	float queuePriority = 1;
@@ -462,10 +454,10 @@ void create_logical_device(Renderer* renderer)
 	uint32_t extensionCount = 0;
 	// Query number of available extensions
 	vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, 0));
+		vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, 0, &extensionCount, 0));
 	std::vector<VkExtensionProperties> deviceExtensions(extensionCount);
 	vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(renderer->physicalDevice, 0, &extensionCount, deviceExtensions.data()));
+		vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, 0, &extensionCount, deviceExtensions.data()));
 	for (const auto& ext : deviceExtensions)
 	{
 		if (std::strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0)
@@ -509,7 +501,7 @@ void create_logical_device(Renderer* renderer)
 	VkPhysicalDeviceFeatures2 deviceFeatures{};
 	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 	deviceFeatures.pNext = &vulkan12Features;
-	vkGetPhysicalDeviceFeatures2(renderer->physicalDevice, &deviceFeatures);
+	vkGetPhysicalDeviceFeatures2(direct_registry->physicalDevice, &deviceFeatures);
 	deviceFeatures.features.sampleRateShading = VK_TRUE;
 	deviceFeatures.features.depthClamp = VK_TRUE;
 	deviceFeatures.features.depthBiasClamp = VK_TRUE;
@@ -518,19 +510,20 @@ void create_logical_device(Renderer* renderer)
 	deviceFeatures.features.multiDrawIndirect = VK_TRUE;
 	deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
 	createInfo.pNext = &deviceFeatures;
-	auto createdDevice = vk_check("vkCreateDevice", vkCreateDevice(renderer->physicalDevice, &createInfo, 0, &renderer->device));
+	auto createdDevice = vk_check("vkCreateDevice", vkCreateDevice(direct_registry->physicalDevice, &createInfo, 0, &direct_registry->device));
 	if (!createdDevice)
 	{
 		throw std::runtime_error("VulkanRenderer-createLogicalDevice: failed to create device");
 	}
-	vkGetDeviceQueue(renderer->device, indices.graphicsFamily, 0, &renderer->graphicsQueue);
-	vkGetDeviceQueue(renderer->device, indices.presentFamily, 0, &renderer->presentQueue);
+	vkGetDeviceQueue(direct_registry->device, indices.graphicsFamily, 0, &direct_registry->graphicsQueue);
+	vkGetDeviceQueue(direct_registry->device, indices.presentFamily, 0, &direct_registry->presentQueue);
 	return;
 }
 
 bool create_swap_chain(Renderer* renderer)
 {
-	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(renderer, renderer->physicalDevice);
+	auto direct_registry = DZ_RGY.get();
+	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(renderer, direct_registry->physicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = choose_swap_present_mode(renderer, swapChainSupport.presentModes);
 	VkExtent2D extent = choose_swap_extent(renderer, swapChainSupport.capabilities);
@@ -553,7 +546,7 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.imageExtent = extent;
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-	QueueFamilyIndices indices = find_queue_families(renderer, renderer->physicalDevice);
+	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
 	uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphicsFamily, (uint32_t)indices.presentFamily};
 	if (indices.graphicsFamily != indices.presentFamily)
 	{
@@ -568,7 +561,7 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
 	VkSurfaceCapabilitiesKHR surfaceCapabilities;
 	vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &surfaceCapabilities));
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(direct_registry->physicalDevice, renderer->surface, &surfaceCapabilities));
 	if (surfaceCapabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 	{
 		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -584,11 +577,11 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.presentMode = presentMode;
 	createInfo.clipped = VK_TRUE;
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
-	vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(renderer->device, &createInfo, 0, &renderer->swapChain));
-	vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, 0));
+	vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(direct_registry->device, &createInfo, 0, &renderer->swapChain));
+	vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(direct_registry->device, renderer->swapChain, &imageCount, 0));
 	renderer->swapChainImages.resize(imageCount);
 	vk_check("vkGetSwapchainImagesKHR",
-		vkGetSwapchainImagesKHR(renderer->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
+		vkGetSwapchainImagesKHR(direct_registry->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
 	renderer->swapChainImageFormat = surfaceFormat.format;
 	renderer->swapChainExtent = extent;
 	return true;
@@ -596,26 +589,27 @@ bool create_swap_chain(Renderer* renderer)
 
 SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device)
 {
+	auto direct_registry = DZ_RGY.get();
 	SwapChainSupportDetails details;
 	vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(renderer->physicalDevice, renderer->surface, &details.capabilities));
+		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(direct_registry->physicalDevice, renderer->surface, &details.capabilities));
 	uint32_t formatCount;
 	vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-		vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, 0));
+		vkGetPhysicalDeviceSurfaceFormatsKHR(direct_registry->physicalDevice, renderer->surface, &formatCount, 0));
 	if (formatCount != 0)
 	{
 		details.formats.resize(formatCount);
 		vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-			vkGetPhysicalDeviceSurfaceFormatsKHR(renderer->physicalDevice, renderer->surface, &formatCount, details.formats.data()));
+			vkGetPhysicalDeviceSurfaceFormatsKHR(direct_registry->physicalDevice, renderer->surface, &formatCount, details.formats.data()));
 	}
 	uint32_t presentModeCount;
 	vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
-		vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, 0));
+		vkGetPhysicalDeviceSurfacePresentModesKHR(direct_registry->physicalDevice, renderer->surface, &presentModeCount, 0));
 	if (presentModeCount != 0)
 	{
 		details.presentModes.resize(presentModeCount);
 		vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
-			vkGetPhysicalDeviceSurfacePresentModesKHR(renderer->physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data()));
+			vkGetPhysicalDeviceSurfacePresentModesKHR(direct_registry->physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data()));
 	}
 	return details;
 }
@@ -659,29 +653,32 @@ VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capab
 
 void create_command_pool(Renderer* renderer)
 {
-	QueueFamilyIndices queueFamilyIndices = find_queue_families(renderer, renderer->physicalDevice);
+	auto direct_registry = DZ_RGY.get();
+	QueueFamilyIndices queueFamilyIndices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-	vk_check("vkCreateCommandPool", vkCreateCommandPool(renderer->device, &poolInfo, 0, &renderer->commandPool));
+	vk_check("vkCreateCommandPool", vkCreateCommandPool(direct_registry->device, &poolInfo, 0, &renderer->commandPool));
 	return;
 }
 
 void create_command_buffers(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.commandPool = renderer->commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = renderer->commandBuffers.size();
-	vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(renderer->device, &allocInfo, &renderer->commandBuffers[0]));
+	vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(direct_registry->device, &allocInfo, &renderer->commandBuffers[0]));
 	return;
 }
 
 void create_image_views(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	auto swapChainImagesSize = renderer->swapChainImages.size();
 	renderer->swapChainImageViews.resize(swapChainImagesSize);
 	for (uint32_t index = 0; index < swapChainImagesSize; index++)
@@ -700,13 +697,14 @@ void create_image_views(Renderer* renderer)
 		createInfo.subresourceRange.levelCount = 1;
 		createInfo.subresourceRange.baseArrayLayer = 0;
 		createInfo.subresourceRange.layerCount = 1;
-		vk_check("vkCreateImageView", vkCreateImageView(renderer->device, &createInfo, 0, &(renderer->swapChainImageViews[index])));
+		vk_check("vkCreateImageView", vkCreateImageView(direct_registry->device, &createInfo, 0, &(renderer->swapChainImageViews[index])));
 	}
 	return;
 }
 
 void create_render_pass(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	VkAttachmentDescription2 colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
 	colorAttachment.format = renderer->swapChainImageFormat;
@@ -743,12 +741,13 @@ void create_render_pass(Renderer* renderer)
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
-	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(renderer->device, &renderPassInfo, 0, &renderer->renderPass));
+	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(direct_registry->device, &renderPassInfo, 0, &renderer->renderPass));
 	return;
 }
 
 void create_framebuffers(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	auto swapChainImageViewsSize = renderer->swapChainImageViews.size();
 	renderer->swapChainFramebuffers.resize(swapChainImageViewsSize);
 	for (uint32_t index = 0; index < swapChainImageViewsSize; index++)
@@ -764,13 +763,14 @@ void create_framebuffers(Renderer* renderer)
 		framebufferInfo.height = renderer->swapChainExtent.height;
 		framebufferInfo.layers = 1;
 		vk_check("vkCreateFramebuffer",
-			vkCreateFramebuffer(renderer->device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index])));
+			vkCreateFramebuffer(direct_registry->device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index])));
 	}
 	return;
 }
 
 void create_sync_objects(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	renderer->imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderer->renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderer->inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -781,25 +781,26 @@ void create_sync_objects(Renderer* renderer)
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 	for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; j++)
 	{
-		vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j]));
-		vk_check("vkCreateSemaphore", vkCreateSemaphore(renderer->device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j]));
-		vk_check("vkCreateFence", vkCreateFence(renderer->device, &fenceInfo, 0, &renderer->inFlightFences[j]));
+		vk_check("vkCreateSemaphore", vkCreateSemaphore(direct_registry->device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j]));
+		vk_check("vkCreateSemaphore", vkCreateSemaphore(direct_registry->device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j]));
+		vk_check("vkCreateFence", vkCreateFence(direct_registry->device, &fenceInfo, 0, &renderer->inFlightFences[j]));
 	}
 	return;
 }
 
 void pre_begin_render_pass(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-	vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1,
+	vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
 		&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
-	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(renderer->device,
+	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(direct_registry->device,
 		renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
 		VK_NULL_HANDLE, &renderer->imageIndex));
 
-	vk_check("vkResetFences", vkResetFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
+	vk_check("vkResetFences", vkResetFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
 	renderer->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
 
 	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*renderer->commandBuffer, 0));
@@ -825,6 +826,7 @@ void begin_render_pass(Renderer* renderer)
 
 void post_render_pass(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	{
 		vkCmdEndRenderPass(*renderer->commandBuffer);
 		vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*renderer->commandBuffer));
@@ -837,10 +839,10 @@ void post_render_pass(Renderer* renderer)
 		renderer->signalSemaphores[0] = renderer->renderFinishedSemaphores[renderer->currentFrame];
 		renderer->submitInfo.signalSemaphoreCount = 1;
 		renderer->submitInfo.pSignalSemaphores = renderer->signalSemaphores;
-		vk_check("vkQueueSubmit", vkQueueSubmit(renderer->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
+		vk_check("vkQueueSubmit", vkQueueSubmit(direct_registry->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
 	}
     // {
-    //     vk_check("vkWaitForFences", vkWaitForFences(renderer->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+    //     vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
     // }
 	{
 		renderer->presentInfo.pWaitSemaphores = renderer->signalSemaphores;
@@ -852,7 +854,8 @@ void post_render_pass(Renderer* renderer)
 
 bool swap_buffers(Renderer* renderer)
 {    
-	auto result = vkQueuePresentKHR(renderer->presentQueue, &renderer->presentInfo);
+	auto direct_registry = DZ_RGY.get();
+	auto result = vkQueuePresentKHR(direct_registry->presentQueue, &renderer->presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
 		// if (!recreate_swap_chain(renderer))
@@ -868,10 +871,11 @@ bool swap_buffers(Renderer* renderer)
 
 void renderer_destroy(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	auto& window = *renderer->window;
-	auto& device = renderer->device;
+	auto& device = direct_registry->device;
 	vkDeviceWaitIdle(device);
-	window.registry.uid_shader_map.clear();
+	window.registry->uid_shader_map.clear();
 	for (auto& drawPair : renderer->drawBuffers)
 	{
 		vkDestroyBuffer(device, drawPair.second.first, 0);
@@ -902,12 +906,12 @@ void renderer_destroy(Renderer* renderer)
 	// }
 	// callDestroyAtRenderPassEndOrDestroy();
 	vkDestroyCommandPool(device, renderer->commandPool, 0);
-	vkDestroyDevice(device, 0);
 }
 
 void destroy_swap_chain(Renderer* renderer)
 {
-	auto& device = renderer->device;
+	auto direct_registry = DZ_RGY.get();
+	auto& device = direct_registry->device;
 	for (auto framebuffer : renderer->swapChainFramebuffers)
 	{
 		vkDestroyFramebuffer(device, framebuffer, 0);
@@ -951,31 +955,32 @@ void createBuffer(Renderer* renderer,
     VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
     VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
+	auto direct_registry = DZ_RGY.get();
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferInfo.size = size;
 	bufferInfo.usage = usage;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	if (!vk_check("vkCreateBuffer", vkCreateBuffer(renderer->device, &bufferInfo, 0, &buffer)))
+	if (!vk_check("vkCreateBuffer", vkCreateBuffer(direct_registry->device, &bufferInfo, 0, &buffer)))
 	{
 		throw std::runtime_error("failed to create buffer!");
 	}
 
 	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(renderer->device, buffer, &memRequirements);
+	vkGetBufferMemoryRequirements(direct_registry->device, buffer, &memRequirements);
 
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = FindMemoryType(renderer->physicalDevice, memRequirements.memoryTypeBits, properties);
+	allocInfo.memoryTypeIndex = FindMemoryType(direct_registry->physicalDevice, memRequirements.memoryTypeBits, properties);
 
-	if (!vk_check("vkAllocateMemory", vkAllocateMemory(renderer->device, &allocInfo, 0, &bufferMemory)))
+	if (!vk_check("vkAllocateMemory", vkAllocateMemory(direct_registry->device, &allocInfo, 0, &bufferMemory)))
 	{
 		throw std::runtime_error("failed to allocate buffer memory!");
 	}
 
-	vkBindBufferMemory(renderer->device, buffer, bufferMemory, 0);
+	vkBindBufferMemory(direct_registry->device, buffer, bufferMemory, 0);
 }
 
 bool vk_check(const char* fn, VkResult result)

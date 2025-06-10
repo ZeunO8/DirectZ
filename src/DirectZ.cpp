@@ -42,10 +42,30 @@ static std::unordered_map<ShaderModuleType, VkShaderStageFlagBits> stageFlags = 
 	{ShaderModuleType::Compute, VK_SHADER_STAGE_COMPUTE_BIT}};
 struct DirectRegistry
 {
+    uint8_t windowType;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue graphicsQueue;
+    VkQueue presentQueue;
+    VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
+    std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
 };
 namespace dz
 {
+    void direct_registry_create_instance(DirectRegistry* direct_registry);
+    std::shared_ptr<DirectRegistry> make_direct_registry()
+    {
+        auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
+	        vkDestroyDevice(dr->device, 0);
+            delete dr;
+        });
+        auto direct_registry = dr.get();
+        direct_registry->windowType = get_window_type_platform();
+        direct_registry_create_instance(direct_registry);
+        return dr;
+    }
     struct Renderer;
     struct Window;
     Renderer* renderer_init(Window* window);
@@ -54,4 +74,5 @@ namespace dz
     #include "Window.cpp"
     #include "Renderer.cpp"
     #include "Shader.cpp"
+    #include "BufferGroup.cpp"
 }

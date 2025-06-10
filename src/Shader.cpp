@@ -187,10 +187,18 @@ struct Shader
     std::map<uint32_t, VkDescriptorSetLayout> descriptor_set_layouts;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     std::map<uint32_t, VkDescriptorSet> descriptor_sets;
-    std::map<std::string, ShaderBuffer> buffers;
+    BufferGroup* buffer_group = 0;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline graphics_pipeline = VK_NULL_HANDLE;
     VkRenderPass render_pass = VK_NULL_HANDLE;
+    std::map<std::string, std::string> define_map;
+};
+
+struct BufferGroup
+{
+    std::string group_name;
+    std::map<std::string, ShaderBuffer> buffers;
+    std::map<Shader*, bool> shaders;
 };
 
 void shader_destroy(Shader* shader);
@@ -200,7 +208,7 @@ Shader* shader_create(Window* window)
     auto shader = new Shader{
         .window = window
     };
-    auto& dr = window->registry;
+    auto& dr = *window->registry;
     dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
         shader_destroy(shader);
         delete shader;
@@ -529,7 +537,7 @@ void ReflectAndPrepareBuffers(const SpvReflectShaderModule& module, Shader* shad
         }
 
         // If another shader stage already reflected this buffer, skip.
-        if (shader->buffers.count(name)) {
+        if (shader->buffer_group->buffers.count(name)) {
             continue;
         }
 
@@ -626,7 +634,7 @@ void ReflectAndPrepareBuffers(const SpvReflectShaderModule& module, Shader* shad
             continue; // Skip this buffer if element type can't be determined
         }
 
-        shader->buffers[name] = buffer_data;
+        shader->buffer_group->buffers[name] = buffer_data;
         std::cout << "Reflected buffer '" << name << "' (Set=" << buffer_data.set << ", Binding=" << buffer_data.binding
                   << ", Static Size=" << buffer_data.static_size << ", Element Stride=" << buffer_data.element_stride
                   << ", Element Type=" << buffer_data.element_type.name << ", Dynamic=" << (buffer_data.is_dynamic_sized ? "Yes" : "No") << ")" << std::endl;
@@ -1064,12 +1072,13 @@ bool AllocateDescriptorSets(VkDevice device, Shader* shader)
  */
 bool CreateAndBindShaderBuffers(Shader* shader)
 {
+	auto direct_registry = DZ_RGY.get();
     auto renderer = shader->window->renderer;
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     // We must store the buffer_info structs persistently for the vkUpdateDescriptorSets call
     std::vector<VkDescriptorBufferInfo> buffer_infos; 
 
-    for (auto& [name, buffer] : shader->buffers) {
+    for (auto& [name, buffer] : shader->buffer_group->buffers) {
         VkDeviceSize buffer_size = 0;
         if (buffer.is_dynamic_sized) {
             if (buffer.element_count == 0) {
@@ -1096,31 +1105,31 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         buffer_info.usage = usage;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateBuffer(renderer->device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(direct_registry->device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create buffer for " + name);
         }
 
         VkMemoryRequirements mem_reqs;
-        vkGetBufferMemoryRequirements(renderer->device, buffer.gpu_buffer.buffer, &mem_reqs);
+        vkGetBufferMemoryRequirements(direct_registry->device, buffer.gpu_buffer.buffer, &mem_reqs);
         
         VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
         alloc_info.allocationSize = mem_reqs.size;
-        alloc_info.memoryTypeIndex = FindMemoryType(renderer->physicalDevice, mem_reqs.memoryTypeBits, 
+        alloc_info.memoryTypeIndex = FindMemoryType(direct_registry->physicalDevice, mem_reqs.memoryTypeBits, 
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-        if (vkAllocateMemory(renderer->device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(direct_registry->device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
             throw std::runtime_error("Failed to allocate memory for buffer " + name);
         }
-        vkBindBufferMemory(renderer->device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
+        vkBindBufferMemory(direct_registry->device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
 
         // Persistently map the memory
-        vkMapMemory(renderer->device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
+        vkMapMemory(direct_registry->device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
         buffer.gpu_buffer.size = buffer_size;
 
         // --- Data Upload and Pointer Swap ---
         // Ensure data_ptr exists for fixed-size buffers if user wants to get it later
         if (!buffer.data_ptr) {
-            buffer.data_ptr = shader_get_buffer_data_ptr(shader, name);
+            buffer.data_ptr = buffer_group_get_buffer_data_ptr(shader->buffer_group, name);
         }
 
         // Copy from CPU staging pointer to mapped GPU pointer
@@ -1135,7 +1144,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         buffer.data_ptr.reset(static_cast<uint8_t*>(buffer.gpu_buffer.mapped_memory), [](uint8_t*){ /* Do nothing */ });
         std::cout << "Remapped data_ptr for '" << name << "' to point directly to GPU memory." << std::endl;
     }
-    for (auto& [name, buffer] : shader->buffers) {
+    for (auto& [name, buffer] : shader->buffer_group->buffers) {
         // Prepare the descriptor set write
         buffer_infos.emplace_back();
         buffer_infos.back().buffer = buffer.gpu_buffer.buffer;
@@ -1143,7 +1152,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         buffer_infos.back().range = buffer.gpu_buffer.size;
     }
     
-    for (auto& [name, buffer] : shader->buffers) {
+    for (auto& [name, buffer] : shader->buffer_group->buffers) {
         VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         write_set.dstSet = shader->descriptor_sets.at(buffer.set);
         write_set.dstBinding = buffer.binding;
@@ -1156,7 +1165,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
     }
     
     if (!descriptor_writes.empty()) {
-        vkUpdateDescriptorSets(renderer->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+        vkUpdateDescriptorSets(direct_registry->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
     }
 
     return true;
@@ -1175,10 +1184,10 @@ void shader_update_descriptor_sets(Shader* shader) {
     std::vector<VkDescriptorBufferInfo> buffer_infos; // Store these so pointers remain valid
 
     // Reserve space to avoid reallocations
-    writes.reserve(shader->buffers.size());
-    buffer_infos.reserve(shader->buffers.size());
+    writes.reserve(shader->buffer_group->buffers.size());
+    buffer_infos.reserve(shader->buffer_group->buffers.size());
 
-    for (const auto& pair : shader->buffers) {
+    for (const auto& pair : shader->buffer_group->buffers) {
         const auto& buffer = pair.second;
 
         // Ensure the descriptor set exists for this binding's set
@@ -1222,8 +1231,9 @@ void shader_update_descriptor_sets(Shader* shader) {
     }
 
     if (!writes.empty()) {
+	    auto direct_registry = DZ_RGY.get();
         // Call the Vulkan API function (mocked here)
-        vkUpdateDescriptorSets(shader->window->renderer->device,
+        vkUpdateDescriptorSets(direct_registry->device,
                                static_cast<uint32_t>(writes.size()),
                                writes.data(),
                                0, nullptr); // No descriptor copies in this case
@@ -1233,10 +1243,17 @@ void shader_update_descriptor_sets(Shader* shader) {
     }
 }
 
+void shader_initialize(Shader* shader)
+{
+    shader_create_resources(shader);
+    shader_compile(shader);
+    shader_update_descriptor_sets(shader);
+}
 
 void shader_create_resources(Shader* shader)
 {
-    auto& device = shader->window->renderer->device;
+	auto direct_registry = DZ_RGY.get();
+    auto& device = direct_registry->device;
 
     if (!CreateDescriptorSetLayouts(device, shader)) return;
     if (!CreateDescriptorPool(device, shader, 10)) return; // Max 10 sets of each type
@@ -1248,121 +1265,33 @@ void shader_create_resources(Shader* shader)
     std::cout << "Shader resources created and bound successfully using data-driven approach." << std::endl;
 }
 
-
-/**
- * @brief For dynamic SSBOs, sets the number of elements the buffer should hold.
- * This MUST be called before shader_create_resources().
- * This function also allocates the initial CPU-side staging buffer.
- *
- * @param shader The shader object.
- * @param buffer_name The GLSL variable name of the buffer.
- * @param element_count The number of elements to allocate space for.
- */
-void shader_set_buffer_element_count(Shader* shader, const std::string& buffer_name, uint32_t element_count)
+void shader_set_define(Shader* shader, const std::string& key, const std::string& value)
 {
-    if (shader->buffers.find(buffer_name) == shader->buffers.end()) {
-        std::cerr << "Warning: Cannot set element count for buffer '" << buffer_name << "'. It was not found in reflection." << std::endl;
-        return;
-    }
-
-    auto& buffer = shader->buffers.at(buffer_name);
-    if (!buffer.is_dynamic_sized) {
-        std::cerr << "Warning: Buffer '" << buffer_name << "' is not a dynamic, runtime-sized buffer." << std::endl;
-        return;
-    }
-
-    buffer.element_count = element_count;
-    size_t new_size = buffer.element_count * buffer.element_stride;
-
-    // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
-    buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
-    std::cout << "Set dynamic buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
-}
-
-/**
- * @brief Gets the shared pointer to the buffer's data.
- * Initially, this points to a CPU-side buffer. After resource creation, it will point
- * directly to the mapped GPU memory. The application can use this pointer to update data.
- *
- * @param shader The shader object.
- * @param buffer_name The GLSL variable name of the buffer.
- * @return A shared_ptr to the raw buffer data.
- */
-std::shared_ptr<uint8_t> shader_get_buffer_data_ptr(Shader* shader, const std::string& buffer_name)
-{
-    if (shader->buffers.find(buffer_name) == shader->buffers.end()) {
-        std::cerr << "Error: Buffer '" << buffer_name << "' not found." << std::endl;
-        return nullptr;
-    }
-    auto& buffer = shader->buffers.at(buffer_name);
-
-    // If this is a fixed-size buffer and the data hasn't been allocated yet, do it now.
-    if (!buffer.data_ptr && !buffer.is_dynamic_sized) {
-        buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[buffer.static_size], std::default_delete<uint8_t[]>());
-    }
-
-    return buffer.data_ptr;
-}
-
-/**
- * @brief Gets a reflected view of a specific struct element within a shader buffer.
- * This view allows updating individual members of the struct by name, handling
- * memory layout differences (padding, alignment) automatically.
- *
- * This function is intended for buffers whose `element_type` is a struct (e.g., UBOs, SSBOs of structs).
- *
- * @param shader The shader object.
- * @param buffer_name The GLSL variable name of the buffer (e.g., "ubo_scene", "particles").
- * @param index The 0-based index of the element to view (for SSBOs). For UBOs, this is usually 0.
- * @return A ReflectedStructView object.
- * @throws std::runtime_error if the buffer/element is not found, data_ptr is null,
- * index is out of bounds, or the element type is not a struct.
- */
-ReflectedStructView shader_get_buffer_element_view(Shader* shader, const std::string& buffer_name, uint32_t index)
-{
-    // Find the ShaderBuffer
-    auto it = shader->buffers.find(buffer_name);
-    if (it == shader->buffers.end()) {
-        throw std::runtime_error("shader_get_buffer_element_view: Buffer '" + buffer_name + "' not found.");
-    }
-    ShaderBuffer& buffer = it->second;
-
-    // Ensure data_ptr is valid (allocated CPU-side or mapped GPU-side)
-    if (!buffer.data_ptr) {
-        // If it's a fixed-size buffer and data isn't allocated, attempt to allocate it now.
-        if (!buffer.is_dynamic_sized && buffer.static_size > 0) {
-            buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[buffer.static_size], std::default_delete<uint8_t[]>());
-            std::cout << "Info: Allocating CPU-side buffer for fixed-size buffer '" << buffer_name << "' on first view access." << std::endl;
-        } else {
-            throw std::runtime_error("shader_get_buffer_element_view: Buffer data_ptr is null for '" + buffer_name + "'. "
-                                     "Ensure shader_set_buffer_element_count() was called for dynamic buffers, or it's mapped/allocated.");
-        }
-    }
-
-    // Validate index for dynamic buffers
-    if (index >= buffer.element_count) {
-        throw std::out_of_range("shader_get_buffer_element_view: Index " + std::to_string(index) +
-                                " is out of bounds for buffer '" + buffer_name + "' (element count: " + std::to_string(buffer.element_count) + ").");
-    }
-
-    // Calculate the base address of the desired element within the buffer's data_ptr
-    uint8_t* element_base_ptr = buffer.data_ptr.get() + (index * buffer.element_stride);
-
-    // Get the ReflectedStruct definition for the element type
-    if (buffer.element_type.type_kind != "struct") {
-         throw std::runtime_error("shader_get_buffer_element_view: Buffer '" + buffer_name + "' element is not a struct type. Type kind: " + buffer.element_type.type_kind);
-    }
-
-    for (auto& shaderModulePair : shader->module_map)
-    {
-        const ReflectedStruct& reflected_struct_def = getCanonicalStruct(shaderModulePair.second.reflection, buffer.element_type);
-        // Return the ReflectedStructView
-        return ReflectedStructView(element_base_ptr, reflected_struct_def);
-    }
-    throw std::runtime_error("Could not get ReflectedStruct");
+    shader->define_map.emplace(key, value);
 }
 
 void shader_init_module(Shader* shader, ShaderModule& shader_module);
+
+size_t find_newline_after_token(const std::string& input, const std::string& token)
+{
+    // Find the first occurrence of the token in the string
+    size_t token_pos = input.find(token);
+
+    // If token is not found, return std::string::npos as an indicator of failure
+    if (token_pos == std::string::npos)
+    {
+        return std::string::npos;
+    }
+
+    // Calculate the position after the token ends to start searching for newline from there
+    size_t search_start = token_pos + token.length();
+
+    // Find the first occurrence of newline '\n' after the token position
+    size_t newline_pos = input.find('\n', search_start);
+
+    // Return the index of the newline (or npos if not found)
+    return newline_pos;
+}
 
 void shader_add_module(
     Shader* shader,
@@ -1372,11 +1301,19 @@ void shader_add_module(
 {
 	if (!shader)
 		throw std::runtime_error("shader is null");
+    auto shaderString = glsl_source;
+    auto after_version_idx = find_newline_after_token(shaderString, "#version") + 1;
+    for (auto& define_pair : shader->define_map)
+    {
+        std::string defineString("#define ");
+        defineString += define_pair.first + " " + define_pair.second + "\n";
+        auto next_it = shaderString.insert(shaderString.begin() + after_version_idx, defineString.begin(), defineString.end());
+        after_version_idx = std::distance(shaderString.begin(), next_it + defineString.size());
+    }
     std::cout << "Adding Shader Module!" << std::endl << std::endl
-              << glsl_source << std::endl;
+              << shaderString << std::endl;
 	shaderc::Compiler compiler;
 	shaderc::CompileOptions compileOptions;
-	auto& shaderString = glsl_source;
 	auto stage = stageEShaderc[module_type];
 	shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
         shaderString.c_str(),
@@ -1399,13 +1336,23 @@ void shader_init_module(Shader* shader, ShaderModule& shader_module)
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	create_info.codeSize = 4 * shader_module.spirv_vec.size();
 	create_info.pCode = shader_module.spirv_vec.data();
-    vkCreateShaderModule(shader->window->renderer->device, &create_info, 0, &shader_module.vk_module);
+	auto direct_registry = DZ_RGY.get();
+    vkCreateShaderModule(direct_registry->device, &create_info, 0, &shader_module.vk_module);
+}
+
+void shader_set_buffer_group(Shader* shader, BufferGroup* buffer_group)
+{
+    if (shader->buffer_group)
+        shader->buffer_group->shaders.erase(shader);
+    shader->buffer_group = buffer_group;
+    buffer_group->shaders[shader] = true;
 }
 
 void shader_compile(Shader* shader)
 {
     auto& window = *shader->window;
-    auto device = window.renderer->device;
+	auto direct_registry = DZ_RGY.get();
+    auto device = direct_registry->device;
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1567,19 +1514,19 @@ void shader_compile(Shader* shader)
     std::cout << "Created graphics pipeline: " << shader->graphics_pipeline << std::endl;
 }
 
-void shader_bind(Shader* shader)
+void shader_bind(Renderer* renderer, Shader* shader)
 {
-    auto& renderer = *shader->window->renderer;
     if (shader->graphics_pipeline == VK_NULL_HANDLE) {
         std::cerr << "Error: Attempted to bind a null graphics pipeline." << std::endl;
         return;
     }
-    vkCmdBindPipeline(*renderer.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->graphics_pipeline);
+    vkCmdBindPipeline(*renderer->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->graphics_pipeline);
     // std::cout << "Bound Pipeline " << shader->graphics_pipeline <<  std::endl;
 }
 
 void renderer_draw_one(Renderer* renderer, Shader* shader)
 {
+	auto direct_registry = DZ_RGY.get();
     std::vector<DrawIndirectCommand> commands;
     commands.push_back({
         6,
@@ -1625,15 +1572,15 @@ void renderer_draw_one(Renderer* renderer, Shader* shader)
 		i_command.firstInstance = v_command.firstInstance;
 	}
 	void* drawBufferData;
-	vkMapMemory(renderer->device, drawBufferPair.second, 0, VK_WHOLE_SIZE, 0, &drawBufferData);
+	vkMapMemory(direct_registry->device, drawBufferPair.second, 0, VK_WHOLE_SIZE, 0, &drawBufferData);
 	memcpy(drawBufferData, i_commands_data, drawsSize * sizeof(VkDrawIndirectCommand));
-	vkUnmapMemory(renderer->device, drawBufferPair.second);
+	vkUnmapMemory(direct_registry->device, drawBufferPair.second);
 
 	uint32_t drawCount = static_cast<uint32_t>(drawsSize);
 	void* countBufferData;
-	vkMapMemory(renderer->device, countBufferPair.second, 0, VK_WHOLE_SIZE, 0, &countBufferData);
+	vkMapMemory(direct_registry->device, countBufferPair.second, 0, VK_WHOLE_SIZE, 0, &countBufferData);
 	memcpy(countBufferData, &drawCount, sizeof(uint32_t));
-	vkUnmapMemory(renderer->device, countBufferPair.second);
+	vkUnmapMemory(direct_registry->device, countBufferPair.second);
 
     std::vector<VkDescriptorSet> sets;
     sets.reserve(shader->descriptor_sets.size());
@@ -1657,13 +1604,14 @@ void renderer_draw_one(Renderer* renderer, Shader* shader)
 
 void shader_destroy(Shader* shader)
 {
-    auto& device = shader->window->renderer->device;
+	auto direct_registry = DZ_RGY.get();
+    auto& device = direct_registry->device;
     for (auto& pair : shader->descriptor_set_layouts)
     {
         vkDestroyDescriptorSetLayout(device, pair.second, 0);
     }
     vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
-    for (auto& bufferPair : shader->buffers)
+    for (auto& bufferPair : shader->buffer_group->buffers)
     {
         vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);
         vkFreeMemory(device, bufferPair.second.gpu_buffer.memory, 0);

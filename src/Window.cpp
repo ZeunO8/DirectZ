@@ -14,14 +14,13 @@ struct Window
     float height;
     bool borderless;
     bool vsync;
-    uint8_t windowType;
 	std::chrono::system_clock::time_point lastFrame;
 	float frametime;
 	vec<bool, 256> keys;
 	vec<bool, 8> buttons;
 	uint8_t mod = 0;
     Renderer* renderer = 0;
-    DirectRegistry registry;
+    std::shared_ptr<DirectRegistry> registry;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;
@@ -55,10 +54,15 @@ void window_post_init_platform(Window* window);
 Window* window_create(const WindowCreateInfo& info)
 {
     auto window = new Window{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
+	window->registry = DZ_RGY;
     window_create_platform(window);
     window->renderer = renderer_init(window);
     window_post_init_platform(window);
     return window;
+}
+void window_use_other_registry(Window* window, Window* other_window)
+{
+	window->registry = other_window->registry;
 }
 bool window_poll_events(Window* window)
 {
@@ -90,6 +94,14 @@ vec<bool, 256>& window_get_all_keypress_ref(Window* window, uint8_t keycode)
 {
 	return window->keys;
 }
+float& window_get_width_ref(Window* window)
+{
+	return window->width;
+}
+float& window_get_height_ref(Window* window)
+{
+	return window->height;
+}
 void window_free(Window* window)
 {
     renderer_free(window->renderer);
@@ -119,9 +131,12 @@ void SetupPixelFormat(HDC hDeviceContext)
 		throw std::runtime_error("failed to setPixelFormat!");
 	}
 }
+uint8_t get_window_type_platform()
+{
+	return WINDOW_TYPE_WIN32;
+}
 void window_create_platform(Window* window)
 {
-    window->windowType = WINDOW_TYPE_WIN32;
 	if (!window->setDPIAware)
 	{
 		HRESULT hr = SetProcessDPIAware();
@@ -316,6 +331,16 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 	case WM_KEYUP:
 		{
+			if (msg == WM_KEYDOWN)
+			{
+				// Check bit 30 of lParam: 1 if key was already down (i.e., autorepeat), 0 if it was previously up
+				bool isAutoRepeat = (lParam & (1 << 30)) != 0;
+
+				if (isAutoRepeat)
+				{
+					goto _default;
+				}
+			}
 			auto mod = ((GetKeyState(VK_CONTROL) & 0x8000) >> 15) | ((GetKeyState(VK_SHIFT) & 0x8000) >> 14) |
 				((GetKeyState(VK_MENU) & 0x8000) >> 13) | (((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) >> 12);
 			auto keycodeHiword = HIWORD(lParam) & 0x1ff;
@@ -358,6 +383,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	// 		break;
 	// 	};
 	default:
+	_default:
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;

@@ -39,5 +39,9 @@ namespace dz
     float& window_get_frametime_ref(Window* window);
     bool& window_get_keypress_ref(Window* window, uint8_t keycode);
     vec<bool, 256>& window_get_all_keypress_ref(Window* window, uint8_t keycode);
+    float& window_get_width_ref(Window* window);
+    float& window_get_height_ref(Window* window);
+    void window_use_other_registry(Window* window, Window* other_window);
+    uint8_t get_window_type_platform();
     void window_free(Window* window);
 }
