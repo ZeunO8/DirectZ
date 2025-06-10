@@ -19,8 +19,11 @@ struct Window
 	vec<bool, 256> keys;
 	vec<bool, 8> buttons;
 	uint8_t mod = 0;
+	VkViewport viewport = {};
+	VkRect2D scissor = {};
     Renderer* renderer = 0;
     std::shared_ptr<DirectRegistry> registry;
+	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;
@@ -54,15 +57,43 @@ void window_post_init_platform(Window* window);
 Window* window_create(const WindowCreateInfo& info)
 {
     auto window = new Window{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
+
+	auto& viewport = window->viewport;
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = info.width;
+	viewport.height = info.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	auto& scissor = window->scissor;
+	scissor.offset = {0, 0};
+	scissor.extent = {uint32_t(info.width), uint32_t(info.height)};
+
 	window->registry = DZ_RGY;
+
     window_create_platform(window);
+
     window->renderer = renderer_init(window);
+
     window_post_init_platform(window);
+
     return window;
 }
 void window_use_other_registry(Window* window, Window* other_window)
 {
 	window->registry = other_window->registry;
+}
+void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group)
+{
+	window->draw_list_managers[mgr].insert(buffer_group);
+}
+void window_remove_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group)
+{
+	auto& vect = window->draw_list_managers[mgr];
+	vect.erase(buffer_group);
+	if (vect.empty())
+		window->draw_list_managers.erase(mgr);
 }
 bool window_poll_events(Window* window)
 {

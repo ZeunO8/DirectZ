@@ -5,10 +5,5 @@
 #include <dz/BufferGroup.hpp>
 #include <dz/Shader.hpp>
 #include <dz/Window.hpp>
-struct DirectRegistry;
-namespace dz
-{
-    std::shared_ptr<DirectRegistry> make_direct_registry();
-    inline static std::shared_ptr<DirectRegistry> DZ_RGY = make_direct_registry();
-}
+#include <dz/DrawListManager.hpp>
 #include <dz/math.hpp>

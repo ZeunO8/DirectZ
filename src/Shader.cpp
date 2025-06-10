@@ -15,6 +15,7 @@ bool hasCanonicalStruct(const ReflectedType& type);
 
 uint32_t GetMinimumTypeSizeInBytes(const SpvReflectTypeDescription& type_desc);
 uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc);
+bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader);
 
 struct ReflectedVariable
 {
@@ -182,12 +183,12 @@ struct ShaderBuffer
 
 struct Shader
 {
-    Window* window;
     std::map<ShaderModuleType, ShaderModule> module_map;
     std::map<uint32_t, VkDescriptorSetLayout> descriptor_set_layouts;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     std::map<uint32_t, VkDescriptorSet> descriptor_sets;
-    BufferGroup* buffer_group = 0;
+    std::map<BufferGroup*, bool> buffer_groups;
+    BufferGroup* current_buffer_group = 0;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline graphics_pipeline = VK_NULL_HANDLE;
     VkRenderPass render_pass = VK_NULL_HANDLE;
@@ -203,12 +204,10 @@ struct BufferGroup
 
 void shader_destroy(Shader* shader);
 
-Shader* shader_create(Window* window)
+Shader* shader_create()
 {
-    auto shader = new Shader{
-        .window = window
-    };
-    auto& dr = *window->registry;
+    auto shader = new Shader;
+    auto& dr = *DZ_RGY;
     dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
         shader_destroy(shader);
         delete shader;
@@ -517,7 +516,7 @@ void ReflectStructMembers(
     }
 }
 
-void ReflectAndPrepareBuffers(const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection)
+void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection)
 {
     for (uint32_t i = 0; i < module.descriptor_binding_count; ++i)
     {
@@ -537,7 +536,7 @@ void ReflectAndPrepareBuffers(const SpvReflectShaderModule& module, Shader* shad
         }
 
         // If another shader stage already reflected this buffer, skip.
-        if (shader->buffer_group->buffers.count(name)) {
+        if (buffer_group->buffers.count(name)) {
             continue;
         }
 
@@ -634,7 +633,7 @@ void ReflectAndPrepareBuffers(const SpvReflectShaderModule& module, Shader* shad
             continue; // Skip this buffer if element type can't be determined
         }
 
-        shader->buffer_group->buffers[name] = buffer_data;
+        buffer_group->buffers[name] = buffer_data;
         std::cout << "Reflected buffer '" << name << "' (Set=" << buffer_data.set << ", Binding=" << buffer_data.binding
                   << ", Static Size=" << buffer_data.static_size << ", Element Stride=" << buffer_data.element_stride
                   << ", Element Type=" << buffer_data.element_type.name << ", Dynamic=" << (buffer_data.is_dynamic_sized ? "Yes" : "No") << ")" << std::endl;
@@ -923,7 +922,12 @@ void shader_reflect(Shader* shader, ShaderModuleType module_type, shaderc_shader
     ReflectIO(module, shader_module.reflection);
     ReflectPushConstants(module, shader_module.reflection);
     ReflectEntryPoints(module);
-    ReflectAndPrepareBuffers(module, shader, shader_module.reflection);
+
+    for (auto& bgp : shader->buffer_groups)
+    {
+        auto buffer_group = bgp.first;
+        ReflectAndPrepareBuffers(buffer_group, module, shader, shader_module.reflection);
+    }
 
     PrintShaderReflection(shader);
 
@@ -1070,15 +1074,14 @@ bool AllocateDescriptorSets(VkDevice device, Shader* shader)
  * @brief The core creation function. It iterates the prepared ShaderBuffer map, creates the
  * actual Vulkan buffers, copies initial data, and performs the shared_ptr swap.
  */
-bool CreateAndBindShaderBuffers(Shader* shader)
+bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
 {
 	auto direct_registry = DZ_RGY.get();
-    auto renderer = shader->window->renderer;
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     // We must store the buffer_info structs persistently for the vkUpdateDescriptorSets call
     std::vector<VkDescriptorBufferInfo> buffer_infos; 
 
-    for (auto& [name, buffer] : shader->buffer_group->buffers) {
+    for (auto& [name, buffer] : buffer_group->buffers) {
         VkDeviceSize buffer_size = 0;
         if (buffer.is_dynamic_sized) {
             if (buffer.element_count == 0) {
@@ -1129,7 +1132,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         // --- Data Upload and Pointer Swap ---
         // Ensure data_ptr exists for fixed-size buffers if user wants to get it later
         if (!buffer.data_ptr) {
-            buffer.data_ptr = buffer_group_get_buffer_data_ptr(shader->buffer_group, name);
+            buffer.data_ptr = buffer_group_get_buffer_data_ptr(buffer_group, name);
         }
 
         // Copy from CPU staging pointer to mapped GPU pointer
@@ -1144,7 +1147,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         buffer.data_ptr.reset(static_cast<uint8_t*>(buffer.gpu_buffer.mapped_memory), [](uint8_t*){ /* Do nothing */ });
         std::cout << "Remapped data_ptr for '" << name << "' to point directly to GPU memory." << std::endl;
     }
-    for (auto& [name, buffer] : shader->buffer_group->buffers) {
+    for (auto& [name, buffer] : buffer_group->buffers) {
         // Prepare the descriptor set write
         buffer_infos.emplace_back();
         buffer_infos.back().buffer = buffer.gpu_buffer.buffer;
@@ -1152,7 +1155,7 @@ bool CreateAndBindShaderBuffers(Shader* shader)
         buffer_infos.back().range = buffer.gpu_buffer.size;
     }
     
-    for (auto& [name, buffer] : shader->buffer_group->buffers) {
+    for (auto& [name, buffer] : buffer_group->buffers) {
         VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         write_set.dstSet = shader->descriptor_sets.at(buffer.set);
         write_set.dstBinding = buffer.binding;
@@ -1184,10 +1187,10 @@ void shader_update_descriptor_sets(Shader* shader) {
     std::vector<VkDescriptorBufferInfo> buffer_infos; // Store these so pointers remain valid
 
     // Reserve space to avoid reallocations
-    writes.reserve(shader->buffer_group->buffers.size());
-    buffer_infos.reserve(shader->buffer_group->buffers.size());
+    writes.reserve(shader->current_buffer_group->buffers.size());
+    buffer_infos.reserve(shader->current_buffer_group->buffers.size());
 
-    for (const auto& pair : shader->buffer_group->buffers) {
+    for (const auto& pair : shader->current_buffer_group->buffers) {
         const auto& buffer = pair.second;
 
         // Ensure the descriptor set exists for this binding's set
@@ -1247,7 +1250,6 @@ void shader_initialize(Shader* shader)
 {
     shader_create_resources(shader);
     shader_compile(shader);
-    shader_update_descriptor_sets(shader);
 }
 
 void shader_create_resources(Shader* shader)
@@ -1258,9 +1260,6 @@ void shader_create_resources(Shader* shader)
     if (!CreateDescriptorSetLayouts(device, shader)) return;
     if (!CreateDescriptorPool(device, shader, 10)) return; // Max 10 sets of each type
     if (!AllocateDescriptorSets(device, shader)) return;
-    
-    // This new function handles creating the actual VkBuffer objects and updating the descriptor sets
-    if (!CreateAndBindShaderBuffers(shader)) return;
 
     std::cout << "Shader resources created and bound successfully using data-driven approach." << std::endl;
 }
@@ -1340,17 +1339,20 @@ void shader_init_module(Shader* shader, ShaderModule& shader_module)
     vkCreateShaderModule(direct_registry->device, &create_info, 0, &shader_module.vk_module);
 }
 
-void shader_set_buffer_group(Shader* shader, BufferGroup* buffer_group)
+void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group)
 {
-    if (shader->buffer_group)
-        shader->buffer_group->shaders.erase(shader);
-    shader->buffer_group = buffer_group;
     buffer_group->shaders[shader] = true;
+    shader->buffer_groups[buffer_group] = true;
+}
+
+void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group)
+{
+    buffer_group->shaders.erase(shader);
+    shader->buffer_groups.erase(buffer_group);
 }
 
 void shader_compile(Shader* shader)
 {
-    auto& window = *shader->window;
 	auto direct_registry = DZ_RGY.get();
     auto device = direct_registry->device;
 
@@ -1400,27 +1402,36 @@ void shader_compile(Shader* shader)
     inputAssembly.primitiveRestartEnable = VK_FALSE;
     std::cout << "Configured input assembly state." << std::endl;
 
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = window.width;
-    viewport.height = window.height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+    std::vector<VkDynamicState> dynamicStates =
+    {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
 
-    VkRect2D scissor{};
-    scissor.offset.x = 0;
-    scissor.offset.y = 0;
-    scissor.extent.width = window.width;
-    scissor.extent.height = window.height;
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+    VkViewport dummyViewport{};
+    dummyViewport.x = 0.0f;
+    dummyViewport.y = 0.0f;
+    dummyViewport.width = 1.0f;
+    dummyViewport.height = 1.0f;
+    dummyViewport.minDepth = 0.0f;
+    dummyViewport.maxDepth = 1.0f;
+
+    VkRect2D dummyScissor{};
+    dummyScissor.offset = {0, 0};
+    dummyScissor.extent = {1, 1};
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
+    viewportState.pViewports = &dummyViewport;
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
-    std::cout << "Configured viewport state." << std::endl;
+    viewportState.pScissors = &dummyScissor;
+    std::cout << "Configured dynamic viewport state." << std::endl;
 
     // d. Rasterization State
     // Controls how primitives are converted into fragments.
@@ -1501,9 +1512,9 @@ void shader_compile(Shader* shader)
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = nullptr; // No dynamic states in this example
+    pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = shader->pipeline_layout;
-    pipelineInfo.renderPass = window.renderer->renderPass; // Your render pass handle
+    pipelineInfo.renderPass = direct_registry->surfaceRenderPass; // Your render pass handle
     pipelineInfo.subpass = 0; // The subpass index within the render pass
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional: for pipeline derivation
     pipelineInfo.basePipelineIndex = -1;
@@ -1524,16 +1535,36 @@ void shader_bind(Renderer* renderer, Shader* shader)
     // std::cout << "Bound Pipeline " << shader->graphics_pipeline <<  std::endl;
 }
 
-void renderer_draw_one(Renderer* renderer, Shader* shader)
+void renderer_render(Renderer* renderer)
+{
+    pre_begin_render_pass(renderer);
+    begin_render_pass(renderer);
+    auto& window = *renderer->window;
+    vkCmdSetViewport(*renderer->commandBuffer, 0, 1, &window.viewport);
+    vkCmdSetScissor(*renderer->commandBuffer, 0, 1, &window.scissor);
+    for (auto& draw_mgr_group_vec_pair : window.draw_list_managers)
+    {
+        auto& draw_mgr = *draw_mgr_group_vec_pair.first;
+        auto& group_vec = draw_mgr_group_vec_pair.second;
+        for (auto& buffer_group : group_vec)
+        {
+            auto shaderDrawList = draw_mgr.genDrawList(buffer_group);
+            for (auto& shader_pair : shaderDrawList)
+            {
+                auto shader = shader_pair.first;
+                auto& draw_list = shader_pair.second;
+                shader_bind(renderer, shader);
+			    renderer_draw_commands(renderer, shader, draw_list);
+            }
+        }
+    }
+    post_render_pass(renderer);
+    swap_buffers(renderer);
+}
+
+void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands)
 {
 	auto direct_registry = DZ_RGY.get();
-    std::vector<DrawIndirectCommand> commands;
-    commands.push_back({
-        6,
-        1,
-        0,
-        0
-    });
 	auto drawsSize = commands.size();
 	auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
 	VkCommandBuffer passCB = *renderer->commandBuffer;
@@ -1611,11 +1642,6 @@ void shader_destroy(Shader* shader)
         vkDestroyDescriptorSetLayout(device, pair.second, 0);
     }
     vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
-    for (auto& bufferPair : shader->buffer_group->buffers)
-    {
-        vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);
-        vkFreeMemory(device, bufferPair.second.gpu_buffer.memory, 0);
-    }
     for (auto& modulePair : shader->module_map)
     {
         auto& module = modulePair.second;

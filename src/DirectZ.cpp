@@ -12,6 +12,7 @@ using namespace dz;
 #include <optional>
 #include <array>
 #include <chrono>
+#include <set>
 #include <dz/GlobalUID.hpp>
 #include <spirv_cross/spirv_cross.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
@@ -46,6 +47,8 @@ struct DirectRegistry
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device = VK_NULL_HANDLE;
+    VkSurfaceFormatKHR firstSurfaceFormat = {};
+    VkRenderPass surfaceRenderPass = VK_NULL_HANDLE;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -58,6 +61,8 @@ namespace dz
     std::shared_ptr<DirectRegistry> make_direct_registry()
     {
         auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
+            dr->buffer_groups.clear();
+	        vkDestroyRenderPass(dr->device, dr->surfaceRenderPass, 0);
 	        vkDestroyDevice(dr->device, 0);
             delete dr;
         });
@@ -66,6 +71,7 @@ namespace dz
         direct_registry_create_instance(direct_registry);
         return dr;
     }
+    std::shared_ptr<DirectRegistry> DZ_RGY = make_direct_registry();
     struct Renderer;
     struct Window;
     Renderer* renderer_init(Window* window);

@@ -11,6 +11,28 @@ struct Entity
     int mesh_index;
     int material_index;
     int camera_index;
+    int padding;
+    void set_model()
+    {
+        mat<float, 4, 4> final_model(1.0f),
+        translate_model(1.0f),
+        rotation_model(1.0f),
+        scale_model(1.0f);
+
+        translate_model.translate(vec<float, 3>(position));
+        for (size_t i = 0; i < 3; ++i)
+        {
+            vec<float, 3> axis;
+            axis[i] = 1;
+            rotation_model.rotate<3>(radians(rotation[i]), axis);
+        }
+
+        scale_model.scale(vec<float, 3>(scale));
+
+        final_model = translate_model * rotation_model * scale_model;
+        model = final_model;
+        inverseModel = model.inverse();
+    }
 };
 
 int main()
@@ -32,17 +54,19 @@ int main()
 
     auto stat_window = window_create({
         .title = "Shader Reflect Stats",
-        .x = 640,
+        .x = 660,
         .y = 240,
-        .width = 240,
+        .width = 640,
         .height = 480,
         .borderless = true,
         .vsync = false
     });
 
+    // window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg);
+
     // window_use_other_registry(stat_window, main_window);
 
-//     auto update_entity_shader = shader_create(main_window);
+//     auto update_entity_shader = shader_create();
 
 //     shader_add_module(update_entity_shader, ShaderModuleType::Compute, R"(
 // #version 450
@@ -51,9 +75,17 @@ int main()
 // }
 // )");
 
-    auto main_entity_shader = shader_create(main_window);
+    auto main_entity_shader = shader_create();
 
-    shader_set_buffer_group(main_entity_shader, main_buffer_group);
+    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> std::pair<Shader*, uint32_t> {
+        auto mesh_index = entity.mesh_index;
+        return {main_entity_shader, 6}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
+    });
+
+    window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
+    window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg, main_buffer_group);
+
+    shader_add_buffer_group(main_entity_shader, main_buffer_group);
 
     shader_set_define(main_entity_shader, "SUPER_MIP", "3.1415");
     shader_set_define(main_entity_shader, "MAEGA_MIP", "5.7832");
@@ -93,6 +125,7 @@ struct Entity
     int mesh_index;
     int material_index;
     int camera_index;
+    int padding;
 };
 
 layout(std430, binding = 2) buffer EntitiesBuffer
@@ -196,12 +229,13 @@ void main()
 
     buffer_group_set_buffer_element_count(main_buffer_group, "Materials", 1);
     buffer_group_set_buffer_element_count(main_buffer_group, "Meshes", 1);
-    buffer_group_set_buffer_element_count(main_buffer_group, "Entities", 5);
+    std::vector<Entity*> entity_ptrs;
+    entity_ptrs.resize(5);
+    buffer_group_set_buffer_element_count(main_buffer_group, "Entities", entity_ptrs.size());
     buffer_group_set_buffer_element_count(main_buffer_group, "Cameras", 1);
     
-    // 
-
-    shader_initialize(main_entity_shader);
+    
+    buffer_group_initialize(main_buffer_group);
 
     //
 
@@ -214,12 +248,23 @@ void main()
 
     mesh_1_view.set_member("shape_type", 0);
 
-    auto entity_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entities", 0);
-    auto& entity_1 = entity_1_view.as_struct<Entity>();
+    for (size_t i = 0; i < entity_ptrs.size(); ++i)
+    {
+        auto entity_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entities", i);
+        auto& entity_1 = entity_1_view.as_struct<Entity>();
+        entity_ptrs[i] = &entity_1;
+    }
 
-    entity_1.mesh_index = 0;
-    entity_1.material_index = 0;
-    entity_1.camera_index = 0;
+    long c = -2;
+    for (auto& ep : entity_ptrs)
+    {
+        auto& entity = *ep;
+        entity.mesh_index = 0;
+        entity.material_index = 0;
+        entity.camera_index = 0;
+        entity.scale = {1, 1, 1, 1};
+        entity.position[1] = (c++ * 1.5);
+    }
 
     auto camera_1 = buffer_group_get_buffer_element_view(main_buffer_group, "Cameras", 0);
 
@@ -233,19 +278,6 @@ void main()
     // camera_1_projection = orthographic<float>(-2, 2, -2, 2, 0.01, 100.f);
     camera_1_inverse_view = camera_1_view.inverse();
     camera_1_inverse_projection = camera_1_projection.inverse();
-
-    //
-
-    auto& entity_1_position = entity_1.position;
-    auto& entity_1_scale = entity_1.scale;
-    auto& entity_1_rotation = entity_1.rotation;
-
-    entity_1_scale = {1, 1, 1, 1};
-
-    auto& entity_1_model = entity_1.model;
-    auto& entity_1_inverseModel = entity_1.inverseModel;
-
-    entity_1_model = mat<float, 4, 4>(1.0f);
 
     vec<float, 4> th_vec(1.00, 0, 0, 0);
     vec<float, 4> tv_vec(0, -1.00, 0, 0);
@@ -272,12 +304,6 @@ void main()
 
     while (main_window_polling)
     {
-        if (stat_window_polling)
-        {
-            stat_window_polling = window_poll_events(stat_window);
-            if (stat_window_polling)
-                window_render(stat_window);
-        }
         if (main_window_polling)
         {
             main_window_polling = window_poll_events(main_window);
@@ -286,67 +312,63 @@ void main()
                 if (esc_pressed)
                     break;
         
-                if ((entity_right || right_pressed) && !left_pressed)
-                    entity_1_position += (th_vec * window_frametime);
-                else 
-                    entity_1_position += (-th_vec * window_frametime);
-        
-                if (up_pressed)
-                    entity_1_position += (tv_vec * window_frametime);
-                if (down_pressed)
-                    entity_1_position += (-tv_vec * window_frametime);
-        
-                if (u_pressed)
-                    entity_1_scale += (s_vec + scale_fac);
-                if (o_pressed)
-                    entity_1_scale += (s_vec - scale_fac);
-                if (r_pressed)
-                    entity_1_rotation[2] += (90.f * window_frametime);
-                if (f_pressed)
-                    entity_1_rotation[1] += (90.f * window_frametime);
-                if (v_pressed)
-                    entity_1_rotation[0] += (90.f * window_frametime);
-        
-                if (entity_1_position[0] > 5.0)
+                for (auto& ep : entity_ptrs)
                 {
-                    entity_right = !entity_right;
-                    entity_1_position[0] = 5.0;
+                    auto& entity = *ep;
+                    auto& position = entity.position;
+                    auto& scale = entity.scale;
+                    auto& rotation = entity.rotation;
+                    if ((entity_right || right_pressed) && !left_pressed)
+                        position += (th_vec * window_frametime);
+                    else 
+                        position += (-th_vec * window_frametime);
+            
+                    if (up_pressed)
+                        position += (tv_vec * window_frametime);
+                    if (down_pressed)
+                        position += (-tv_vec * window_frametime);
+            
+                    if (u_pressed)
+                        scale += (s_vec + scale_fac);
+                    if (o_pressed)
+                        scale += (s_vec - scale_fac);
+                    if (r_pressed)
+                        rotation[2] += (90.f * window_frametime);
+                    if (f_pressed)
+                        rotation[1] += (90.f * window_frametime);
+                    if (v_pressed)
+                        rotation[0] += (90.f * window_frametime);
+            
+                    if (position[0] > 5.0)
+                    {
+                        entity_right = !entity_right;
+                        position[0] = 5.0;
+                    }
+                    else if(position[0] < -5.0)
+                    {
+                        entity_right = !entity_right;
+                        position[0] = -5.0;
+                    }
+                    if (position[1] > 5.0)
+                    {
+                        position[1] = 5.0;
+                    }
+                    else if (position[1] < -5.0)
+                    {
+                        position[1] = -5.0;
+                    }
+            
+                    entity.set_model();
                 }
-                else if(entity_1_position[0] < -5.0)
-                {
-                    entity_right = !entity_right;
-                    entity_1_position[0] = -5.0;
-                }
-                if (entity_1_position[1] > 5.0)
-                {
-                    entity_1_position[1] = 5.0;
-                }
-                else if (entity_1_position[1] < -5.0)
-                {
-                    entity_1_position[1] = -5.0;
-                }
-        
-                mat<float, 4, 4> final_model(1.0f),
-                translate_model(1.0f),
-                rotation_model(1.0f),
-                scale_model(1.0f);
-        
-                translate_model.translate(vec<float, 3>(entity_1_position));
-                for (size_t i = 0; i < 3; ++i)
-                {
-                    vec<float, 3> axis;
-                    axis[i] = 1;
-                    rotation_model.rotate<3>(radians(entity_1_rotation[i]), axis);
-                }
-        
-                scale_model.scale(vec<float, 3>(entity_1_scale));
-        
-                final_model = translate_model * rotation_model * scale_model;
-                entity_1_model = final_model;
-                entity_1_inverseModel = entity_1_model.inverse();
         
                 window_render(main_window);
             }
+        }
+        if (stat_window_polling)
+        {
+            stat_window_polling = window_poll_events(stat_window);
+            if (stat_window_polling)
+                window_render(stat_window);
         }
     }
 

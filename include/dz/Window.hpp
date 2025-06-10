@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include "math.hpp"
+#include "DrawListManager.hpp"
 namespace dz
 {
     struct Window;
@@ -42,6 +43,8 @@ namespace dz
     float& window_get_width_ref(Window* window);
     float& window_get_height_ref(Window* window);
     void window_use_other_registry(Window* window, Window* other_window);
+    void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+    void window_remove_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
     uint8_t get_window_type_platform();
     void window_free(Window* window);
 }

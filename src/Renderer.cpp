@@ -9,8 +9,6 @@ struct Renderer
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
-    VkRenderPass renderPass;
-    VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -68,7 +66,7 @@ VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capab
 void create_command_pool(Renderer* renderer);
 void create_command_buffers(Renderer* renderer);
 void create_image_views(Renderer* renderer);
-void create_render_pass(Renderer* renderer);
+void ensure_render_pass(Renderer* renderer);
 void create_framebuffers(Renderer* renderer);
 void create_sync_objects(Renderer* renderer);
 bool vk_check(const char* fn, VkResult result);
@@ -76,7 +74,7 @@ void pre_begin_render_pass(Renderer* renderer);
 void begin_render_pass(Renderer* renderer);
 void post_render_pass(Renderer* renderer);
 bool swap_buffers(Renderer* renderer);
-void renderer_draw_one(Renderer* renderer, Shader* shader);
+void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands);
 void renderer_destroy(Renderer* renderer);
 void destroy_swap_chain(Renderer* renderer);
 Renderer* renderer_init(Window* window)
@@ -104,27 +102,13 @@ Renderer* renderer_init(Window* window)
     create_command_pool(renderer);
     create_command_buffers(renderer);
 	create_image_views(renderer);
-	create_render_pass(renderer);
+	ensure_render_pass(renderer);
 	// createDepthResources();
 	create_framebuffers(renderer);
     create_sync_objects(renderer);
     return renderer;
 }
-void renderer_render(Renderer* renderer)
-{
-    pre_begin_render_pass(renderer);
-    begin_render_pass(renderer);
-    auto& window = *renderer->window;
-    auto& dr = *window.registry;
-    for (auto& shader_pair : dr.uid_shader_map)
-    {
-        auto shader = shader_pair.second.get();
-        shader_bind(renderer, shader);
-        renderer_draw_one(renderer, shader);
-    }
-    post_render_pass(renderer);
-    swap_buffers(renderer);
-}
+
 void renderer_free(Renderer* renderer)
 {
 	renderer_destroy(renderer);
@@ -524,7 +508,11 @@ bool create_swap_chain(Renderer* renderer)
 {
 	auto direct_registry = DZ_RGY.get();
 	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(renderer, direct_registry->physicalDevice);
-	VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapChainSupport.formats);
+	if (direct_registry->firstSurfaceFormat.format == 0)
+	{
+		VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapChainSupport.formats);
+		direct_registry->firstSurfaceFormat = surfaceFormat;
+	}
 	VkPresentModeKHR presentMode = choose_swap_present_mode(renderer, swapChainSupport.presentModes);
 	VkExtent2D extent = choose_swap_extent(renderer, swapChainSupport.capabilities);
 	if (extent.height == 0 || extent.width == 0)
@@ -541,8 +529,8 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = renderer->surface;
 	createInfo.minImageCount = imageCount;
-	createInfo.imageFormat = surfaceFormat.format;
-	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageFormat = direct_registry->firstSurfaceFormat.format;
+	createInfo.imageColorSpace = direct_registry->firstSurfaceFormat.colorSpace;
 	createInfo.imageExtent = extent;
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -582,7 +570,6 @@ bool create_swap_chain(Renderer* renderer)
 	renderer->swapChainImages.resize(imageCount);
 	vk_check("vkGetSwapchainImagesKHR",
 		vkGetSwapchainImagesKHR(direct_registry->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
-	renderer->swapChainImageFormat = surfaceFormat.format;
 	renderer->swapChainExtent = extent;
 	return true;
 }
@@ -687,7 +674,7 @@ void create_image_views(Renderer* renderer)
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		createInfo.image = renderer->swapChainImages[index];
 		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		createInfo.format = renderer->swapChainImageFormat;
+		createInfo.format = direct_registry->firstSurfaceFormat.format;
 		createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 		createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 		createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -702,12 +689,14 @@ void create_image_views(Renderer* renderer)
 	return;
 }
 
-void create_render_pass(Renderer* renderer)
+void ensure_render_pass(Renderer* renderer)
 {
 	auto direct_registry = DZ_RGY.get();
+	if (direct_registry->surfaceRenderPass != VK_NULL_HANDLE)
+		return;
 	VkAttachmentDescription2 colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-	colorAttachment.format = renderer->swapChainImageFormat;
+	colorAttachment.format = direct_registry->firstSurfaceFormat.format;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;//maxMSAASamples;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -741,7 +730,7 @@ void create_render_pass(Renderer* renderer)
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
-	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(direct_registry->device, &renderPassInfo, 0, &renderer->renderPass));
+	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(direct_registry->device, &renderPassInfo, 0, &direct_registry->surfaceRenderPass));
 	return;
 }
 
@@ -756,7 +745,7 @@ void create_framebuffers(Renderer* renderer)
 		attachments[0] = renderer->swapChainImageViews[index];
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = renderer->renderPass;
+		framebufferInfo.renderPass = direct_registry->surfaceRenderPass;
 		framebufferInfo.attachmentCount = attachments.size();
 		framebufferInfo.pAttachments = attachments.data();
 		framebufferInfo.width = renderer->swapChainExtent.width;
@@ -810,9 +799,10 @@ void pre_begin_render_pass(Renderer* renderer)
 
 void begin_render_pass(Renderer* renderer)
 {
+	auto direct_registry = DZ_RGY.get();
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderer->renderPass;
+    renderPassInfo.renderPass = direct_registry->surfaceRenderPass;
     renderPassInfo.framebuffer = renderer->swapChainFramebuffers[renderer->imageIndex];
 	renderPassInfo.renderArea.offset = {0, 0};
 	renderPassInfo.renderArea.extent = renderer->swapChainExtent;
@@ -887,7 +877,6 @@ void renderer_destroy(Renderer* renderer)
 		vkFreeMemory(device, countPair.second.second, 0);
 	}
 	destroy_swap_chain(renderer);
-	vkDestroyRenderPass(device, renderer->renderPass, 0);
 	for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
 	{
 		vkDestroySemaphore(device, imageAvailableSemaphore, 0);
@@ -928,15 +917,6 @@ void destroy_swap_chain(Renderer* renderer)
 		renderer->swapChain = 0;
 	}
 }
-
-struct DrawIndirectCommand
-{
-    uint32_t vertexCount = 0;
-    uint32_t instanceCount = 0;
-    uint32_t firstVertex = 0;
-    uint32_t firstInstance = 0;
-};
-
 
 uint32_t FindMemoryType(VkPhysicalDevice physicalDevice, uint32_t type_filter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties mem_properties;

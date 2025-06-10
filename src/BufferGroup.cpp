@@ -15,6 +15,18 @@ BufferGroup* buffer_group_create(const std::string& group_name)
     return bg.get();
 }
 
+void buffer_group_initialize(BufferGroup* buffer_group)
+{
+    for (auto& sp: buffer_group->shaders)
+    {
+        auto shader = sp.first;
+        shader->current_buffer_group = buffer_group;
+        shader_initialize(shader);
+        CreateAndBindShaderBuffers(buffer_group, shader);
+        shader_update_descriptor_sets(shader);
+    }
+}
+
 /**
  * @brief For dynamic SSBOs, sets the number of elements the buffer should hold.
  * This MUST be called before shader_create_resources().
@@ -44,6 +56,18 @@ void buffer_group_set_buffer_element_count(BufferGroup* buffer_group, const std:
     buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
     memset(buffer.data_ptr.get(), 0, new_size);
     std::cout << "Set dynamic buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
+}
+
+uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name)
+{
+    if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end())
+    {
+        throw std::runtime_error("Warning: Cannot set element count for buffer '" + buffer_name + "'. It was not found in reflection.");
+    }
+
+    auto& buffer = buffer_group->buffers.at(buffer_name);
+
+    return buffer.element_count;
 }
 
 /**
@@ -133,7 +157,13 @@ ReflectedStructView buffer_group_get_buffer_element_view(BufferGroup* buffer_gro
     throw std::runtime_error("Could not get ReflectedStruct");
 }
 
-void buffer_group_destroy(BufferGroup* bg)
+void buffer_group_destroy(BufferGroup* buffer_group)
 {
-    return;
+    auto& dr = *DZ_RGY;
+    auto& device = dr.device;
+    for (auto& bufferPair : buffer_group->buffers)
+    {
+        vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);
+        vkFreeMemory(device, bufferPair.second.gpu_buffer.memory, 0);
+    }
 }
