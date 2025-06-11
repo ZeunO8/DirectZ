@@ -50,18 +50,24 @@ struct DirectRegistry
     VkSurfaceFormatKHR firstSurfaceFormat = {};
     VkRenderPass surfaceRenderPass = VK_NULL_HANDLE;
     VkQueue graphicsQueue;
+    VkQueue computeQueue;
     VkQueue presentQueue;
+    VkCommandPool commandPool = VK_NULL_HANDLE;
+    VkCommandBuffer* commandBuffer = 0;
+    VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
 };
 namespace dz
 {
+    uint8_t get_window_type_platform();
     void direct_registry_create_instance(DirectRegistry* direct_registry);
     std::shared_ptr<DirectRegistry> make_direct_registry()
     {
         auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
             dr->buffer_groups.clear();
+	        vkDestroyCommandPool(dr->device, dr->commandPool, 0);
 	        vkDestroyRenderPass(dr->device, dr->surfaceRenderPass, 0);
 	        vkDestroyDevice(dr->device, 0);
             delete dr;
@@ -77,8 +83,12 @@ namespace dz
     Renderer* renderer_init(Window* window);
     void renderer_render(Renderer* renderer);
     void renderer_free(Renderer* renderer);
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
+    VkCommandBuffer begin_single_time_commands();
+    void end_single_time_commands(VkCommandBuffer command_buffer);
     #include "Window.cpp"
     #include "Renderer.cpp"
+    #include "Image.cpp"
     #include "Shader.cpp"
     #include "BufferGroup.cpp"
 }

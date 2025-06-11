@@ -15,9 +15,10 @@ struct Window
     bool borderless;
     bool vsync;
 	std::chrono::system_clock::time_point lastFrame;
-	float frametime;
-	vec<bool, 256> keys;
-	vec<bool, 8> buttons;
+	std::shared_ptr<float> frametime;
+	std::shared_ptr<int32_t> keys;
+	std::shared_ptr<int32_t> buttons;
+	std::shared_ptr<float> cursor;
 	uint8_t mod = 0;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
@@ -58,6 +59,11 @@ Window* window_create(const WindowCreateInfo& info)
 {
     auto window = new Window{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
 
+	window->frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
+	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
+	window->buttons = std::shared_ptr<int32_t>(new int32_t[8], [](int32_t* bp) { delete[] bp; });
+	window->cursor = std::shared_ptr<float>(new float[2], [](float* fp) { delete[] fp; });
+
 	auto& viewport = window->viewport;
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -80,10 +86,6 @@ Window* window_create(const WindowCreateInfo& info)
 
     return window;
 }
-void window_use_other_registry(Window* window, Window* other_window)
-{
-	window->registry = other_window->registry;
-}
 void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group)
 {
 	window->draw_list_managers[mgr].insert(buffer_group);
@@ -105,7 +107,7 @@ bool window_poll_events(Window* window)
 		auto diff = (now - window->lastFrame);
 		auto count = (diff.count() / 1'000'000'0.0f);
 		window->lastFrame = now;
-		window->frametime = count;
+		*window->frametime = count;
 	}
     return window_poll_events_platform(window);
 }
@@ -115,15 +117,55 @@ void window_render(Window* window)
 }
 float& window_get_frametime_ref(Window* window)
 {
-	return window->frametime;
+	return *window->frametime;
 }
-bool& window_get_keypress_ref(Window* window, uint8_t keycode)
+void window_set_frametime_pointer(Window* window, float* pointer)
 {
-	return window->keys[keycode];
+	window->frametime = std::shared_ptr<float>(pointer, [](auto p){});
 }
-vec<bool, 256>& window_get_all_keypress_ref(Window* window, uint8_t keycode)
+void window_set_keys_pointer(Window* window, int32_t* pointer)
+{
+	window->keys = std::shared_ptr<int32_t>(pointer, [](auto p){});
+}
+void window_set_buttons_pointer(Window* window, int32_t* pointer)
+{
+	window->buttons = std::shared_ptr<int32_t>(pointer, [](auto p){});
+}
+void window_set_cursor_pointer(Window* window, float* pointer)
+{
+	window->cursor = std::shared_ptr<float>(pointer, [](auto p){});
+}
+void window_set_frametime_pointer(Window* window, const std::shared_ptr<float>& pointer)
+{
+	window->frametime = pointer;
+}
+void window_set_keys_pointer(Window* window, const std::shared_ptr<int32_t>& pointer)
+{
+	window->keys = pointer;
+}
+void window_set_buttons_pointer(Window* window, const std::shared_ptr<int32_t>& pointer)
+{
+	window->buttons = pointer;
+}
+void window_set_cursor_pointer(Window* window, const std::shared_ptr<float>& pointer)
+{
+	window->cursor = pointer;
+}
+int32_t& window_get_keypress_ref(Window* window, uint8_t keycode)
+{
+	return window->keys.get()[keycode];
+}
+std::shared_ptr<int32_t>& window_get_all_keypress_ref(Window* window, uint8_t keycode)
 {
 	return window->keys;
+}
+int32_t& window_get_buttonpress_ref(Window* window, uint8_t button)
+{
+	return window->buttons.get()[button];
+}
+std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(Window* window, uint8_t button)
+{
+	return window->buttons;
 }
 float& window_get_width_ref(Window* window)
 {
@@ -285,39 +327,39 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_CLOSE:
 		DestroyWindow(hwnd);
 		break;
-	// case WM_LBUTTONDOWN:
-	// case WM_LBUTTONUP:
-	// case WM_RBUTTONDOWN:
-	// case WM_RBUTTONUP:
-	// case WM_MBUTTONDOWN:
-	// case WM_MBUTTONUP:
-	// 	{
-	// 		auto pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-	// 		auto button = 0;
-	// 		switch (msg)
-	// 		{
-	// 		case WM_LBUTTONDOWN:
-	// 		case WM_LBUTTONUP:
-	// 			{
-	// 				button = 0;
-	// 				break;
-	// 			};
-	// 		case WM_RBUTTONDOWN:
-	// 		case WM_RBUTTONUP:
-	// 			{
-	// 				button = 1;
-	// 				break;
-	// 			};
-	// 		case WM_MBUTTONDOWN:
-	// 		case WM_MBUTTONUP:
-	// 			{
-	// 				button = 2;
-	// 				break;
-	// 			};
-	// 		}
-	// 		glWindow->queueEvent(EVENT_MOUSE_PRESS, pressed, button);
-	// 		break;
-	// 	};
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP:
+	case WM_RBUTTONDOWN:
+	case WM_RBUTTONUP:
+	case WM_MBUTTONDOWN:
+	case WM_MBUTTONUP:
+		{
+			auto pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
+			auto button = 0;
+			switch (msg)
+			{
+			case WM_LBUTTONDOWN:
+			case WM_LBUTTONUP:
+				{
+					button = 0;
+					break;
+				};
+			case WM_RBUTTONDOWN:
+			case WM_RBUTTONUP:
+				{
+					button = 1;
+					break;
+				};
+			case WM_MBUTTONDOWN:
+			case WM_MBUTTONUP:
+				{
+					button = 2;
+					break;
+				};
+			}
+			window->buttons.get()[button] = pressed;
+			break;
+		};
 	// case WM_MOUSEWHEEL:
 	// 	{
 	// 		int zDelta = GET_WHEEL_DELTA_WPARAM(wParam); // This gives the scroll amount
@@ -325,40 +367,42 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	// 		glWindow->queueEvent(EVENT_MOUSE_PRESS, true, wheelButton);
 	// 		break;
 	// 	};
-	// case WM_XBUTTONDOWN:
-	// case WM_XBUTTONUP:
-	// 	{
-	// 		WORD button = GET_XBUTTON_WPARAM(wParam);
-	// 		auto xButton = (button == XBUTTON2 ? 5 : (button == XBUTTON1 ? 6 : -1));
-	// 		if (xButton == -1)
-	// 			throw std::runtime_error("Invalid XButton");
-	// 		auto pressed = msg == WM_XBUTTONDOWN;
-	// 		glWindow->queueEvent(EVENT_MOUSE_PRESS, pressed, xButton);
-	// 		break;
-	// 	};
-	// case WM_MOUSEMOVE:
-	// 	{
-	// 		POINT pt;
-	// 		GetCursorPos(&pt);
-	// 		ScreenToClient(hwnd, &pt);
-	// 		auto x = pt.x;
-	// 		auto y = *glWindow->windowHeight - pt.y;
-	// 		glWindow->queueEvent(EVENT_MOUSE_MOVE, glm::vec2(x, y));
-	// 		break;
-	// 	};
-	// case WM_SYSKEYDOWN:
-	// case WM_SYSKEYUP:
-	// 	if (wParam == VK_MENU ||
-	// 		wParam == VK_LMENU ||
-	// 		wParam == VK_RMENU)
-	// 	{
-	// 		glWindow->queueEvent(EVENT_KEY_PRESS, msg == WM_SYSKEYDOWN, KEYCODE_ALT);
-	// 	}
-	// 	else
-	// 	{
-	// 		return DefWindowProc(hwnd, msg, wParam, lParam);
-	// 	}
-	// 	break;
+	case WM_XBUTTONDOWN:
+	case WM_XBUTTONUP:
+		{
+			WORD button = GET_XBUTTON_WPARAM(wParam);
+			auto xButton = (button == XBUTTON2 ? 5 : (button == XBUTTON1 ? 6 : -1));
+			if (xButton == -1)
+				throw std::runtime_error("Invalid XButton");
+			auto pressed = msg == WM_XBUTTONDOWN;
+			window->buttons.get()[xButton] = pressed;
+			break;
+		};
+	case WM_MOUSEMOVE:
+		{
+			POINT pt;
+			GetCursorPos(&pt);
+			ScreenToClient(hwnd, &pt);
+			auto x = pt.x;
+			auto y = pt.y;
+			auto cursor = window->cursor.get();
+			cursor[0] = x;
+			cursor[1] = y;
+			break;
+		};
+	case WM_SYSKEYDOWN:
+	case WM_SYSKEYUP:
+		if (wParam == VK_MENU ||
+			wParam == VK_LMENU ||
+			wParam == VK_RMENU)
+		{
+			window->keys.get()[KEYCODE_ALT] = (msg == WM_SYSKEYDOWN);
+		}
+		else
+		{
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		}
+		break;
 	case WM_KEYDOWN:
 	case WM_KEYUP:
 		{
@@ -390,19 +434,22 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				keycode = translatedChar[0];
 			}
 			window->mod = mod;
-			window->keys[keycode] = keypress;
+			window->keys.get()[keycode] = keypress;
 		}
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
-	// case WM_SIZE:
-	// 	{
-	// 		int32_t width = LOWORD(lParam), height = HIWORD(lParam);
-	// 		if (width != 0 && width != *glWindow->windowWidth && height != 0 && height != *glWindow->windowHeight)
-	// 			glWindow->resize({width, height});
-	// 		break;
-	// 	};
+	case WM_SIZE:
+		{
+			int32_t width = LOWORD(lParam), height = HIWORD(lParam);
+			if (width != 0 && width != window->width && height != 0 && height != window->height)
+			{
+				window->width = width;
+				window->height = height;
+			}
+			break;
+		};
 	// case WM_SETFOCUS:
 	// 	{
 	// 		glWindow->queueFocusEvent(true);

@@ -20,11 +20,84 @@ void buffer_group_initialize(BufferGroup* buffer_group)
     for (auto& sp: buffer_group->shaders)
     {
         auto shader = sp.first;
-        shader->current_buffer_group = buffer_group;
+        shader->bound_buffer_groups.push_back(buffer_group);
         shader_initialize(shader);
         CreateAndBindShaderBuffers(buffer_group, shader);
-        shader_update_descriptor_sets(shader);
+        // shader_update_descriptor_sets(shader);
     }
+}
+
+VkImageUsageFlags infer_image_usage_flags(const std::unordered_map<Shader*, VkDescriptorType>& types)
+{
+    VkImageUsageFlags flags = 0;
+    for (auto& pair : types)
+    {
+        auto& type = pair.second;
+        switch (type)
+        {
+            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                flags |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    
+            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                flags |= VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    
+            case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    
+            default:
+                flags |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT; // fallback
+        }
+    }
+    return flags;
+}
+
+Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, void* data_pointer)
+{
+    ShaderImage& shader_image = buffer_group->images[buffer_name];
+
+    ImageCreateInfo create_info{};
+    create_info.width = image_width;
+    create_info.height = image_height;
+    create_info.depth = 1;
+    create_info.format = shader_image.format;
+    create_info.image_type = VK_IMAGE_TYPE_2D;
+    create_info.view_type = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.data = data_pointer;
+    create_info.usage = infer_image_usage_flags(shader_image.descriptor_types);
+
+    auto image = image_create(create_info);
+
+    buffer_group->runtime_images[buffer_name] = std::shared_ptr<Image>(image, image_free);
+
+    return image;
+}
+
+Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data_pointer)
+{
+    ShaderImage& shader_image = buffer_group->images[buffer_name];
+
+    ImageCreateInfo create_info{};
+    create_info.width = image_width;
+    create_info.height = image_height;
+    create_info.depth = image_depth;
+    create_info.format = shader_image.format;
+    create_info.image_type = VK_IMAGE_TYPE_3D;
+    create_info.view_type = VK_IMAGE_VIEW_TYPE_3D;
+    create_info.data = data_pointer;
+    create_info.usage = infer_image_usage_flags(shader_image.descriptor_types);
+
+    auto image = image_create(create_info);
+
+    buffer_group->runtime_images[buffer_name] = std::shared_ptr<Image>(image, image_free);
+
+    return image;
+}
+
+void buffer_group_restrict_to_keys(BufferGroup* buffer_group, const std::vector<std::string>& restruct_keys)
+{
+    for (auto& key : restruct_keys)
+        buffer_group->restricted_to_keys[key] = true;
 }
 
 /**

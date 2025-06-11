@@ -10,12 +10,10 @@ struct Renderer
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkExtent2D swapChainExtent;
-    VkCommandPool commandPool;
-    std::vector<VkCommandBuffer> commandBuffers;
-    VkCommandBuffer* commandBuffer;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
+    std::vector<VkCommandBuffer> commandBuffers;
     uint32_t currentFrame = 0;
     uint32_t imageIndex = -1;
 	VkCommandBufferBeginInfo beginInfo;
@@ -30,9 +28,9 @@ struct Renderer
 constexpr int MAX_FRAMES_IN_FLIGHT = 4;
 struct QueueFamilyIndices
 {
-    int32_t graphicsFamily = -1;
+    int32_t graphicsAndComputeFamily = -1;
     int32_t presentFamily = -1;
-    bool isComplete() { return graphicsFamily > -1 && presentFamily > -1; };
+    bool isComplete() { return graphicsAndComputeFamily > -1 && presentFamily > -1; };
 };
 struct SwapChainSupportDetails
 {
@@ -63,8 +61,8 @@ SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalD
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<VkPresentModeKHR>& availablePresentModes);
 VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities);
-void create_command_pool(Renderer* renderer);
-void create_command_buffers(Renderer* renderer);
+void ensure_command_pool(Renderer* renderer);
+void ensure_command_buffers(Renderer* renderer);
 void create_image_views(Renderer* renderer);
 void ensure_render_pass(Renderer* renderer);
 void create_framebuffers(Renderer* renderer);
@@ -99,8 +97,8 @@ Renderer* renderer_init(Window* window)
     direct_registry_ensure_physical_device(DZ_RGY.get(), renderer);
     direct_registry_ensure_logical_device(DZ_RGY.get(), renderer);
     create_swap_chain(renderer);
-    create_command_pool(renderer);
-    create_command_buffers(renderer);
+    ensure_command_pool(renderer);
+    ensure_command_buffers(renderer);
 	create_image_views(renderer);
 	ensure_render_pass(renderer);
 	// createDepthResources();
@@ -317,8 +315,8 @@ void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Ren
 	{
 		physicalDeviceScores[rate_device_suitability(direct_registry, renderer, device)] = device;
 	}
-	auto end = physicalDeviceScores.end();
-	auto begin = physicalDeviceScores.begin();
+	auto end = physicalDeviceScores.rend();
+	auto begin = physicalDeviceScores.rbegin();
 	uint32_t selectedDeviceScore;
 	for (auto iter = begin; iter != end; ++iter)
 	{
@@ -363,7 +361,7 @@ uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* rend
 		return 0;
 	}
 	auto indices = find_queue_families(direct_registry, renderer, device);
-	if (indices.graphicsFamily != indices.presentFamily)
+	if (indices.graphicsAndComputeFamily != indices.presentFamily)
 	{
 		score += 1000;
 	}
@@ -386,9 +384,9 @@ QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer
 	int32_t index = 0;
 	for (auto& queueFamily : queueFamilies)
 	{
-		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		if ((queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT))
 		{
-			indices.graphicsFamily = index;
+			indices.graphicsAndComputeFamily = index;
 		}
 		VkBool32 presentSupport = false;
 		vk_check("vkGetPhysicalDeviceSurfaceSupportKHR", vkGetPhysicalDeviceSurfaceSupportKHR(device, index, renderer->surface, &presentSupport));
@@ -412,7 +410,7 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 		return;
 	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::vector<int32_t> uniqueQueueFamilies({indices.graphicsFamily, indices.presentFamily});
+	std::vector<int32_t> uniqueQueueFamilies({indices.graphicsAndComputeFamily, indices.presentFamily});
 	float queuePriority = 1;
 	int32_t index = 0;
 	for (auto& queueFamily : uniqueQueueFamilies)
@@ -499,8 +497,9 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 	{
 		throw std::runtime_error("VulkanRenderer-createLogicalDevice: failed to create device");
 	}
-	vkGetDeviceQueue(direct_registry->device, indices.graphicsFamily, 0, &direct_registry->graphicsQueue);
+	vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->graphicsQueue);
 	vkGetDeviceQueue(direct_registry->device, indices.presentFamily, 0, &direct_registry->presentQueue);
+	vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->computeQueue);
 	return;
 }
 
@@ -535,8 +534,8 @@ bool create_swap_chain(Renderer* renderer)
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
-	uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphicsFamily, (uint32_t)indices.presentFamily};
-	if (indices.graphicsFamily != indices.presentFamily)
+	uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphicsAndComputeFamily, (uint32_t)indices.presentFamily};
+	if (indices.graphicsAndComputeFamily != indices.presentFamily)
 	{
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = 2;
@@ -638,28 +637,39 @@ VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capab
 	return actualExtent;
 }
 
-void create_command_pool(Renderer* renderer)
+void ensure_command_pool(Renderer* renderer)
 {
 	auto direct_registry = DZ_RGY.get();
+	if (direct_registry->commandPool != VK_NULL_HANDLE)
+		return;
 	QueueFamilyIndices queueFamilyIndices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-	vk_check("vkCreateCommandPool", vkCreateCommandPool(direct_registry->device, &poolInfo, 0, &renderer->commandPool));
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
+	vk_check("vkCreateCommandPool", vkCreateCommandPool(direct_registry->device, &poolInfo, 0, &direct_registry->commandPool));
 	return;
 }
 
-void create_command_buffers(Renderer* renderer)
+void ensure_command_buffers(Renderer* renderer)
 {
 	auto direct_registry = DZ_RGY.get();
+	if (!renderer->commandBuffers.empty())
+		return;
 	renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = renderer->commandPool;
+	allocInfo.commandPool = direct_registry->commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = renderer->commandBuffers.size();
 	vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(direct_registry->device, &allocInfo, &renderer->commandBuffers[0]));
+
+	VkCommandBufferAllocateInfo computeAllocInfo{};
+	computeAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	computeAllocInfo.commandPool = direct_registry->commandPool;
+	computeAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	computeAllocInfo.commandBufferCount = 1;
+	vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(direct_registry->device, &computeAllocInfo, &direct_registry->computeCommandBuffer));
 	return;
 }
 
@@ -790,11 +800,11 @@ void pre_begin_render_pass(Renderer* renderer)
 		VK_NULL_HANDLE, &renderer->imageIndex));
 
 	vk_check("vkResetFences", vkResetFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
-	renderer->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
+	direct_registry->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
 
-	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*renderer->commandBuffer, 0));
+	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*direct_registry->commandBuffer, 0));
 
-	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*renderer->commandBuffer, &renderer->beginInfo));
+	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*direct_registry->commandBuffer, &renderer->beginInfo));
 }
 
 void begin_render_pass(Renderer* renderer)
@@ -811,21 +821,21 @@ void begin_render_pass(Renderer* renderer)
 	clearValues[1].depthStencil = {1.0f, 0};
 	renderPassInfo.clearValueCount = clearValues.size();
 	renderPassInfo.pClearValues = clearValues.data();
-	vkCmdBeginRenderPass(*renderer->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(*direct_registry->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
 void post_render_pass(Renderer* renderer)
 {
 	auto direct_registry = DZ_RGY.get();
 	{
-		vkCmdEndRenderPass(*renderer->commandBuffer);
-		vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*renderer->commandBuffer));
+		vkCmdEndRenderPass(*direct_registry->commandBuffer);
+		vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*direct_registry->commandBuffer));
 	}
 	VkSemaphore waitSemaphores[] = {renderer->imageAvailableSemaphores[renderer->currentFrame]};
 	{
 		renderer->submitInfo.pWaitSemaphores = waitSemaphores;
 		renderer->submitInfo.pWaitDstStageMask = renderer->waitStages;
-		renderer->submitInfo.pCommandBuffers = renderer->commandBuffer;
+		renderer->submitInfo.pCommandBuffers = direct_registry->commandBuffer;
 		renderer->signalSemaphores[0] = renderer->renderFinishedSemaphores[renderer->currentFrame];
 		renderer->submitInfo.signalSemaphoreCount = 1;
 		renderer->submitInfo.pSignalSemaphores = renderer->signalSemaphores;
@@ -889,12 +899,7 @@ void renderer_destroy(Renderer* renderer)
 	{
 		vkDestroyFence(device, inFlightFence, 0);
 	}
-	// for (auto& renderPassPair : renderPassMap)
-	// {
-	// 	vkDestroyRenderPass(device, renderPassPair.second, 0);
-	// }
 	// callDestroyAtRenderPassEndOrDestroy();
-	vkDestroyCommandPool(device, renderer->commandPool, 0);
 }
 
 void destroy_swap_chain(Renderer* renderer)
@@ -1121,4 +1126,59 @@ bool vk_check(const char* fn, VkResult result)
 
 	// Print error message to standard error stream
 	throw std::runtime_error("Vulkan Error: Function '" + std::string(fn) + "' failed with " + resultString + " (" + std::to_string(result) + ")");
+}
+
+
+uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
+{
+	auto direct_registry = DZ_RGY.get();
+    VkPhysicalDeviceMemoryProperties mem_properties;
+    vkGetPhysicalDeviceMemoryProperties(direct_registry->physicalDevice, &mem_properties);
+
+    for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
+    {
+        if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type.");
+}
+
+VkCommandBuffer begin_single_time_commands()
+{
+	auto direct_registry = DZ_RGY.get();
+    VkCommandBufferAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandPool = direct_registry->commandPool;
+    alloc_info.commandBufferCount = 1;
+
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(direct_registry->device, &alloc_info, &command_buffer);
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    return command_buffer;
+}
+
+void end_single_time_commands(VkCommandBuffer command_buffer)
+{
+	auto direct_registry = DZ_RGY.get();
+    vkEndCommandBuffer(command_buffer);
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+
+    vkQueueSubmit(direct_registry->graphicsQueue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(direct_registry->graphicsQueue);
+
+    vkFreeCommandBuffers(direct_registry->device, direct_registry->commandPool, 1, &command_buffer);
 }

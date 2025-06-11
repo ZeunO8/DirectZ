@@ -15,6 +15,39 @@ namespace dz
         bool borderless = false;
         bool vsync = true;
     };
+
+    Window* window_create(const WindowCreateInfo& info);
+
+    bool window_poll_events(Window* window);
+
+    void window_render(Window* window);
+
+    float& window_get_frametime_ref(Window* window);
+
+    void window_set_frametime_pointer(Window* window, float* pointer);
+    void window_set_keys_pointer(Window* window, int32_t* pointer);
+    void window_set_buttons_pointer(Window* window, int32_t* pointer);
+    void window_set_cursor_pointer(Window* window, float* pointer);
+
+    void window_set_frametime_pointer(Window* window, const std::shared_ptr<float>& pointer);
+    void window_set_keys_pointer(Window* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_buttons_pointer(Window* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_cursor_pointer(Window* window, const std::shared_ptr<float>& pointer);
+
+    int32_t& window_get_keypress_ref(Window* window, uint8_t keycode);
+    int32_t& window_get_buttonpress_ref(Window* window, uint8_t button);
+
+    std::shared_ptr<int32_t>& window_get_all_keypress_ref(Window* window, uint8_t keycode);
+    std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(Window* window, uint8_t button);
+
+    float& window_get_width_ref(Window* window);
+    float& window_get_height_ref(Window* window);
+    
+    void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+    void window_remove_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+
+    void window_free(Window* window);
+    
 #define KEYCODE_ESCAPE 27
 #define KEYCODE_DELETE 127
 #define KEYCODE_UP 17
@@ -34,17 +67,4 @@ namespace dz
 #define KEYCODE_PAUSE 0x87
 #define KEYCODE_SUPER 0x88
 #define LAST_UNDEFINED_ASCII_IN_RANGE 0x9F
-    Window* window_create(const WindowCreateInfo& info);
-    bool window_poll_events(Window* window);
-    void window_render(Window* window);
-    float& window_get_frametime_ref(Window* window);
-    bool& window_get_keypress_ref(Window* window, uint8_t keycode);
-    vec<bool, 256>& window_get_all_keypress_ref(Window* window, uint8_t keycode);
-    float& window_get_width_ref(Window* window);
-    float& window_get_height_ref(Window* window);
-    void window_use_other_registry(Window* window, Window* other_window);
-    void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
-    void window_remove_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group);
-    uint8_t get_window_type_platform();
-    void window_free(Window* window);
 }

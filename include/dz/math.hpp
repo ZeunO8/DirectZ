@@ -1,6 +1,8 @@
 #pragma once
 #include <cassert>
 #include <cmath>
+#include <random>
+#include <chrono>
 namespace dz
 {
     template <typename T, size_t N>
@@ -614,4 +616,107 @@ namespace dz
 	{
 		return radians * T(57.295779513082320876798154814105);
 	}
+
+	struct Random
+	{
+	private:
+		inline static std::random_device _randomDevice = {};
+		inline static std::mt19937 _mt19937 = std::mt19937(_randomDevice());
+
+        inline static void reseed_mt19937_with_current_time()
+        {
+            auto now = std::chrono::high_resolution_clock::now();
+            auto duration = now.time_since_epoch();
+            auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+            std::uint32_t new_seed = static_cast<std::uint32_t>(nanos & 0xFFFFFFFF);
+            _mt19937.seed(new_seed);
+        }
+
+	public:
+		template <typename T>
+		static const T value(const T min, const T max, const size_t seed = (std::numeric_limits<size_t>::max)())
+		{
+			std::mt19937* mt19937Pointer = 0;
+			if (seed != (std::numeric_limits<size_t>::max)())
+			{
+				mt19937Pointer = new std::mt19937(seed);
+			}
+			else
+			{
+                reseed_mt19937_with_current_time();
+				mt19937Pointer = &Random::_mt19937;
+			}
+			if constexpr (std::is_floating_point<T>::value)
+			{
+				std::uniform_real_distribution<T> distrib(min, max);
+				auto value = distrib(*mt19937Pointer);
+				if (seed != (std::numeric_limits<size_t>::max)())
+				{
+					delete mt19937Pointer;
+					mt19937Pointer = 0;
+				}
+				return value;
+			}
+			else if constexpr (std::is_integral<T>::value)
+			{
+				std::uniform_int_distribution<T> distrib(min, max);
+				auto value = distrib(*mt19937Pointer);
+				if (seed != (std::numeric_limits<size_t>::max)()) // ∞
+				{
+					delete mt19937Pointer;
+					mt19937Pointer = 0;
+				}
+				return value;
+			}
+			throw std::runtime_error("Type is not supported by Random::value");
+		};
+		template <typename T>
+		static const T value(const T min, const T max, std::mt19937& mt19937)
+		{
+			if constexpr (std::is_floating_point<T>::value)
+			{
+				std::uniform_real_distribution<T> distrib(min, max);
+				auto value = distrib(mt19937);
+				return value;
+			}
+			else if constexpr (std::is_integral<T>::value)
+			{
+				std::uniform_int_distribution<T> distrib(min, max);
+				auto value = distrib(mt19937);
+				return value;
+			}
+			throw std::runtime_error("Type is not supported by Random::value");
+		};
+		template <typename T>
+		static const T valueFromRandomRange(const std::vector<std::pair<T, T>>& ranges,
+																				const size_t seed = (std::numeric_limits<size_t>::max)())
+		{
+			auto rangesSize = ranges.size();
+			auto rangesData = ranges.data();
+			size_t rangeIndex = Random::value<size_t>(0, rangesSize - 1, seed);
+			auto& range = rangesData[rangeIndex];
+			return Random::value(range.first, range.second, seed);
+		};
+		template <typename T>
+		static const T valueFromRandomRange(const std::vector<std::pair<T, T>>& ranges, std::mt19937& mt19937)
+		{
+			auto rangesSize = ranges.size();
+			auto rangesData = ranges.data();
+			size_t rangeIndex = Random::value<size_t>(0, rangesSize - 1, mt19937);
+			auto& range = rangesData[rangeIndex];
+			return Random::value(range.first, range.second, mt19937);
+		};
+	};
+
+    template <typename T, size_t N>
+    struct AABB
+    {
+        vec<T, N> min;
+        vec<T, N> max;
+        AABB() = default;
+        AABB(vec<T, N> min, vec<T, N> max):
+            min(min),
+            max(max)
+        {};
+    };
 }

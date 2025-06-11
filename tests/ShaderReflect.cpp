@@ -35,66 +35,30 @@ struct Entity
     }
 };
 
-int main()
+struct Mesh
 {
-    auto main_window = window_create({
-        .title = "Shader Reflect Test",
-        .x = 0,
-        .y = 240,
-        .width = 640,
-        .height = 480,
-        .borderless = true,
-        .vsync = false
-    });
+    int shape_type;
+};
 
-    auto main_buffer_group = buffer_group_create("main_buffer_group");
+struct Material
+{
+    vec<float, 4> color;
+    int type;
+    vec<float, 3> padding;
+};
 
-    auto& window_width = window_get_width_ref(main_window);
-    auto& window_height = window_get_height_ref(main_window);
+struct WindowState {
+    int keys[256];
+    int buttons[8];
+    float frametime;
+};
 
-    auto stat_window = window_create({
-        .title = "Shader Reflect Stats",
-        .x = 660,
-        .y = 240,
-        .width = 640,
-        .height = 480,
-        .borderless = true,
-        .vsync = false
-    });
-
-    // window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg);
-
-    // window_use_other_registry(stat_window, main_window);
-
-//     auto update_entity_shader = shader_create();
-
-//     shader_add_module(update_entity_shader, ShaderModuleType::Compute, R"(
-// #version 450
-
-// void main() {
-// }
-// )");
-
-    auto main_entity_shader = shader_create();
-
-    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> std::pair<Shader*, uint32_t> {
-        auto mesh_index = entity.mesh_index;
-        return {main_entity_shader, 6}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
-    });
-
-    window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
-    window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg, main_buffer_group);
-
-    shader_add_buffer_group(main_entity_shader, main_buffer_group);
-
-    shader_set_define(main_entity_shader, "SUPER_MIP", "3.1415");
-    shader_set_define(main_entity_shader, "MAEGA_MIP", "5.7832");
-
-    shader_add_module(main_entity_shader, ShaderModuleType::Vertex, R"(
-#version 450
-
+std::string VERSION("#version 450\n");
+std::string OUT_LAYOUT(R"(
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outPosition;
+)");
+std::string STRUCTS_AND_BUFFERS(R"(
 
 struct Mesh
 {
@@ -109,6 +73,7 @@ struct Material
 {
     vec4 color;
     int type;
+    vec3 padding;
 };
 layout(std430, binding = 1) buffer MaterialBuffer
 {
@@ -145,7 +110,8 @@ layout(std430, binding = 3) buffer CamerasBuffer
 {
     Camera cameras[];
 } Cameras;
-
+)");
+std::string STRUCT_METHODS_VERT(R"(
 Camera get_camera(in Entity entity)
 {
     return Cameras.cameras[entity.camera_index];
@@ -192,7 +158,131 @@ vec3 get_entity_vertex(int vertex_index, in Entity entity)
     }
     return vec3(0);
 }
+)");
 
+std::string WINDOW_STATE_S_A_B(R"(
+struct WindowState {
+    int keys[256];
+    int buttons[8];
+    float frametime;
+};
+
+layout(std430, binding = 4) buffer WindowStatesBuffer {
+    WindowState states[];
+} WindowStates;
+)");
+
+int main()
+{
+    auto main_window = window_create({
+        .title = "Shader Reflect Test",
+        .x = 0,
+        .y = 240,
+        .width = 640,
+        .height = 480,
+        .borderless = true,
+        .vsync = false
+    });
+
+    auto main_buffer_group = buffer_group_create("main_buffer_group");
+    buffer_group_restrict_to_keys(main_buffer_group, {"Meshes", "Materials", "Entities", "Cameras"});
+    auto windows_buffer_group = buffer_group_create("windows_buffer_group");
+    buffer_group_restrict_to_keys(windows_buffer_group, {"WindowStates"});
+
+    auto& window_width = window_get_width_ref(main_window);
+    auto& window_height = window_get_height_ref(main_window);
+
+    auto stat_window = window_create({
+        .title = "Shader Reflect Stats",
+        .x = 660,
+        .y = 240,
+        .width = 640,
+        .height = 480,
+        .borderless = true,
+        .vsync = false
+    });
+
+    auto update_entity_shader = shader_create();
+
+    shader_add_buffer_group(update_entity_shader, windows_buffer_group);
+    shader_add_buffer_group(update_entity_shader, main_buffer_group);
+
+    shader_add_module(update_entity_shader, ShaderModuleType::Compute, 
+VERSION +
+"layout(local_size_x = 1) in;\n" +
+STRUCTS_AND_BUFFERS +
+WINDOW_STATE_S_A_B + R"(
+
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= Entities.entities.length())
+        return;
+    float x = Entities.entities[id].position.x;
+    int right = WindowStates.states[0].keys[19];
+    int left = WindowStates.states[0].keys[20];
+    int up = WindowStates.states[0].keys[17];
+    int down = WindowStates.states[0].keys[18];
+    if (right == 1)
+        Entities.entities[id].position.x += (3.0 * WindowStates.states[0].frametime);
+    if (left == 1)
+        Entities.entities[id].position.x -= (3.0 * WindowStates.states[0].frametime);
+    if (up == 1)
+        Entities.entities[id].position.y -= (3.0 * WindowStates.states[0].frametime);
+    if (down == 1)
+        Entities.entities[id].position.y += (3.0 * WindowStates.states[0].frametime);
+}
+)");
+
+    buffer_group_set_buffer_element_count(windows_buffer_group, "WindowStates", 1);
+
+    auto main_entity_shader = shader_create();
+    auto green_entity_shader = shader_create();
+
+    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> std::pair<Shader*, uint32_t> {
+        auto mesh_index = entity.mesh_index;
+        auto material_index = entity.material_index;
+        auto mesh_view = buffer_group_get_buffer_element_view(buffer_group, "Meshes", mesh_index);
+        auto material_view = buffer_group_get_buffer_element_view(buffer_group, "Materials", material_index);
+        auto& mesh = mesh_view.template as_struct<Mesh>();
+        auto& material = material_view.template as_struct<Material>();
+        Shader* chosen_shader = 0;
+        uint32_t vert_count = 0;
+
+        // example of choosing different shaders based on material.type
+        if (material.type == 0)
+        {
+            chosen_shader = main_entity_shader;
+        }
+        else
+        {
+            chosen_shader = green_entity_shader;
+        }
+        switch (mesh.shape_type)
+        {
+        case 0:
+        default:
+            vert_count = 6;
+            break;
+        }
+        return {chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
+    });
+
+    window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
+    window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg, main_buffer_group);
+
+    shader_add_buffer_group(main_entity_shader, main_buffer_group);
+    shader_add_buffer_group(green_entity_shader, main_buffer_group);
+    shader_add_buffer_group(main_entity_shader, windows_buffer_group);
+
+    shader_set_define(main_entity_shader, "SUPER_MIP", "3.1415");
+    shader_set_define(main_entity_shader, "MAEGA_MIP", "5.7832");
+
+    shader_add_module(main_entity_shader, ShaderModuleType::Vertex, 
+VERSION + 
+OUT_LAYOUT +
+STRUCTS_AND_BUFFERS +
+STRUCT_METHODS_VERT +
+WINDOW_STATE_S_A_B + R"(
 void main()
 {
     int entity_id = get_entity_id();
@@ -206,7 +296,10 @@ void main()
     vec4 viewPos  = camera.view * worldPos;
     vec4 clipPos  = camera.projection * viewPos;
     outPosition = clipPos;
-    outColor = material.color;
+    if (WindowStates.states[0].buttons[0] == 1)
+        outColor = vec4(1, 1, 0, 1);
+    else
+        outColor = material.color;
     gl_Position = outPosition;
 }
 )");
@@ -224,35 +317,97 @@ void main()
 }
 )");
 
+    // green_entity_shader
+
+    shader_add_module(green_entity_shader, ShaderModuleType::Vertex, 
+VERSION + 
+OUT_LAYOUT +
+STRUCTS_AND_BUFFERS +
+STRUCT_METHODS_VERT + R"(
+void main()
+{
+    int entity_id = get_entity_id();
+    Entity entity = get_entity(entity_id);
+    Material material = get_material(entity);
+    Mesh mesh = get_mesh(entity);
+    Camera camera = get_camera(entity);
+    vec3 inPosition = get_entity_vertex(gl_VertexIndex, entity);
+    // mat4 mpv = camera.projection * camera.view * entity.model;
+    vec4 worldPos = entity.model * vec4(inPosition, 1.0);
+    vec4 viewPos  = camera.view * worldPos;
+    vec4 clipPos  = camera.projection * viewPos;
+    outPosition = clipPos;
+    outColor = vec4(0, 1, 0, 1);
+    gl_Position = outPosition;
+}
+)");
+    shader_add_module(green_entity_shader, ShaderModuleType::Fragment, R"(
+#version 450
+
+layout(location = 0) in vec4 inColor;
+layout(location = 1) in vec4 inPosition;
+
+layout(location = 0) out vec4 FragColor;
+
+void main()
+{
+    FragColor = inColor;
+}
+)");
+
 
     // Instantiate the shader buffers with some counts
 
-    buffer_group_set_buffer_element_count(main_buffer_group, "Materials", 1);
+    std::vector<Material*> material_ptrs;
+    material_ptrs.resize(4);
+    buffer_group_set_buffer_element_count(main_buffer_group, "Materials", material_ptrs.size());
     buffer_group_set_buffer_element_count(main_buffer_group, "Meshes", 1);
     std::vector<Entity*> entity_ptrs;
     entity_ptrs.resize(5);
     buffer_group_set_buffer_element_count(main_buffer_group, "Entities", entity_ptrs.size());
     buffer_group_set_buffer_element_count(main_buffer_group, "Cameras", 1);
     
-    
     buffer_group_initialize(main_buffer_group);
+    buffer_group_initialize(windows_buffer_group);
+
+    auto window_1_view = buffer_group_get_buffer_element_view(windows_buffer_group, "WindowStates", 0);
+    auto& window_1 = window_1_view.template as_struct<WindowState>();
+    window_set_keys_pointer(main_window, window_1.keys);
+    window_set_buttons_pointer(main_window, window_1.buttons);
+    window_set_frametime_pointer(main_window, &window_1.frametime);
 
     //
-
-    auto material_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Materials", 0);
-
-    material_1_view.set_member("color", vec<float, 4>(0, 0, 1.0, 1.0));
-    material_1_view.set_member("type", 0);
 
     auto mesh_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Meshes", 0);
 
     mesh_1_view.set_member("shape_type", 0);
 
+    for (size_t i = 0; i < material_ptrs.size(); ++i)
+    {
+        auto material_view = buffer_group_get_buffer_element_view(main_buffer_group, "Materials", i);
+        auto& material = material_view.as_struct<Material>();
+        material_ptrs[i] = &material;
+    }
+
     for (size_t i = 0; i < entity_ptrs.size(); ++i)
     {
-        auto entity_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entities", i);
-        auto& entity_1 = entity_1_view.as_struct<Entity>();
-        entity_ptrs[i] = &entity_1;
+        auto entity_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entities", i);
+        auto& entity = entity_view.as_struct<Entity>();
+        entity_ptrs[i] = &entity;
+    }
+
+    int q = 1;
+    for (auto& mp : material_ptrs)
+    {
+        auto& material = *mp;
+        material.type = q ? 0 : 1;
+        q = material.type;
+        material.color = {
+            Random::value<float>(0.3, 1),
+            Random::value<float>(0.3, 1),
+            Random::value<float>(0.3, 1),
+            1
+        };
     }
 
     long c = -2;
@@ -260,7 +415,7 @@ void main()
     {
         auto& entity = *ep;
         entity.mesh_index = 0;
-        entity.material_index = 0;
+        entity.material_index = Random::value<int32_t>(0, 3);
         entity.camera_index = 0;
         entity.scale = {1, 1, 1, 1};
         entity.position[1] = (c++ * 1.5);
@@ -312,52 +467,11 @@ void main()
                 if (esc_pressed)
                     break;
         
+                shader_dispatch(update_entity_shader, {entity_ptrs.size(), 1, 1});
+
                 for (auto& ep : entity_ptrs)
                 {
                     auto& entity = *ep;
-                    auto& position = entity.position;
-                    auto& scale = entity.scale;
-                    auto& rotation = entity.rotation;
-                    if ((entity_right || right_pressed) && !left_pressed)
-                        position += (th_vec * window_frametime);
-                    else 
-                        position += (-th_vec * window_frametime);
-            
-                    if (up_pressed)
-                        position += (tv_vec * window_frametime);
-                    if (down_pressed)
-                        position += (-tv_vec * window_frametime);
-            
-                    if (u_pressed)
-                        scale += (s_vec + scale_fac);
-                    if (o_pressed)
-                        scale += (s_vec - scale_fac);
-                    if (r_pressed)
-                        rotation[2] += (90.f * window_frametime);
-                    if (f_pressed)
-                        rotation[1] += (90.f * window_frametime);
-                    if (v_pressed)
-                        rotation[0] += (90.f * window_frametime);
-            
-                    if (position[0] > 5.0)
-                    {
-                        entity_right = !entity_right;
-                        position[0] = 5.0;
-                    }
-                    else if(position[0] < -5.0)
-                    {
-                        entity_right = !entity_right;
-                        position[0] = -5.0;
-                    }
-                    if (position[1] > 5.0)
-                    {
-                        position[1] = 5.0;
-                    }
-                    else if (position[1] < -5.0)
-                    {
-                        position[1] = -5.0;
-                    }
-            
                     entity.set_model();
                 }
         

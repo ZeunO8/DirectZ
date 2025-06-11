@@ -181,14 +181,26 @@ struct ShaderBuffer
     GpuBuffer gpu_buffer;
 };
 
+struct ShaderImage
+{
+    std::string name;
+    uint32_t set = 0;
+    uint32_t binding = 0;
+    std::unordered_map<Shader*, VkDescriptorType> descriptor_types;
+    VkImageViewType viewType;
+    VkFormat format;
+    std::unordered_map<Shader*, VkImageLayout> expected_layouts;
+};
+
 struct Shader
 {
+    bool initialized = false;
     std::map<ShaderModuleType, ShaderModule> module_map;
     std::map<uint32_t, VkDescriptorSetLayout> descriptor_set_layouts;
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     std::map<uint32_t, VkDescriptorSet> descriptor_sets;
     std::map<BufferGroup*, bool> buffer_groups;
-    BufferGroup* current_buffer_group = 0;
+    std::vector<BufferGroup*> bound_buffer_groups;
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkPipeline graphics_pipeline = VK_NULL_HANDLE;
     VkRenderPass render_pass = VK_NULL_HANDLE;
@@ -198,8 +210,11 @@ struct Shader
 struct BufferGroup
 {
     std::string group_name;
-    std::map<std::string, ShaderBuffer> buffers;
-    std::map<Shader*, bool> shaders;
+    std::unordered_map<std::string, ShaderBuffer> buffers;
+    std::unordered_map<std::string, ShaderImage> images;
+    std::unordered_map<std::string, std::shared_ptr<Image>> runtime_images;
+    std::unordered_map<Shader*, bool> shaders;
+    std::unordered_map<std::string, bool> restricted_to_keys;
 };
 
 void shader_destroy(Shader* shader);
@@ -516,127 +531,255 @@ void ReflectStructMembers(
     }
 }
 
+VkImageViewType infer_view_type(const SpvReflectImageTraits& image)
+{
+    switch (image.dim)
+    {
+        case SpvDim1D: return image.arrayed ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
+        case SpvDim2D: return image.arrayed ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+        case SpvDim3D: return VK_IMAGE_VIEW_TYPE_3D;
+        case SpvDimCube: return image.arrayed ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
+        default: return VK_IMAGE_VIEW_TYPE_2D;
+    }
+}
+
+VkFormat infer_format(SpvImageFormat fmt)
+{
+    switch (fmt)
+    {
+        case SpvImageFormatRgba32f: return VK_FORMAT_R32G32B32A32_SFLOAT;
+        case SpvImageFormatRgba16f: return VK_FORMAT_R16G16B16A16_SFLOAT;
+        case SpvImageFormatR32f: return VK_FORMAT_R32_SFLOAT;
+        case SpvImageFormatRgba8: return VK_FORMAT_R8G8B8A8_UNORM;
+        case SpvImageFormatRgba8Snorm: return VK_FORMAT_R8G8B8A8_SNORM;
+        case SpvImageFormatRg32f: return VK_FORMAT_R32G32_SFLOAT;
+        case SpvImageFormatRg16f: return VK_FORMAT_R16G16_SFLOAT;
+        case SpvImageFormatR11fG11fB10f: return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+        case SpvImageFormatR16f: return VK_FORMAT_R16_SFLOAT;
+        case SpvImageFormatRgba16: return VK_FORMAT_R16G16B16A16_UNORM;
+        case SpvImageFormatRgb10A2: return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+        case SpvImageFormatRg16: return VK_FORMAT_R16G16_UNORM;
+        case SpvImageFormatRg8: return VK_FORMAT_R8G8_UNORM;
+        case SpvImageFormatR16: return VK_FORMAT_R16_UNORM;
+        case SpvImageFormatR8: return VK_FORMAT_R8_UNORM;
+        case SpvImageFormatRgba16Snorm: return VK_FORMAT_R16G16B16A16_SNORM;
+        case SpvImageFormatRg16Snorm: return VK_FORMAT_R16G16_SNORM;
+        case SpvImageFormatRg8Snorm: return VK_FORMAT_R8G8_SNORM;
+        case SpvImageFormatR16Snorm: return VK_FORMAT_R16_SNORM;
+        case SpvImageFormatR8Snorm: return VK_FORMAT_R8_SNORM;
+
+        case SpvImageFormatRgba32i: return VK_FORMAT_R32G32B32A32_SINT;
+        case SpvImageFormatRgba16i: return VK_FORMAT_R16G16B16A16_SINT;
+        case SpvImageFormatRgba8i: return VK_FORMAT_R8G8B8A8_SINT;
+        case SpvImageFormatR32i: return VK_FORMAT_R32_SINT;
+        case SpvImageFormatRg32i: return VK_FORMAT_R32G32_SINT;
+        case SpvImageFormatRg16i: return VK_FORMAT_R16G16_SINT;
+        case SpvImageFormatRg8i: return VK_FORMAT_R8G8_SINT;
+        case SpvImageFormatR16i: return VK_FORMAT_R16_SINT;
+        case SpvImageFormatR8i: return VK_FORMAT_R8_SINT;
+
+        case SpvImageFormatRgba32ui: return VK_FORMAT_R32G32B32A32_UINT;
+        case SpvImageFormatRgba16ui: return VK_FORMAT_R16G16B16A16_UINT;
+        case SpvImageFormatRgba8ui: return VK_FORMAT_R8G8B8A8_UINT;
+        case SpvImageFormatR32ui: return VK_FORMAT_R32_UINT;
+        case SpvImageFormatRgb10a2ui: return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+        case SpvImageFormatRg32ui: return VK_FORMAT_R32G32_UINT;
+        case SpvImageFormatRg16ui: return VK_FORMAT_R16G16_UINT;
+        case SpvImageFormatRg8ui: return VK_FORMAT_R8G8_UINT;
+        case SpvImageFormatR16ui: return VK_FORMAT_R16_UINT;
+        case SpvImageFormatR8ui: return VK_FORMAT_R8_UINT;
+
+        case SpvImageFormatR64ui: return VK_FORMAT_R64_UINT;
+        case SpvImageFormatR64i: return VK_FORMAT_R64_SINT;
+
+        case SpvImageFormatUnknown: // Fallthrough
+        default: return VK_FORMAT_UNDEFINED;
+    }
+}
+
+VkImageLayout infer_required_image_layout(VkDescriptorType descriptor_type)
+{
+    switch (descriptor_type)
+    {
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+            return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            return VK_IMAGE_LAYOUT_GENERAL;
+
+        case VK_DESCRIPTOR_TYPE_SAMPLER:
+            return VK_IMAGE_LAYOUT_UNDEFINED; // no image associated
+
+        default:
+            return VK_IMAGE_LAYOUT_UNDEFINED;
+    }
+}
+
 void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection)
 {
     for (uint32_t i = 0; i < module.descriptor_binding_count; ++i)
     {
         const auto& binding_info = module.descriptor_bindings[i];
-
-        // We only care about UBOs and SSBOs for this system.
-        if (binding_info.descriptor_type != SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER &&
-            binding_info.descriptor_type != SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-        {
-            continue;
-        }
-
         std::string name = binding_info.name ? binding_info.name : "";
+
         if (name.empty()) {
-            std::cerr << "Warning: Skipping unnamed buffer at set=" << binding_info.set << ", binding=" << binding_info.binding << std::endl;
+            std::cerr << "Warning: Skipping unnamed descriptor_binding at set=" << binding_info.set << ", binding=" << binding_info.binding << std::endl;
             continue;
         }
-
-        // If another shader stage already reflected this buffer, skip.
-        if (buffer_group->buffers.count(name)) {
+        // If we are restricted to buffers and this is not a restriction, skip.
+        if (buffer_group->restricted_to_keys.size() && (buffer_group->restricted_to_keys.find(name)) == buffer_group->restricted_to_keys.end())
             continue;
+
+        auto vk_descriptor_type = static_cast<VkDescriptorType>(binding_info.descriptor_type);
+
+        switch (binding_info.descriptor_type)
+        {
+        default:
+        {
+            std::cerr << "Warning: Unhandled descriptor type: " << vk_descriptor_type << std::endl;
+            break;
         }
+        case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+        case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+        {
+            if (buffer_group->images.count(name))
+            {
+                auto& image_data = buffer_group->images[name];
+                image_data.descriptor_types[shader] = vk_descriptor_type;
+                image_data.expected_layouts[shader] = infer_required_image_layout(vk_descriptor_type);
+                std::cout << "Added Descriptor Type: " << vk_descriptor_type << " to Reflected image '" << name << "'" << std::endl;
+                continue;
+            }
 
-        ShaderBuffer buffer_data{};
-        buffer_data.name = name;
-        buffer_data.set = binding_info.set;
-        buffer_data.binding = binding_info.binding;
-        buffer_data.descriptor_type = static_cast<VkDescriptorType>(binding_info.descriptor_type);
-        buffer_data.static_size = binding_info.block.size; // This is the total size of the block from reflection
 
-        // Determine element_type and related properties
-        const auto& block = binding_info.block; // The entire block (struct or wrapper for content)
-        const SpvReflectTypeDescription* element_type_desc_ptr = nullptr; // Pointer to the type description of one element
+            ShaderImage image_data{};
+            image_data.name = name;
+            image_data.set = binding_info.set;
+            image_data.binding = binding_info.binding;
+            image_data.descriptor_types[shader] = vk_descriptor_type;
+            image_data.viewType = infer_view_type(binding_info.image);
+            image_data.format = infer_format(binding_info.image.image_format);
+            image_data.expected_layouts[shader] = infer_required_image_layout(vk_descriptor_type);
 
-        if (binding_info.descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-            // For UBOs, the "element" is the entire block struct itself.
-            element_type_desc_ptr = block.type_description;
-            buffer_data.element_stride = block.size; // Stride is the size of the whole UBO struct
-            buffer_data.element_count = 1; // UBOs typically have one instance
-            buffer_data.is_dynamic_sized = false; // UBOs are fixed size
-            std::cout << "Detected UBO '" << name << "': single struct element." << std::endl;
-        } else if (binding_info.descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
-            // For SSBOs, we need to look into its members for the actual element type,
-            // especially if it's an array. SSBOs are typically structs containing arrays.
-            if (block.member_count > 0) {
-                const auto& primary_member = block.members[0]; // Assume the first member holds the data structure we care about
+            buffer_group->images[name] = image_data;
+            std::cout << "Reflected image '" << name << "' (Set=" << image_data.set << ", Binding=" << image_data.binding
+                    << ", Descriptor Type=" << vk_descriptor_type << ", View Type=" << image_data.viewType
+                    << ", Format=" << image_data.format << ")" << std::endl;
 
-                if (primary_member.type_description->op == SpvOpTypeRuntimeArray) {
-                    // This is an SSBO with a runtime array as its primary content (e.g., `buffer MyBlock { SomeType data[]; }`)
-                    element_type_desc_ptr = primary_member.type_description;
-                    buffer_data.is_dynamic_sized = true;
-                    if (element_type_desc_ptr->struct_member_name)
-                    {
-                        buffer_data.element_stride = GetMinimumTypeSizeInBytes(*primary_member.type_description);
-                    }
-                    else
-                    {
+            break;
+        }
+        case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+        case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+        {
+            // If another shader stage already reflected this buffer, skip.
+            if (buffer_group->buffers.count(name)) {
+                continue;
+            }
+
+            ShaderBuffer buffer_data{};
+            buffer_data.name = name;
+            buffer_data.set = binding_info.set;
+            buffer_data.binding = binding_info.binding;
+            buffer_data.descriptor_type = vk_descriptor_type;
+            buffer_data.static_size = binding_info.block.size; // This is the total size of the block from reflection
+
+            // Determine element_type and related properties
+            const auto& block = binding_info.block; // The entire block (struct or wrapper for content)
+            const SpvReflectTypeDescription* element_type_desc_ptr = nullptr; // Pointer to the type description of one element
+
+            if (binding_info.descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+                // For UBOs, the "element" is the entire block struct itself.
+                element_type_desc_ptr = block.type_description;
+                buffer_data.element_stride = block.size; // Stride is the size of the whole UBO struct
+                buffer_data.element_count = 1; // UBOs typically have one instance
+                buffer_data.is_dynamic_sized = false; // UBOs are fixed size
+                std::cout << "Detected UBO '" << name << "': single struct element." << std::endl;
+            } else if (binding_info.descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                // For SSBOs, we need to look into its members for the actual element type,
+                // especially if it's an array. SSBOs are typically structs containing arrays.
+                if (block.member_count > 0) {
+                    const auto& primary_member = block.members[0]; // Assume the first member holds the data structure we care about
+
+                    if (primary_member.type_description->op == SpvOpTypeRuntimeArray) {
+                        // This is an SSBO with a runtime array as its primary content (e.g., `buffer MyBlock { SomeType data[]; }`)
+                        element_type_desc_ptr = primary_member.type_description;
+                        buffer_data.is_dynamic_sized = true;
+                        if (element_type_desc_ptr->struct_member_name)
+                        {
+                            buffer_data.element_stride = GetMinimumTypeSizeInBytes(*primary_member.type_description);
+                        }
+                        else
+                        {
+                            buffer_data.element_stride = primary_member.type_description->traits.array.stride;
+                        }
+                        buffer_data.element_count = 0; // Requires application to set size for dynamic buffers
+                        std::cout << "Detected dynamic SSBO '" << name << "': runtime array of " << element_type_desc_ptr->type_name << "s." << std::endl;
+                    } else if (primary_member.type_description->op == SpvOpTypeArray) {
+                        // This is an SSBO with a fixed-size array as its primary content (e.g., `buffer MyBlock { SomeType data[10]; }`)
+                        element_type_desc_ptr = primary_member.type_description;
+                        buffer_data.is_dynamic_sized = false; // Fixed size
                         buffer_data.element_stride = primary_member.type_description->traits.array.stride;
+                        // buffer_data.element_count = primary_member.type_description->traits.array.length; // Explicit length
+                        std::cout << "Detected fixed-size array SSBO '" << name << "': array of " << element_type_desc_ptr->type_name << "s with count " << buffer_data.element_count << "." << std::endl;
+                    } else {
+                        // This is an SSBO that contains a single struct or primitive as its primary member
+                        // (e.g., `buffer MyBlock { MyStruct data; }` or `buffer MyBlock { float value; }`)
+                        element_type_desc_ptr = primary_member.type_description;
+                        buffer_data.is_dynamic_sized = false;
+                        buffer_data.element_stride = primary_member.size; // Stride is simply the size of that single member
+                        buffer_data.element_count = 1;
+                        std::cout << "Detected single-element SSBO '" << name << "': element type " << element_type_desc_ptr->type_name << "." << std::endl;
                     }
-                    buffer_data.element_count = 0; // Requires application to set size for dynamic buffers
-                    std::cout << "Detected dynamic SSBO '" << name << "': runtime array of " << element_type_desc_ptr->type_name << "s." << std::endl;
-                } else if (primary_member.type_description->op == SpvOpTypeArray) {
-                    // This is an SSBO with a fixed-size array as its primary content (e.g., `buffer MyBlock { SomeType data[10]; }`)
-                    element_type_desc_ptr = primary_member.type_description;
-                    buffer_data.is_dynamic_sized = false; // Fixed size
-                    buffer_data.element_stride = primary_member.type_description->traits.array.stride;
-                    // buffer_data.element_count = primary_member.type_description->traits.array.length; // Explicit length
-                    std::cout << "Detected fixed-size array SSBO '" << name << "': array of " << element_type_desc_ptr->type_name << "s with count " << buffer_data.element_count << "." << std::endl;
                 } else {
-                    // This is an SSBO that contains a single struct or primitive as its primary member
-                    // (e.g., `buffer MyBlock { MyStruct data; }` or `buffer MyBlock { float value; }`)
-                    element_type_desc_ptr = primary_member.type_description;
-                    buffer_data.is_dynamic_sized = false;
-                    buffer_data.element_stride = primary_member.size; // Stride is simply the size of that single member
-                    buffer_data.element_count = 1;
-                    std::cout << "Detected single-element SSBO '" << name << "': element type " << element_type_desc_ptr->type_name << "." << std::endl;
+                    // This is an SSBO block with no members. This is unusual for data buffers.
+                    // It might be a simple SSBO with just a type binding_info.type_description
+                    // if it's not a block, but here we are in the 'block' context.
+                    std::cerr << "Warning: SSBO '" << name << "' block has no members. Cannot reliably determine element type." << std::endl;
+                    // Fallback: If it's a direct binding to a non-struct type, use that.
+                    if (!(binding_info.type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT) && binding_info.type_description->op != SpvOpTypeStruct) {
+                        element_type_desc_ptr = binding_info.type_description;
+                        buffer_data.is_dynamic_sized = false;
+                        buffer_data.element_stride = GetMinimumTypeSizeInBytes(*binding_info.type_description);
+                        buffer_data.element_count = 1;
+                        std::cout << "Detected simple (non-struct) SSBO '" << name << "' via binding_info.type_description." << std::endl;
+                    } else {
+                        std::cerr << "Error: Skipping SSBO '" << name << "' due to ambiguous element type." << std::endl;
+                        continue;
+                    }
+                }
+            }
+
+            // Assign the reflected element type
+            if (element_type_desc_ptr) {
+                buffer_data.element_type = CreateReflectedType(*element_type_desc_ptr);
+
+                // Populate the ReflectedStruct into the shader's reflection if the element type is a struct
+                if (buffer_data.element_type.type_kind == "struct") {
+                    // Check if it's already there to avoid duplicates across shader stages
+                    if (reflection.structs_by_name.find(buffer_data.element_type.name) == reflection.structs_by_name.end()) {
+                        // Create a ReflectedStruct using the type_desc of the element
+                        auto s = ReflectedStruct(buffer_data.element_type.name, buffer_data.element_type.id, *element_type_desc_ptr);
+                        reflection.structs_by_name.emplace(buffer_data.element_type.name, s);
+                        reflection.structs_by_id.emplace(buffer_data.element_type.id, s);
+                        std::cout << "Added reflected struct '" << buffer_data.element_type.name << "' (ID: " << buffer_data.element_type.id << ") to global reflection data." << std::endl;
+                    }
                 }
             } else {
-                // This is an SSBO block with no members. This is unusual for data buffers.
-                // It might be a simple SSBO with just a type binding_info.type_description
-                // if it's not a block, but here we are in the 'block' context.
-                std::cerr << "Warning: SSBO '" << name << "' block has no members. Cannot reliably determine element type." << std::endl;
-                // Fallback: If it's a direct binding to a non-struct type, use that.
-                if (!(binding_info.type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT) && binding_info.type_description->op != SpvOpTypeStruct) {
-                    element_type_desc_ptr = binding_info.type_description;
-                    buffer_data.is_dynamic_sized = false;
-                    buffer_data.element_stride = GetMinimumTypeSizeInBytes(*binding_info.type_description);
-                    buffer_data.element_count = 1;
-                    std::cout << "Detected simple (non-struct) SSBO '" << name << "' via binding_info.type_description." << std::endl;
-                } else {
-                    std::cerr << "Error: Skipping SSBO '" << name << "' due to ambiguous element type." << std::endl;
-                    continue;
-                }
+                std::cerr << "Error: Could not determine element type for buffer '" << name << "'." << std::endl;
+                continue; // Skip this buffer if element type can't be determined
             }
+
+            buffer_group->buffers[name] = buffer_data;
+            std::cout << "Reflected buffer '" << name << "' (Set=" << buffer_data.set << ", Binding=" << buffer_data.binding
+                    << ", Static Size=" << buffer_data.static_size << ", Element Stride=" << buffer_data.element_stride
+                    << ", Element Type=" << buffer_data.element_type.name << ", Dynamic=" << (buffer_data.is_dynamic_sized ? "Yes" : "No") << ")" << std::endl;
+            break;
         }
-
-        // Assign the reflected element type
-        if (element_type_desc_ptr) {
-            buffer_data.element_type = CreateReflectedType(*element_type_desc_ptr);
-
-            // Populate the ReflectedStruct into the shader's reflection if the element type is a struct
-            if (buffer_data.element_type.type_kind == "struct") {
-                // Check if it's already there to avoid duplicates across shader stages
-                if (reflection.structs_by_name.find(buffer_data.element_type.name) == reflection.structs_by_name.end()) {
-                    // Create a ReflectedStruct using the type_desc of the element
-                    auto s = ReflectedStruct(buffer_data.element_type.name, buffer_data.element_type.id, *element_type_desc_ptr);
-                    reflection.structs_by_name.emplace(buffer_data.element_type.name, s);
-                    reflection.structs_by_id.emplace(buffer_data.element_type.id, s);
-                    std::cout << "Added reflected struct '" << buffer_data.element_type.name << "' (ID: " << buffer_data.element_type.id << ") to global reflection data." << std::endl;
-                }
-            }
-        } else {
-            std::cerr << "Error: Could not determine element type for buffer '" << name << "'." << std::endl;
-            continue; // Skip this buffer if element type can't be determined
         }
-
-        buffer_group->buffers[name] = buffer_data;
-        std::cout << "Reflected buffer '" << name << "' (Set=" << buffer_data.set << ", Binding=" << buffer_data.binding
-                  << ", Static Size=" << buffer_data.static_size << ", Element Stride=" << buffer_data.element_stride
-                  << ", Element Type=" << buffer_data.element_type.name << ", Dynamic=" << (buffer_data.is_dynamic_sized ? "Yes" : "No") << ")" << std::endl;
     }
 }
 
@@ -929,7 +1072,7 @@ void shader_reflect(Shader* shader, ShaderModuleType module_type, shaderc_shader
         ReflectAndPrepareBuffers(buffer_group, module, shader, shader_module.reflection);
     }
 
-    PrintShaderReflection(shader);
+    // PrintShaderReflection(shader);
 
     std::cout << "Reflection Complete for Stage" << std::endl;
 }
@@ -1070,6 +1213,24 @@ bool AllocateDescriptorSets(VkDevice device, Shader* shader)
     return true;
 }
 
+VkImageLayout infer_image_layout(Shader* shader, std::unordered_map<Shader*, VkDescriptorType>& types)
+{
+    auto& type = types[shader];
+    switch (type)
+    {
+        case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+        case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+            return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            return VK_IMAGE_LAYOUT_GENERAL;
+
+        default:
+            return VK_IMAGE_LAYOUT_UNDEFINED; // or assert
+    }
+}
+
 /**
  * @brief The core creation function. It iterates the prepared ShaderBuffer map, creates the
  * actual Vulkan buffers, copies initial data, and performs the shared_ptr swap.
@@ -1078,10 +1239,13 @@ bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
 {
 	auto direct_registry = DZ_RGY.get();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
-    // We must store the buffer_info structs persistently for the vkUpdateDescriptorSets call
     std::vector<VkDescriptorBufferInfo> buffer_infos; 
+    std::vector<VkDescriptorImageInfo> image_infos;
 
     for (auto& [name, buffer] : buffer_group->buffers) {
+        if (buffer.gpu_buffer.mapped_memory)
+            continue;
+
         VkDeviceSize buffer_size = 0;
         if (buffer.is_dynamic_sized) {
             if (buffer.element_count == 0) {
@@ -1155,6 +1319,7 @@ bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
         buffer_infos.back().range = buffer.gpu_buffer.size;
     }
     
+    size_t i = 0;
     for (auto& [name, buffer] : buffer_group->buffers) {
         VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         write_set.dstSet = shader->descriptor_sets.at(buffer.set);
@@ -1162,8 +1327,36 @@ bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
         write_set.dstArrayElement = 0;
         write_set.descriptorType = buffer.descriptor_type;
         write_set.descriptorCount = 1;
-        write_set.pBufferInfo = &buffer_infos.back();
+        write_set.pBufferInfo = &buffer_infos[i];
+        i++;
+        descriptor_writes.push_back(write_set);
+    }
 
+    for (auto& [name, image_ref] : buffer_group->images) {
+        auto image_it = buffer_group->runtime_images.find(name);
+        if (image_it == buffer_group->runtime_images.end())
+        {
+            std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
+            continue;
+        }
+        Image* img = image_it->second.get();
+        image_infos.emplace_back();
+        image_infos.back().imageView = img->imageView;
+        image_infos.back().imageLayout = infer_image_layout(shader, image_ref.descriptor_types);
+        image_infos.back().sampler = img->sampler; // Use a real sampler if necessary
+    }
+
+    size_t j = 0;
+    for (auto& [name, image_ref] : buffer_group->images) {
+        VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        write_set.dstSet = shader->descriptor_sets.at(image_ref.set);
+        write_set.dstBinding = image_ref.binding;
+        write_set.dstArrayElement = 0;
+        auto type = image_ref.descriptor_types[shader];
+        write_set.descriptorType = type;
+        write_set.descriptorCount = 1;
+        write_set.pImageInfo = &image_infos[j];
+        j++;
         descriptor_writes.push_back(write_set);
     }
     
@@ -1183,73 +1376,76 @@ bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
  * @param shader The shader object.
  */
 void shader_update_descriptor_sets(Shader* shader) {
-    std::vector<VkWriteDescriptorSet> writes;
-    std::vector<VkDescriptorBufferInfo> buffer_infos; // Store these so pointers remain valid
+    // std::vector<VkWriteDescriptorSet> writes;
+    // std::vector<VkDescriptorBufferInfo> buffer_infos; // Store these so pointers remain valid
 
-    // Reserve space to avoid reallocations
-    writes.reserve(shader->current_buffer_group->buffers.size());
-    buffer_infos.reserve(shader->current_buffer_group->buffers.size());
+    // // Reserve space to avoid reallocations
+    // writes.reserve(shader->current_buffer_group->buffers.size());
+    // buffer_infos.reserve(shader->current_buffer_group->buffers.size());
 
-    for (const auto& pair : shader->current_buffer_group->buffers) {
-        const auto& buffer = pair.second;
+    // for (const auto& pair : shader->current_buffer_group->buffers) {
+    //     const auto& buffer = pair.second;
 
-        // Ensure the descriptor set exists for this binding's set
-        auto dst_set_it = shader->descriptor_sets.find(buffer.set);
-        if (dst_set_it == shader->descriptor_sets.end()) {
-            std::cerr << "Warning: No descriptor set found for set " << buffer.set
-                      << " for buffer '" << buffer.name << "'. Skipping update." << std::endl;
-            continue;
-        }
-        VkDescriptorSet dst_set = dst_set_it->second;
+    //     // Ensure the descriptor set exists for this binding's set
+    //     auto dst_set_it = shader->descriptor_sets.find(buffer.set);
+    //     if (dst_set_it == shader->descriptor_sets.end()) {
+    //         std::cerr << "Warning: No descriptor set found for set " << buffer.set
+    //                   << " for buffer '" << buffer.name << "'. Skipping update." << std::endl;
+    //         continue;
+    //     }
+    //     VkDescriptorSet dst_set = dst_set_it->second;
 
-        // Calculate the range for the descriptor info
-        VkDeviceSize range = buffer.is_dynamic_sized ?
-                             (buffer.element_count * buffer.element_stride) :
-                             buffer.static_size;
+    //     // Calculate the range for the descriptor info
+    //     VkDeviceSize range = buffer.is_dynamic_sized ?
+    //                          (buffer.element_count * buffer.element_stride) :
+    //                          buffer.static_size;
 
-        // Ensure a non-zero range, especially for mock buffers that might start with 0 size
-        if (range == 0) {
-             std::cerr << "Warning: Buffer '" << buffer.name << "' has a range of 0. Skipping descriptor update." << std::endl;
-             continue;
-        }
+    //     // Ensure a non-zero range, especially for mock buffers that might start with 0 size
+    //     if (range == 0) {
+    //          std::cerr << "Warning: Buffer '" << buffer.name << "' has a range of 0. Skipping descriptor update." << std::endl;
+    //          continue;
+    //     }
 
-        // Create VkDescriptorBufferInfo
-        VkDescriptorBufferInfo buffer_info{};
-        buffer_info.buffer = buffer.gpu_buffer.buffer;
-        buffer_info.offset = 0; // Assuming the entire buffer is described by this descriptor
-        buffer_info.range = range;
-        buffer_infos.push_back(buffer_info); // Add to vector to keep it alive
+    //     // Create VkDescriptorBufferInfo
+    //     VkDescriptorBufferInfo buffer_info{};
+    //     buffer_info.buffer = buffer.gpu_buffer.buffer;
+    //     buffer_info.offset = 0; // Assuming the entire buffer is described by this descriptor
+    //     buffer_info.range = range;
+    //     buffer_infos.push_back(buffer_info); // Add to vector to keep it alive
 
-        // Create VkWriteDescriptorSet
-        VkWriteDescriptorSet write{};
-        write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write.dstSet = dst_set;
-        write.dstBinding = buffer.binding;
-        write.dstArrayElement = 0; // Not using array of descriptors here
-        write.descriptorCount = 1;
-        write.descriptorType = buffer.descriptor_type;
-        write.pBufferInfo = &buffer_infos.back(); // Point to the last added buffer_info
+    //     // Create VkWriteDescriptorSet
+    //     VkWriteDescriptorSet write{};
+    //     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //     write.dstSet = dst_set;
+    //     write.dstBinding = buffer.binding;
+    //     write.dstArrayElement = 0; // Not using array of descriptors here
+    //     write.descriptorCount = 1;
+    //     write.descriptorType = buffer.descriptor_type;
+    //     write.pBufferInfo = &buffer_infos.back(); // Point to the last added buffer_info
 
-        writes.push_back(write);
-    }
+    //     writes.push_back(write);
+    // }
 
-    if (!writes.empty()) {
-	    auto direct_registry = DZ_RGY.get();
-        // Call the Vulkan API function (mocked here)
-        vkUpdateDescriptorSets(direct_registry->device,
-                               static_cast<uint32_t>(writes.size()),
-                               writes.data(),
-                               0, nullptr); // No descriptor copies in this case
-        std::cout << "Successfully updated " << writes.size() << " descriptor sets." << std::endl;
-    } else {
-        std::cout << "No shader buffers found to update descriptor sets for." << std::endl;
-    }
+    // if (!writes.empty()) {
+	//     auto direct_registry = DZ_RGY.get();
+    //     // Call the Vulkan API function (mocked here)
+    //     vkUpdateDescriptorSets(direct_registry->device,
+    //                            static_cast<uint32_t>(writes.size()),
+    //                            writes.data(),
+    //                            0, nullptr); // No descriptor copies in this case
+    //     std::cout << "Successfully updated " << writes.size() << " descriptor sets." << std::endl;
+    // } else {
+    //     std::cout << "No shader buffers found to update descriptor sets for." << std::endl;
+    // }
 }
 
 void shader_initialize(Shader* shader)
 {
+    if (shader->initialized)
+        return;
     shader_create_resources(shader);
     shader_compile(shader);
+    shader->initialized = true;
 }
 
 void shader_create_resources(Shader* shader)
@@ -1309,20 +1505,26 @@ void shader_add_module(
         auto next_it = shaderString.insert(shaderString.begin() + after_version_idx, defineString.begin(), defineString.end());
         after_version_idx = std::distance(shaderString.begin(), next_it + defineString.size());
     }
-    std::cout << "Adding Shader Module!" << std::endl << std::endl
-              << shaderString << std::endl;
+    // std::cout << "Adding Shader Module!" << std::endl << std::endl
+    //           << shaderString << std::endl;
 	shaderc::Compiler compiler;
 	shaderc::CompileOptions compileOptions;
 	auto stage = stageEShaderc[module_type];
-	shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
+	shaderc::SpvCompilationResult compiled_module = compiler.CompileGlslToSpv(
         shaderString.c_str(),
         shaderString.size(),
         stage,
         "main",
         compileOptions
     );
+    auto status = compiled_module.GetCompilationStatus();
+    if (status != shaderc_compilation_status_success)
+    {
+        std::cerr << "Shader Compile Error: " << compiled_module.GetErrorMessage() << std::endl;
+        return;
+    }
 	auto& shader_module = shader->module_map[module_type];
-	shader_module.spirv_vec = {module.cbegin(), module.cend()};
+	shader_module.spirv_vec = {compiled_module.cbegin(), compiled_module.cend()};
     shader_module.type = module_type;
     shader_init_module(shader, shader_module);
 	shader_reflect(shader, module_type, stage);
@@ -1351,30 +1553,193 @@ void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group)
     shader->buffer_groups.erase(buffer_group);
 }
 
+struct TransitionInfo
+{
+    VkAccessFlags srcAccessMask;
+    VkAccessFlags dstAccessMask;
+    VkPipelineStageFlags srcStage;
+    VkPipelineStageFlags dstStage;
+};
+
+const std::map<std::pair<VkImageLayout, VkImageLayout>, TransitionInfo> kLayoutTransitions =
+{
+    // Undefined to Usable Layouts
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL}, {0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL}, {0, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT}},
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {0, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}, {0, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT}},
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL}, {0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT}},
+    
+    // Transfer Write to Shader Read
+    {{VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+
+    // General Compute to Shader Read
+    {{VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+
+    // Shader Read to General Write
+    {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT}},
+
+    // General to Transfer Destination
+    {{VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL}, {VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
+
+    // Depth Read/Write Variants
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL}, {0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT}},
+    {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL}, {0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+    
+    // Present to Shader Read (e.g., post-processing)
+    {{VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+    
+    // Feedback loop
+    {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT}},
+    {{VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+
+    // Read/Write only compatibility
+    {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
+    {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+};
+
+void transition_image_layout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
+{
+    auto device = DZ_RGY.get()->device;
+    auto command_buffer = begin_single_time_commands();
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    auto it = kLayoutTransitions.find({old_layout, new_layout});
+    if (it == kLayoutTransitions.end())
+    {
+        throw std::runtime_error("Unsupported image layout transition!");
+    }
+
+    const TransitionInfo& info = it->second;
+    barrier.srcAccessMask = info.srcAccessMask;
+    barrier.dstAccessMask = info.dstAccessMask;
+
+    vkCmdPipelineBarrier(
+        command_buffer,
+        info.srcStage,
+        info.dstStage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier
+    );
+
+    end_single_time_commands(command_buffer);
+}
+
+void shader_ensure_image_layouts(Shader* shader)
+{
+    for (auto& bound_buffer_group : shader->bound_buffer_groups)
+    {
+        for (auto& [name, shader_image] : bound_buffer_group->images)
+        {
+            auto runtime_ite = bound_buffer_group->runtime_images.find(name);
+            if (runtime_ite == bound_buffer_group->runtime_images.end())
+                continue;
+
+            auto& image = *runtime_ite->second;;
+    
+            auto exp_lay_ite = shader_image.expected_layouts.find(shader);
+            if (exp_lay_ite == shader_image.expected_layouts.end())
+                continue;
+
+            auto required = exp_lay_ite->second;
+    
+            if (image.current_layout != required)
+            {
+                transition_image_layout(image.image, image.current_layout, required);
+                image.current_layout = required;
+            }
+        }
+    }
+}
+
+void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout)
+{
+    shader_ensure_image_layouts(shader);
+    auto direct_registry = DZ_RGY.get();
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(direct_registry->computeCommandBuffer, &beginInfo);
+    vkCmdBindPipeline(
+        direct_registry->computeCommandBuffer,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        shader->graphics_pipeline
+    );
+    std::vector<VkDescriptorSet> sets;
+    sets.reserve(shader->descriptor_sets.size());
+    for (auto& set_pair : shader->descriptor_sets)
+    {
+        sets.push_back(set_pair.second);
+    }
+    vkCmdBindDescriptorSets(
+        direct_registry->computeCommandBuffer,
+        VK_PIPELINE_BIND_POINT_COMPUTE,
+        shader->pipeline_layout,
+        0,
+        sets.size(),
+        sets.data(),
+        0, nullptr
+    );
+    vkCmdDispatch(
+        direct_registry->computeCommandBuffer,
+        dispatch_layout[0],
+        dispatch_layout[1],
+        dispatch_layout[2]
+    );
+    vkEndCommandBuffer(direct_registry->computeCommandBuffer);
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &direct_registry->computeCommandBuffer;
+    vkQueueSubmit(direct_registry->computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(direct_registry->computeQueue);
+}
+
 void shader_compile(Shader* shader)
 {
-	auto direct_registry = DZ_RGY.get();
+    auto direct_registry = DZ_RGY.get();
     auto device = direct_registry->device;
 
+    // --- Create Pipeline Layout ---
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+
     std::vector<VkDescriptorSetLayout> layouts;
     layouts.reserve(shader->descriptor_set_layouts.size());
     for (auto& layout : shader->descriptor_set_layouts)
     {
         layouts.push_back(layout.second);
     }
+
     pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
     pipelineLayoutInfo.pSetLayouts = layouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shader->pipeline_layout) != 0) {
+    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shader->pipeline_layout) != VK_SUCCESS)
+    {
         throw std::runtime_error("Failed to create pipeline layout!");
     }
+
     std::cout << "Created pipeline layout: " << shader->pipeline_layout << std::endl;
 
+    // --- Determine Shader Stages ---
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    bool requires_rasterization = false;
+    bool uses_compute = false;
 
     for (auto& [module_type, shader_module] : shader->module_map)
     {
@@ -1383,35 +1748,60 @@ void shader_compile(Shader* shader)
         stage_info.stage = stageFlags[shader_module.type];
         stage_info.module = shader_module.vk_module;
         stage_info.pName = "main";
+
+        switch (stage_info.stage)
+        {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            requires_rasterization = true;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            uses_compute = true;
+            break;
+        default:
+            break;
+        }
+
         shaderStages.push_back(stage_info);
     }
 
-    std::cout << "Configured shader stages." << std::endl;
+    if (uses_compute && requires_rasterization)
+    {
+        throw std::runtime_error("Cannot mix compute and raster shader stages in one pipeline");
+    }
 
+    // --- Create Compute Pipeline ---
+    if (uses_compute)
+    {
+        if (shaderStages.size() != 1 || shaderStages[0].stage != VK_SHADER_STAGE_COMPUTE_BIT)
+        {
+            throw std::runtime_error("Compute pipelines must have exactly one compute shader stage");
+        }
+
+        VkComputePipelineCreateInfo computeInfo{};
+        computeInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        computeInfo.stage = shaderStages[0];
+        computeInfo.layout = shader->pipeline_layout;
+        computeInfo.basePipelineHandle = VK_NULL_HANDLE;
+        computeInfo.basePipelineIndex = -1;
+
+        if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computeInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create compute pipeline!");
+        }
+
+        std::cout << "Created compute pipeline: " << shader->graphics_pipeline << std::endl;
+        return;
+    }
+
+    // --- Setup Graphics Pipeline States ---
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = 0;
-    std::cout << "Configured vertex input state." << std::endl;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; // Render as triangles
+    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
-    std::cout << "Configured input assembly state." << std::endl;
-
-    std::vector<VkDynamicState> dynamicStates =
-    {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
 
     VkViewport dummyViewport{};
     dummyViewport.x = 0.0f;
@@ -1431,79 +1821,61 @@ void shader_compile(Shader* shader)
     viewportState.pViewports = &dummyViewport;
     viewportState.scissorCount = 1;
     viewportState.pScissors = &dummyScissor;
-    std::cout << "Configured dynamic viewport state." << std::endl;
 
-    // d. Rasterization State
-    // Controls how primitives are converted into fragments.
+    std::vector<VkDynamicState> dynamicStates =
+    {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
     VkPipelineRasterizationStateCreateInfo rasterizer{};
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL; // Fill polygons
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; // Cull back faces
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; // Clockwise winding order for front face
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;
-    rasterizer.depthBiasClamp = 0.0f;
-    rasterizer.depthBiasSlopeFactor = 0.0f;
-    std::cout << "Configured rasterization state." << std::endl;
 
-    // e. Multisample State
-    // Configures multisampling (MSAA).
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.minSampleShading = 1.0f;
-    multisampling.pSampleMask = nullptr;
-    multisampling.alphaToCoverageEnable = VK_FALSE;
-    multisampling.alphaToOneEnable = VK_FALSE;
-    std::cout << "Configured multisample state." << std::endl;
 
-    // f. Depth and Stencil Testing State
-    // Controls depth and stencil operations.
     VkPipelineDepthStencilStateCreateInfo depthStencil{};
     depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depthStencil.depthTestEnable = VK_TRUE;
     depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS; // Fragments closer to camera are kept
-    depthStencil.depthBoundsTestEnable = VK_FALSE;
-    depthStencil.minDepthBounds = 0.0f;
-    depthStencil.maxDepthBounds = 1.0f;
-    depthStencil.stencilTestEnable = VK_FALSE;
-    // depthStencil.front = {}; // Optional, for stencil
-    // depthStencil.back = {};  // Optional, for stencil
-    std::cout << "Configured depth/stencil state." << std::endl;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
 
-    // g. Color Blending State
-    // Defines how fragment colors are combined with framebuffer colors.
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.blendEnable = VK_FALSE; // No blending for now (overwrite)
+    colorBlendAttachment.blendEnable = VK_FALSE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.colorWriteMask =
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f; // Optional blend constants
-    colorBlending.blendConstants[1] = 0.0f;
-    colorBlending.blendConstants[2] = 0.0f;
-    colorBlending.blendConstants[3] = 0.0f;
-    std::cout << "Configured color blend state." << std::endl;
 
-    // --- Create the Graphics Pipeline ---
+    // --- Create Graphics Pipeline ---
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = shaderStages.size();
+    pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
     pipelineInfo.pStages = shaderStages.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
@@ -1514,34 +1886,42 @@ void shader_compile(Shader* shader)
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = shader->pipeline_layout;
-    pipelineInfo.renderPass = direct_registry->surfaceRenderPass; // Your render pass handle
-    pipelineInfo.subpass = 0; // The subpass index within the render pass
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional: for pipeline derivation
+    pipelineInfo.renderPass = direct_registry->surfaceRenderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipelineInfo.basePipelineIndex = -1;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline) != 0) {
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS)
+    {
         throw std::runtime_error("Failed to create graphics pipeline!");
     }
+
     std::cout << "Created graphics pipeline: " << shader->graphics_pipeline << std::endl;
 }
 
-void shader_bind(Renderer* renderer, Shader* shader)
+void shader_bind(Shader* shader)
 {
-    if (shader->graphics_pipeline == VK_NULL_HANDLE) {
+    if (shader->graphics_pipeline == VK_NULL_HANDLE)
+    {
         std::cerr << "Error: Attempted to bind a null graphics pipeline." << std::endl;
         return;
     }
-    vkCmdBindPipeline(*renderer->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->graphics_pipeline);
-    // std::cout << "Bound Pipeline " << shader->graphics_pipeline <<  std::endl;
+    auto direct_registry = DZ_RGY.get();
+    vkCmdBindPipeline(
+        *direct_registry->commandBuffer,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        shader->graphics_pipeline
+    );
 }
 
 void renderer_render(Renderer* renderer)
 {
+    auto direct_registry = DZ_RGY.get();
     pre_begin_render_pass(renderer);
     begin_render_pass(renderer);
     auto& window = *renderer->window;
-    vkCmdSetViewport(*renderer->commandBuffer, 0, 1, &window.viewport);
-    vkCmdSetScissor(*renderer->commandBuffer, 0, 1, &window.scissor);
+    vkCmdSetViewport(*direct_registry->commandBuffer, 0, 1, &window.viewport);
+    vkCmdSetScissor(*direct_registry->commandBuffer, 0, 1, &window.scissor);
     for (auto& draw_mgr_group_vec_pair : window.draw_list_managers)
     {
         auto& draw_mgr = *draw_mgr_group_vec_pair.first;
@@ -1553,7 +1933,8 @@ void renderer_render(Renderer* renderer)
             {
                 auto shader = shader_pair.first;
                 auto& draw_list = shader_pair.second;
-                shader_bind(renderer, shader);
+                shader_ensure_image_layouts(shader);
+                shader_bind(shader);
 			    renderer_draw_commands(renderer, shader, draw_list);
             }
         }
@@ -1567,8 +1948,9 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 	auto direct_registry = DZ_RGY.get();
 	auto drawsSize = commands.size();
 	auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
-	VkCommandBuffer passCB = *renderer->commandBuffer;
-	auto& drawBufferPair = renderer->drawBuffers[drawBufferSize];
+    auto buffer_hash = drawBufferSize ^ size_t(shader) << 2;
+	VkCommandBuffer passCB = *direct_registry->commandBuffer;
+	auto& drawBufferPair = renderer->drawBuffers[buffer_hash];
 	if (!drawBufferPair.first)
 	{
 		createBuffer(
@@ -1580,7 +1962,7 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 			drawBufferPair.second
 		);
 	}
-	auto& countBufferPair = renderer->countBuffers[drawBufferSize];
+	auto& countBufferPair = renderer->countBuffers[buffer_hash];
 	if (!countBufferPair.first)
 		createBuffer(
             renderer,
