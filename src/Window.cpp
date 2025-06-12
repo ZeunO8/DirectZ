@@ -51,6 +51,9 @@ struct Window
 	uint32_t originalInterval = 0;
 #elif defined(__APPLE__)
 #endif
+	void create_platform();
+	void post_init_platform();
+	bool poll_events_platform();
 };
 static const uint32_t KEYCODES[] = {
 	0,	27, 49, 50, 51, 52, 53, 54,					 55, 56, 57, 48, 45, 61, 8,	 9,	 81, 87, 69, 82, 84, 89, 85, 73,
@@ -68,9 +71,6 @@ static const uint32_t KEYCODES[] = {
 	0,	0,	0,	0,	0,	0,	0,	0,					 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,
 	0,	0,	0,	0,	0,	0,	0,	0,					 0,	 0,	 0,	 0,	 0,	 0,	 0,	 2,	 17, 3,	 0,	 20, 0,	 19, 0,	 5,
 	18, 4,	26, 127};
-void window_create_platform(Window* window);
-bool window_poll_events_platform(Window* window);
-void window_post_init_platform(Window* window);
 Window* window_create(const WindowCreateInfo& info)
 {
     auto window = new Window{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
@@ -94,11 +94,11 @@ Window* window_create(const WindowCreateInfo& info)
 
 	window->registry = DZ_RGY;
 
-    window_create_platform(window);
+    window->create_platform();
 
     window->renderer = renderer_init(window);
 
-    window_post_init_platform(window);
+    window->post_init_platform();
 
     return window;
 }
@@ -125,7 +125,7 @@ bool window_poll_events(Window* window)
 		window->lastFrame = now;
 		*window->frametime = count;
 	}
-    return window_poll_events_platform(window);
+    return window->poll_events_platform();
 }
 void window_render(Window* window)
 {
@@ -224,82 +224,82 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_WIN32;
 }
-void window_create_platform(Window* window)
+void Window::create_platform()
 {
-	if (!window->setDPIAware)
+	if (!setDPIAware)
 	{
 		HRESULT hr = SetProcessDPIAware();
 		if (FAILED(hr))
 		{
 			throw std::runtime_error("SetProcessDpiAwareness failed");
 		}
-		window->setDPIAware = true;
+		setDPIAware = true;
 	}
-	window->hInstance = GetModuleHandle(NULL);
+	hInstance = GetModuleHandle(NULL);
 	WNDCLASSEX wc = {0};
 	// wc.cbSize = sizeof(WNDCLASS);
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.style = CS_VREDRAW | CS_HREDRAW;
 	wc.lpfnWndProc = wndproc;
-	wc.hInstance = window->hInstance;
-	wc.lpszClassName = window->title.c_str();
+	wc.hInstance = hInstance;
+	wc.lpszClassName = title.c_str();
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	RegisterClassEx(&wc);
-	window->dpiScale = 1.0f;
+	dpiScale = 1.0f;
 	HDC screen = GetDC(NULL);
 	int32_t dpi = GetDeviceCaps(screen, LOGPIXELSX);
 	ReleaseDC(NULL, screen);
-	window->dpiScale = dpi / 96.0f;
-	int adjustedWidth = window->width, adjustedHeight = window->height;
+	dpiScale = dpi / 96.0f;
+	int adjustedWidth = width, adjustedHeight = height;
 	auto wsStyle = WS_OVERLAPPEDWINDOW;
 	RECT desiredRect = {0, 0, adjustedWidth, adjustedHeight};
 	auto exStyle = WS_EX_APPWINDOW;
 	AdjustWindowRectEx(&desiredRect, wsStyle, FALSE, exStyle);
 	adjustedWidth = desiredRect.right - desiredRect.left;
 	adjustedHeight = desiredRect.bottom - desiredRect.top;
-	window->hwnd = CreateWindowEx(
+	hwnd = CreateWindowEx(
         exStyle,
-        window->title.c_str(),
-        window->title.c_str(),
+        title.c_str(),
+        title.c_str(),
         wsStyle,
-        window->x == -1 ? CW_USEDEFAULT : window->x,
-        window->y == -1 ? CW_USEDEFAULT : window->y,
+        x == -1 ? CW_USEDEFAULT : x,
+        y == -1 ? CW_USEDEFAULT : y,
         adjustedWidth,
         adjustedHeight,
         0,
         NULL,
-        window->hInstance,
-        window
+        hInstance,
+        this
     );
 
-	if (window->hwnd == NULL)
+	if (hwnd == NULL)
 		throw std::runtime_error("Failed to create window");
-	SetWindowLongPtr(window->hwnd, GWLP_USERDATA, (LONG_PTR)window);
-	if (window->borderless)
+	SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)this);
+	if (borderless)
 	{
 		SetWindowLong(
-            window->hwnd,
+            hwnd,
             GWL_STYLE,
-            (GetWindowLong(window->hwnd, GWL_STYLE) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_SYSMENU) | WS_MINIMIZEBOX |
+            (GetWindowLong(hwnd, GWL_STYLE) & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_SYSMENU) | WS_MINIMIZEBOX |
             WS_MAXIMIZEBOX
         );
-		SetWindowLong(window->hwnd, GWL_EXSTYLE, GetWindowLong(window->hwnd, GWL_EXSTYLE) & ~WS_EX_STATICEDGE);
+		SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) & ~WS_EX_STATICEDGE);
 		UINT flags = SWP_NOZORDER | SWP_FRAMECHANGED | SWP_SHOWWINDOW;
-		if (window->x == -1 && window->y == -1)
+		if (x == -1 && y == -1)
 			flags |= SWP_NOMOVE;
 		SetWindowPos(
-            window->hwnd,
+            hwnd,
             HWND_TOPMOST,
-            (window->x == -1 ? 0 : window->x), // Use explicit or default X position
-            (window->y == -1 ? 0 : window->y), window->width,
-            window->height,
+            (x == -1 ? 0 : x), // Use explicit or default X position
+            (y == -1 ? 0 : y), width,
+            height,
             flags
         );
 	}
-	window->hDeviceContext = GetDC(window->hwnd);
-	SetupPixelFormat(window->hDeviceContext);
+	hDeviceContext = GetDC(hwnd);
+	SetupPixelFormat(hDeviceContext);
 }
-bool window_poll_events_platform(Window* window)
+bool Window::poll_events_platform()
 {
 	MSG msg;
 	while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -311,15 +311,15 @@ bool window_poll_events_platform(Window* window)
 	}
 	return true;
 }
-void window_post_init_platform(Window* window)
+void Window::post_init_platform()
 {
-	ShowWindow(window->hwnd, SW_NORMAL);
-	UpdateWindow(window->hwnd);
+	ShowWindow(hwnd, SW_NORMAL);
+	UpdateWindow(hwnd);
 	RECT rect;
-	if (GetWindowRect(window->hwnd, &rect))
+	if (GetWindowRect(hwnd, &rect))
 	{
-		window->x = rect.left;
-		window->y = rect.top;
+		x = rect.left;
+		y = rect.top;
 	}
 }
 #elif defined(__linux__)
@@ -327,14 +327,69 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_XCB;
 }
-void window_create_platform(Window* window)
+void Window::create_platform()
 {
+	connection = xcb_connect(nullptr, nullptr);
+	if (xcb_connection_has_error(connection))
+	{
+		throw std::runtime_error("Failed to connect to X server!");
+	}
+	setup = xcb_get_setup(connection);
+	xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
+	screen = iter.data;
+	root = screen->root;
+	window = xcb_generate_id(connection);
+	uint32_t value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
+	uint32_t value_list[] = {screen->white_pixel,
+													 XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
+														 XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_PRESS |
+														 XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_FOCUS_CHANGE};
+	xcb_create_window(connection,
+										XCB_COPY_FROM_PARENT, // depth
+										window,
+										screen->root, // parent
+										renderWindow.windowX, renderWindow.windowY, // X, Y position
+										renderWindow.windowWidth, renderWindow.windowHeight, // Width, Height
+										1, // Border width
+										XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
+	auto titleLength = (*renderWindow.title).size();
+	xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
+											8, // Format (8-bit string)
+											titleLength, // Length of the title
+											(*renderWindow.title).c_str());
+	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(connection, 1, 12, "WM_PROTOCOLS");
+	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW");
+	xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(connection, wm_protocols_cookie, nullptr);
+	xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(connection, wm_delete_cookie, nullptr);
+	if (wm_protocols_reply && wm_delete_reply)
+	{
+		wm_delete_window = wm_delete_reply->atom;
+		xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, wm_protocols_reply->atom, XCB_ATOM_ATOM, 32, 1,
+												&wm_delete_window);
+	}
+	free(wm_protocols_reply);
+	free(wm_delete_reply);
+	xcb_map_window(connection, window);
+	xcb_flush(connection);
+	keysyms = xcb_key_symbols_alloc(connection);
+	if (!keysyms)
+	{
+		throw std::runtime_error("Failed to allocate key symbols!");
+	}
+	display = XOpenDisplay(0);
+	if (!display)
+	{
+		throw std::runtime_error("Failed to openXlib display!");
+	}
+	XSync(display, False);
+	screenNumber = DefaultScreen(display);
+	initAtoms();
 }
-bool window_poll_events_platform(Window* window)
+bool Window::poll_events_platform()
 {
 	return true;
 }
-void window_post_init_platform(Window* window)
+void Window::post_init_platform()
 {
 }
 #elif defined(__APPLE__)
@@ -342,14 +397,14 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_MACOS;
 }
-void window_create_platform(Window* window)
+void Window::create_platform()
 {
 }
-bool window_poll_events_platform(Window* window)
+bool Window::poll_events_platform()
 {
 	return true;
 }
-void window_post_init_platform(Window* window)
+void Window::post_init_platform()
 {
 }
 #endif
