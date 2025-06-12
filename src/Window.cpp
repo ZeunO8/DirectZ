@@ -49,6 +49,7 @@ struct WINDOW
 	int32_t screenNumber = 0;
 	uint32_t originalDelay = 0;
 	uint32_t originalInterval = 0;
+	void initAtoms();
 #elif defined(__APPLE__)
 #endif
 	void create_platform();
@@ -384,6 +385,43 @@ void WINDOW::create_platform()
 	XSync(display, False);
 	screenNumber = DefaultScreen(display);
 	initAtoms();
+}
+void WINDOW::initAtoms()
+{
+	const char* atomNames[] =
+	{
+		"WM_PROTOCOLS",
+		"WM_DELETE_WINDOW",
+		"_NET_WM_STATE",
+		"_NET_WM_STATE_HIDDEN",
+		"_NET_WM_STATE_MAXIMIZED_HORZ",
+		"_NET_WM_STATE_MAXIMIZED_VERT"
+	};
+
+	xcb_intern_atom_cookie_t cookies[6];
+	xcb_intern_atom_reply_t* replies[6];
+
+	for (int i = 0; i < 6; i++)
+	{
+		cookies[i] = xcb_intern_atom(connection, 0, strlen(atomNames[i]), atomNames[i]);
+	}
+
+	for (int i = 0; i < 6; i++)
+	{
+		replies[i] = xcb_intern_atom_reply(connection, cookies[i], nullptr);
+	}
+
+	wm_protocols = replies[0] ? replies[0]->atom : XCB_ATOM_NONE;
+	wm_delete_window = replies[1] ? replies[1]->atom : XCB_ATOM_NONE;
+	atom_net_wm_state = replies[2] ? replies[2]->atom : XCB_ATOM_NONE;
+	atom_net_wm_state_hidden = replies[3] ? replies[3]->atom : XCB_ATOM_NONE;
+	atom_net_wm_state_maximized_horz = replies[4] ? replies[4]->atom : XCB_ATOM_NONE;
+	atom_net_wm_state_maximized_vert = replies[5] ? replies[5]->atom : XCB_ATOM_NONE;
+
+	for (int i = 0; i < 6; i++)
+	{
+		free(replies[i]);
+	}
 }
 bool WINDOW::poll_events_platform()
 {
