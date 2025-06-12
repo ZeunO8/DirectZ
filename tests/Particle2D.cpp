@@ -497,7 +497,7 @@ void main()
     auto& state = state_view.template as_struct<WindowState>();
     window_set_keys_pointer(window, state.keys);
     window_set_buttons_pointer(window, state.buttons);
-    window_set_frametime_pointer(window, &state.frametime);
+    window_set_float_frametime_pointer(window, &state.frametime);
     window_set_cursor_pointer(window, (float*)&state.cursor);
     state.spawn_bounds = bounds;
     

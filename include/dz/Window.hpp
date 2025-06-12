@@ -22,14 +22,17 @@ namespace dz
 
     void window_render(WINDOW* window);
 
-    float& window_get_frametime_ref(WINDOW* window);
+    float& window_get_float_frametime_ref(WINDOW* window);
+    double& window_get_double_frametime_ref(WINDOW* window);
 
-    void window_set_frametime_pointer(WINDOW* window, float* pointer);
+    void window_set_float_frametime_pointer(WINDOW* window, float* pointer);
+    void window_set_double_frametime_pointer(WINDOW* window, double* pointer);
     void window_set_keys_pointer(WINDOW* window, int32_t* pointer);
     void window_set_buttons_pointer(WINDOW* window, int32_t* pointer);
     void window_set_cursor_pointer(WINDOW* window, float* pointer);
 
-    void window_set_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer);
     void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
     void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
     void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);

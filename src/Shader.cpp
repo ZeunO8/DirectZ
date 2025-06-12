@@ -1488,6 +1488,32 @@ size_t find_newline_after_token(const std::string& input, const std::string& tok
     return newline_pos;
 }
 
+std::string addLineNumbers(const std::string &input)
+{
+    std::stringstream inputStream(input);
+    std::stringstream outputStream;
+    std::string line;
+    std::size_t lineIndex = 0;
+
+    while (std::getline(inputStream, line))
+    {
+        outputStream << std::setw(4) << std::setfill(' ') << lineIndex << ": " << line << "\n";
+        ++lineIndex;
+    }
+
+    // If input ends with a newline, preserve that
+    if (!input.empty() && input.back() == '\n' && (input.length() == 1 || input[input.length() - 2] != '\r'))
+    {
+        // Remove the last newline and add an empty line with a line number
+        if (input.back() == '\n' && input[input.length() - 2] != '\n')
+        {
+            outputStream << std::setw(4) << std::setfill(' ') << lineIndex << ": \n";
+        }
+    }
+
+    return outputStream.str();
+}
+
 void shader_add_module(
     Shader* shader,
     ShaderModuleType module_type,
@@ -1520,6 +1546,7 @@ void shader_add_module(
     auto status = compiled_module.GetCompilationStatus();
     if (status != shaderc_compilation_status_success)
     {
+        std::cerr << "Shader Source:" << std::endl << std::endl << addLineNumbers(shaderString) << std::endl;
         std::cerr << "Shader Compile Error: " << compiled_module.GetErrorMessage() << std::endl;
         return;
     }

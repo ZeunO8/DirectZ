@@ -15,7 +15,8 @@ struct WINDOW
     bool borderless;
     bool vsync;
 	std::chrono::system_clock::time_point lastFrame;
-	std::shared_ptr<float> frametime;
+	std::shared_ptr<float> float_frametime;
+	std::shared_ptr<double> double_frametime;
 	std::shared_ptr<int32_t> keys;
 	std::shared_ptr<int32_t> buttons;
 	std::shared_ptr<float> cursor;
@@ -76,7 +77,8 @@ WINDOW* window_create(const WindowCreateInfo& info)
 {
     auto window = new WINDOW{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
 
-	window->frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
+	window->float_frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
+	window->double_frametime = std::shared_ptr<double>(new double(0), [](double* dp) { delete dp; });
 	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
 	window->buttons = std::shared_ptr<int32_t>(new int32_t[8], [](int32_t* bp) { delete[] bp; });
 	window->cursor = std::shared_ptr<float>(new float[2], [](float* fp) { delete[] fp; });
@@ -125,7 +127,7 @@ bool window_poll_events(WINDOW* window)
 		auto diff = (now - window->lastFrame);
 		auto count = (diff.count() / 1'000'000'0.0f);
 		window->lastFrame = now;
-		*window->frametime = count;
+		*window->float_frametime = *window->double_frametime = count;
 	}
     return window->poll_events_platform();
 }
@@ -133,13 +135,21 @@ void window_render(WINDOW* window)
 {
     return renderer_render(window->renderer);
 }
-float& window_get_frametime_ref(WINDOW* window)
+float& window_get_float_frametime_ref(WINDOW* window)
 {
-	return *window->frametime;
+	return *window->float_frametime;
 }
-void window_set_frametime_pointer(WINDOW* window, float* pointer)
+double& window_get_double_frametime_ref(WINDOW* window)
 {
-	window->frametime = std::shared_ptr<float>(pointer, [](auto p){});
+	return *window->double_frametime;
+}
+void window_set_float_frametime_pointer(WINDOW* window, float* pointer)
+{
+	window->float_frametime = std::shared_ptr<float>(pointer, [](auto p){});
+}
+void window_set_double_frametime_pointer(WINDOW* window, double* pointer)
+{
+	window->double_frametime = std::shared_ptr<double>(pointer, [](auto p){});
 }
 void window_set_keys_pointer(WINDOW* window, int32_t* pointer)
 {
@@ -153,9 +163,13 @@ void window_set_cursor_pointer(WINDOW* window, float* pointer)
 {
 	window->cursor = std::shared_ptr<float>(pointer, [](auto p){});
 }
-void window_set_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
+void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
-	window->frametime = pointer;
+	window->float_frametime = pointer;
+}
+void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer)
+{
+	window->double_frametime = pointer;
 }
 void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
