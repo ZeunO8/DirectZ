@@ -14,8 +14,6 @@ using namespace dz;
 #include <chrono>
 #include <set>
 #include <dz/GlobalUID.hpp>
-#include <spirv_cross/spirv_cross.hpp>
-#include <spirv_cross/spirv_glsl.hpp>
 #include <spirv_reflect.h>
 #include <shaderc/shaderc.hpp>
 #if defined(_WIN32)

@@ -3,6 +3,8 @@
 #include <cmath>
 #include <random>
 #include <chrono>
+#include <stdexcept>
+#include <string.h>
 namespace dz
 {
     template <typename T, size_t N>
