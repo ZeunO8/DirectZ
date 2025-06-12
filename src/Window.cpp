@@ -352,11 +352,11 @@ void WINDOW::create_platform()
 										width, height, // Width, Height
 										1, // Border width
 										XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
-	auto titleLength = (*renderWindow.title).size();
+	auto titleLength = title.size();
 	xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
 											8, // Format (8-bit string)
 											titleLength, // Length of the title
-											(*renderWindow.title).c_str());
+											title.c_str());
 	xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(connection, 1, 12, "WM_PROTOCOLS");
 	xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW");
 	xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(connection, wm_protocols_cookie, nullptr);
