@@ -14,7 +14,7 @@ struct WINDOW
     float height;
     bool borderless;
     bool vsync;
-	std::chrono::system_clock::time_point lastFrame;
+	std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
 	std::shared_ptr<float> float_frametime;
 	std::shared_ptr<double> double_frametime;
 	std::shared_ptr<int32_t> keys;
@@ -119,17 +119,20 @@ void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, Buf
 }
 bool window_poll_events(WINDOW* window)
 {
-	auto now = std::chrono::system_clock::now();
+	auto poll_exit = window->poll_events_platform();
+	auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+		std::chrono::system_clock::now()
+	);
 	if (window->lastFrame.time_since_epoch().count() == 0)
 		window->lastFrame = now;
 	else
 	{
-		auto diff = (now - window->lastFrame);
-		auto count = (diff.count() / 1'000'000'0.0f);
+        std::chrono::nanoseconds steady_duration_ns = now - window->lastFrame;
+        std::chrono::duration<double> steady_duration_seconds = steady_duration_ns;
+		*window->float_frametime = *window->double_frametime = steady_duration_seconds.count();
 		window->lastFrame = now;
-		*window->float_frametime = *window->double_frametime = count;
 	}
-    return window->poll_events_platform();
+    return poll_exit;
 }
 void window_render(WINDOW* window)
 {
