@@ -487,6 +487,6 @@ void main()
     }
 
     window_free(stat_window);
-    window_free(main_window);
+    // window_free(main_window);
     return 0;
 }
