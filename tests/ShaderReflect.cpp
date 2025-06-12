@@ -1,7 +1,7 @@
 #include <DirectZ.hpp>
 using namespace dz;
 
-#define DOUBLE_PRECISION
+// #define DOUBLE_PRECISION
 #if defined(DOUBLE_PRECISION)
 using Real = double;
 #else
@@ -394,8 +394,11 @@ void main()
     auto& window_1 = window_1_view.template as_struct<WindowState>();
     window_set_keys_pointer(main_window, window_1.keys);
     window_set_buttons_pointer(main_window, window_1.buttons);
+#if defined(DOUBLE_PRECISION)
     window_set_double_frametime_pointer(main_window, &window_1.frametime);
-
+#else
+    window_set_float_frametime_pointer(main_window, &window_1.frametime);
+#endif
     //
 
     auto mesh_1_view = buffer_group_get_buffer_element_view(main_buffer_group, "Meshes", 0);
