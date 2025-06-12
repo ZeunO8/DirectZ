@@ -29,15 +29,18 @@ using namespace dz;
 #pragma comment(lib, "Shcore.lib")
 #include <windows.h>
 #elif defined(__linux__)
-#include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/XKBlib.h>
-#include <X11/extensions/Xfixes.h>
-#include <X11/keysymdef.h>
-#include <xcb/xfixes.h>
-#include <xkbcommon/xkbcommon.h>
+namespace XCB__
+{
+    #include <xcb/xcb.h>
+    #include <xcb/xcb_keysyms.h>
+    #include <X11/Xlib.h>
+    #include <X11/Xutil.h>
+    #include <X11/XKBlib.h>
+    #include <X11/extensions/Xfixes.h>
+    #include <X11/keysymdef.h>
+    #include <xcb/xfixes.h>
+    #include <xkbcommon/xkbcommon.h>
+}
 #endif
 #undef min
 #undef max
@@ -87,8 +90,8 @@ namespace dz
     }
     std::shared_ptr<DirectRegistry> DZ_RGY = make_direct_registry();
     struct Renderer;
-    struct Window;
-    Renderer* renderer_init(Window* window);
+    struct WINDOW;
+    Renderer* renderer_init(WINDOW* window);
     void renderer_render(Renderer* renderer);
     void renderer_free(Renderer* renderer);
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);

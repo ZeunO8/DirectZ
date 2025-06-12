@@ -5,7 +5,7 @@ inline static constexpr uint8_t WINDOW_TYPE_XCB = 8;
 inline static constexpr uint8_t WINDOW_TYPE_WAYLAND = 16;
 inline static constexpr uint8_t WINDOW_TYPE_ANDROID = 32;
 inline static constexpr uint8_t WINDOW_TYPE_IOS = 64;
-struct Window
+struct WINDOW
 {
     std::string title;
     float x;
@@ -71,9 +71,9 @@ static const uint32_t KEYCODES[] = {
 	0,	0,	0,	0,	0,	0,	0,	0,					 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,	 0,
 	0,	0,	0,	0,	0,	0,	0,	0,					 0,	 0,	 0,	 0,	 0,	 0,	 0,	 2,	 17, 3,	 0,	 20, 0,	 19, 0,	 5,
 	18, 4,	26, 127};
-Window* window_create(const WindowCreateInfo& info)
+WINDOW* window_create(const WindowCreateInfo& info)
 {
-    auto window = new Window{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
+    auto window = new WINDOW{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
 
 	window->frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
 	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
@@ -102,18 +102,18 @@ Window* window_create(const WindowCreateInfo& info)
 
     return window;
 }
-void window_add_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group)
+void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group)
 {
 	window->draw_list_managers[mgr].insert(buffer_group);
 }
-void window_remove_drawn_buffer_group(Window* window, IDrawListManager* mgr, BufferGroup* buffer_group)
+void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group)
 {
 	auto& vect = window->draw_list_managers[mgr];
 	vect.erase(buffer_group);
 	if (vect.empty())
 		window->draw_list_managers.erase(mgr);
 }
-bool window_poll_events(Window* window)
+bool window_poll_events(WINDOW* window)
 {
 	auto now = std::chrono::system_clock::now();
 	if (window->lastFrame.time_since_epoch().count() == 0)
@@ -127,71 +127,71 @@ bool window_poll_events(Window* window)
 	}
     return window->poll_events_platform();
 }
-void window_render(Window* window)
+void window_render(WINDOW* window)
 {
     return renderer_render(window->renderer);
 }
-float& window_get_frametime_ref(Window* window)
+float& window_get_frametime_ref(WINDOW* window)
 {
 	return *window->frametime;
 }
-void window_set_frametime_pointer(Window* window, float* pointer)
+void window_set_frametime_pointer(WINDOW* window, float* pointer)
 {
 	window->frametime = std::shared_ptr<float>(pointer, [](auto p){});
 }
-void window_set_keys_pointer(Window* window, int32_t* pointer)
+void window_set_keys_pointer(WINDOW* window, int32_t* pointer)
 {
 	window->keys = std::shared_ptr<int32_t>(pointer, [](auto p){});
 }
-void window_set_buttons_pointer(Window* window, int32_t* pointer)
+void window_set_buttons_pointer(WINDOW* window, int32_t* pointer)
 {
 	window->buttons = std::shared_ptr<int32_t>(pointer, [](auto p){});
 }
-void window_set_cursor_pointer(Window* window, float* pointer)
+void window_set_cursor_pointer(WINDOW* window, float* pointer)
 {
 	window->cursor = std::shared_ptr<float>(pointer, [](auto p){});
 }
-void window_set_frametime_pointer(Window* window, const std::shared_ptr<float>& pointer)
+void window_set_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
 	window->frametime = pointer;
 }
-void window_set_keys_pointer(Window* window, const std::shared_ptr<int32_t>& pointer)
+void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
 	window->keys = pointer;
 }
-void window_set_buttons_pointer(Window* window, const std::shared_ptr<int32_t>& pointer)
+void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
 	window->buttons = pointer;
 }
-void window_set_cursor_pointer(Window* window, const std::shared_ptr<float>& pointer)
+void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
 	window->cursor = pointer;
 }
-int32_t& window_get_keypress_ref(Window* window, uint8_t keycode)
+int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode)
 {
 	return window->keys.get()[keycode];
 }
-std::shared_ptr<int32_t>& window_get_all_keypress_ref(Window* window, uint8_t keycode)
+std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode)
 {
 	return window->keys;
 }
-int32_t& window_get_buttonpress_ref(Window* window, uint8_t button)
+int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button)
 {
 	return window->buttons.get()[button];
 }
-std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(Window* window, uint8_t button)
+std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t button)
 {
 	return window->buttons;
 }
-float& window_get_width_ref(Window* window)
+float& window_get_width_ref(WINDOW* window)
 {
 	return window->width;
 }
-float& window_get_height_ref(Window* window)
+float& window_get_height_ref(WINDOW* window)
 {
 	return window->height;
 }
-void window_free(Window* window)
+void window_free(WINDOW* window)
 {
     renderer_free(window->renderer);
     delete window;
@@ -224,7 +224,7 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_WIN32;
 }
-void Window::create_platform()
+void WINDOW::create_platform()
 {
 	if (!setDPIAware)
 	{
@@ -299,7 +299,7 @@ void Window::create_platform()
 	hDeviceContext = GetDC(hwnd);
 	SetupPixelFormat(hDeviceContext);
 }
-bool Window::poll_events_platform()
+bool WINDOW::poll_events_platform()
 {
 	MSG msg;
 	while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -311,7 +311,7 @@ bool Window::poll_events_platform()
 	}
 	return true;
 }
-void Window::post_init_platform()
+void WINDOW::post_init_platform()
 {
 	ShowWindow(hwnd, SW_NORMAL);
 	UpdateWindow(hwnd);
@@ -327,7 +327,7 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_XCB;
 }
-void Window::create_platform()
+void WINDOW::create_platform()
 {
 	connection = xcb_connect(nullptr, nullptr);
 	if (xcb_connection_has_error(connection))
@@ -385,11 +385,11 @@ void Window::create_platform()
 	screenNumber = DefaultScreen(display);
 	initAtoms();
 }
-bool Window::poll_events_platform()
+bool WINDOW::poll_events_platform()
 {
 	return true;
 }
-void Window::post_init_platform()
+void WINDOW::post_init_platform()
 {
 }
 #elif defined(__APPLE__)
@@ -397,14 +397,14 @@ uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_MACOS;
 }
-void Window::create_platform()
+void WINDOW::create_platform()
 {
 }
-bool Window::poll_events_platform()
+bool WINDOW::poll_events_platform()
 {
 	return true;
 }
-void Window::post_init_platform()
+void WINDOW::post_init_platform()
 {
 }
 #endif
@@ -413,13 +413,13 @@ void Window::post_init_platform()
 #ifdef _WIN32
 LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	struct Window* window = (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	struct WINDOW* window = (WINDOW*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	switch (msg)
 	{
 	case WM_CREATE:
 		{
 			CREATESTRUCT* createStruct = (CREATESTRUCT*)lParam;
-			window = (Window*)createStruct->lpCreateParams;
+			window = (WINDOW*)createStruct->lpCreateParams;
 			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
 			break;
 		};

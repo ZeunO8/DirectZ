@@ -1,7 +1,7 @@
 // #define VK_INSTANCE(N, PFN, NAME) renderer->N = (PFN)vkGetInstanceProcAddr(instance, NAME)
 struct Renderer
 {
-    Window* window = 0;
+    WINDOW* window = 0;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
     VkSwapchainKHR swapChain;
@@ -75,7 +75,7 @@ bool swap_buffers(Renderer* renderer);
 void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands);
 void renderer_destroy(Renderer* renderer);
 void destroy_swap_chain(Renderer* renderer);
-Renderer* renderer_init(Window* window)
+Renderer* renderer_init(WINDOW* window)
 {
     auto renderer = new Renderer{
         .window = window
@@ -255,7 +255,7 @@ void create_surface(Renderer* renderer)
 #ifdef __linux__
     if (windowType == WINDOW_TYPE_XCB)
 	{
-		// auto& xcbWindow = *dynamic_cast<XCBWindow*>(platformWindowPointer);
+		// auto& xcbWindow = *dynamic_cast<XCBWINDOW*>(platformWindowPointer);
 		// VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
 		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 		// surfaceCreateInfo.connection = xcbWindow.connection;
