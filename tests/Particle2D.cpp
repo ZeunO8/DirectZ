@@ -228,7 +228,8 @@ void main() {
 
     shader_add_module(diffuse_density_shader, ShaderModuleType::Compute,
     version + density_struct_def + grid_dim_struct_def + R"(
-layout(local_size_x = 16, local_size_y = 16) in; // Matching gradient_force_shader local size
+
+layout(local_size_x = 16, local_size_y = 16) in;
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
@@ -252,10 +253,8 @@ void main() {
             count += 1.0;
         }
     }
+
     // Store the averaged mass back into the density field.
-    // For more complex, multi-pass diffusion, a "ping-pong" buffer approach
-    // (using two density buffers and swapping them) would be more robust.
-    // For a single pass, in-place updating is generally acceptable.
     DensityField.field[coords.y * width + coords.x].mass = sum_mass / count;
 }
 )");
