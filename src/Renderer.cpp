@@ -442,7 +442,7 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 		vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, 0, &extensionCount, deviceExtensions.data()));
 	for (const auto& ext : deviceExtensions)
 	{
-		if (std::strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0)
+		if (strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0)
 		{
 			extensions.push_back("VK_KHR_portability_subset");
 		}
