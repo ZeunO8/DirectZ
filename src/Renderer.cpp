@@ -253,15 +253,12 @@ void create_surface(Renderer* renderer)
 	auto& dr = *window.registry;
 	auto& windowType = dr.windowType;
 #ifdef __linux__
-    if (windowType == WINDOW_TYPE_XCB)
-	{
-		// auto& xcbWindow = *dynamic_cast<XCBWINDOW*>(platformWindowPointer);
-		// VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
-		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-		// surfaceCreateInfo.connection = xcbWindow.connection;
-		// surfaceCreateInfo.window = xcbWindow.window;
-		// vk_check("vkCreateXcbSurfaceKHR", _vkCreateXcbSurfaceKHR(instance, &surfaceCreateInfo, 0, &surface));
-	}
+	VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
+	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+	surfaceCreateInfo.connection = window->connection;
+	surfaceCreateInfo.window = window->window;
+	vk_check("vkCreateXcbSurfaceKHR",
+		_vkCreateXcbSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(ANDROID)
 #elif defined(_WIN32)
 
@@ -269,12 +266,14 @@ void create_surface(Renderer* renderer)
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 	surfaceCreateInfo.hinstance = window.hInstance;
 	surfaceCreateInfo.hwnd = window.hwnd;
-	vk_check("vkCreateWin32SurfaceKHR", vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+	vk_check("vkCreateWin32SurfaceKHR",
+		vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(MACOS)
     VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
     surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
     surfaceCreateInfo.pView = window.nsView;
-    vk_check("vkCreateMacOSSurfaceMVK", vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+    vk_check("vkCreateMacOSSurfaceMVK",
+		vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
 }
 
