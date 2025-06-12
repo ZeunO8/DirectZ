@@ -348,8 +348,8 @@ void WINDOW::create_platform()
 										XCB_COPY_FROM_PARENT, // depth
 										window,
 										screen->root, // parent
-										renderWindow.windowX, renderWindow.windowY, // X, Y position
-										renderWindow.windowWidth, renderWindow.windowHeight, // Width, Height
+										x, y, // X, Y position
+										width, height, // Width, Height
 										1, // Border width
 										XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
 	auto titleLength = (*renderWindow.title).size();
