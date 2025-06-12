@@ -97,7 +97,7 @@ void ReflectedStructView::set_member(const std::string& member_name, const void*
     uint8_t* target_addr = m_base_ptr + member_offset;
     size_t bytes_to_copy = std::min(data_size_bytes, (size_t)reflected_size);
 
-    std::memcpy(target_addr, data_ptr, bytes_to_copy);
+    memcpy(target_addr, data_ptr, bytes_to_copy);
 }
 
 uint8_t* ReflectedStructView::get_member(const std::string& member_name, size_t data_size_bytes)
