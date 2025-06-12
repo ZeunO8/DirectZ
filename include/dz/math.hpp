@@ -433,7 +433,7 @@ namespace dz
 	template<typename T>
 	mat<T, 4, 4> perspectiveRH_ZO(T fovy, T aspect, T zNear, T zFar)
 	{
-		assert(abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
+		assert(std::abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
 
 		T const tanHalfFovy = tan(fovy / static_cast<T>(2));
 
@@ -449,7 +449,7 @@ namespace dz
 	template<typename T>
 	mat<T, 4, 4> perspectiveRH_NO(T fovy, T aspect, T zNear, T zFar)
 	{
-		assert(abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
+		assert(std::abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
 
 		T const tanHalfFovy = tan(fovy / static_cast<T>(2));
 
@@ -465,7 +465,7 @@ namespace dz
 	template<typename T>
 	mat<T, 4, 4> perspectiveLH_ZO(T fovy, T aspect, T zNear, T zFar)
 	{
-		assert(abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
+		assert(std::abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
 
 		T const tanHalfFovy = tan(fovy / static_cast<T>(2));
 
@@ -481,7 +481,7 @@ namespace dz
 	template<typename T>
 	mat<T, 4, 4> perspectiveLH_NO(T fovy, T aspect, T zNear, T zFar)
 	{
-		assert(abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
+		assert(std::abs(aspect - std::numeric_limits<T>::epsilon()) > static_cast<T>(0));
 
 		T const tanHalfFovy = tan(fovy / static_cast<T>(2));
 
