@@ -192,15 +192,15 @@ int main()
     auto& window_width = window_get_width_ref(main_window);
     auto& window_height = window_get_height_ref(main_window);
 
-    auto stat_window = window_create({
-        .title = "Shader Reflect Stats",
-        .x = 660,
-        .y = 240,
-        .width = 640,
-        .height = 480,
-        .borderless = true,
-        .vsync = false
-    });
+    // auto stat_window = window_create({
+    //     .title = "Shader Reflect Stats",
+    //     .x = 660,
+    //     .y = 240,
+    //     .width = 640,
+    //     .height = 480,
+    //     .borderless = true,
+    //     .vsync = false
+    // });
 
     auto update_entity_shader = shader_create();
 
@@ -268,7 +268,7 @@ void main() {
     });
 
     window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
-    window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg, main_buffer_group);
+    // window_add_drawn_buffer_group(stat_window, &entity_draw_list_mg, main_buffer_group);
 
     shader_add_buffer_group(main_entity_shader, main_buffer_group);
     shader_add_buffer_group(green_entity_shader, main_buffer_group);
@@ -478,12 +478,12 @@ void main()
                 window_render(main_window);
             }
         }
-        if (stat_window_polling)
-        {
-            stat_window_polling = window_poll_events(stat_window);
-            if (stat_window_polling)
-                window_render(stat_window);
-        }
+        // if (stat_window_polling)
+        // {
+        //     stat_window_polling = window_poll_events(stat_window);
+        //     if (stat_window_polling)
+        //         window_render(stat_window);
+        // }
     }
 
     window_free(stat_window);
