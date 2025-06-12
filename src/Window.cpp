@@ -432,11 +432,12 @@ bool WINDOW::poll_events_platform()
 	while ((event = xcb_poll_for_event(connection)))
 	{
 		auto eventType = event->response_type & ~0x80;
-		if (!handle_xcb_event(window, eventType, event))
+		if (!handle_xcb_event(*this, eventType, event))
 		{
 			return_ = false;
 			goto _free;
 		}
+_free:
 		free(event);
 		if (!return_)
 			break;
@@ -632,7 +633,7 @@ bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
 			auto pressed = eventType == XCB_KEY_PRESS;
 			xcb_key_press_event_t* keyEvent = (xcb_key_press_event_t*)event;
 			bool shiftPressed = keyEvent->state & (XCB_MOD_MASK_SHIFT);
-			xcb_keysym_t keysym = xcb_key_symbols_get_keysym(keysyms, keyEvent->detail, shiftPressed ? 1 : 0);
+			xcb_keysym_t keysym = xcb_key_symbols_get_keysym(window.keysyms, keyEvent->detail, shiftPressed ? 1 : 0);
 			uint32_t keycode = xkb_keysym_to_utf32(keysym);
 			int32_t mod = 0;
 			if (keycode == 0)
@@ -687,13 +688,13 @@ bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
 				}
 			}
 			*window.mod = mod;
-			window->keys.get()[keycode] = pressed;
+			window.keys.get()[keycode] = pressed;
 			break;
 		}
 	case XCB_CLIENT_MESSAGE:
 		{
 			xcb_client_message_event_t* cm = (xcb_client_message_event_t*)event;
-			if (cm->data.data32[0] == wm_delete_window)
+			if (cm->data.data32[0] == window.wm_delete_window)
 			{
 				return false;
 			}
