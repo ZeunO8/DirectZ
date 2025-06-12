@@ -307,7 +307,35 @@ void window_post_init_platform(Window* window)
 	}
 }
 #elif defined(__linux__)
+uint8_t get_window_type_platform()
+{
+	return WINDOW_TYPE_XCB;
+}
+void window_create_platform(Window* window)
+{
+}
+bool window_poll_events_platform(Window* window)
+{
+	return true;
+}
+void window_post_init_platform(Window* window)
+{
+}
 #elif defined(__APPLE__)
+uint8_t get_window_type_platform()
+{
+	return WINDOW_TYPE_MACOS;
+}
+void window_create_platform(Window* window)
+{
+}
+bool window_poll_events_platform(Window* window)
+{
+	return true;
+}
+void window_post_init_platform(Window* window)
+{
+}
 #endif
 
 
