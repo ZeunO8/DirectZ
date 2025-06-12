@@ -19,7 +19,7 @@ struct WINDOW
 	std::shared_ptr<int32_t> keys;
 	std::shared_ptr<int32_t> buttons;
 	std::shared_ptr<float> cursor;
-	uint8_t mod = 0;
+	std::shared_ptr<uint8_t> mod;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;
@@ -80,6 +80,7 @@ WINDOW* window_create(const WindowCreateInfo& info)
 	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
 	window->buttons = std::shared_ptr<int32_t>(new int32_t[8], [](int32_t* bp) { delete[] bp; });
 	window->cursor = std::shared_ptr<float>(new float[2], [](float* fp) { delete[] fp; });
+	window->mod = std::shared_ptr<uint8_t>(new uint8_t(0), [](uint8_t* up) { delete up; });
 
 	auto& viewport = window->viewport;
 	viewport.x = 0.0f;
@@ -423,9 +424,24 @@ void WINDOW::initAtoms()
 		free(replies[i]);
 	}
 }
+bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event);
 bool WINDOW::poll_events_platform()
 {
-	return true;
+	bool return_ = true;
+	xcb_generic_event_t* event;
+	while ((event = xcb_poll_for_event(connection)))
+	{
+		auto eventType = event->response_type & ~0x80;
+		if (!handle_xcb_event(window, eventType, event))
+		{
+			return_ = false;
+			goto _free;
+		}
+		free(event);
+		if (!return_)
+			break;
+	}
+	return return_;
 }
 void WINDOW::post_init_platform()
 {
@@ -570,7 +586,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				keycode = translatedChar[0];
 			}
-			window->mod = mod;
+			*window->mod = mod;
 			window->keys.get()[keycode] = keypress;
 		}
 		break;
@@ -602,5 +618,121 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		return DefWindowProc(hwnd, msg, wParam, lParam);
 	}
 	return 0;
+}
+#elif defined(__linux__)
+bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
+{
+	switch (eventType)
+	{
+	case XCB_EXPOSE:
+		break;
+	case XCB_KEY_PRESS:
+	case XCB_KEY_RELEASE:
+		{
+			auto pressed = eventType == XCB_KEY_PRESS;
+			xcb_key_press_event_t* keyEvent = (xcb_key_press_event_t*)event;
+			bool shiftPressed = keyEvent->state & (XCB_MOD_MASK_SHIFT);
+			xcb_keysym_t keysym = xcb_key_symbols_get_keysym(keysyms, keyEvent->detail, shiftPressed ? 1 : 0);
+			uint32_t keycode = xkb_keysym_to_utf32(keysym);
+			int32_t mod = 0;
+			if (keycode == 0)
+			{
+				switch (keysym)
+				{
+				case XK_Up:
+					keycode = KEYCODE_UP;
+					break;
+				case XK_Down:
+					keycode = KEYCODE_DOWN;
+					break;
+				case XK_Left:
+					keycode = KEYCODE_LEFT;
+					break;
+				case XK_Right:
+					keycode = KEYCODE_RIGHT;
+					break;
+				case XK_Home:
+					keycode = KEYCODE_HOME;
+					break;
+				case XK_End:
+					keycode = KEYCODE_END;
+					break;
+				case XK_Page_Up:
+					keycode = KEYCODE_PGUP;
+					break;
+				case XK_Page_Down:
+					keycode = KEYCODE_PGDOWN;
+					break;
+				case XK_Insert:
+					keycode = KEYCODE_INSERT;
+					break;
+				case XK_Num_Lock:
+					keycode = KEYCODE_NUMLOCK;
+					break;
+				case XK_Caps_Lock:
+					keycode = KEYCODE_CAPSLOCK;
+					break;
+				case XK_Pause:
+					keycode = KEYCODE_PAUSE;
+					break;
+				case XK_Super_L:
+					keycode = KEYCODE_SUPER;
+					break;
+				case XK_Super_R:
+					keycode = KEYCODE_SUPER;
+					break;
+				default:
+					keycode = 0;
+					break;
+				}
+			}
+			*window.mod = mod;
+			window->keys.get()[keycode] = pressed;
+			break;
+		}
+	case XCB_CLIENT_MESSAGE:
+		{
+			xcb_client_message_event_t* cm = (xcb_client_message_event_t*)event;
+			if (cm->data.data32[0] == wm_delete_window)
+			{
+				return false;
+			}
+			break;
+		}
+	case XCB_MOTION_NOTIFY:
+		{
+			xcb_motion_notify_event_t* motion = (xcb_motion_notify_event_t*)event;
+			window.cursor.get()[0] = motion->event_x;
+			window.cursor.get()[1] = motion->event_y;
+			break;
+		}
+	case XCB_BUTTON_PRESS:
+		{
+			xcb_button_press_event_t* buttonPress = (xcb_button_press_event_t*)event;
+			window.buttons.get()[buttonPress->detail - 1] = true;
+			break;
+		}
+	case XCB_BUTTON_RELEASE:
+		{
+			xcb_button_release_event_t* buttonRelease = (xcb_button_release_event_t*)event;
+			auto button = buttonRelease->detail - 1;
+			if (button == 3 || button == 4)
+				break;
+			window.buttons.get()[button] = false;
+			break;
+		}
+	// case XCB_FOCUS_IN:
+	// 	window.queueFocusEvent(true);
+	// 	break;
+
+	// case XCB_FOCUS_OUT:
+	// 	window.queueFocusEvent(false);
+	// 	break;
+	case XCB_DESTROY_NOTIFY:
+		// free(event);
+		return false;
+	default: break;
+	}
+	return true;
 }
 #endif
