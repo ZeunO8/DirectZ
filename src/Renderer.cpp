@@ -255,10 +255,10 @@ void create_surface(Renderer* renderer)
 #ifdef __linux__
 	VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-	surfaceCreateInfo.connection = window->connection;
-	surfaceCreateInfo.window = window->window;
+	surfaceCreateInfo.connection = window.connection;
+	surfaceCreateInfo.window = window.window;
 	vk_check("vkCreateXcbSurfaceKHR",
-		_vkCreateXcbSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+		vkCreateXcbSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(ANDROID)
 #elif defined(_WIN32)
 
