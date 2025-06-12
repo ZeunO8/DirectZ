@@ -29,18 +29,15 @@ using namespace dz;
 #pragma comment(lib, "Shcore.lib")
 #include <windows.h>
 #elif defined(__linux__)
-namespace XCB__
-{
-    #include <xcb/xcb.h>
-    #include <xcb/xcb_keysyms.h>
-    #include <X11/Xlib.h>
-    #include <X11/Xutil.h>
-    #include <X11/XKBlib.h>
-    #include <X11/extensions/Xfixes.h>
-    #include <X11/keysymdef.h>
-    #include <xcb/xfixes.h>
-    #include <xkbcommon/xkbcommon.h>
-}
+#include <xcb/xcb.h>
+#include <xcb/xcb_keysyms.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/XKBlib.h>
+#include <X11/extensions/Xfixes.h>
+#include <X11/keysymdef.h>
+#include <xcb/xfixes.h>
+#include <xkbcommon/xkbcommon.h>
 #endif
 #undef min
 #undef max
