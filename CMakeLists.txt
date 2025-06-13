@@ -67,7 +67,7 @@ target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 target_link_libraries(DirectZ PRIVATE shaderc spirv-reflect-static)
 
 if(LINUX)
-	target_link_libraries(DirectZ PRIVATE xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
+	target_link_libraries(DirectZ PRIVATE objc xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
 	if(USE_WAYLAND)
 		target_link_libraries(DirectZ PRIVATE wayland-client)
 	endif()
