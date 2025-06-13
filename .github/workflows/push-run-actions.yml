@@ -59,7 +59,7 @@ jobs:
       - name: Build Package on Linux
         if: runner.os == 'Linux'
         run: |
-          cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+          cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=gcc -D CMAKE_CXX_COMPILER=g++ -G Ninja
           cmake --build build
         shell: bash
 
