@@ -241,13 +241,13 @@ void main() {
     int up = WindowStates.states[0].keys[17];
     int down = WindowStates.states[0].keys[18];
     if (right == 1)
-        Entities.entities[id].position.x += (1.0 * WindowStates.states[0].frametime);
+        Entities.entities[id].position.x += (2.5 * WindowStates.states[0].frametime);
     if (left == 1)
-        Entities.entities[id].position.x -= (1.0 * WindowStates.states[0].frametime);
+        Entities.entities[id].position.x -= (2.5 * WindowStates.states[0].frametime);
     if (up == 1)
-        Entities.entities[id].position.y -= (1.0 * WindowStates.states[0].frametime);
+        Entities.entities[id].position.y -= (2.5 * WindowStates.states[0].frametime);
     if (down == 1)
-        Entities.entities[id].position.y += (1.0 * WindowStates.states[0].frametime);
+        Entities.entities[id].position.y += (2.5 * WindowStates.states[0].frametime);
 }
 )");
 
