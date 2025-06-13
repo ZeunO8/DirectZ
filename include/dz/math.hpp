@@ -75,7 +75,7 @@ namespace dz
                 else if constexpr (std::is_same_v<O, vec<T, N>>)
                     data[i] *= other.data[i];
                 else
-                    static_assert(false, "Unsupported O type");
+                    throw std::runtime_error(false, "Unsupported O type");
             }
             return *this;
         }
@@ -89,7 +89,7 @@ namespace dz
                 else if constexpr (std::is_same_v<O, vec<T, N>>)
                     data[i] /= other.data[i];
                 else
-                    static_assert(false, "Unsupported O type");
+                    throw std::runtime_error(false, "Unsupported O type");
             }
             return *this;
         }
@@ -103,7 +103,7 @@ namespace dz
                 else if constexpr (std::is_same_v<O, vec<T, N>>)
                     data[i] += other.data[i];
                 else
-                    static_assert(false, "Unsupported O type");
+                    throw std::runtime_error(false, "Unsupported O type");
             }
             return *this;
         }
@@ -117,7 +117,7 @@ namespace dz
                 else if constexpr (std::is_same_v<O, vec<T, N>>)
                     data[i] -= other.data[i];
                 else
-                    static_assert(false, "Unsupported O type");
+                    throw std::runtime_error(false, "Unsupported O type");
             }
             return *this;
         }

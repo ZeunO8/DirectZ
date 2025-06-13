@@ -34,7 +34,7 @@ namespace dz
             for (size_t i = 0; i < draw_elements;)
             {
                 auto element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, i);
-                auto& element = element_view.as_struct<DrawT>();
+                auto& element = element_view.template as_struct<DrawT>();
                 auto [shader, vertexCount] = fn_determineDrawTVertexCount(buffer_group, element);
 
                 // Count how many contiguous elements share this shader and vertexCount
@@ -45,7 +45,7 @@ namespace dz
                 while (j < draw_elements)
                 {
                     auto next_element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, j);
-                    auto& next_element = next_element_view.as_struct<DrawT>();
+                    auto& next_element = next_element_view.template as_struct<DrawT>();
                     auto [next_shader, next_vertexCount] = fn_determineDrawTVertexCount(buffer_group, next_element);
 
                     if (next_shader != shader || next_vertexCount != vertexCount)
