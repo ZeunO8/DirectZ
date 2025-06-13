@@ -75,6 +75,7 @@ struct DirectRegistry
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
 };
+#include "WINDOWDelegate.mm"
 namespace dz
 {
     uint8_t get_window_type_platform();
@@ -108,3 +109,4 @@ namespace dz
     #include "Shader.cpp"
     #include "BufferGroup.cpp"
 }
+#include "WINDOWDelegateImpl.mm"

@@ -22,6 +22,7 @@ struct WINDOW
 	std::shared_ptr<float> cursor;
 	std::shared_ptr<int32_t> mod;
 	std::shared_ptr<int32_t> focused;
+	bool closed = false;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;
@@ -498,40 +499,6 @@ void WINDOW::destroy_platform()
 	xcb_disconnect(connection);
 }
 #elif defined(__APPLE__)
-@interface WINDOWDelegate : NSObject <NSWindowDelegate>
-{
-    WINDOW* window_ptr;
-}
-- (instancetype)initWithWindow:(WINDOW*)window;
-@end
-@implementation WINDOWDelegate
-- (instancetype)initWithWindow:(WINDOW*)window
-{
-    self = [super init];
-    if (self)
-    {
-        window_ptr = window;
-    }
-    return self;
-}
-- (void)windowDidBecomeKey:(NSNotification *)notification
-{
-	auto& window = *window_ptr;
-	*window.focused = true;
-	CGAssociateMouseAndMouseCursorPosition(YES);
-}
-- (void)windowDidResignKey:(NSNotification *)notification
-{
-	auto& window = *window_ptr;
-	*window.focused = false;
-	CGAssociateMouseAndMouseCursorPosition(NO);
-}
-- (BOOL)windowShouldClose:(id)sender
-{
-	window_ptr->closed = true;
-	[NSApp terminate:nil];
-	return YES;
-}
 uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_MACOS;
@@ -557,7 +524,7 @@ void WINDOW::create_platform()
 							defer:NO];
 		NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
 		[nsWindow setTitle:nsTitle];
-		[nsWindow setDelegate:[[MacOSWindowDelegate alloc] initWithWindow:this]];
+		[nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
 		[nsWindow makeKeyAndOrderFront:nil];
 		nsView = [nsWindow contentView];
 		NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
