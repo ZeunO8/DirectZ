@@ -1,0 +1,106 @@
+name: Build
+on:
+  push:
+    branches:
+      - run-actions
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+          - macos-13
+    steps:
+      - name: Maximize build space
+        if: runner.os == 'Linux'
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt update
+          sudo apt install nasm libvulkan-dev libssl-dev libx11-dev uuid-dev libglx-dev libgl1-mesa-dev libxfixes-dev libxrandr-dev libxkbcommon-dev libxcb-keysyms1-dev libdrm-dev ninja-build libwayland-client0 libwayland-server0 libwayland-dev libxfixes-dev libxcb-xfixes0-dev libxrender-dev libxrandr-dev libxcb-util-dev libdrm-dev libgtkmm-3.0-dev
+        shell: bash
+
+      - name: Install Dependencies on Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install dos2unix ninja nasm openssl
+          C:\\msys64\\msys2_shell.cmd -defterm -no-start -mingw64 -here -use-full-path -c "pacman -S --noconfirm make diffutils"
+        shell: bash
+
+      - name: Install Dependencies on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install nasm
+        shell: bash
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+      - name: Build Package on Linux
+        if: runner.os == 'Linux'
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Release
+          cmake --build build
+        shell: bash
+
+      - name: Build Package on macOS
+        if: runner.os == 'macOS'
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Release
+          cmake --build build
+        shell: bash
+
+      - name: Build Package on Windows
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Release
+          cmake --build build
+        shell: cmd
+
+      - name: Archive artifacts
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-latest-release
+          path: build
+
+      - name: Archive artifacts
+        if: matrix.os == 'macos-13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-13-release
+          path: build
+
+      - name: Archive artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: build
+
+      - name: Archive artifacts
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-release
+          path: build
