@@ -2,7 +2,7 @@
 #include <dz/Shader.hpp>
 #include <dz/Singleton.hpp>
 using namespace dz;
-// for now
+#include <algorithm>
 #include <map>
 #include <unordered_map>
 #include <memory>
