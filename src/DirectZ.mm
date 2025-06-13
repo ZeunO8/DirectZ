@@ -22,7 +22,7 @@ using namespace dz;
 #define VK_USE_PLATFORM_WIN32_KHR
 #elif defined(__linux__)
 #define VK_USE_PLATFORM_XCB_KHR
-#elif defined(__APPLE__)
+#elif defined(MACOS)
 #define VK_USE_PLATFORM_MACOS_MVK
 #endif
 #include <vulkan/vulkan.h>
@@ -40,6 +40,12 @@ using namespace dz;
 #include <X11/keysymdef.h>
 #include <xcb/xfixes.h>
 #include <xkbcommon/xkbcommon.h>
+#elif defined(MACOS)
+#include <AppKit/AppKit.h>
+#import <Cocoa/Cocoa.h>
+#import <QuartzCore/CAMetalLayer.h>
+#include <Metal/Metal.h>
+#include <ApplicationServices/ApplicationServices.h>
 #endif
 #undef min
 #undef max
@@ -96,7 +102,7 @@ namespace dz
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
-    #include "Window.cpp"
+    #include "Window.mm"
     #include "Renderer.cpp"
     #include "Image.cpp"
     #include "Shader.cpp"

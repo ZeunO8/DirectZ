@@ -51,7 +51,11 @@ struct WINDOW
 	uint32_t originalDelay = 0;
 	uint32_t originalInterval = 0;
 	void initAtoms();
-#elif defined(__APPLE__)
+#elif defined(MACOS)
+	void *nsWindow = 0;
+	void *nsView;
+	void *nsImage = 0;
+	void *nsImageView = 0;
 #endif
 	void create_platform();
 	void post_init_platform();

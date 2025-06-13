@@ -7,7 +7,7 @@ project(DirectZ VERSION ${DZ_V_MAJ}.${DZ_V_MIN}.${DZ_V_PAT}.${DZ_V_TWE})
 include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
 
-add_library(DirectZ src/DirectZ.cpp)
+add_library(DirectZ src/DirectZ.mm)
 
 target_compile_features(DirectZ PRIVATE cxx_std_17)
 
