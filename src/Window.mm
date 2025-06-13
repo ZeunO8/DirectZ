@@ -53,14 +53,15 @@ struct WINDOW
 	uint32_t originalInterval = 0;
 	void initAtoms();
 #elif defined(MACOS)
-	void *nsWindow = 0;
-	void *nsView;
-	void *nsImage = 0;
-	void *nsImageView = 0;
+	NSWindow *nsWindow = 0;
+	NSView *nsView;
+	NSImage *nsImage = 0;
+	NSImageView *nsImageView = 0;
 #endif
 	void create_platform();
 	void post_init_platform();
 	bool poll_events_platform();
+	void destroy_platform();
 };
 static const uint32_t KEYCODES[] = {
 	0,	27, 49, 50, 51, 52, 53, 54,					 55, 56, 57, 48, 45, 61, 8,	 9,	 81, 87, 69, 82, 84, 89, 85, 73,
@@ -352,6 +353,10 @@ bool WINDOW::poll_events_platform()
 	}
 	return true;
 }
+void WINDOW::destroy_platform()
+{
+
+}
 void WINDOW::post_init_platform()
 {
 	ShowWindow(hwnd, SW_NORMAL);
@@ -486,20 +491,110 @@ _free:
 void WINDOW::post_init_platform()
 {
 }
+void WINDOW::destroy_platform()
+{
+	XCloseDisplay(display);
+	xcb_destroy_window(connection, window);
+	xcb_disconnect(connection);
+}
 #elif defined(__APPLE__)
+@interface WINDOWDelegate : NSObject <NSWindowDelegate>
+{
+    WINDOW* window_ptr;
+}
+- (instancetype)initWithWindow:(WINDOW*)window;
+@end
+@implementation WINDOWDelegate
+- (instancetype)initWithWindow:(WINDOW*)window
+{
+    self = [super init];
+    if (self)
+    {
+        window_ptr = window;
+    }
+    return self;
+}
+- (void)windowDidBecomeKey:(NSNotification *)notification
+{
+	auto& window = *window_ptr;
+	*window.focused = true;
+	CGAssociateMouseAndMouseCursorPosition(YES);
+}
+- (void)windowDidResignKey:(NSNotification *)notification
+{
+	auto& window = *window_ptr;
+	*window.focused = false;
+	CGAssociateMouseAndMouseCursorPosition(NO);
+}
+- (BOOL)windowShouldClose:(id)sender
+{
+	window_ptr->closed = true;
+	[NSApp terminate:nil];
+	return YES;
+}
 uint8_t get_window_type_platform()
 {
 	return WINDOW_TYPE_MACOS;
 }
 void WINDOW::create_platform()
 {
+	@autoreleasepool
+	{
+		if (NSApp == nil)
+		{
+			[NSApplication sharedApplication];
+			[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+		}
+		int32_t windowX = x == -1 ? 128 : x,
+				windowY = y == -1 ? 128 : y;
+		NSRect rect = NSMakeRect(windowX, windowY, width, height);
+		nsWindow = [[NSWindow alloc] initWithContentRect:rect
+							styleMask:(NSWindowStyleMaskTitled |
+										NSWindowStyleMaskClosable |
+										NSWindowStyleMaskResizable |
+										NSWindowStyleMaskMiniaturizable)
+							backing:NSBackingStoreBuffered
+							defer:NO];
+		NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
+		[nsWindow setTitle:nsTitle];
+		[nsWindow setDelegate:[[MacOSWindowDelegate alloc] initWithWindow:this]];
+		[nsWindow makeKeyAndOrderFront:nil];
+		nsView = [nsWindow contentView];
+		NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
+		[NSApp setMainMenu:mainMenu];
+	}
+	nsImage = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
+	NSRect rect = NSMakeRect(0, 0, width, height);
+	nsImageView = [[NSImageView alloc] initWithFrame:rect];
+	[nsView addSubview:nsImageView];
 }
+bool handle_macos_event(WINDOW& window, NSEvent* event);
 bool WINDOW::poll_events_platform()
 {
+	if (closed)
+		return false;
+	@autoreleasepool
+	{
+		NSEvent *event;
+		while ((event = [NSApp nextEventMatchingMask:NSEventMaskAny
+								untilDate:nil
+								inMode:NSDefaultRunLoopMode
+								dequeue:YES]))
+		{
+			handle_macos_event(*this, event);
+			[NSApp sendEvent:event];
+			[NSApp updateWindows];
+		}
+	}
 	return true;
 }
 void WINDOW::post_init_platform()
 {
+}
+void WINDOW::destroy_platform()
+{
+	if (nsWindow)
+		[nsWindow release];
 }
 #endif
 
@@ -507,14 +602,15 @@ void WINDOW::post_init_platform()
 #ifdef _WIN32
 LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	struct WINDOW* window = (WINDOW*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	struct WINDOW* window_ptr = (WINDOW*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+	auto& window = *window_ptr;
 	switch (msg)
 	{
 	case WM_CREATE:
 		{
 			CREATESTRUCT* createStruct = (CREATESTRUCT*)lParam;
-			window = (WINDOW*)createStruct->lpCreateParams;
-			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window);
+			window_ptr = (WINDOW*)createStruct->lpCreateParams;
+			SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)window_ptr);
 			break;
 		};
 	case WM_CLOSE:
@@ -550,16 +646,16 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					break;
 				};
 			}
-			window->buttons.get()[button] = pressed;
+			window.buttons.get()[button] = pressed;
 			break;
 		};
-	// case WM_MOUSEWHEEL:
-	// 	{
-	// 		int zDelta = GET_WHEEL_DELTA_WPARAM(wParam); // This gives the scroll amount
-	// 		auto wheelButton = zDelta > 0 ? 3 : 4; // Wheel scrolled up or down
-	// 		glWindow->queueEvent(EVENT_MOUSE_PRESS, true, wheelButton);
-	// 		break;
-	// 	};
+	case WM_MOUSEWHEEL:
+		{
+			int zDelta = GET_WHEEL_DELTA_WPARAM(wParam); // This gives the scroll amount
+			auto wheelButton = zDelta > 0 ? 3 : 4; // Wheel scrolled up or down
+			window.buttons.get()[wheelButton] = true;
+			break;
+		};
 	case WM_XBUTTONDOWN:
 	case WM_XBUTTONUP:
 		{
@@ -568,7 +664,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (xButton == -1)
 				throw std::runtime_error("Invalid XButton");
 			auto pressed = msg == WM_XBUTTONDOWN;
-			window->buttons.get()[xButton] = pressed;
+			window.buttons.get()[xButton] = pressed;
 			break;
 		};
 	case WM_MOUSEMOVE:
@@ -578,7 +674,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			ScreenToClient(hwnd, &pt);
 			auto x = pt.x;
 			auto y = pt.y;
-			auto cursor = window->cursor.get();
+			auto cursor = window.cursor.get();
 			cursor[0] = x;
 			cursor[1] = y;
 			break;
@@ -589,7 +685,7 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			wParam == VK_LMENU ||
 			wParam == VK_RMENU)
 		{
-			window->keys.get()[KEYCODE_ALT] = (msg == WM_SYSKEYDOWN);
+			window.keys.get()[KEYCODE_ALT] = (msg == WM_SYSKEYDOWN);
 		}
 		else
 		{
@@ -626,8 +722,8 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				keycode = translatedChar[0];
 			}
-			*window->mod = mod;
-			window->keys.get()[keycode] = keypress;
+			*window.mod = mod;
+			window.keys.get()[keycode] = keypress;
 		}
 		break;
 	case WM_DESTROY:
@@ -636,23 +732,23 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_SIZE:
 		{
 			int32_t width = LOWORD(lParam), height = HIWORD(lParam);
-			if (width != 0 && width != window->width && height != 0 && height != window->height)
+			if (width != 0 && width != window.width && height != 0 && height != window.height)
 			{
-				window->width = width;
-				window->height = height;
+				window.width = width;
+				window.height = height;
 			}
 			break;
 		};
-	// case WM_SETFOCUS:
-	// 	{
-	// 		glWindow->queueFocusEvent(true);
-	// 		break;
-	// 	};
-	// case WM_KILLFOCUS:
-	// 	{
-	// 		glWindow->queueFocusEvent(false);
-	// 		break;
-	// 	};
+	case WM_SETFOCUS:
+		{
+			*window.focused = true;
+			break;
+		};
+	case WM_KILLFOCUS:
+		{
+			*window.focused = false;
+			break;
+		};
 	default:
 	_default:
 		return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -761,18 +857,86 @@ bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
 			window.buttons.get()[button] = false;
 			break;
 		}
-	// case XCB_FOCUS_IN:
-	// 	window.queueFocusEvent(true);
-	// 	break;
+	case XCB_FOCUS_IN:
+		*window.focused = true;
+		break;
 
-	// case XCB_FOCUS_OUT:
-	// 	window.queueFocusEvent(false);
-	// 	break;
+	case XCB_FOCUS_OUT:
+		*window.focused = false;
+		break;
 	case XCB_DESTROY_NOTIFY:
 		// free(event);
 		return false;
 	default: break;
 	}
 	return true;
+}
+#elif defined(MACOS)
+bool handle_macos_event(WINDOW& window, NSEvent* event)
+{
+	switch ([event type])
+	{
+		case NSEventTypeKeyDown:
+		case NSEventTypeKeyUp:
+		{
+			auto pressed = [event type] == NSEventTypeKeyDown;
+			int32_t mod = 0;
+			NSEventModifierFlags flags = [event modifierFlags];
+			mod |= (flags & NSEventModifierFlagControl) ? (1 << 0) : 0;
+			mod |= (flags & NSEventModifierFlagShift) ? (1 << 1) : 0;
+			mod |= (flags & NSEventModifierFlagOption) ? (1 << 2) : 0;
+			mod |= (flags & NSEventModifierFlagCommand) ? (1 << 3) : 0;
+			NSString *characters = [event characters];
+			uint32_t keycode = 0;
+			if (characters.length > 0)
+			{
+				keycode = [characters characterAtIndex:0];
+			}
+			*window.mod = mod;
+			window.keys.get()[keycode] = pressed;
+			break;
+		}
+		case NSEventTypeMouseMoved:
+		case NSEventTypeLeftMouseDragged:
+		case NSEventTypeRightMouseDragged:
+		case NSEventTypeOtherMouseDragged:
+		{
+			NSPoint location = [event locationInWindow];
+			auto x = location.x;
+			auto y = location.y;
+			auto cursor = window.cursor.get();
+			cursor[0] = x;
+			cursor[1] = y;
+			break;
+		}
+		case NSEventTypeLeftMouseDown:
+		case NSEventTypeRightMouseDown:
+		case NSEventTypeOtherMouseDown:
+		{
+			auto buttons = window.buttons.get();
+			NSInteger button = [event buttonNumber]; // 0 = left, 1 = right, 2+ = middle/extra
+			if (button >= 0 && button < 8)
+			{
+				buttons[button] = true;
+			}
+			break;
+		}
+		case NSEventTypeLeftMouseUp:
+		case NSEventTypeRightMouseUp:
+		case NSEventTypeOtherMouseUp:
+		{
+			auto buttons = window.buttons.get();
+			NSInteger button = [event buttonNumber];
+			if (button >= 0 && button < 8)
+			{
+				buttons[button] = false;
+			}
+			break;
+		}
+		case NSEventTypeApplicationDefined:
+			return false;
+		default:
+			break;
+	}
 }
 #endif
