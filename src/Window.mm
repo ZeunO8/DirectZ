@@ -20,7 +20,8 @@ struct WINDOW
 	std::shared_ptr<int32_t> keys;
 	std::shared_ptr<int32_t> buttons;
 	std::shared_ptr<float> cursor;
-	std::shared_ptr<uint8_t> mod;
+	std::shared_ptr<int32_t> mod;
+	std::shared_ptr<int32_t> focused;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;
@@ -86,7 +87,8 @@ WINDOW* window_create(const WindowCreateInfo& info)
 	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
 	window->buttons = std::shared_ptr<int32_t>(new int32_t[8], [](int32_t* bp) { delete[] bp; });
 	window->cursor = std::shared_ptr<float>(new float[2], [](float* fp) { delete[] fp; });
-	window->mod = std::shared_ptr<uint8_t>(new uint8_t(0), [](uint8_t* up) { delete up; });
+	window->mod = std::shared_ptr<int32_t>(new int32_t(0), [](int32_t* up) { delete up; });
+	window->focused = std::shared_ptr<int32_t>(new int32_t(0), [](int32_t* ip) { delete ip; });
 
 	auto& viewport = window->viewport;
 	viewport.x = 0.0f;
@@ -170,6 +172,14 @@ void window_set_cursor_pointer(WINDOW* window, float* pointer)
 {
 	window->cursor = std::shared_ptr<float>(pointer, [](auto p){});
 }
+void window_set_mod_pointer(WINDOW* window, int32_t* pointer)
+{
+	window->mod = std::shared_ptr<int32_t>(pointer, [](auto p){});
+}
+void window_set_focused_pointer(WINDOW* window, int32_t* pointer)
+{
+	window->focused = std::shared_ptr<int32_t>(pointer, [](auto p){});
+}
 void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
 	window->float_frametime = pointer;
@@ -189,6 +199,14 @@ void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& 
 void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
 	window->cursor = pointer;
+}
+void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
+{
+	window->mod = pointer;
+}
+void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
+{
+	window->focused = pointer;
 }
 int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode)
 {

@@ -30,12 +30,16 @@ namespace dz
     void window_set_keys_pointer(WINDOW* window, int32_t* pointer);
     void window_set_buttons_pointer(WINDOW* window, int32_t* pointer);
     void window_set_cursor_pointer(WINDOW* window, float* pointer);
+    void window_set_mod_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_focused_pointer(WINDOW* window, int32_t* pointer);
 
     void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
     void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer);
     void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
     void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
     void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
 
     int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode);
     int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button);
