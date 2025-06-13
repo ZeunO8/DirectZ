@@ -55,15 +55,6 @@ FetchContent_Declare(shaderc
     GIT_TAG main)
 FetchContent_MakeAvailable(shaderc)
 
-set(SPIRV_CROSS_STATIC ON)
-set(SPIRV_CROSS_SHARED OFF)
-set(SPIRV_CROSS_ENABLE_TESTS OFF)
-set(SPIRV_CROSS_SKIP_INSTALL ON)
-FetchContent_Declare(spirv_cross
-    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Cross.git
-    GIT_TAG main)
-FetchContent_MakeAvailable(spirv_cross)
-
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
 FetchContent_Declare(spirv_reflect
@@ -73,7 +64,7 @@ FetchContent_MakeAvailable(spirv_reflect)
 
 target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 
-target_link_libraries(DirectZ PRIVATE shaderc spirv-reflect-static spirv-cross-core spirv-cross-cpp spirv-cross-glsl spirv-cross-hlsl spirv-cross-msl spirv-cross-reflect spirv-cross-util)
+target_link_libraries(DirectZ PRIVATE shaderc spirv-reflect-static)
 
 if(LINUX)
 	target_link_libraries(DirectZ PRIVATE xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
