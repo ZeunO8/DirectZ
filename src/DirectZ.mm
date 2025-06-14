@@ -48,6 +48,7 @@ using namespace dz;
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
+#include <dlfcn.h>
 #endif
 #undef min
 #undef max
