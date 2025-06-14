@@ -191,8 +191,6 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 
 void direct_registry_create_instance(DirectRegistry* direct_registry)
 {
-	append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
-	direct_registry->swiftshader_fallback = true;
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "DirectZ Application";
@@ -277,8 +275,6 @@ void direct_registry_create_instance(DirectRegistry* direct_registry)
 		return;
 	else if (direct_registry->swiftshader_fallback == false)
 	{
-		if (instance_create_result == VK_SUCCESS)
-			vkDestroyInstance(direct_registry->instance, 0);
 		std::cout << "Unable to create instance, falling back to SwiftShader" << std::endl;
         append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
 		direct_registry->swiftshader_fallback = true;
