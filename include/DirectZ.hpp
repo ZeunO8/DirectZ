@@ -7,8 +7,13 @@
 #include <dz/Window.hpp>
 #include <dz/DrawListManager.hpp>
 #include <dz/math.hpp>
+#include <filesystem>
 namespace dz
 {
     void set_env(const std::string& key, const std::string& value);
     std::string get_env(const std::string& key);
+    std::filesystem::path getUserDirectoryPath();
+    std::filesystem::path getProgramDirectoryPath();
+    std::filesystem::path getProgramDataPath();
+    std::filesystem::path getExecutableName();
 }

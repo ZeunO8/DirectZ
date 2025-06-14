@@ -86,7 +86,7 @@ namespace dz
     void direct_registry_create_instance(DirectRegistry* direct_registry);
     std::shared_ptr<DirectRegistry> make_direct_registry()
     {
-        append_vk_icd_filename("C:\\Users\\zetez\\Projects\\DirectZ\\build\\Windows\\vk_swiftshader_icd.json");
+        append_vk_icd_filename((getProgramDirectoryPath() / "Windows" / "vk_swiftshader_icd.json").string());
         auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
             dr->buffer_groups.clear();
 	        vkDestroyCommandPool(dr->device, dr->commandPool, 0);
@@ -180,6 +180,27 @@ namespace dz
 
         set_env(key, current);
     }
+    
+    std::filesystem::path getUserDirectoryPath() { return std::filesystem::path(getenv("HOME")); }
+    std::filesystem::path getProgramDirectoryPath()
+    {
+        std::filesystem::path exePath;
+    #if defined(_WIN32)
+        char path[MAX_PATH];
+        GetModuleFileNameA(NULL, path, MAX_PATH);
+        exePath = path;
+    #elif defined(MACOS)
+        char path[1024];
+        uint32_t size = sizeof(path);
+        if (_NSGetExecutablePath(path, &size) == 0)
+            exePath = path;
+    #elif defined(__linux__)
+        exePath = std::filesystem::canonical("/proc/self/exe");
+    #endif
+        return exePath.parent_path();
+    }
+    std::filesystem::path getProgramDataPath() { return std::filesystem::temp_directory_path(); }
+    std::filesystem::path getExecutableName() { return std::filesystem::path(getenv("_")).filename(); }
 }
 #if defined(MACOS)
 #include "WINDOWDelegateImpl.mm"
