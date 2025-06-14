@@ -39,50 +39,13 @@ if(WIN32)
     endif()
 endif()
 
+add_custom_target(copy_vk_swiftshader ALL
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vk_swiftshader> "${CMAKE_BINARY_DIR}/"
+    DEPENDS vk_swiftshader
+    COMMENT "Copying vk_swiftshader to binary root"
+) 
 
-# file(GLOB SWIFTSHADER_SOURCES
-#     # "${swiftshader_SOURCE_DIR}/src/Reactor/*.cpp"
-#     "${swiftshader_SOURCE_DIR}/src/System/*.cpp"
-#     "${swiftshader_SOURCE_DIR}/src/Pipeline/*.cpp"
-#     "${swiftshader_SOURCE_DIR}/src/Device/*.cpp"
-#     "${swiftshader_SOURCE_DIR}/src/Vulkan/libVulkan.cpp"
-# )
-
-# add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/llvm-16.0)
-# add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/marl)
-# # add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/subzero)
-# # add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/llvm-subzero)
-
-# add_library(swiftshader STATIC ${SWIFTSHADER_SOURCES})
-# target_compile_features(swiftshader PRIVATE cxx_std_17)
-# target_include_directories(swiftshader PRIVATE ${Vulkan_INCLUDE_DIRS})
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/src)
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/marl/include)
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/SPIRV-Headers/include)
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/llvm-16.0/llvm/include)
-# if(WINDOWS)
-# set(LLVM_PLATFORM windows)
-# elseif(LINUX)
-# set(LLVM_PLATFORM linux)
-# elseif(MACOS)
-# set(LLVM_PLATFORM darwin)
-# elseif(ANDROID)
-# set(LLVM_PLATFORM android)
-# endif()
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/llvm-16.0/configs/${LLVM_PLATFORM}/include)
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/subzero/src)
-# # target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/subzero)
-# target_include_directories(swiftshader PRIVATE ${swiftshader_SOURCE_DIR}/third_party/llvm-16.0/configs/common/include)
-
-
-# target_compile_definitions(swiftshader
-#     PUBLIC
-#         "ALLOW_DUMP=0"
-#         "ALLOW_TIMERS=0"
-#         "ALLOW_LLVM_CL=0"
-#         "ALLOW_LLVM_IR=0"
-#         "ALLOW_LLVM_IR_AS_INPUT=0"
-#         "ALLOW_MINIMAL_BUILD=0"
-#         "ALLOW_WASM=0"
-#         "ICE_THREAD_LOCAL_HACK=0"
-# )
+configure_file(
+    "${swiftshader_SOURCE_DIR}/src/Vulkan/vk_swiftshader_icd.json.tmpl"
+    "${CMAKE_BINARY_DIR}/vk_swiftshader_icd.json"
+)
