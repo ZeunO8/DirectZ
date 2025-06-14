@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.2.1...4.8.8)
 
+cmake_policy(SET CMP0169 OLD)
+
 include(cmake/Version.cmake)
 
 project(DirectZ VERSION ${DZ_V_MAJ}.${DZ_V_MIN}.${DZ_V_PAT}.${DZ_V_TWE})
