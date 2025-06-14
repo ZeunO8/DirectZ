@@ -61,9 +61,9 @@ add_custom_target(copy_vk_swiftshader ALL
 set(ICD_LIBRARY_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}vk_swiftshader${CMAKE_SHARED_LIBRARY_SUFFIX}")
 if(WIN32)
     # The path is output to a JSON file, which requires backslashes to be escaped.
-    set(ICD_LIBRARY_PATH "${ICD_LIBRARY_PATH}")
+    set(ICD_LIBRARY_PATH ".\\\\${ICD_LIBRARY_PATH}")
 else()
-    set(ICD_LIBRARY_PATH "${ICD_LIBRARY_PATH}")
+    set(ICD_LIBRARY_PATH "./${ICD_LIBRARY_PATH}")
 endif()
 configure_file(
     "${swiftshader_SOURCE_DIR}/src/Vulkan/vk_swiftshader_icd.json.tmpl"
