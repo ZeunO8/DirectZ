@@ -104,3 +104,7 @@ jobs:
         with:
           name: ubuntu-release
           path: build
+          
+      - name: Install Doxygen
+        if: runner.os == 'Linux'
+        uses: ssciwr/doxygen-install@v1
