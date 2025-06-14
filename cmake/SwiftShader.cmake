@@ -40,13 +40,32 @@ if(WIN32)
     endif()
 endif()
 
+if(WIN32)
+    set(VULKAN_API_LIBRARY_NAME "vulkan-1.dll")
+elseif(LINUX)
+    set(VULKAN_API_LIBRARY_NAME "libvulkan.so.1")
+elseif(APPLE)
+    set(VULKAN_API_LIBRARY_NAME "libvulkan.dylib")
+elseif(FUCHSIA)
+    set(VULKAN_API_LIBRARY_NAME "libvulkan.so")
+else()
+    message(FATAL_ERROR "Platform does not support Vulkan yet")
+endif()
 add_custom_target(copy_vk_swiftshader ALL
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vk_swiftshader> "${CMAKE_BINARY_DIR}/"
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vk_swiftshader> "${CMAKE_BINARY_DIR}/SwiftShader"
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vk_swiftshader> "${CMAKE_BINARY_DIR}/SwiftShader/${VULKAN_API_LIBRARY_NAME}"
     DEPENDS vk_swiftshader
     COMMENT "Copying vk_swiftshader to binary root"
 ) 
 
+set(ICD_LIBRARY_PATH "${CMAKE_SHARED_LIBRARY_PREFIX}vk_swiftshader${CMAKE_SHARED_LIBRARY_SUFFIX}")
+if(WIN32)
+    # The path is output to a JSON file, which requires backslashes to be escaped.
+    set(ICD_LIBRARY_PATH "${ICD_LIBRARY_PATH}")
+else()
+    set(ICD_LIBRARY_PATH "${ICD_LIBRARY_PATH}")
+endif()
 configure_file(
     "${swiftshader_SOURCE_DIR}/src/Vulkan/vk_swiftshader_icd.json.tmpl"
-    "${CMAKE_BINARY_DIR}/vk_swiftshader_icd.json"
+    "${CMAKE_BINARY_DIR}/SwiftShader/vk_swiftshader_icd.json"
 )
