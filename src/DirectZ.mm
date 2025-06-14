@@ -86,7 +86,7 @@ namespace dz
     void direct_registry_create_instance(DirectRegistry* direct_registry);
     std::shared_ptr<DirectRegistry> make_direct_registry()
     {
-        append_vk_icd_filename((getProgramDirectoryPath() / "Windows" / "vk_swiftshader_icd.json").string());
+        append_vk_icd_filename((getProgramDirectoryPath() / "vk_swiftshader_icd.json").string());
         auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
             dr->buffer_groups.clear();
 	        vkDestroyCommandPool(dr->device, dr->commandPool, 0);
