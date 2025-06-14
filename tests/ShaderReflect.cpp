@@ -172,36 +172,8 @@ layout(std430, binding = 4) buffer WindowStatesBuffer {
 } WindowStates;
 )");
 
-#include <Windows.h>
-#include <iostream>
-
-void load_test()
-{
-    HMODULE h = LoadLibraryA("C:\\Users\\zetez\\Projects\\DirectZ\\build\\SwiftShader\\vk_swiftshader.dll");
-	if (!h)
-	{
-		DWORD error = GetLastError();
-		LPSTR msg = nullptr;
-		FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-			nullptr, error, 0, (LPSTR)&msg, 0, nullptr);
-		std::cout << "LoadLibrary failed: " << msg << std::endl;
-		LocalFree(msg);
-	}
-	else
-	{
-        void* procAddress = (void*)GetProcAddress(h, "vkGetInstanceProcAddr");
-        if (procAddress)
-    		std::cout << "Success!" << std::endl;
-        else
-    		std::cout << "Errrr!" << std::endl;
-	}
-}
-
 int main()
 {
-    // load_test();
-
-
     auto set_shader_defines = [](auto shader)
     {
 #ifdef DOUBLE_PRECISION
