@@ -58,13 +58,32 @@ endif()
 **src/app-lib.cpp**
 
 ```cpp
+#include <DirectZ.hpp>
+
+void dz_init(WINDOW* window)
+{
+    auto example_shader = shader_create();
+    
+}
 ```
 
 **src/runtime.cpp**
 ```cpp
+#include <DirectZ.hpp>
 int main()
 {
-
+    auto window = window_create({
+        .title = "Example Window",
+        .x = 128,
+        .y = 128,
+        .width = 640,
+        .height = 480
+    });
+    dz_init(window);
+    while (window_poll_events(window))
+    {
+        window_render(window);
+    }
 }
 ```
 
