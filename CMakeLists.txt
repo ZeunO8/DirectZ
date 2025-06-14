@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.2.1...4.8.8)
 
-cmake_policy(SET CMP0169 OLD)
+if(POLICY CMP0169)
+	cmake_policy(SET CMP0169 OLD)
+endif()
 
 include(cmake/Version.cmake)
 
