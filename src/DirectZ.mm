@@ -47,6 +47,7 @@ using namespace dz;
 #import <QuartzCore/CAMetalLayer.h>
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
+#include <mach-o/dyld.h>
 #endif
 #undef min
 #undef max
