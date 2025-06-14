@@ -139,6 +139,28 @@ bool check_validation_layers_support()
 	}
 	return true;
 }
+
+
+std::string getLastErrorAsString()
+{
+#if defined(_WIN32)
+	DWORD errorMessageID = GetLastError();
+	if (errorMessageID == 0)
+		return "No error"; // No error
+
+	LPSTR messageBuffer = nullptr;
+	size_t size =
+		FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+										NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+
+	std::string message(messageBuffer, size);
+	LocalFree(messageBuffer);
+	return message;
+#else
+	return dlerror();
+#endif
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -148,7 +170,11 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 {
 	if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ||
 			messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-		throw std::runtime_error(std::string(pCallbackData->pMessage));
+	{
+		std::cerr << "VkDebug(" << messageSeverity << "): " << std::string(pCallbackData->pMessage) << std::endl <<
+		getLastErrorAsString() << std::endl;
+		throw std::runtime_error("");
+	}
 	return VK_FALSE;
 }
 void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -165,6 +191,8 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 
 void direct_registry_create_instance(DirectRegistry* direct_registry)
 {
+	append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
+	direct_registry->swiftshader_fallback = true;
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "DirectZ Application";
@@ -244,7 +272,24 @@ void direct_registry_create_instance(DirectRegistry* direct_registry)
 		createInfo.enabledLayerCount = 0;
 	}
 #endif
-	vk_check("vkCreateInstance", vkCreateInstance(&createInfo, 0, &direct_registry->instance));
+	auto instance_create_result = vkCreateInstance(&createInfo, 0, &direct_registry->instance);
+	if (instance_create_result == VK_SUCCESS)
+		return;
+	else if (direct_registry->swiftshader_fallback == false)
+	{
+		if (instance_create_result == VK_SUCCESS)
+			vkDestroyInstance(direct_registry->instance, 0);
+		std::cout << "Unable to create instance, falling back to SwiftShader" << std::endl;
+        append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
+		direct_registry->swiftshader_fallback = true;
+		direct_registry_create_instance(direct_registry);
+	}
+	else
+	{
+		std::cerr << "Fallback failed" << std::endl;
+		assert(false);
+
+	}
 }
 
 void create_surface(Renderer* renderer)
