@@ -1,0 +1,25 @@
+var struct_renderer =
+[
+    [ "beginInfo", "struct_renderer.html#a94ce948fb47517eecc7400a37908b993", null ],
+    [ "commandBuffers", "struct_renderer.html#a0f027082e0fe4af222e9a3729bf2f84a", null ],
+    [ "countBuffers", "struct_renderer.html#a9b310e5a681b03cbdafd4567c5acf050", null ],
+    [ "currentFrame", "struct_renderer.html#a49759c3f97f156156f0dfcbe84e61fe8", null ],
+    [ "debugMessenger", "struct_renderer.html#a781fda65a30f9baa7bc6363032b4131e", null ],
+    [ "drawBuffers", "struct_renderer.html#ae818b6b3934775b008d987dae651babd", null ],
+    [ "imageAvailableSemaphores", "struct_renderer.html#a4620fd4f54cdf3c7b4eb5ea9cf022bd7", null ],
+    [ "imageIndex", "struct_renderer.html#a670bf2ab78831592820386bcba13faa0", null ],
+    [ "inFlightFences", "struct_renderer.html#ac5b1f9563db079b8bea35f4ecc8b028f", null ],
+    [ "presentInfo", "struct_renderer.html#af4c8dd01cde0e14f18e7925a1aaa445f", null ],
+    [ "renderFinishedSemaphores", "struct_renderer.html#a260c92152476495b480869cb34d62529", null ],
+    [ "signalSemaphores", "struct_renderer.html#ab5b5d6890bf8b37c22806dccbe167ec5", null ],
+    [ "submitInfo", "struct_renderer.html#ab7eb6ff2a56234555fdd24fdc126a2fd", null ],
+    [ "surface", "struct_renderer.html#a9570e0cc7bbc5b60624c7747c47fc311", null ],
+    [ "swapChain", "struct_renderer.html#a5dde3acbf8d7ecec9de02a4ac732d328", null ],
+    [ "swapChainExtent", "struct_renderer.html#a395273adb8fd767c3f8da8182d485662", null ],
+    [ "swapChainFramebuffers", "struct_renderer.html#a6a4427828a39726c8e5a05013d0d3114", null ],
+    [ "swapChainImages", "struct_renderer.html#ac10d6a5c368d9e81a1f4b8bb2b4bb2a6", null ],
+    [ "swapChainImageViews", "struct_renderer.html#ac1c523e91873742fa585391dda9b79d3", null ],
+    [ "swapChains", "struct_renderer.html#a5687c65566b63173d30acbe4fb6cdc2a", null ],
+    [ "waitStages", "struct_renderer.html#a48dfe5141e6557bc3c76d715fb21c9a6", null ],
+    [ "window", "struct_renderer.html#a52186ebf838892fc0e321db8da4bb3e6", null ]
+];

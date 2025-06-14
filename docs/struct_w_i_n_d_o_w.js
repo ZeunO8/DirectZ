@@ -1,0 +1,28 @@
+var struct_w_i_n_d_o_w =
+[
+    [ "create_platform", "struct_w_i_n_d_o_w.html#a895ab259e8b22724c8ef5d466a7d0ac1", null ],
+    [ "destroy_platform", "struct_w_i_n_d_o_w.html#a49ae7c26f17d1954c9c390ddb7b6c384", null ],
+    [ "poll_events_platform", "struct_w_i_n_d_o_w.html#a4aeca825b10337137ff4ae1f0f80c16f", null ],
+    [ "post_init_platform", "struct_w_i_n_d_o_w.html#ad9a1da9b4326f83177b6024c1fe30eb0", null ],
+    [ "borderless", "struct_w_i_n_d_o_w.html#a9ce19f267ae9c5304a93e7ec330e5801", null ],
+    [ "buttons", "struct_w_i_n_d_o_w.html#a2ec2ebc19c89baeee31aea23c3b8468b", null ],
+    [ "closed", "struct_w_i_n_d_o_w.html#a064cbeac29c63cf151a4286a43d5b042", null ],
+    [ "cursor", "struct_w_i_n_d_o_w.html#a76d40e681d3964f5d0bbfe3d573d155e", null ],
+    [ "double_frametime", "struct_w_i_n_d_o_w.html#aea52191f35c92fd99fd64491e63c291e", null ],
+    [ "draw_list_managers", "struct_w_i_n_d_o_w.html#ac29ad0dc27ec5e088109c28b11c7472f", null ],
+    [ "float_frametime", "struct_w_i_n_d_o_w.html#adb8d8ec210e8adb7660e49f17a35b955", null ],
+    [ "focused", "struct_w_i_n_d_o_w.html#a419bea5a24eaa8c23d860adbf0a8cb3e", null ],
+    [ "height", "struct_w_i_n_d_o_w.html#a589c5c8fc3b578f920d8cd03bc90ce42", null ],
+    [ "keys", "struct_w_i_n_d_o_w.html#a54b0909aa7c0c31b6c3aa97e8923e376", null ],
+    [ "lastFrame", "struct_w_i_n_d_o_w.html#ab0a9afb5f273d49c86af38bd1bdf7f89", null ],
+    [ "mod", "struct_w_i_n_d_o_w.html#a336b62e1a4d416939f424225133e9cd5", null ],
+    [ "registry", "struct_w_i_n_d_o_w.html#a89d2d657dde4825fdd8561bb62a54fd3", null ],
+    [ "renderer", "struct_w_i_n_d_o_w.html#a520ba9b2f1d8aa5e4b1bfd3c1b7b51ce", null ],
+    [ "scissor", "struct_w_i_n_d_o_w.html#a374ef8baa066bca013729788e78e276e", null ],
+    [ "title", "struct_w_i_n_d_o_w.html#a587b3344f9e6b343ff1749b8f349dfcd", null ],
+    [ "viewport", "struct_w_i_n_d_o_w.html#a3520c9235d72e19a1ab1b42eb13b9f2d", null ],
+    [ "vsync", "struct_w_i_n_d_o_w.html#a24a9323b3d2999065f5f79376ac960b5", null ],
+    [ "width", "struct_w_i_n_d_o_w.html#af7e69ddf4032239ed45f7838c2c41103", null ],
+    [ "x", "struct_w_i_n_d_o_w.html#acec7be0648ce2acbfab5b2310904902d", null ],
+    [ "y", "struct_w_i_n_d_o_w.html#ab153e0281aa16c626e470c0553bb44f6", null ]
+];
