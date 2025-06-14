@@ -33,7 +33,9 @@ target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 
 target_link_libraries(DirectZ PRIVATE shaderc spirv-reflect-static)
 
-if(LINUX)
+if(WIN32)
+	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)
+elseif(LINUX)
 	target_link_libraries(DirectZ PRIVATE objc xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
 	if(USE_WAYLAND)
 		target_link_libraries(DirectZ PRIVATE wayland-client)
