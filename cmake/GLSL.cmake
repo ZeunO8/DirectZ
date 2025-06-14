@@ -1,15 +1,3 @@
-
-
-
-# set(SPIRV_SKIP_EXECUTABLES ON)
-# set(SPIRV_SKIP_TESTS ON)
-# set(SKIP_SPIRV_TOOLS_INSTALL ON)
-# FetchContent_Declare(spirv_tools
-#     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools.git
-#     GIT_TAG main)
-# FetchContent_MakeAvailable(spirv_tools)
-
-
 set(SHADERC_SKIP_INSTALL ON)
 set(SHADERC_SKIP_TESTS ON)
 set(SHADERC_SKIP_EXAMPLES ON)
