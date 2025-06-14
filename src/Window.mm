@@ -902,8 +902,8 @@ bool handle_macos_event(WINDOW& window, NSEvent* event)
 		}
 		case NSEventTypeApplicationDefined:
 			return false;
-		default:
-			break;
+		default: break;
 	}
+	return true;
 }
 #endif
