@@ -15,7 +15,7 @@ struct Renderer
     std::vector<VkFence> inFlightFences;
     std::vector<VkCommandBuffer> commandBuffers;
     uint32_t currentFrame = 0;
-    uint32_t imageIndex = -1;
+    uint32_t imageIndex = 0;
 	VkCommandBufferBeginInfo beginInfo;
     VkSubmitInfo submitInfo;
     VkPresentInfoKHR presentInfo;
@@ -478,6 +478,12 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 	vulkan12Features.pNext = &shaderDrawParamsFeatures_query;
 	// vulkan12Features.pNext = &descriptorIndexingFeatures;
     vulkan12Features.drawIndirectCount = VK_TRUE;
+	vulkan12Features.descriptorBindingVariableDescriptorCount = VK_FALSE;
+	vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_FALSE;
+	vulkan12Features.descriptorBindingPartiallyBound = VK_FALSE;
+	vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_FALSE;
+	vulkan12Features.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_FALSE;
+	vulkan12Features.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_FALSE;
 	VkPhysicalDeviceFeatures2 deviceFeatures{};
 	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 	deviceFeatures.pNext = &vulkan12Features;
@@ -486,7 +492,7 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 	deviceFeatures.features.depthClamp = VK_TRUE;
 	deviceFeatures.features.depthBiasClamp = VK_TRUE;
 	deviceFeatures.features.samplerAnisotropy = VK_TRUE;
-	deviceFeatures.features.robustBufferAccess = VK_TRUE;
+	deviceFeatures.features.robustBufferAccess = VK_FALSE;
 	deviceFeatures.features.multiDrawIndirect = VK_TRUE;
 	deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
 	createInfo.pNext = &deviceFeatures;

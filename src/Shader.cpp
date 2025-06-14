@@ -1977,11 +1977,12 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 	auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
     auto buffer_hash = drawBufferSize ^ size_t(shader) << 2;
 	VkCommandBuffer passCB = *direct_registry->commandBuffer;
+
 	auto& drawBufferPair = renderer->drawBuffers[buffer_hash];
 	if (!drawBufferPair.first)
 	{
 		createBuffer(
-                renderer,
+			renderer,
 			drawBufferSize,
 			VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -1989,57 +1990,86 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 			drawBufferPair.second
 		);
 	}
+
 	auto& countBufferPair = renderer->countBuffers[buffer_hash];
 	if (!countBufferPair.first)
+	{
 		createBuffer(
-            renderer,
+			renderer,
 			sizeof(uint32_t),
 			VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			countBufferPair.first,
 			countBufferPair.second
 		);
-	std::vector<VkDrawIndirectCommand> i_commands(drawsSize, VkDrawIndirectCommand{});
-	auto i_commands_data = i_commands.data();
-	auto v_commands_data = commands.data();
-	for (auto i = 0; i < drawsSize; ++i)
-	{
-		auto& i_command = i_commands_data[i];
-		auto& v_command = v_commands_data[i];
-		i_command.vertexCount = v_command.vertexCount;
-		i_command.instanceCount = v_command.instanceCount;
-		i_command.firstVertex = v_command.firstVertex;
-		i_command.firstInstance = v_command.firstInstance;
 	}
+
+	std::vector<VkDrawIndirectCommand> i_commands(drawsSize, VkDrawIndirectCommand{});
+	memcpy(i_commands.data(), commands.data(), i_commands.size() * sizeof(VkDrawIndirectCommand));
+
+	// Write draw commands to GPU-visible indirect buffer
 	void* drawBufferData;
 	vkMapMemory(direct_registry->device, drawBufferPair.second, 0, VK_WHOLE_SIZE, 0, &drawBufferData);
-	memcpy(drawBufferData, i_commands_data, drawsSize * sizeof(VkDrawIndirectCommand));
+	memcpy(drawBufferData, i_commands.data(), drawBufferSize);
 	vkUnmapMemory(direct_registry->device, drawBufferPair.second);
 
+	// Write draw count to count buffer
 	uint32_t drawCount = static_cast<uint32_t>(drawsSize);
 	void* countBufferData;
 	vkMapMemory(direct_registry->device, countBufferPair.second, 0, VK_WHOLE_SIZE, 0, &countBufferData);
 	memcpy(countBufferData, &drawCount, sizeof(uint32_t));
 	vkUnmapMemory(direct_registry->device, countBufferPair.second);
 
-    std::vector<VkDescriptorSet> sets;
-    sets.reserve(shader->descriptor_sets.size());
-    for (auto& set_pair : shader->descriptor_sets)
-    {
-        sets.push_back(set_pair.second);
-    }
+	// Descriptor sets
+	std::vector<VkDescriptorSet> sets;
+	sets.reserve(shader->descriptor_sets.size());
+	for (auto& set_pair : shader->descriptor_sets)
+	{
+		sets.push_back(set_pair.second);
+	}
 
-	vkCmdBindDescriptorSets(passCB, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline_layout, 0, sets.size(),
-													 sets.data(), 0, 0);
-	vkCmdDrawIndirectCount(
+	vkCmdBindDescriptorSets(
 		passCB,
-		drawBufferPair.first,
+		VK_PIPELINE_BIND_POINT_GRAPHICS,
+		shader->pipeline_layout,
 		0,
-		countBufferPair.first,
+		sets.size(),
+		sets.data(),
 		0,
-		drawCount,
-		sizeof(VkDrawIndirectCommand)
+		nullptr
 	);
+
+	// Detect whether indirect count is supported
+	bool supportsIndirectCount = false;//renderer->supportsIndirectCount;
+
+	if (supportsIndirectCount)
+	{
+		vkCmdDrawIndirectCount(
+			passCB,
+			drawBufferPair.first,
+			0,
+			countBufferPair.first,
+			0,
+			drawCount,
+			sizeof(VkDrawIndirectCommand)
+		);
+	}
+	else
+	{
+		// Manually read count from mapped memory
+		uint32_t fallbackDrawCount = 0;
+		void* mappedCount = nullptr;
+		vkMapMemory(direct_registry->device, countBufferPair.second, 0, sizeof(uint32_t), 0, &mappedCount);
+		memcpy(&fallbackDrawCount, mappedCount, sizeof(uint32_t));
+		vkUnmapMemory(direct_registry->device, countBufferPair.second);
+		fallbackDrawCount = std::min(drawCount, fallbackDrawCount);
+
+		for (uint32_t i = 0; i < fallbackDrawCount; ++i)
+		{
+			VkDeviceSize commandOffset = i * sizeof(VkDrawIndirectCommand);
+			vkCmdDrawIndirect(passCB, drawBufferPair.first, commandOffset, 1, sizeof(VkDrawIndirectCommand));
+		}
+	}
 }
 
 void shader_destroy(Shader* shader)

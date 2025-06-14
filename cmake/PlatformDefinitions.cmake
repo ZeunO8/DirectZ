@@ -26,7 +26,12 @@ elseif(WIN32)
     set(DZ_LIB_PREFIX "")
     set(SHARED_DZ_LIB_SUFFIX ".dll")
     set(STATIC_DZ_LIB_SUFFIX ".lib")
+    set(DZ_LIB_INSTALL_DIR lib)
+    set(CMAKE_POSITION_INDEPENDENT_CODE FALSE)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
+string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
 
 function(dz_setup_target
 	TARGET_NAME

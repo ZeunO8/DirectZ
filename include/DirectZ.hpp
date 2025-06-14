@@ -7,3 +7,8 @@
 #include <dz/Window.hpp>
 #include <dz/DrawListManager.hpp>
 #include <dz/math.hpp>
+namespace dz
+{
+    void set_env(const std::string& key, const std::string& value);
+    std::string get_env(const std::string& key);
+}
