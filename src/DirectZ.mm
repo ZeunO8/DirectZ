@@ -40,6 +40,7 @@ using namespace dz;
 #include <X11/keysymdef.h>
 #include <xcb/xfixes.h>
 #include <xkbcommon/xkbcommon.h>
+#include <dlfcn.h>
 #elif defined(MACOS)
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
