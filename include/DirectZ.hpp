@@ -17,3 +17,11 @@ namespace dz
     std::filesystem::path getProgramDataPath();
     std::filesystem::path getExecutableName();
 }
+#ifdef _WIN32
+#define DZ_EXPORT extern "C" __declspec(dllexport)
+#else
+#define DZ_EXPORT extern "C" __attribute__((visibility("default")))
+#endif
+using namespace dz;
+DZ_EXPORT int dz_init(WINDOW* &window);
+DZ_EXPORT void dz_update();
