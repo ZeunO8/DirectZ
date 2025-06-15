@@ -173,7 +173,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 	{
 		std::cerr << "VkDebug(" << messageSeverity << "): " << std::string(pCallbackData->pMessage) << std::endl <<
 		getLastErrorAsString() << std::endl;
-		throw std::runtime_error("");
 	}
 	return VK_FALSE;
 }
