@@ -8,9 +8,25 @@ FetchContent_Declare(shaderc
     GIT_TAG v2024.2)
 FetchContent_MakeAvailable(shaderc)
 
+set_target_properties(shaderc PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(shaderc_util PROPERTIES DEBUG_POSTFIX "d")
+
+set_target_properties(shaderc PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${shaderc_SOURCE_DIR}/libshaderc/include>;$<INSTALL_INTERFACE:include>"
+)
+
+set_target_properties(shaderc_util PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${shaderc_SOURCE_DIR}/libshaderc_util/include>;$<INSTALL_INTERFACE:include>"
+)
+
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
 FetchContent_Declare(spirv_reflect
     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
     GIT_TAG main)
 FetchContent_MakeAvailable(spirv_reflect)
+
+set_target_properties(spirv-reflect-static PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(spirv-reflect-static PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${spirv_reflect_SOURCE_DIR}/include>;$<INSTALL_INTERFACE:include/>"
+)

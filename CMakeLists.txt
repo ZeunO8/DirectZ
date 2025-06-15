@@ -8,10 +8,14 @@ include(cmake/Version.cmake)
 
 project(DirectZ VERSION ${DZ_V_MAJ}.${DZ_V_MIN}.${DZ_V_PAT}.${DZ_V_TWE})
 
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
 include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
 
 add_library(DirectZ src/DirectZ.mm)
+set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
 
 target_compile_features(DirectZ PRIVATE cxx_std_20) 
 
@@ -29,9 +33,11 @@ include(FetchContent)
 include(cmake/SwiftShader.cmake)
 include(cmake/GLSL.cmake)
 
+include(cmake/dz-targets.cmake)
+
 target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 
-target_link_libraries(DirectZ PRIVATE shaderc spirv-reflect-static)
+target_link_libraries(DirectZ PRIVATE dz::shaderc dz::shaderc_util dz::spirv-reflect-static)
 
 if(WIN32)
 	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)

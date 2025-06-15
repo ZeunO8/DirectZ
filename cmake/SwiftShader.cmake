@@ -1,3 +1,5 @@
+set(SPIRV_TOOLS_BUILD_STATIC ON)
+set(SKIP_SPIRV_TOOLS_INSTALL ON)
 
 set(SWIFTSHADER_BUILD_PVR OFF)
 set(SWIFTSHADER_BUILD_CPPDAP OFF)
@@ -13,7 +15,9 @@ if(NOT swiftshader_POPULATED)
 endif()
 
 add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Headers EXCLUDE_FROM_ALL)
-add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Tools EXCLUDE_FROM_ALL)
+add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Tools)
+set_target_properties(SPIRV-Tools-static PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(SPIRV-Tools-opt PROPERTIES DEBUG_POSTFIX "d")
 
 set(GLSLANG_TESTS OFF)
 set(GLSLANG_ENABLE_INSTALL OFF)
