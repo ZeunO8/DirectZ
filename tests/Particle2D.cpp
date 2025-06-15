@@ -1,3 +1,11 @@
+// Signed Distance Map
+//3g
+// Sample Distance
+//1u
+// Point at which particle exists inside sign
+// at const & pluj + plug u (O)
+// Gravitate towarju326412851210244096variable8
+// everyone that uin>?
 #include <DirectZ.hpp>
 using namespace dz;
 
