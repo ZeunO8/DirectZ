@@ -206,8 +206,10 @@ int main()
     auto windows_buffer_group = buffer_group_create("windows_buffer_group");
     buffer_group_restrict_to_keys(windows_buffer_group, {"WindowStates"});
 
-    auto& window_width = window_get_width_ref(main_window);
-    auto& window_height = window_get_height_ref(main_window);
+    auto& window_width_ptr = window_get_width_ref(main_window);
+    auto& window_width = *window_width_ptr;
+    auto& window_height_ptr = window_get_height_ref(main_window);
+    auto& window_height = *window_height_ptr;
 
     // auto stat_window = window_create({
     //     .title = "Shader Reflect Stats",

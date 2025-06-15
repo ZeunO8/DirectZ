@@ -32,6 +32,8 @@ namespace dz
     void window_set_cursor_pointer(WINDOW* window, float* pointer);
     void window_set_mod_pointer(WINDOW* window, int32_t* pointer);
     void window_set_focused_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_width_pointer(WINDOW* window, float* pointer);
+    void window_set_height_pointer(WINDOW* window, float* pointer);
 
     void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
     void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer);
@@ -40,6 +42,8 @@ namespace dz
     void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
     void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
     void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
 
     int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode);
     int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button);
@@ -47,8 +51,8 @@ namespace dz
     std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode);
     std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t button);
 
-    float& window_get_width_ref(WINDOW* window);
-    float& window_get_height_ref(WINDOW* window);
+    std::shared_ptr<float>& window_get_width_ref(WINDOW* window);
+    std::shared_ptr<float>& window_get_height_ref(WINDOW* window);
     
     void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group);
     void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group);

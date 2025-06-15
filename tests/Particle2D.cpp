@@ -30,6 +30,8 @@ struct WindowState
     float frametime;
     float padding;
     AABB<float, 2> spawn_bounds;
+    float width;
+    float height;
 };
 
 struct Quad
@@ -45,14 +47,16 @@ struct GridDimensions
     float cellHeight;
 };
 
-#define TOTAL_PARTICLES 16'000
+#define TOTAL_PARTICLES 32'000
 
 int main()
 {
     auto window = window_create({.title = "Particle Storm", .width = 1280, .height = 720, .vsync = false});
 
-    auto& window_width = window_get_width_ref(window);
-    auto& window_height = window_get_height_ref(window);
+    auto& window_width_ptr = window_get_width_ref(window);
+    auto& window_width = *window_width_ptr;
+    auto& window_height_ptr = window_get_height_ref(window);
+    auto& window_height = *window_height_ptr;
 
 
     auto quad_group = buffer_group_create("quads");
@@ -179,6 +183,8 @@ struct WindowState {
     float frametime;
     float padding;
     AABB spawn_bounds;
+    float width;
+    float height;
 };
 
 layout(std430, binding = 1) buffer WindowStatesBuffer {
@@ -191,7 +197,7 @@ layout(std430, binding = 1) buffer WindowStatesBuffer {
 version +
 density_struct_def + R"(
 
-layout(local_size_x = 64) in;
+layout(local_size_x = 128) in;
 
 void main() {
     uint id = gl_GlobalInvocationID.x;
@@ -229,7 +235,7 @@ void main() {
     shader_add_module(diffuse_density_shader, ShaderModuleType::Compute,
     version + density_struct_def + grid_dim_struct_def + R"(
 
-layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 32, local_size_y = 32) in;
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
@@ -261,7 +267,7 @@ void main() {
 
     shader_add_module(gradient_force_shader, ShaderModuleType::Compute,
     version + density_struct_def + force_field_struct_def + grid_dim_struct_def + R"(
-layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 32, local_size_y = 32) in;
 
 void main() {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
@@ -371,6 +377,15 @@ void main() {
     p.velocity.xy += G * gForce * dt;
     p.velocity.xy *= 0.999; 
     p.position.xyz += p.velocity.xyz * dt;
+
+    if (p.position.x <= 8 || p.position.x >= (WindowStates.states[0].width - 8))
+    {
+        p.velocity.x *= -1.0;
+    }
+    else if (p.position.y <= 8 || p.position.y >= (WindowStates.states[0].height - 8))
+    {
+        p.velocity.y *= -1.0;
+    }
     
     imageStore(color_image, ivec2(p.position.xy), p.color);
     Particles.particles[id] = p;
@@ -437,7 +452,7 @@ void main() {
     shader_add_module(image_clear_compute_shader, ShaderModuleType::Compute,
 version + R"(
 
-layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 2, rgba32f) uniform image2D color_image;
 
@@ -466,7 +481,7 @@ void main()
     buffer_group_set_buffer_element_count(quad_group, "Quads", 1);
     Image* color_image = buffer_group_define_image_2D(image_group, "color_image", window_width, window_height);
 
-#define GRID_RESOLUTION_DIVISOR 16
+#define GRID_RESOLUTION_DIVISOR 64
     auto density_field_width = window_width / GRID_RESOLUTION_DIVISOR;
     auto density_field_height = window_height / GRID_RESOLUTION_DIVISOR;
     auto density_field_size = density_field_width * density_field_height;
@@ -483,8 +498,8 @@ void main()
     buffer_group_initialize(grids_group);
 
     AABB<float, 2> bounds(
-        {(window_width / 2.f) - (window_width / 4.f), (window_height / 2.f) - (window_height / 4.f)}, // min
-        {(window_width / 2.f) + (window_width / 4.f), (window_height / 2.f) + (window_height / 4.f)} // max
+        {(window_width / 2.f) - (window_width / 3.f), (window_height / 2.f) - (window_height / 3.f)}, // min
+        {(window_width / 2.f) + (window_width / 3.f), (window_height / 2.f) + (window_height / 3.f)} // max
     );
     for (uint32_t i = 0; i < TOTAL_PARTICLES; ++i)
     {
@@ -499,6 +514,10 @@ void main()
     window_set_buttons_pointer(window, state.buttons);
     window_set_float_frametime_pointer(window, &state.frametime);
     window_set_cursor_pointer(window, (float*)&state.cursor);
+    state.width = window_width;
+    state.height = window_height;
+    window_set_width_pointer(window, &state.width);
+    window_set_height_pointer(window, &state.height);
     state.spawn_bounds = bounds;
     
     auto quad_view = buffer_group_get_buffer_element_view(quad_group, "Quads", 0);
@@ -510,8 +529,8 @@ void main()
 
     grid.width = density_field_width;
     grid.height = density_field_height;
-    grid.cellWidth = static_cast<float>(window_width) / density_field_width;
-    grid.cellHeight = static_cast<float>(window_height) / density_field_height;
+    grid.cellWidth = static_cast<float>(*window_width_ptr) / density_field_width;
+    grid.cellHeight = static_cast<float>(*window_height_ptr) / density_field_height;
 
     uint32_t workgroupSize = 64;
     uint32_t dispatchX = (TOTAL_PARTICLES + workgroupSize - 1) / workgroupSize;
@@ -520,13 +539,13 @@ void main()
 
     while (window_poll_events(window))
     {
-        shader_dispatch(image_clear_compute_shader, {(window_width + 15)/16, (window_height + 15)/16, 1});
-        shader_dispatch(clear_density_shader, {(density_field_size + 63)/64, 1, 1});
+        shader_dispatch(image_clear_compute_shader, {(*window_width_ptr + 31)/32, (*window_height_ptr + 31)/32, 1});
+        shader_dispatch(clear_density_shader, {(density_field_size + 127)/128, 1, 1});
         shader_dispatch(deposit_mass_shader, {dispatchX, 1, 1});
         for (uint32_t i = 0; i < numDiffusionPasses; ++i) {
-            shader_dispatch(diffuse_density_shader, {(uint32_t)(density_field_width + 15)/16, (uint32_t)(density_field_height + 15)/16, 1});
+            shader_dispatch(diffuse_density_shader, {(uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1});
         }
-        shader_dispatch(gradient_force_shader, {(uint32_t)(density_field_width + 15)/16, (uint32_t)(density_field_height + 15)/16, 1});
+        shader_dispatch(gradient_force_shader, {(uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1});
         shader_dispatch(gravity_motion_shader, {dispatchX, 1, 1});
         window_render(window);
     }

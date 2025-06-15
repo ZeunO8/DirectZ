@@ -674,7 +674,7 @@ VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<
 VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities)
 {
 	auto& window = *renderer->window;
-	VkExtent2D actualExtent = {static_cast<uint32_t>(window.width), static_cast<uint32_t>(window.height)};
+	VkExtent2D actualExtent = {static_cast<uint32_t>(*window.width), static_cast<uint32_t>(*window.height)};
 	actualExtent.width =
 		std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
 	actualExtent.height =

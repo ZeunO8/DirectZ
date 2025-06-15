@@ -10,10 +10,10 @@ struct WINDOW
     std::string title;
     float x;
     float y;
-    float width;
-    float height;
     bool borderless;
     bool vsync;
+    std::shared_ptr<float> width;
+    std::shared_ptr<float> height;
 	std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
 	std::shared_ptr<float> float_frametime;
 	std::shared_ptr<double> double_frametime;
@@ -82,8 +82,10 @@ static const uint32_t KEYCODES[] = {
 	18, 4,	26, 127};
 WINDOW* window_create(const WindowCreateInfo& info)
 {
-    auto window = new WINDOW{info.title, info.x, info.y, info.width, info.height, info.borderless, info.vsync};
+    auto window = new WINDOW{info.title, info.x, info.y,  info.borderless, info.vsync};
 
+	window->width = std::shared_ptr<float>(new float(info.width), [](float* fp) { delete fp; });
+	window->height = std::shared_ptr<float>(new float(info.height), [](float* fp) { delete fp; });
 	window->float_frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
 	window->double_frametime = std::shared_ptr<double>(new double(0), [](double* dp) { delete dp; });
 	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
@@ -182,6 +184,14 @@ void window_set_focused_pointer(WINDOW* window, int32_t* pointer)
 {
 	window->focused = std::shared_ptr<int32_t>(pointer, [](auto p){});
 }
+void window_set_width_pointer(WINDOW* window, float* pointer)
+{
+	window->width = std::shared_ptr<float>(pointer, [](auto p){});
+}
+void window_set_height_pointer(WINDOW* window, float* pointer)
+{
+	window->height = std::shared_ptr<float>(pointer, [](auto p){});
+}
 void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
 	window->float_frametime = pointer;
@@ -210,6 +220,14 @@ void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& 
 {
 	window->focused = pointer;
 }
+void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
+{
+	window->width = pointer;
+}
+void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
+{
+	window->height = pointer;
+}
 int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode)
 {
 	return window->keys.get()[keycode];
@@ -226,11 +244,11 @@ std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t
 {
 	return window->buttons;
 }
-float& window_get_width_ref(WINDOW* window)
+std::shared_ptr<float>& window_get_width_ref(WINDOW* window)
 {
 	return window->width;
 }
-float& window_get_height_ref(WINDOW* window)
+std::shared_ptr<float>& window_get_height_ref(WINDOW* window)
 {
 	return window->height;
 }
@@ -293,7 +311,7 @@ void WINDOW::create_platform()
 	int32_t dpi = GetDeviceCaps(screen, LOGPIXELSX);
 	ReleaseDC(NULL, screen);
 	dpiScale = dpi / 96.0f;
-	int adjustedWidth = width, adjustedHeight = height;
+	int adjustedWidth = *width, adjustedHeight = *height;
 	auto wsStyle = WS_OVERLAPPEDWINDOW;
 	RECT desiredRect = {0, 0, adjustedWidth, adjustedHeight};
 	auto exStyle = WS_EX_APPWINDOW;
@@ -334,8 +352,8 @@ void WINDOW::create_platform()
             hwnd,
             HWND_TOPMOST,
             (x == -1 ? 0 : x), // Use explicit or default X position
-            (y == -1 ? 0 : y), width,
-            height,
+            (y == -1 ? 0 : y), *width,
+            *height,
             flags
         );
 	}
@@ -396,7 +414,7 @@ void WINDOW::create_platform()
 										window,
 										screen->root, // parent
 										x, y, // X, Y position
-										width, height, // Width, Height
+										*width, *height, // Width, Height
 										1, // Border width
 										XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
 	auto titleLength = title.size();
@@ -514,7 +532,7 @@ void WINDOW::create_platform()
 		}
 		int32_t windowX = x == -1 ? 128 : x,
 				windowY = y == -1 ? 128 : y;
-		NSRect rect = NSMakeRect(windowX, windowY, width, height);
+		NSRect rect = NSMakeRect(windowX, windowY, *width, *height);
 		nsWindow = [[NSWindow alloc] initWithContentRect:rect
 							styleMask:(NSWindowStyleMaskTitled |
 										NSWindowStyleMaskClosable |
@@ -530,8 +548,8 @@ void WINDOW::create_platform()
 		NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
 		[NSApp setMainMenu:mainMenu];
 	}
-	nsImage = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
-	NSRect rect = NSMakeRect(0, 0, width, height);
+	nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
+	NSRect rect = NSMakeRect(0, 0, *width, *height);
 	nsImageView = [[NSImageView alloc] initWithFrame:rect];
 	[nsView addSubview:nsImageView];
 }
@@ -699,10 +717,10 @@ LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_SIZE:
 		{
 			int32_t width = LOWORD(lParam), height = HIWORD(lParam);
-			if (width != 0 && width != window.width && height != 0 && height != window.height)
+			if (width != 0 && width != *window.width && height != 0 && height != *window.height)
 			{
-				window.width = width;
-				window.height = height;
+				*window.width = width;
+				*window.height = height;
 			}
 			break;
 		};
