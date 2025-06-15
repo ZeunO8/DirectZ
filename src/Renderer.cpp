@@ -188,104 +188,139 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 }
 #endif
 
+bool is_any_vulkan_implementation_available()
+{
+    uint32_t count = 0;
+    VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
+    if (res != VK_SUCCESS || count == 0)
+        return false;
+
+    std::vector<VkExtensionProperties> extensions(count);
+    res = vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
+    if (res != VK_SUCCESS)
+        return false;
+
+    for (const auto& ext : extensions)
+    {
+        if (strcmp(ext.extensionName, "VK_KHR_surface") == 0)
+            return true;
+    }
+
+    return false;
+}
+
 void direct_registry_create_instance(DirectRegistry* direct_registry)
 {
-	VkApplicationInfo appInfo{};
-	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "DirectZ Application";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.pEngineName = "DirectZ";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_2;
-	VkInstanceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pApplicationInfo = &appInfo;
-	//
-	std::vector<const char*> extensions;
-	extensions.push_back("VK_KHR_surface");
-	auto& windowType = direct_registry->windowType;
-	switch (windowType)
-	{
-	case WINDOW_TYPE_XCB:
-		{
-			extensions.push_back("VK_KHR_xcb_surface");
-			break;
-		}
-	case WINDOW_TYPE_X11:
-		{
-			extensions.push_back("VK_KHR_xlib_surface");
-			break;
-		}
-	case WINDOW_TYPE_WAYLAND:
-		{
-			extensions.push_back("VK_KHR_wayland_surface");
-			break;
-		}
-	case WINDOW_TYPE_WIN32:
-		{
-			extensions.push_back("VK_KHR_win32_surface");
-			break;
-		}
-	case WINDOW_TYPE_ANDROID:
-		{
-			extensions.push_back("VK_KHR_android_surface");
-			break;
-		}
-	case WINDOW_TYPE_MACOS:
-		{
-			extensions.push_back("VK_MVK_macos_surface");
-			break;
-		}
-	case WINDOW_TYPE_IOS:
-		{
-			extensions.push_back("VK_MVK_ios_surface");
-			break;
-		}
-	}
-#if defined(MACOS)
-	extensions.push_back("VK_KHR_portability_enumeration");
-	createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-#ifndef NDEBUG
-	extensions.push_back("VK_EXT_debug_utils");
-#endif
-	createInfo.enabledExtensionCount = extensions.size();
-	createInfo.ppEnabledExtensionNames = extensions.data();
-	//
-	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-	std::vector<const char*> layers;
-#if !defined(NDEBUG)
-	if (check_validation_layers_support())
-	{
-		layers.push_back("VK_LAYER_KHRONOS_validation");
-		createInfo.enabledLayerCount = layers.size();
-		createInfo.ppEnabledLayerNames = layers.data();
-		populate_debug_messenger_create_info(debugCreateInfo);
-		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-	}
-	else
-	{
-		std::cout << "Validation layers requested, but not available" << std::endl;
-		createInfo.enabledLayerCount = 0;
-	}
-#endif
-	auto instance_create_result = vkCreateInstance(&createInfo, 0, &direct_registry->instance);
-	if (instance_create_result == VK_SUCCESS)
-		return;
-	else if (direct_registry->swiftshader_fallback == false)
-	{
-		std::cout << "Unable to create instance, falling back to SwiftShader" << std::endl;
+    if (!is_any_vulkan_implementation_available())
+    {
+        std::cout << "No Vulkan implementation found. Falling back to SwiftShader." << std::endl;
         append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
-		direct_registry->swiftshader_fallback = true;
-		direct_registry_create_instance(direct_registry);
-	}
-	else
-	{
-		std::cerr << "Fallback failed" << std::endl;
-		assert(false);
+        direct_registry->swiftshader_fallback = true;
+    }
 
-	}
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName = "DirectZ Application";
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName = "DirectZ";
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_2;
+
+    VkInstanceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+    createInfo.pApplicationInfo = &appInfo;
+
+    std::vector<const char*> extensions;
+    extensions.push_back("VK_KHR_surface");
+
+    auto& windowType = direct_registry->windowType;
+    switch (windowType)
+    {
+        case WINDOW_TYPE_XCB:
+        {
+            extensions.push_back("VK_KHR_xcb_surface");
+            break;
+        }
+        case WINDOW_TYPE_X11:
+        {
+            extensions.push_back("VK_KHR_xlib_surface");
+            break;
+        }
+        case WINDOW_TYPE_WAYLAND:
+        {
+            extensions.push_back("VK_KHR_wayland_surface");
+            break;
+        }
+        case WINDOW_TYPE_WIN32:
+        {
+            extensions.push_back("VK_KHR_win32_surface");
+            break;
+        }
+        case WINDOW_TYPE_ANDROID:
+        {
+            extensions.push_back("VK_KHR_android_surface");
+            break;
+        }
+        case WINDOW_TYPE_MACOS:
+        {
+            extensions.push_back("VK_MVK_macos_surface");
+            break;
+        }
+        case WINDOW_TYPE_IOS:
+        {
+            extensions.push_back("VK_MVK_ios_surface");
+            break;
+        }
+    }
+
+#if defined(MACOS)
+    extensions.push_back("VK_KHR_portability_enumeration");
+    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+
+#ifndef NDEBUG
+    extensions.push_back("VK_EXT_debug_utils");
+#endif
+
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
+
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    std::vector<const char*> layers;
+#if !defined(NDEBUG)
+    if (check_validation_layers_support())
+    {
+        layers.push_back("VK_LAYER_KHRONOS_validation");
+        createInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+        createInfo.ppEnabledLayerNames = layers.data();
+        populate_debug_messenger_create_info(debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+    }
+    else
+    {
+        std::cout << "Validation layers requested, but not available" << std::endl;
+        createInfo.enabledLayerCount = 0;
+    }
+#endif
+
+    auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &direct_registry->instance);
+    if (instance_create_result == VK_SUCCESS)
+        return;
+
+    if (!direct_registry->swiftshader_fallback)
+    {
+        std::cout << "Vulkan instance creation failed. Falling back to SwiftShader." << std::endl;
+        append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
+        direct_registry->swiftshader_fallback = true;
+        direct_registry_create_instance(direct_registry);
+    }
+    else
+    {
+        std::cerr << "Failed to create Vulkan instance even with SwiftShader fallback." << std::endl;
+        assert(false);
+    }
 }
+
 
 void create_surface(Renderer* renderer)
 {
