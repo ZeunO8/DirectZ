@@ -170,7 +170,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 {
 	if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT ||
 			messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-	{
+	{ 
 		std::cerr << "VkDebug(" << messageSeverity << "): " << std::string(pCallbackData->pMessage) << std::endl <<
 		getLastErrorAsString() << std::endl;
 	}
