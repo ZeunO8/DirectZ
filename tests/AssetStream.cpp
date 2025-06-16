@@ -10,6 +10,7 @@
 #include <cstring>
 #include <cstdint>
 #include <stdexcept>
+#include <memory>
 
 struct FileHandle
 {
