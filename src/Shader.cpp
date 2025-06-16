@@ -1558,6 +1558,14 @@ void shader_add_module(
 	return;
 }
 
+void shader_add_module_from_file(
+    Shader* shader,
+    const std::filesystem::path& file_path
+)
+{
+    
+}
+
 void shader_init_module(Shader* shader, ShaderModule& shader_module)
 {
     VkShaderModuleCreateInfo create_info{};

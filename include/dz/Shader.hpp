@@ -19,6 +19,10 @@ namespace dz
         ShaderModuleType module_type,
         const std::string& glsl_source
     );
+    void shader_add_module_from_file(
+        Shader* shader,
+        const std::filesystem::path& file_path
+    );
     void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group);
     void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group);
     void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout);
