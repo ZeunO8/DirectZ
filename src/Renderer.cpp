@@ -193,15 +193,22 @@ bool is_any_vulkan_implementation_available()
     uint32_t count = 0;
     VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
     if (res != VK_SUCCESS || count == 0)
+	{
+		std::cerr << "Unable to enumerate instance extension properties" << std::endl;
         return false;
+	}
 
     std::vector<VkExtensionProperties> extensions(count);
     res = vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
     if (res != VK_SUCCESS)
+	{
+		std::cerr << "Unable to enumerate instance extension properties" << std::endl;
         return false;
+	}
 
     for (const auto& ext : extensions)
     {
+		std::cerr << "EXT: " << ext.extensionName << std::endl;
         if (strcmp(ext.extensionName, "VK_KHR_surface") == 0)
             return true;
     }
