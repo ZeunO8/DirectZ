@@ -185,7 +185,7 @@ private:
         m_append_stream.seekg(0);
         if (!m_append_stream.good()) return;
 
-        uint64_t read_bytes = 0;
+        size_t read_bytes = 0;
         uint64_t count = 0;
         if (!vlen::read_u64(m_append_stream, count, read_bytes))
             return;
