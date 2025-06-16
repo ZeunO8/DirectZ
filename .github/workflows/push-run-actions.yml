@@ -77,33 +77,65 @@ jobs:
           cmake --build build
         shell: cmd
 
+      # ShaderReflect
+
       - name: Archive artifacts
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-latest-release
-          path: build
+          name: macos-latest-ShaderReflect
+          path: build/ShaderReflect
 
       - name: Archive artifacts
         if: matrix.os == 'macos-13'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-13-release
-          path: build
+          name: macos-13-ShaderReflect
+          path: build/ShaderReflect
 
       - name: Archive artifacts
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release
-          path: build
+          name: windows-ShaderReflect
+          path: build/ShaderReflect.exe
 
       - name: Archive artifacts
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-release
-          path: build
+          name: ubuntu-ShaderReflect
+          path: build/ShaderReflect
+
+      # Particle2D
+
+      - name: Archive artifacts
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-latest-Particle2D
+          path: build/Particle2D
+
+      - name: Archive artifacts
+        if: matrix.os == 'macos-13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-13-Particle2D
+          path: build/Particle2D
+
+      - name: Archive artifacts
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-Particle2D
+          path: build/Particle2D.exe
+
+      - name: Archive artifacts
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-Particle2D
+          path: build/Particle2D
           
       - name: Install Doxygen
         if: runner.os == 'Linux'
