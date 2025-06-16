@@ -1,254 +1,301 @@
 #include <iostream>
-#include <streambuf> // For std::streambuf
-#include <vector>    // For std::vector
-#include <string>    // For std::string
-#include <iomanip>   // For std::hex, std::setw, etc.
-#include <algorithm> // For std::min
+#include <fstream>
+#include <streambuf>
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <sstream>
+#include <type_traits>
+#include <cassert>
+#include <cstring>
+#include <cstdint>
+#include <stdexcept>
 
-/**
- * @class VarLenMemBuf
- * @brief A custom stream buffer that uses a dynamically resizable std::vector<char>
- * as its underlying storage.
- *
- * This class inherits from std::streambuf and overrides key virtual functions
- * to provide stream I/O operations on an in-memory buffer. The buffer can
- * grow as needed, and it maintains separate positions for reading (get) and
- * writing (put).
- */
-class VarLenMemBuf : public std::streambuf {
+struct FileHandle
+{
+    enum LOCATION
+    {
+        PATH,
+        ASSET
+    };
+    LOCATION location;
+    std::string path;
+    std::shared_ptr<std::iostream> open(std::ios_base::openmode ios)
+    {
+        auto final_path = path;
+        switch (location)
+        {
+            case ASSET:
+            #if defined(ANDROID)
+                // get android asset
+                break;
+            #else
+                final_path = /*assets_location + */ path;
+            #endif
+            case PATH:
+                return std::make_shared<std::fstream>(final_path.c_str(), ios);
+        }
+        throw "";
+    }
+};
+
+namespace vlen {
+    inline void write_u64(std::ostream& out, uint64_t value, size_t& wrote_bytes) {
+        while (value >= 0x80) {
+            out.put(static_cast<char>((value & 0x7F) | 0x80));
+            wrote_bytes++;
+            value >>= 7;
+        }
+        out.put(static_cast<char>(value));
+        wrote_bytes++;
+    }
+
+    inline bool read_u64(std::istream& in, uint64_t& result, size_t& read_bytes) {
+        if (!in.good()) return false;
+        result = 0;
+        int shift = 0;
+        while (true) {
+            int byte = in.get();
+            read_bytes++;
+            if (byte == EOF) break;
+            result |= (static_cast<uint64_t>(byte & 0x7F) << shift);
+            if ((byte & 0x80) == 0) break;
+            shift += 7;
+        }
+        return true;
+    }
+}
+
+template <typename KeyT, typename ValueT>
+class OptimizedKeyValueStream {
 public:
-    VarLenMemBuf() {
-        // Pointers are initially null. They are set on the first write or when
-        // content is loaded via str().
+    struct HeaderEntry {
+        KeyT key;
+        uint64_t offset;
+        uint64_t size;
+    };
+
+    OptimizedKeyValueStream(const FileHandle& file_handle):
+        file_handle(file_handle),
+        m_append_stream_ptr(this->file_handle.open(std::ios::in | std::ios::out | std::ios::app | std::ios::binary)),
+        m_append_stream(*m_append_stream_ptr)
+    {
+        readHeader();
     }
 
-    // Non-copyable
-    VarLenMemBuf(const VarLenMemBuf&) = delete;
-    VarLenMemBuf& operator=(const VarLenMemBuf&) = delete;
-
-    // Method to get the buffer contents.
-    std::string str() const {
-        // The buffer's content is simply the data stored in the vector.
-        return std::string(buffer_.data(), buffer_.size());
-    }
-
-    // Method to set the buffer contents.
-    void str(const std::string& s) {
-        buffer_.assign(s.begin(), s.end());
-        // After setting content, update the stream pointers to reflect the new state.
-        update_pointers();
-    }
-
-protected:
-    /**
-     * @brief Called when the get area is exhausted. For an in-memory buffer, this means EOF.
-     */
-    int_type underflow() override {
-        return traits_type::eof();
-    }
-
-    /**
-     * @brief Called when a write occurs at or past the end of the put area.
-     * @param c The character to be written.
-     * @return The character `c` on success, or traits_type::eof() on failure.
-     *
-     * In our design, this is only called when we are appending to the buffer.
-     */
-    int_type overflow(int_type c = traits_type::eof()) override {
-        if (c == traits_type::eof()) {
-            return traits_type::eof();
+    void write(const KeyT& key, const ValueT& value) {
+        std::string buffer = serialize(value);
+        auto it = m_keyToIndex.find(key);
+        if (it != m_keyToIndex.end()) {
+            erase(key);
         }
 
-        // Save current get pointer offset because vector reallocation will invalidate pointers.
-        std::ptrdiff_t get_offset = eback() ? gptr() - eback() : 0;
-        
-        // We are writing past the current end, so append the new character.
-        buffer_.push_back(traits_type::to_char_type(c));
-        
-        // The buffer has grown. Update all pointers to reflect the new size,
-        // placing the put pointer at the new end, ready for the next append.
-        update_pointers(get_offset, buffer_.size());
+        m_append_stream.clear();
+        m_append_stream.seekp(0, std::ios::end);
+        std::streampos pos = m_append_stream.tellp();
+        if (pos == std::streampos(-1)) {
+            throw std::runtime_error("Invalid tellp() after seekp to end");
+        }
 
-        return c;
+        uint64_t offset = static_cast<uint64_t>(pos) - header_size;
+        size_t wrote_bytes = 0;
+        vlen::write_u64(m_append_stream, buffer.size(), wrote_bytes);
+        m_append_stream.write(buffer.data(), buffer.size());
+        wrote_bytes += buffer.size();
+
+        HeaderEntry entry { key, offset, wrote_bytes };
+        m_keyToIndex[key] = m_entries.size();
+        m_entries.push_back(entry);
+        writeHeader();
     }
 
-    /**
-     * @brief Implements seeking to an absolute or relative position.
-     */
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir,
-                     std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override {
-        
-        off_type new_pos;
-        switch (dir) {
-            case std::ios_base::beg:
-                new_pos = off;
-                break;
-            case std::ios_base::cur:
-                if (which & std::ios_base::in)
-                    new_pos = (gptr() - eback()) + off;
-                else if (which & std::ios_base::out)
-                    new_pos = (pptr() - pbase()) + off;
-                else
-                    return pos_type(off_type(-1)); // Should not happen
-                break;
-            case std::ios_base::end:
-                new_pos = buffer_.size() + off;
-                break;
-            default:
-                 return pos_type(off_type(-1));
-        }
+    bool read(const KeyT& key, ValueT& out) {
+        auto it = m_keyToIndex.find(key);
+        if (it == m_keyToIndex.end()) return false;
 
-        // New position must be within the valid range [0, size].
-        if (new_pos < 0 || new_pos > static_cast<off_type>(buffer_.size())) {
-            return pos_type(off_type(-1));
-        }
+        const HeaderEntry& entry = m_entries[it->second];
+        m_append_stream.clear();
+        m_append_stream.seekg(entry.offset + header_size);
 
-        // Move the requested pointer(s).
-        if (which & std::ios_base::in) {
-            setg(eback(), eback() + new_pos, egptr());
-        }
-        if (which & std::ios_base::out) {
-            setp(pbase(), epptr());
-            pbump(new_pos);
-        }
+        size_t read_bytes = 0;
+        uint64_t size = 0;
+        if (!vlen::read_u64(m_append_stream, size, read_bytes))
+            return false;
+        if (size != (entry.size - read_bytes)) return false;
 
-        return pos_type(new_pos);
+        std::vector<char> buf(size);
+        m_append_stream.read(buf.data(), size);
+        read_bytes += size;
+        if (m_append_stream.gcount() != static_cast<std::streamsize>(size)) return false;
+
+        out = deserialize(buf);
+        return true;
     }
 
-    /**
-     * @brief Implements seeking to an absolute position by deferring to seekoff.
-     */
-    pos_type seekpos(pos_type pos,
-                     std::ios_base::openmode which = std::ios_base::in | std::ios_base::out) override {
-        return seekoff(pos, std::ios_base::beg, which);
+    bool erase(const KeyT& key) {
+        auto it = m_keyToIndex.find(key);
+        if (it == m_keyToIndex.end()) return false;
+
+        auto j = it->second;
+        auto entry_iter = m_entries.begin() + j;
+
+        auto offset = entry_iter->offset;
+        auto size = entry_iter->size;
+
+        std::string left, right;
+        left.resize(offset + header_size);
+        auto end_data = offset + header_size + size;
+        m_append_stream.seekg(0, std::ios::end);
+        size_t end = m_append_stream.tellg();
+        right.resize(end - end_data);
+        m_append_stream.seekg(0);
+        m_append_stream.read(left.data(), left.size());
+        m_append_stream.seekg(end_data);
+        m_append_stream.read(right.data(), right.size());
+        rewrite_stream(left, right);
+
+        for (uint64_t i = j + 1; i < m_entries.size(); i++)
+            m_entries[i].offset -= size;
+        m_entries.erase(entry_iter);
+        m_keyToIndex.clear();
+        for (uint64_t i = 0; i < m_entries.size(); ++i) {
+            m_keyToIndex[m_entries[i].key] = i;
+        }
+        writeHeader();
+        return true;
     }
 
 private:
-    /**
-     * @brief Central utility to set all streambuf pointers based on vector state.
-     * @param get_offset The desired offset for the get pointer.
-     * @param put_offset The desired offset for the put pointer.
-     */
-    void update_pointers(std::ptrdiff_t get_offset = 0, std::ptrdiff_t put_offset = 0) {
-        char* base = buffer_.data();
-        char* end = base + buffer_.size();
+    FileHandle file_handle;
+    std::shared_ptr<std::iostream> m_append_stream_ptr;
+    std::iostream& m_append_stream;
+    std::vector<HeaderEntry> m_entries;
+    std::unordered_map<KeyT, uint64_t> m_keyToIndex;
+    size_t header_size = 0;
 
-        // The get area is always the entire buffer.
-        setg(base, base + get_offset, end);
-        
-        // The put area is also the entire buffer. This allows overwriting anywhere.
-        // epptr() is set to the end of the data, so any write at the end
-        // will correctly trigger overflow() to append.
-        setp(base, end);
-        
-        // Restore the put pointer to its desired position.
-        pbump(put_offset);
+    void readHeader() {
+        m_append_stream.clear();
+
+        m_append_stream.seekg(0, std::ios::end);
+        auto end = m_append_stream.tellg();
+        if (!end)
+            return;
+
+        m_append_stream.seekg(0);
+        if (!m_append_stream.good()) return;
+
+        uint64_t read_bytes = 0;
+        uint64_t count = 0;
+        if (!vlen::read_u64(m_append_stream, count, read_bytes))
+            return;
+        for (uint64_t i = 0; i < count; ++i) {
+            HeaderEntry e;
+            m_append_stream.read(reinterpret_cast<char*>(&e.key), sizeof(KeyT));
+            read_bytes += sizeof(KeyT);
+            if (!vlen::read_u64(m_append_stream, e.offset, read_bytes))
+                return;
+            if (!vlen::read_u64(m_append_stream, e.size, read_bytes))
+                return;
+            m_entries.push_back(e);
+            m_keyToIndex[e.key] = i;
+        }
+
+        header_size = read_bytes;
     }
 
-    std::vector<char> buffer_;
+    void rewrite_stream(const std::string& left, const std::string& right)
+    {
+        auto trunc_stream_ptr = file_handle.open(std::ios::in | std::ios::out | std::ios::trunc | std::ios::binary);
+        auto& trunc_stream = *trunc_stream_ptr;
+        trunc_stream.seekp(0);
+        trunc_stream.write(left.data(), left.size());
+        trunc_stream.write(right.data(), right.size());
+    }
+
+    void writeHeader() {
+        size_t wrote_bytes = 0;
+        std::stringstream ss;
+        vlen::write_u64(ss, m_entries.size(), wrote_bytes);
+        for (const auto& e : m_entries) {
+            ss.write(reinterpret_cast<const char*>(&e.key), sizeof(KeyT));
+            wrote_bytes += sizeof(KeyT);
+            vlen::write_u64(ss, e.offset, wrote_bytes);
+            vlen::write_u64(ss, e.size, wrote_bytes);
+        }
+        std::string h = ss.str();
+
+        m_append_stream.seekg(0, std::ios::end);
+        size_t end = m_append_stream.tellg();
+        size_t data_size = end - header_size;
+        std::string v;
+        v.resize(data_size);
+        m_append_stream.seekg(header_size);
+        m_append_stream.read(v.data(), data_size);
+
+        rewrite_stream(h, v);
+
+        header_size = wrote_bytes;
+    }
+
+    template<typename T>
+    std::string serialize_impl(const T& val, std::true_type) {
+        return val;
+    }
+
+    template<typename T>
+    std::string serialize_impl(const T& val, std::false_type) {
+        std::string s(sizeof(T), '\0');
+        std::memcpy(&s[0], &val, sizeof(T));
+        return s;
+    }
+
+    std::string serialize(const ValueT& val) {
+        return serialize_impl(val, std::is_same<ValueT, std::string>());
+    }
+
+    template<typename T>
+    T deserialize_impl(const std::vector<char>& buf, std::true_type) {
+        return T(buf.begin(), buf.end());
+    }
+
+    template<typename T>
+    T deserialize_impl(const std::vector<char>& buf, std::false_type) {
+        T val;
+        std::memcpy(&val, buf.data(), sizeof(T));
+        return val;
+    }
+
+    ValueT deserialize(const std::vector<char>& buf) {
+        return deserialize_impl<ValueT>(buf, std::is_same<ValueT, std::string>());
+    }
 };
 
-
-/**
- * @class VarLenMemStream
- * @brief An iostream that uses a VarLenMemBuf for in-memory I/O.
- *
- * This class provides a convenient iostream interface over the custom
- * VarLenMemBuf. It handles the initialization and provides helper methods
- * like str() to easily access the buffer's content.
- */
-class VarLenMemStream : public std::iostream {
-public:
-    VarLenMemStream() : std::iostream(&m_buf) {}
-    
-    VarLenMemStream(const std::string& s) : std::iostream(&m_buf) {
-        m_buf.str(s);
-    }
-
-    /**
-     * @brief Returns a copy of the internal buffer as a std::string.
-     * @return std::string containing the buffer's contents.
-     */
-    std::string str() {
-        // Before getting the string, sync to make sure all written data is readable.
-        this->sync();
-        return m_buf.str();
-    }
-    
-    /**
-     * @brief Sets the content of the buffer from a string.
-     * @param s The string to load into the buffer.
-     */
-    void str(const std::string& s) {
-        m_buf.str(s);
-    }
-
-private:
-    VarLenMemBuf m_buf;
-};
-
-// --- Main function to demonstrate usage ---
 int main() {
-    std::cout << "--- C++ Variable-Length Memory Stream Demo ---" << std::endl << std::endl;
+    const char* filename = "kvstore.bin";
+    std::fstream fcheck(filename, std::ios::in | std::ios::binary);
+    if (!fcheck) {
+        std::ofstream create(filename, std::ios::out | std::ios::binary);
+        // create.put(0); // placeholder byte to ensure valid seekp
+        create.flush();
+    }
+    fcheck.close();
 
-    // 1. Create an instance of the stream
-    VarLenMemStream mem_stream;
+    FileHandle handle{FileHandle::PATH, filename};
 
-    // 2. Write data to the stream (demonstrates growing)
-    std::cout << "Step 1: Writing data to the stream..." << std::endl;
-    int magic_number = 42;
-    double pi = 3.14159;
-    mem_stream << "Hello, World! " << "Magic number: " << magic_number << ". PI is approx " << pi << ".";
-    mem_stream << " Let's write a much longer string to ensure the buffer resizes as needed.";
-    mem_stream << std::string(300, '*'); // Write 300 asterisks
-
-    std::cout << "  Write complete. Stream content:" << std::endl;
-    std::cout << "  \"" << mem_stream.str() << "\"" << std::endl;
-    std::cout << "  Current buffer size: " << mem_stream.str().length() << " chars." << std::endl << std::endl;
-
-    // 3. Read data from the stream (from the beginning)
-    std::cout << "Step 2: Reading data back from the beginning..." << std::endl;
-    std::string greeting, temp;
-    int read_magic;
-    double read_pi;
-
-    // The stream's read pointer is still at the beginning because we haven't read yet.
-    mem_stream >> greeting >> temp; // Reads "Hello," and "World!"
-    mem_stream.ignore(2); // Ignore space and M
-    mem_stream >> temp >> temp; // Reads "agic" and "number:"
-    mem_stream >> read_magic;   // Reads 42
-    mem_stream.ignore(1); // Ignore .
-    mem_stream >> temp >> temp >> temp; // Reads "PI", "is", "approx"
-    mem_stream >> read_pi;      // Reads 3.14159
-
-    std::cout << "  Data read from stream:" << std::endl;
-    std::cout << "  Greeting: " << greeting << " " << temp << std::endl;
-    std::cout << "  Magic Number: " << read_magic << std::endl;
-    std::cout << "  PI: " << read_pi << std::endl << std::endl;
-    
-    // 4. Demonstrate seeking
-    std::cout << "Step 3: Demonstrating seekg (read) and seekp (write)..." << std::endl;
-    
-    // Use seekg to jump to the magic number (position 28)
-    std::cout << "  Seeking read pointer (seekg) to position 28..." << std::endl;
-    mem_stream.seekg(28);
-    int magic_again;
-    mem_stream >> magic_again;
-    std::cout << "  Read after seekg: " << magic_again << std::endl;
-
-    // Use seekp to overwrite data in the middle of the stream
-    std::cout << "  Seeking write pointer (seekp) to position 7 to overwrite 'World'..." << std::endl;
-    mem_stream.seekp(7);
-    mem_stream << "Memory"; // Overwrites "World!" with "Memory"
-
-    // Use seekg to go back to the beginning and read the modified string
-    mem_stream.seekg(0);
-    std::string line;
-    std::getline(mem_stream, line, '.'); // Read up to the first period
-    std::cout << "  Reading from start after seekp overwrite: \"" << line << ".\"" << std::endl << std::endl;
-    
-    std::cout << "Final stream content after all operations:" << std::endl;
-    std::cout << "  \"" << mem_stream.str() << "\"" << std::endl;
-
+    {
+        OptimizedKeyValueStream<int, std::string> kv(handle);
+        kv.write(1, "hello");
+        kv.write(2, "world");
+        kv.write(3, "foo");
+        kv.write(2, "updated");
+    }
+    {
+        OptimizedKeyValueStream<int, std::string> kv(handle);
+        std::string out;
+        if (kv.read(2, out)) std::cout << "Key 2: " << out << std::endl;
+        if (kv.read(1, out)) std::cout << "Key 1: " << out << std::endl;
+        if (kv.read(3, out)) std::cout << "Key 3: " << out << std::endl;
+    }
+    // kv.erase(1);
     return 0;
 }
