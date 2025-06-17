@@ -16,7 +16,7 @@ include(cmake/InstallPaths.cmake)
 
 add_library(DirectZ STATIC src/DirectZ.mm)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") AND NOT WIN32)	
 	target_compile_options(DirectZ PRIVATE -fPIC)
 endif()
 
