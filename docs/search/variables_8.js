@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['width_0',['width',['../structdz_1_1_window_create_info.html#aa2f98aa4e755bb11085d5319ca607746',1,'dz::WindowCreateInfo']]]
+  ['location_0',['location',['../structdz_1_1_file_handle.html#afe0637a1f0c3179aa6999f3f2ed5b0db',1,'dz::FileHandle']]]
 ];

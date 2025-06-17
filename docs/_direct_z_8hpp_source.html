@@ -99,39 +99,60 @@ $(function(){initNavTree('_direct_z_8hpp_source.html',''); initResizable(); });
   <div class="headertitle"><div class="title">DirectZ.hpp</div></div>
 </div><!--header-->
 <div class="contents">
-<a href="_direct_z_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#pragma once</span></div>
-<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(ANDROID)</span></div>
-<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#define RENDERER_VULKAN</span></div>
-<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;<a class="code" href="_buffer_group_8hpp.html">dz/BufferGroup.hpp</a>&gt;</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;<a class="code" href="_shader_8hpp.html">dz/Shader.hpp</a>&gt;</span></div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &lt;<a class="code" href="_window_8hpp.html">dz/Window.hpp</a>&gt;</span></div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &lt;<a class="code" href="_draw_list_manager_8hpp.html">dz/DrawListManager.hpp</a>&gt;</span></div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="preprocessor">#include &lt;<a class="code" href="math_8hpp.html">dz/math.hpp</a>&gt;</span></div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="preprocessor">#include &lt;filesystem&gt;</span></div>
-<div class="foldopen" id="foldopen00011" data-start="{" data-end="}">
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno"><a class="line" href="namespacedz.html">   11</a></span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacedz.html">dz</a></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>{</div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno"><a class="line" href="namespacedz.html#a1df254532d1cc8ccab9725cbb4dbf088">   13</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="namespacedz.html#a1df254532d1cc8ccab9725cbb4dbf088">set_env</a>(<span class="keyword">const</span> std::string&amp; key, <span class="keyword">const</span> std::string&amp; value);</div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno"><a class="line" href="namespacedz.html#ad5159ce2c8a3c43c88abd3b434591e4f">   14</a></span>    std::string <a class="code hl_function" href="namespacedz.html#ad5159ce2c8a3c43c88abd3b434591e4f">get_env</a>(<span class="keyword">const</span> std::string&amp; key);</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno"><a class="line" href="namespacedz.html#a2d1ef1cede5b1c2fa5f02fce78ec550a">   15</a></span>    std::filesystem::path <a class="code hl_function" href="namespacedz.html#a2d1ef1cede5b1c2fa5f02fce78ec550a">getUserDirectoryPath</a>();</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno"><a class="line" href="namespacedz.html#af21232e325882fc6609f682eda46c7ec">   16</a></span>    std::filesystem::path <a class="code hl_function" href="namespacedz.html#af21232e325882fc6609f682eda46c7ec">getProgramDirectoryPath</a>();</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno"><a class="line" href="namespacedz.html#a3c077744b9b5352c395a0f9561045da7">   17</a></span>    std::filesystem::path <a class="code hl_function" href="namespacedz.html#a3c077744b9b5352c395a0f9561045da7">getProgramDataPath</a>();</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno"><a class="line" href="namespacedz.html#a3983ca688991eaf770c53962e87658fe">   18</a></span>    std::filesystem::path <a class="code hl_function" href="namespacedz.html#a3983ca688991eaf770c53962e87658fe">getExecutableName</a>();</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>}</div>
-</div>
-<div class="ttc" id="a_buffer_group_8hpp_html"><div class="ttname"><a href="_buffer_group_8hpp.html">BufferGroup.hpp</a></div></div>
-<div class="ttc" id="a_draw_list_manager_8hpp_html"><div class="ttname"><a href="_draw_list_manager_8hpp.html">DrawListManager.hpp</a></div></div>
-<div class="ttc" id="a_shader_8hpp_html"><div class="ttname"><a href="_shader_8hpp.html">Shader.hpp</a></div></div>
-<div class="ttc" id="a_window_8hpp_html"><div class="ttname"><a href="_window_8hpp.html">Window.hpp</a></div></div>
-<div class="ttc" id="amath_8hpp_html"><div class="ttname"><a href="math_8hpp.html">math.hpp</a></div></div>
-<div class="ttc" id="anamespacedz_html"><div class="ttname"><a href="namespacedz.html">dz</a></div><div class="ttdef"><b>Definition</b> DirectZ.hpp:12</div></div>
-<div class="ttc" id="anamespacedz_html_a1df254532d1cc8ccab9725cbb4dbf088"><div class="ttname"><a href="namespacedz.html#a1df254532d1cc8ccab9725cbb4dbf088">dz::set_env</a></div><div class="ttdeci">void set_env(const std::string &amp;key, const std::string &amp;value)</div></div>
-<div class="ttc" id="anamespacedz_html_a2d1ef1cede5b1c2fa5f02fce78ec550a"><div class="ttname"><a href="namespacedz.html#a2d1ef1cede5b1c2fa5f02fce78ec550a">dz::getUserDirectoryPath</a></div><div class="ttdeci">std::filesystem::path getUserDirectoryPath()</div></div>
-<div class="ttc" id="anamespacedz_html_a3983ca688991eaf770c53962e87658fe"><div class="ttname"><a href="namespacedz.html#a3983ca688991eaf770c53962e87658fe">dz::getExecutableName</a></div><div class="ttdeci">std::filesystem::path getExecutableName()</div></div>
-<div class="ttc" id="anamespacedz_html_a3c077744b9b5352c395a0f9561045da7"><div class="ttname"><a href="namespacedz.html#a3c077744b9b5352c395a0f9561045da7">dz::getProgramDataPath</a></div><div class="ttdeci">std::filesystem::path getProgramDataPath()</div></div>
-<div class="ttc" id="anamespacedz_html_ad5159ce2c8a3c43c88abd3b434591e4f"><div class="ttname"><a href="namespacedz.html#ad5159ce2c8a3c43c88abd3b434591e4f">dz::get_env</a></div><div class="ttdeci">std::string get_env(const std::string &amp;key)</div></div>
-<div class="ttc" id="anamespacedz_html_af21232e325882fc6609f682eda46c7ec"><div class="ttname"><a href="namespacedz.html#af21232e325882fc6609f682eda46c7ec">dz::getProgramDirectoryPath</a></div><div class="ttdeci">std::filesystem::path getProgramDirectoryPath()</div></div>
+<a href="_direct_z_8hpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span> </div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#pragma once</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// Yes DirectZ just uses Vulkan (for v1.0 at the very least) </span></div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(ANDROID)</span></div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="preprocessor">#define RENDERER_VULKAN</span></div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span> </div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span><span class="preprocessor">#include &lt;filesystem&gt;</span></div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span><span class="preprocessor">#include &lt;<a class="code" href="_buffer_group_8hpp.html">dz/BufferGroup.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span><span class="preprocessor">#include &lt;<a class="code" href="_shader_8hpp.html">dz/Shader.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span><span class="preprocessor">#include &lt;<a class="code" href="_window_8hpp.html">dz/Window.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span><span class="preprocessor">#include &lt;<a class="code" href="_draw_list_manager_8hpp.html">dz/DrawListManager.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span><span class="preprocessor">#include &lt;<a class="code" href="math_8hpp.html">dz/math.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="preprocessor">#include &lt;<a class="code" href="_file_handle_8hpp.html">dz/FileHandle.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span><span class="preprocessor">#include &lt;<a class="code" href="memory__stream_8hpp.html">dz/internal/memory_stream.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="preprocessor">#include &lt;<a class="code" href="size__ptr_8hpp.html">dz/size_ptr.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="preprocessor">#include &lt;<a class="code" href="_asset_pack_8hpp.html">dz/AssetPack.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="preprocessor">#include &lt;<a class="code" href="_key_value_stream_8hpp.html">dz/KeyValueStream.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="preprocessor">#include &lt;<a class="code" href="_program_args_8hpp.html">dz/ProgramArgs.hpp</a>&gt;</span></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span> </div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="preprocessor">#ifdef _WIN32</span></div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span><span class="preprocessor">#define DZ_EXPORT extern &quot;C&quot; __declspec(dllexport)</span></div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno"><a class="line" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">   28</a></span><span class="preprocessor">#define DZ_EXPORT extern &quot;C&quot; __attribute__((visibility(&quot;default&quot;)))</span></div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span><span class="keyword">using namespace </span><a class="code hl_namespace" href="namespacedz.html">dz</a>;</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno"><a class="line" href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">   53</a></span><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">int</span> <a class="code hl_function" href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">init</a>(<span class="keyword">const</span> <a class="code hl_struct" href="structdz_1_1_window_create_info.html">WindowCreateInfo</a>&amp; window_info);</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">   70</a></span><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">bool</span> <a class="code hl_function" href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a>();</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno"><a class="line" href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">   77</a></span><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">void</span> <a class="code hl_function" href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">update</a>();</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno"><a class="line" href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">   92</a></span><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">void</span> <a class="code hl_function" href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">render</a>();</div>
+<div class="ttc" id="a_asset_pack_8hpp_html"><div class="ttname"><a href="_asset_pack_8hpp.html">AssetPack.hpp</a></div><div class="ttdoc">Functions for managing asset packs for efficient binary data storage.</div></div>
+<div class="ttc" id="a_buffer_group_8hpp_html"><div class="ttname"><a href="_buffer_group_8hpp.html">BufferGroup.hpp</a></div><div class="ttdoc">Abstractions for managing GPU buffer groups with named buffers and images.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_a7098dd6b61e32cf292cfb419467ea713"><div class="ttname"><a href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a></div><div class="ttdeci">#define DZ_EXPORT</div><div class="ttdef"><b>Definition</b> DirectZ.hpp:28</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_a82c7b80bbdbda5afec4477bda7f6bcb7"><div class="ttname"><a href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a></div><div class="ttdeci">DZ_EXPORT bool poll_events()</div><div class="ttdoc">Polls for runtime events.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_aa4218317b90536af90e642661b5fe878"><div class="ttname"><a href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">init</a></div><div class="ttdeci">DZ_EXPORT int init(const WindowCreateInfo &amp;window_info)</div><div class="ttdoc">Initializes the runtime environment.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_ae14d864e152386451db5e2f0d8d881da"><div class="ttname"><a href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">render</a></div><div class="ttdeci">DZ_EXPORT void render()</div><div class="ttdoc">Renders the current frame.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_ae8883745e028f2aae610cf4509b1f6a5"><div class="ttname"><a href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">update</a></div><div class="ttdeci">DZ_EXPORT void update()</div><div class="ttdoc">Performs per-frame logic before rendering.</div></div>
+<div class="ttc" id="a_draw_list_manager_8hpp_html"><div class="ttname"><a href="_draw_list_manager_8hpp.html">DrawListManager.hpp</a></div><div class="ttdoc">Defines an interface and template manager for producing shader draw lists from buffer groups.</div></div>
+<div class="ttc" id="a_file_handle_8hpp_html"><div class="ttname"><a href="_file_handle_8hpp.html">FileHandle.hpp</a></div><div class="ttdoc">Provides a file abstraction layer for assets, memory, or disk-based I/O.</div></div>
+<div class="ttc" id="a_key_value_stream_8hpp_html"><div class="ttname"><a href="_key_value_stream_8hpp.html">KeyValueStream.hpp</a></div><div class="ttdoc">Provides a templated key-value stream for binary serialization to file with in-place update and erase...</div></div>
+<div class="ttc" id="a_program_args_8hpp_html"><div class="ttname"><a href="_program_args_8hpp.html">ProgramArgs.hpp</a></div><div class="ttdoc">Command line argument parser for programs, parsing options and positional arguments.</div></div>
+<div class="ttc" id="a_shader_8hpp_html"><div class="ttname"><a href="_shader_8hpp.html">Shader.hpp</a></div><div class="ttdoc">Defines functions to create, configure, and bind shaders with SPIR-V and GLSL inputs.</div></div>
+<div class="ttc" id="a_window_8hpp_html"><div class="ttname"><a href="_window_8hpp.html">Window.hpp</a></div><div class="ttdoc">Defines functions to create, configure, and render Windows.</div></div>
+<div class="ttc" id="amath_8hpp_html"><div class="ttname"><a href="math_8hpp.html">math.hpp</a></div><div class="ttdoc">Defines various useful N dimensional structures such as matrices and vectors as well as helper functi...</div></div>
+<div class="ttc" id="amemory__stream_8hpp_html"><div class="ttname"><a href="memory__stream_8hpp.html">memory_stream.hpp</a></div></div>
+<div class="ttc" id="anamespacedz_html"><div class="ttname"><a href="namespacedz.html">dz</a></div><div class="ttdef"><b>Definition</b> AssetPack.hpp:9</div></div>
+<div class="ttc" id="asize__ptr_8hpp_html"><div class="ttname"><a href="size__ptr_8hpp.html">size_ptr.hpp</a></div><div class="ttdoc">Defines a reference-counted smart pointer with size tracking and custom deleter support.</div></div>
+<div class="ttc" id="astructdz_1_1_window_create_info_html"><div class="ttname"><a href="structdz_1_1_window_create_info.html">dz::WindowCreateInfo</a></div><div class="ttdef"><b>Definition</b> Window.hpp:13</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['vec_0',['vec',['../structdz_1_1vec.html',1,'dz']]]
+  ['size_5fptr_0',['size_ptr',['../structdz_1_1size__ptr.html',1,'dz']]]
 ];

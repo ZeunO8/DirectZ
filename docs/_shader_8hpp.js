@@ -7,6 +7,7 @@ var _shader_8hpp =
     ] ],
     [ "shader_add_buffer_group", "_shader_8hpp.html#a54b6c79ab6cb4a9f26aafe9017090a2e", null ],
     [ "shader_add_module", "_shader_8hpp.html#ac781cb176b1bbea38611c2c2fe0c9e72", null ],
+    [ "shader_add_module_from_file", "_shader_8hpp.html#a11ddf8cb8b4d3eef1e511d3cf88359c1", null ],
     [ "shader_bind", "_shader_8hpp.html#a890dbb3c5d1e88291713b2fabfd26b9b", null ],
     [ "shader_compile", "_shader_8hpp.html#a0d0ee90ca77ba851aa3bb2f2e69c9728", null ],
     [ "shader_create", "_shader_8hpp.html#a443a25427d41a1f5fdf048c712ea099f", null ],

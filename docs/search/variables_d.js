@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['offset_0',['offset',['../struct_reflected_variable.html#ad80f1e3cf66c21853b5861dd19ae813c',1,'ReflectedVariable']]],
-  ['outputs_1',['outputs',['../struct_s_p_i_r_v_reflection.html#aa14ea1d15b73e1599a38fe2c0ba6dc2f',1,'SPIRVReflection']]]
+  ['size_0',['size',['../structdz_1_1_key_value_stream_1_1_header_entry.html#aa0ed52dffde9ccc55b7f958573b3d630',1,'dz::KeyValueStream::HeaderEntry::size'],['../structdz_1_1size__ptr.html#a66b011b2adce003ee642a5c58c46aaa4',1,'dz::size_ptr::size']]]
 ];

@@ -1,11 +1,14 @@
 var searchData=
 [
-  ['radians_0',['radians',['../namespacedz.html#a11ae1a19c0477cb9a8d20aedcc530e7b',1,'dz']]],
-  ['random_1',['Random',['../structdz_1_1_random.html',1,'dz']]],
-  ['readme_2emd_2',['README.md',['../_r_e_a_d_m_e_8md.html',1,'']]],
-  ['reflectedstructview_3',['ReflectedStructView',['../classdz_1_1_reflected_struct_view.html',1,'dz::ReflectedStructView'],['../classdz_1_1_reflected_struct_view.html#ab52c32d8484daa670f177cdbbc1de4c6',1,'dz::ReflectedStructView::ReflectedStructView()']]],
-  ['reflectedstructview_2ehpp_4',['ReflectedStructView.hpp',['../_reflected_struct_view_8hpp.html',1,'']]],
-  ['renderer_2ehpp_5',['Renderer.hpp',['../_renderer_8hpp.html',1,'']]],
-  ['rotate_6',['rotate',['../structdz_1_1mat.html#aeef57115b48ff63f704557295900a268',1,'dz::mat']]],
-  ['rotatearound_7',['rotateAround',['../structdz_1_1mat.html#a35fe2cc5ebb5d13672d26713edc15a13',1,'dz::mat']]]
+  ['path_0',['path',['../structdz_1_1_file_handle.html#a439ffebff10254aaf4f052581f3db46e',1,'dz::FileHandle']]],
+  ['path_1',['PATH',['../structdz_1_1_file_handle.html#adb9d0ba7357a2f774ff33f9272f4f9a4a8a4b9f635a45eae6dea78907f3a701a6',1,'dz::FileHandle']]],
+  ['perspective_2',['perspective',['../namespacedz.html#a59a97e5d6de5764964d355cd9c2fb305',1,'dz']]],
+  ['perspectivelh_5fno_3',['perspectiveLH_NO',['../namespacedz.html#ac36921592979d0f12328f0f2a8b6c8f6',1,'dz']]],
+  ['perspectivelh_5fzo_4',['perspectiveLH_ZO',['../namespacedz.html#a09fefe8c7dc4e014cf21cf8f9502dfab',1,'dz']]],
+  ['perspectiverh_5fno_5',['perspectiveRH_NO',['../namespacedz.html#abe3fc072299bb1c87cc52ff25cbf3a8e',1,'dz']]],
+  ['perspectiverh_5fzo_6',['perspectiveRH_ZO',['../namespacedz.html#a19476f3e906a78fdcd350f0b8839432d',1,'dz']]],
+  ['poll_5fevents_7',['poll_events',['../_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7',1,'DirectZ.hpp']]],
+  ['programargs_8',['ProgramArgs',['../structdz_1_1_program_args.html',1,'dz::ProgramArgs'],['../structdz_1_1_program_args.html#ae0b3dd5468a46c3e9613b4e5a253667a',1,'dz::ProgramArgs::ProgramArgs()']]],
+  ['programargs_2ehpp_9',['ProgramArgs.hpp',['../_program_args_8hpp.html',1,'']]],
+  ['ptr_10',['ptr',['../structdz_1_1size__ptr.html#ab4f4a383d7fc65589361c9e72e985612',1,'dz::size_ptr']]]
 ];

@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['shaderdrawlist_0',['ShaderDrawList',['../namespacedz.html#a785e670fc013de428f1202033bf835a5',1,'dz']]]
+  ['drawlist_0',['DrawList',['../namespacedz.html#a447e20bfb2549f0fac7f43018bc0587b',1,'dz']]],
+  ['drawttovertexcountfunction_1',['DrawTToVertexCountFunction',['../structdz_1_1_draw_list_manager.html#ac3b8422dfa92382eb678b07003b00f6b',1,'dz::DrawListManager']]]
 ];

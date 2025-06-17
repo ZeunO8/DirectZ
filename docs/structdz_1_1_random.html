@@ -98,24 +98,34 @@ $(function(){initNavTree('structdz_1_1_random.html',''); initResizable(); });
 </div><!--header-->
 <div class="contents">
 
+<p>Utility class for generating random values with optional seeding and support for multiple numeric types.  
+ <a href="#details">More...</a></p>
+
 <p><code>#include &lt;<a class="el" href="math_8hpp_source.html">math.hpp</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a12d2694330ef3e55531cb61a9fd20424" id="r_a12d2694330ef3e55531cb61a9fd20424"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a12d2694330ef3e55531cb61a9fd20424"><td class="memTemplItemLeft" align="right" valign="top">static const T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#a12d2694330ef3e55531cb61a9fd20424">value</a> (const T min, const T max, const size_t seed=(std::numeric_limits&lt; size_t &gt;::max)())</td></tr>
+<tr class="memdesc:a12d2694330ef3e55531cb61a9fd20424"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a uniformly distributed random value in [min, max].  <br /></td></tr>
 <tr class="separator:a12d2694330ef3e55531cb61a9fd20424"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a34f796a72bb374ff93332d5fcdb26db6" id="r_a34f796a72bb374ff93332d5fcdb26db6"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a34f796a72bb374ff93332d5fcdb26db6"><td class="memTemplItemLeft" align="right" valign="top">static const T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#a34f796a72bb374ff93332d5fcdb26db6">value</a> (const T min, const T max, std::mt19937 &amp;mt19937)</td></tr>
+<tr class="memdesc:a34f796a72bb374ff93332d5fcdb26db6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a uniformly distributed random value in [min, max] using a provided mt19937 engine.  <br /></td></tr>
 <tr class="separator:a34f796a72bb374ff93332d5fcdb26db6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a164f41b8f44bd2f5af633144911167ea" id="r_a164f41b8f44bd2f5af633144911167ea"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a164f41b8f44bd2f5af633144911167ea"><td class="memTemplItemLeft" align="right" valign="top">static const T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#a164f41b8f44bd2f5af633144911167ea">valueFromRandomRange</a> (const std::vector&lt; std::pair&lt; T, T &gt; &gt; &amp;ranges, const size_t seed=(std::numeric_limits&lt; size_t &gt;::max)())</td></tr>
+<tr class="memdesc:a164f41b8f44bd2f5af633144911167ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a uniformly distributed random value from multiple specified ranges.  <br /></td></tr>
 <tr class="separator:a164f41b8f44bd2f5af633144911167ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac739ecf2b3592f199b26377f77a7ad8e" id="r_ac739ecf2b3592f199b26377f77a7ad8e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ac739ecf2b3592f199b26377f77a7ad8e"><td class="memTemplItemLeft" align="right" valign="top">static const T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="#ac739ecf2b3592f199b26377f77a7ad8e">valueFromRandomRange</a> (const std::vector&lt; std::pair&lt; T, T &gt; &gt; &amp;ranges, std::mt19937 &amp;mt19937)</td></tr>
+<tr class="memdesc:ac739ecf2b3592f199b26377f77a7ad8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a uniformly distributed random value from multiple specified ranges using external mt19937 engine.  <br /></td></tr>
 <tr class="separator:ac739ecf2b3592f199b26377f77a7ad8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Function Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Utility class for generating random values with optional seeding and support for multiple numeric types. </p>
+<p>Provides static methods to generate uniformly distributed random numbers for integral and floating-point types. Supports generating random values within a specified range, optionally with a user-provided seed or external random engine. Also supports choosing random values from multiple ranges. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a12d2694330ef3e55531cb61a9fd20424" name="a12d2694330ef3e55531cb61a9fd20424"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a12d2694330ef3e55531cb61a9fd20424">&#9670;&#160;</a></span>value() <span class="overload">[1/2]</span></h2>
 
@@ -149,6 +159,31 @@ template&lt;typename T &gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
+
+<p>Generate a uniformly distributed random value in [min, max]. </p>
+<p>If a seed is provided (not the default max size_t), a new temporary mt19937 engine is created and seeded with the given seed. Otherwise, the internal static mt19937 engine is reseeded with the current time and used.</p>
+<p>Supports floating point and integral types. Throws std::runtime_error if called with unsupported type.</p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Numeric type for the random value (must be integral or floating point). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">min</td><td>Minimum value of the random range (inclusive). </td></tr>
+    <tr><td class="paramname">max</td><td>Maximum value of the random range (inclusive for integral, [min,max) for floating point). </td></tr>
+    <tr><td class="paramname">seed</td><td>Optional seed to create a temporary mt19937 engine. Default is max size_t (no seed). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Randomly generated value of type T. </dd></dl>
+<dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">std::runtime_error</td><td>if T is not supported. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
@@ -186,6 +221,30 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
+<p>Generate a uniformly distributed random value in [min, max] using a provided mt19937 engine. </p>
+<p>Supports floating point and integral types. Throws std::runtime_error if called with unsupported type.</p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Numeric type for the random value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">min</td><td>Minimum value of the random range (inclusive). </td></tr>
+    <tr><td class="paramname">max</td><td>Maximum value of the random range (inclusive for integral, [min,max) for floating point). </td></tr>
+    <tr><td class="paramname">mt19937</td><td>Reference to an external mt19937 random engine to use. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Randomly generated value of type T. </dd></dl>
+<dl class="exception"><dt>Exceptions</dt><dd>
+  <table class="exception">
+    <tr><td class="paramname">std::runtime_error</td><td>if T is not supported. </td></tr>
+  </table>
+  </dd>
+</dl>
+
 </div>
 </div>
 <a id="a164f41b8f44bd2f5af633144911167ea" name="a164f41b8f44bd2f5af633144911167ea"></a>
@@ -217,6 +276,23 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
+<p>Generate a uniformly distributed random value from multiple specified ranges. </p>
+<p>Selects one range at random, then generates a random value within that range. Optionally accepts a seed to create a temporary mt19937 engine, otherwise uses internal engine reseeded with current time.</p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Numeric type for the random value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ranges</td><td>Vector of pairs representing inclusive ranges [first, second]. </td></tr>
+    <tr><td class="paramname">seed</td><td>Optional seed to create a temporary mt19937 engine. Default is max size_t (no seed). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Randomly generated value of type T from one of the specified ranges. </dd></dl>
+
 </div>
 </div>
 <a id="ac739ecf2b3592f199b26377f77a7ad8e" name="ac739ecf2b3592f199b26377f77a7ad8e"></a>
@@ -247,6 +323,23 @@ template&lt;typename T &gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
+
+<p>Generate a uniformly distributed random value from multiple specified ranges using external mt19937 engine. </p>
+<p>Selects one range at random, then generates a random value within that range.</p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Numeric type for the random value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ranges</td><td>Vector of pairs representing inclusive ranges [first, second]. </td></tr>
+    <tr><td class="paramname">mt19937</td><td>Reference to an external mt19937 random engine to use. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Randomly generated value of type T from one of the specified ranges. </dd></dl>
 
 </div>
 </div>

@@ -98,6 +98,9 @@ $(function(){initNavTree('_draw_list_8hpp.html',''); initResizable(); });
   <div class="headertitle"><div class="title">DrawList.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Defines data structures for GPU indirect draw commands and their organization per shader.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;vector&gt;</code><br />
 <code>#include &lt;unordered_map&gt;</code><br />
 </div>
@@ -106,6 +109,7 @@ $(function(){initNavTree('_draw_list_8hpp.html',''); initResizable(); });
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structdz_1_1_draw_indirect_command.html">dz::DrawIndirectCommand</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Represents a single indirect draw command for use with GPU draw calls.  <a href="structdz_1_1_draw_indirect_command.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
@@ -116,11 +120,15 @@ Namespaces</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
 <tr class="memitem:a447e20bfb2549f0fac7f43018bc0587b" id="r_a447e20bfb2549f0fac7f43018bc0587b"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a447e20bfb2549f0fac7f43018bc0587b">dz::DrawList</a> = std::vector&lt;<a class="el" href="structdz_1_1_draw_indirect_command.html">DrawIndirectCommand</a>&gt;</td></tr>
+<tr class="memdesc:a447e20bfb2549f0fac7f43018bc0587b"><td class="mdescLeft">&#160;</td><td class="mdescRight">A list of draw commands.  <br /></td></tr>
 <tr class="separator:a447e20bfb2549f0fac7f43018bc0587b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a785e670fc013de428f1202033bf835a5" id="r_a785e670fc013de428f1202033bf835a5"><td class="memItemLeft" align="right" valign="top">using&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a785e670fc013de428f1202033bf835a5">dz::ShaderDrawList</a> = std::unordered_map&lt;Shader*, <a class="el" href="namespacedz.html#a447e20bfb2549f0fac7f43018bc0587b">DrawList</a>&gt;</td></tr>
+<tr class="memdesc:a785e670fc013de428f1202033bf835a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maps each Shader pointer to its corresponding list of draw commands.  <br /></td></tr>
 <tr class="separator:a785e670fc013de428f1202033bf835a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-</div><!-- contents -->
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Defines data structures for GPU indirect draw commands and their organization per shader. </p>
+</div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->

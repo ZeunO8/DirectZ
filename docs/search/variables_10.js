@@ -1,27 +1,4 @@
 var searchData=
 [
-  ['sampler_0',['sampler',['../struct_image.html#a0d0d10250eb2f062244e0bdab2fc6901',1,'Image']]],
-  ['scissor_1',['scissor',['../struct_w_i_n_d_o_w.html#a374ef8baa066bca013729788e78e276e',1,'WINDOW']]],
-  ['set_2',['set',['../struct_reflected_variable.html#afa5c27c792e03b162cd7dfda57135871',1,'ReflectedVariable::set'],['../struct_reflected_block.html#a2e24461890afb3219a027f151df05693',1,'ReflectedBlock::set'],['../struct_shader_buffer.html#ac09f3988705847df557daea649cc05a7',1,'ShaderBuffer::set'],['../struct_shader_image.html#a581e78d9c18702a1015c66da7d096638',1,'ShaderImage::set']]],
-  ['shaders_3',['shaders',['../struct_buffer_group.html#aaa47dc8cd32e35d6f18c0a259e457026',1,'BufferGroup']]],
-  ['signalsemaphores_4',['signalSemaphores',['../struct_renderer.html#ab5b5d6890bf8b37c22806dccbe167ec5',1,'Renderer']]],
-  ['size_5',['size',['../struct_gpu_buffer.html#a5b916a1df9ca54ecca82f638eaeb1d8e',1,'GpuBuffer']]],
-  ['size_5fin_5fbytes_6',['size_in_bytes',['../struct_reflected_type.html#a9c30c4f22135b03e61293d686e0c4864',1,'ReflectedType']]],
-  ['spirv_5fvec_7',['spirv_vec',['../struct_shader_module.html#a1ba7b8aa8b5a80cebfa9b8c4c4094348',1,'ShaderModule']]],
-  ['srcaccessmask_8',['srcAccessMask',['../struct_transition_info.html#ac39244175dd339e7f87a03f0be8f65e5',1,'TransitionInfo']]],
-  ['srcstage_9',['srcStage',['../struct_transition_info.html#a465c1399001c84802d8adc12b7d63d86',1,'TransitionInfo']]],
-  ['ssbos_10',['ssbos',['../struct_s_p_i_r_v_reflection.html#ac239c9b8f63920834d8686fd23100a2c',1,'SPIRVReflection']]],
-  ['static_5fsize_11',['static_size',['../struct_shader_buffer.html#a538fbc414601870f1ed8089f20232b71',1,'ShaderBuffer']]],
-  ['structs_5fby_5fid_12',['structs_by_id',['../struct_s_p_i_r_v_reflection.html#a92b734d952c2c0c92a304925195773b7',1,'SPIRVReflection']]],
-  ['structs_5fby_5fname_13',['structs_by_name',['../struct_s_p_i_r_v_reflection.html#aa5804ece2460252d86183a0dbaf4bc72',1,'SPIRVReflection']]],
-  ['submitinfo_14',['submitInfo',['../struct_renderer.html#ab7eb6ff2a56234555fdd24fdc126a2fd',1,'Renderer']]],
-  ['surface_15',['surface',['../struct_renderer.html#a9570e0cc7bbc5b60624c7747c47fc311',1,'Renderer']]],
-  ['surfacerenderpass_16',['surfaceRenderPass',['../struct_direct_registry.html#abebf1ac2a4ae264f36ba26d0d3e445b8',1,'DirectRegistry']]],
-  ['swapchain_17',['swapChain',['../struct_renderer.html#a5dde3acbf8d7ecec9de02a4ac732d328',1,'Renderer']]],
-  ['swapchainextent_18',['swapChainExtent',['../struct_renderer.html#a395273adb8fd767c3f8da8182d485662',1,'Renderer']]],
-  ['swapchainframebuffers_19',['swapChainFramebuffers',['../struct_renderer.html#a6a4427828a39726c8e5a05013d0d3114',1,'Renderer']]],
-  ['swapchainimages_20',['swapChainImages',['../struct_renderer.html#ac10d6a5c368d9e81a1f4b8bb2b4bb2a6',1,'Renderer']]],
-  ['swapchainimageviews_21',['swapChainImageViews',['../struct_renderer.html#ac1c523e91873742fa585391dda9b79d3',1,'Renderer']]],
-  ['swapchains_22',['swapChains',['../struct_renderer.html#a5687c65566b63173d30acbe4fb6cdc2a',1,'Renderer']]],
-  ['swiftshader_5ffallback_23',['swiftshader_fallback',['../struct_direct_registry.html#a0b809f1ec25d7b8bf13d888d46da5be2',1,'DirectRegistry']]]
+  ['width_0',['width',['../structdz_1_1_window_create_info.html#aa2f98aa4e755bb11085d5319ca607746',1,'dz::WindowCreateInfo']]]
 ];

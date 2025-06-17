@@ -42,13 +42,16 @@ var NAVTREE =
         [ "All", "functions.html", null ],
         [ "Functions", "functions_func.html", null ],
         [ "Variables", "functions_vars.html", null ],
-        [ "Typedefs", "functions_type.html", null ]
+        [ "Typedefs", "functions_type.html", null ],
+        [ "Enumerations", "functions_enum.html", null ],
+        [ "Enumerator", "functions_eval.html", null ]
       ] ]
     ] ],
     [ "Files", "files.html", [
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
         [ "All", "globals.html", null ],
+        [ "Functions", "globals_func.html", null ],
         [ "Macros", "globals_defs.html", null ]
       ] ]
     ] ]
@@ -57,8 +60,8 @@ var NAVTREE =
 
 var NAVTREEINDEX =
 [
-"_buffer_group_8hpp.html",
-"structdz_1_1_draw_list_manager.html"
+"_asset_pack_8hpp.html",
+"namespacedz.html#aac7dab3f3fabfdf1ea25503dc0708a16"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

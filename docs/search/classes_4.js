@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['mat_0',['mat',['../structdz_1_1mat.html',1,'dz']]]
+  ['headerentry_0',['HeaderEntry',['../structdz_1_1_key_value_stream_1_1_header_entry.html',1,'dz::KeyValueStream']]]
 ];

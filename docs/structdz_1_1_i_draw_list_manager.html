@@ -98,6 +98,9 @@ $(function(){initNavTree('structdz_1_1_i_draw_list_manager.html',''); initResiza
 </div><!--header-->
 <div class="contents">
 
+<p>Interface for draw list manager implementations.  
+ <a href="#details">More...</a></p>
+
 <p><code>#include &lt;<a class="el" href="_draw_list_manager_8hpp_source.html">DrawListManager.hpp</a>&gt;</code></p>
 <div class="dynheader">
 Inheritance diagram for dz::IDrawListManager:</div>
@@ -105,20 +108,23 @@ Inheritance diagram for dz::IDrawListManager:</div>
  <div class="center">
   <img src="structdz_1_1_i_draw_list_manager.png" usemap="#dz::IDrawListManager_map" alt=""/>
   <map id="dz::IDrawListManager_map" name="dz::IDrawListManager_map">
-<area href="structdz_1_1_draw_list_manager.html" alt="dz::DrawListManager&lt; DrawT &gt;" shape="rect" coords="0,56,192,80"/>
+<area href="structdz_1_1_draw_list_manager.html" title="Template draw list manager for producing draw commands from a struct buffer." alt="dz::DrawListManager&lt; DrawT &gt;" shape="rect" coords="0,56,192,80"/>
   </map>
 </div></div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:af003884734d10f7b2d5a55e35fe8bf2b" id="r_af003884734d10f7b2d5a55e35fe8bf2b"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af003884734d10f7b2d5a55e35fe8bf2b">~IDrawListManager</a> ()=default</td></tr>
-<tr class="separator:af003884734d10f7b2d5a55e35fe8bf2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1655b9b84110e63fcc71bd5586e6e4d5" id="r_a1655b9b84110e63fcc71bd5586e6e4d5"><td class="memItemLeft" align="right" valign="top">virtual&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1655b9b84110e63fcc71bd5586e6e4d5">~IDrawListManager</a> ()=default</td></tr>
+<tr class="separator:a1655b9b84110e63fcc71bd5586e6e4d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3621ab0223d91db74e4b723f7b43196d" id="r_a3621ab0223d91db74e4b723f7b43196d"><td class="memItemLeft" align="right" valign="top">virtual <a class="el" href="namespacedz.html#a785e670fc013de428f1202033bf835a5">ShaderDrawList</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a3621ab0223d91db74e4b723f7b43196d">genDrawList</a> (BufferGroup *buffer_group)=0</td></tr>
+<tr class="memdesc:a3621ab0223d91db74e4b723f7b43196d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generates a ShaderDrawList using the provided buffer group.  <br /></td></tr>
 <tr class="separator:a3621ab0223d91db74e4b723f7b43196d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="af003884734d10f7b2d5a55e35fe8bf2b" name="af003884734d10f7b2d5a55e35fe8bf2b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af003884734d10f7b2d5a55e35fe8bf2b">&#9670;&#160;</a></span>~IDrawListManager()</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Interface for draw list manager implementations. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a1655b9b84110e63fcc71bd5586e6e4d5" name="a1655b9b84110e63fcc71bd5586e6e4d5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1655b9b84110e63fcc71bd5586e6e4d5">&#9670;&#160;</a></span>~IDrawListManager()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -127,7 +133,7 @@ Public Member Functions</h2></td></tr>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">dz::IDrawListManager::~IDrawListManager </td>
+          <td class="memname">virtual dz::IDrawListManager::~IDrawListManager </td>
           <td>(</td>
           <td class="paramname"><span class="paramname"></span></td><td>)</td>
           <td></td>
@@ -135,7 +141,7 @@ Public Member Functions</h2></td></tr>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">default</span></span>  </td>
+<span class="mlabels"><span class="mlabel">virtual</span><span class="mlabel">default</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
@@ -165,6 +171,15 @@ Public Member Functions</h2></td></tr>
   </tr>
 </table>
 </div><div class="memdoc">
+
+<p>Generates a ShaderDrawList using the provided buffer group. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">buffer_group</td><td>Pointer to a BufferGroup. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A map of shaders to draw command lists. </dd></dl>
 
 <p>Implemented in <a class="el" href="structdz_1_1_draw_list_manager.html#a212050bb75bd1fe4b149c248ce927300">dz::DrawListManager&lt; DrawT &gt;</a>.</p>
 

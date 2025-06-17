@@ -92,40 +92,180 @@ $(function(){initNavTree('_direct_z_8hpp.html',''); initResizable(); });
 
 <div class="header">
   <div class="summary">
-<a href="#namespaces">Namespaces</a> &#124;
+<a href="#define-members">Macros</a> &#124;
 <a href="#func-members">Functions</a>  </div>
   <div class="headertitle"><div class="title">DirectZ.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><code>#include &lt;<a class="el" href="_buffer_group_8hpp_source.html">dz/BufferGroup.hpp</a>&gt;</code><br />
+
+<p>Includes the headers required to get started with a DirectZ instance, developers should include this one.  
+<a href="#details">More...</a></p>
+<div class="textblock"><code>#include &lt;filesystem&gt;</code><br />
+<code>#include &lt;<a class="el" href="_buffer_group_8hpp_source.html">dz/BufferGroup.hpp</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="_shader_8hpp_source.html">dz/Shader.hpp</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="_window_8hpp_source.html">dz/Window.hpp</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="_draw_list_manager_8hpp_source.html">dz/DrawListManager.hpp</a>&gt;</code><br />
 <code>#include &lt;<a class="el" href="math_8hpp_source.html">dz/math.hpp</a>&gt;</code><br />
-<code>#include &lt;filesystem&gt;</code><br />
+<code>#include &lt;<a class="el" href="_file_handle_8hpp_source.html">dz/FileHandle.hpp</a>&gt;</code><br />
+<code>#include &lt;<a class="el" href="memory__stream_8hpp_source.html">dz/internal/memory_stream.hpp</a>&gt;</code><br />
+<code>#include &lt;<a class="el" href="size__ptr_8hpp_source.html">dz/size_ptr.hpp</a>&gt;</code><br />
+<code>#include &lt;<a class="el" href="_asset_pack_8hpp_source.html">dz/AssetPack.hpp</a>&gt;</code><br />
+<code>#include &lt;<a class="el" href="_key_value_stream_8hpp_source.html">dz/KeyValueStream.hpp</a>&gt;</code><br />
+<code>#include &lt;<a class="el" href="_program_args_8hpp_source.html">dz/ProgramArgs.hpp</a>&gt;</code><br />
 </div>
 <p><a href="_direct_z_8hpp_source.html">Go to the source code of this file.</a></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
-Namespaces</h2></td></tr>
-<tr class="memitem:namespacedz" id="r_namespacedz"><td class="memItemLeft" align="right" valign="top">namespace &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html">dz</a></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="define-members" name="define-members"></a>
+Macros</h2></td></tr>
+<tr class="memitem:a7098dd6b61e32cf292cfb419467ea713" id="r_a7098dd6b61e32cf292cfb419467ea713"><td class="memItemLeft" align="right" valign="top">#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a>&#160;&#160;&#160;extern &quot;C&quot; __attribute__((visibility(&quot;default&quot;)))</td></tr>
+<tr class="separator:a7098dd6b61e32cf292cfb419467ea713"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:a1df254532d1cc8ccab9725cbb4dbf088" id="r_a1df254532d1cc8ccab9725cbb4dbf088"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a1df254532d1cc8ccab9725cbb4dbf088">dz::set_env</a> (const std::string &amp;key, const std::string &amp;value)</td></tr>
-<tr class="separator:a1df254532d1cc8ccab9725cbb4dbf088"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad5159ce2c8a3c43c88abd3b434591e4f" id="r_ad5159ce2c8a3c43c88abd3b434591e4f"><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#ad5159ce2c8a3c43c88abd3b434591e4f">dz::get_env</a> (const std::string &amp;key)</td></tr>
-<tr class="separator:ad5159ce2c8a3c43c88abd3b434591e4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2d1ef1cede5b1c2fa5f02fce78ec550a" id="r_a2d1ef1cede5b1c2fa5f02fce78ec550a"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a2d1ef1cede5b1c2fa5f02fce78ec550a">dz::getUserDirectoryPath</a> ()</td></tr>
-<tr class="separator:a2d1ef1cede5b1c2fa5f02fce78ec550a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af21232e325882fc6609f682eda46c7ec" id="r_af21232e325882fc6609f682eda46c7ec"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#af21232e325882fc6609f682eda46c7ec">dz::getProgramDirectoryPath</a> ()</td></tr>
-<tr class="separator:af21232e325882fc6609f682eda46c7ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3c077744b9b5352c395a0f9561045da7" id="r_a3c077744b9b5352c395a0f9561045da7"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a3c077744b9b5352c395a0f9561045da7">dz::getProgramDataPath</a> ()</td></tr>
-<tr class="separator:a3c077744b9b5352c395a0f9561045da7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3983ca688991eaf770c53962e87658fe" id="r_a3983ca688991eaf770c53962e87658fe"><td class="memItemLeft" align="right" valign="top">std::filesystem::path&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a3983ca688991eaf770c53962e87658fe">dz::getExecutableName</a> ()</td></tr>
-<tr class="separator:a3983ca688991eaf770c53962e87658fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa4218317b90536af90e642661b5fe878" id="r_aa4218317b90536af90e642661b5fe878"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa4218317b90536af90e642661b5fe878">init</a> (const <a class="el" href="structdz_1_1_window_create_info.html">WindowCreateInfo</a> &amp;window_info)</td></tr>
+<tr class="memdesc:aa4218317b90536af90e642661b5fe878"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the runtime environment.  <br /></td></tr>
+<tr class="separator:aa4218317b90536af90e642661b5fe878"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a82c7b80bbdbda5afec4477bda7f6bcb7" id="r_a82c7b80bbdbda5afec4477bda7f6bcb7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a> ()</td></tr>
+<tr class="memdesc:a82c7b80bbdbda5afec4477bda7f6bcb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Polls for runtime events.  <br /></td></tr>
+<tr class="separator:a82c7b80bbdbda5afec4477bda7f6bcb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae8883745e028f2aae610cf4509b1f6a5" id="r_ae8883745e028f2aae610cf4509b1f6a5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae8883745e028f2aae610cf4509b1f6a5">update</a> ()</td></tr>
+<tr class="memdesc:ae8883745e028f2aae610cf4509b1f6a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs per-frame logic before rendering.  <br /></td></tr>
+<tr class="separator:ae8883745e028f2aae610cf4509b1f6a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae14d864e152386451db5e2f0d8d881da" id="r_ae14d864e152386451db5e2f0d8d881da"><td class="memItemLeft" align="right" valign="top"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae14d864e152386451db5e2f0d8d881da">render</a> ()</td></tr>
+<tr class="memdesc:ae14d864e152386451db5e2f0d8d881da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Renders the current frame.  <br /></td></tr>
+<tr class="separator:ae14d864e152386451db5e2f0d8d881da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Includes the headers required to get started with a DirectZ instance, developers should include this one. </p>
+</div><h2 class="groupheader">Macro Definition Documentation</h2>
+<a id="a7098dd6b61e32cf292cfb419467ea713" name="a7098dd6b61e32cf292cfb419467ea713"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7098dd6b61e32cf292cfb419467ea713">&#9670;&#160;</a></span>DZ_EXPORT</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">#define DZ_EXPORT&#160;&#160;&#160;extern &quot;C&quot; __attribute__((visibility(&quot;default&quot;)))</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<h2 class="groupheader">Function Documentation</h2>
+<a id="aa4218317b90536af90e642661b5fe878" name="aa4218317b90536af90e642661b5fe878"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa4218317b90536af90e642661b5fe878">&#9670;&#160;</a></span>init()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> int init </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structdz_1_1_window_create_info.html">WindowCreateInfo</a> &amp;</td>          <td class="paramname"><span class="paramname"><em>window_info</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Initializes the runtime environment. </p>
+<p>This function should be implemented by the platform-specific runtime (e.g., PC, Android, iOS). It typically creates the main window, caches it for later use, and sets up runtime resources such as shaders and images.</p>
+<div class="fragment"><div class="line"><span class="comment">// Example implementation:</span></div>
+<div class="line">WINDOW* cached_window = 0;</div>
+<div class="line"><a class="code hl_define" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">int</span> <a class="code hl_function" href="#aa4218317b90536af90e642661b5fe878">init</a>(<span class="keyword">const</span> WindowCreateInfo&amp; window_info)</div>
+<div class="line">{</div>
+<div class="line">    cached_window = <a class="code hl_function" href="namespacedz.html#a7247bc5cff5387e969be620849e7e2a6">window_create</a>(window_info);</div>
+<div class="line">    </div>
+<div class="line">    <span class="comment">// shader &amp; image setup</span></div>
+<div class="line">}</div>
+<div class="ttc" id="a_direct_z_8hpp_html_a7098dd6b61e32cf292cfb419467ea713"><div class="ttname"><a href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a></div><div class="ttdeci">#define DZ_EXPORT</div><div class="ttdef"><b>Definition</b> DirectZ.hpp:28</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_aa4218317b90536af90e642661b5fe878"><div class="ttname"><a href="#aa4218317b90536af90e642661b5fe878">init</a></div><div class="ttdeci">DZ_EXPORT int init(const WindowCreateInfo &amp;window_info)</div><div class="ttdoc">Initializes the runtime environment.</div></div>
+<div class="ttc" id="anamespacedz_html_a7247bc5cff5387e969be620849e7e2a6"><div class="ttname"><a href="namespacedz.html#a7247bc5cff5387e969be620849e7e2a6">dz::window_create</a></div><div class="ttdeci">WINDOW * window_create(const WindowCreateInfo &amp;info)</div><div class="ttdoc">Creates a Window given the specified information and sets up a render context.</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">window_info</td><td>Structure containing window creation parameters. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>int Status code indicating success or failure. </dd></dl>
+
+</div>
+</div>
+<a id="a82c7b80bbdbda5afec4477bda7f6bcb7" name="a82c7b80bbdbda5afec4477bda7f6bcb7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a82c7b80bbdbda5afec4477bda7f6bcb7">&#9670;&#160;</a></span>poll_events()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> bool poll_events </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Polls for runtime events. </p>
+<p>This function should be implemented by the runtime. It may simply wrap a call to window_poll_events.</p>
+<div class="fragment"><div class="line"><span class="comment">// Example implementation:</span></div>
+<div class="line"><a class="code hl_define" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">bool</span> <a class="code hl_function" href="#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a>()</div>
+<div class="line">{</div>
+<div class="line">    <span class="keywordflow">return</span> <a class="code hl_function" href="namespacedz.html#aa6e0575646be10866945153a9ddc9dcc">window_poll_events</a>(cached_window);</div>
+<div class="line">}</div>
+<div class="ttc" id="a_direct_z_8hpp_html_a82c7b80bbdbda5afec4477bda7f6bcb7"><div class="ttname"><a href="#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a></div><div class="ttdeci">DZ_EXPORT bool poll_events()</div><div class="ttdoc">Polls for runtime events.</div></div>
+<div class="ttc" id="anamespacedz_html_aa6e0575646be10866945153a9ddc9dcc"><div class="ttname"><a href="namespacedz.html#aa6e0575646be10866945153a9ddc9dcc">dz::window_poll_events</a></div><div class="ttdeci">bool window_poll_events(WINDOW *window)</div><div class="ttdoc">Polls a window for events.</div></div>
+</div><!-- fragment --><dl class="section return"><dt>Returns</dt><dd>true if events are still being processed; false if the application should exit. </dd></dl>
+
+</div>
+</div>
+<a id="ae14d864e152386451db5e2f0d8d881da" name="ae14d864e152386451db5e2f0d8d881da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae14d864e152386451db5e2f0d8d881da">&#9670;&#160;</a></span>render()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> void render </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Renders the current frame. </p>
+<p>This function should render the frame, typically by calling a platform-specific window render function.</p>
+<div class="fragment"><div class="line"><span class="comment">// Example implementation:</span></div>
+<div class="line"><a class="code hl_define" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">void</span> <a class="code hl_function" href="#ae14d864e152386451db5e2f0d8d881da">render</a>()</div>
+<div class="line">{</div>
+<div class="line">    <a class="code hl_function" href="namespacedz.html#a8ea84db4acebb038cdf5a0a1404cf312">window_render</a>(cached_window);</div>
+<div class="line">}</div>
+<div class="ttc" id="a_direct_z_8hpp_html_ae14d864e152386451db5e2f0d8d881da"><div class="ttname"><a href="#ae14d864e152386451db5e2f0d8d881da">render</a></div><div class="ttdeci">DZ_EXPORT void render()</div><div class="ttdoc">Renders the current frame.</div></div>
+<div class="ttc" id="anamespacedz_html_a8ea84db4acebb038cdf5a0a1404cf312"><div class="ttname"><a href="namespacedz.html#a8ea84db4acebb038cdf5a0a1404cf312">dz::window_render</a></div><div class="ttdeci">void window_render(WINDOW *window)</div><div class="ttdoc">Renders the specified window based on its context configuration.</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ae8883745e028f2aae610cf4509b1f6a5" name="ae8883745e028f2aae610cf4509b1f6a5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae8883745e028f2aae610cf4509b1f6a5">&#9670;&#160;</a></span>update()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> void update </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Performs per-frame logic before rendering. </p>
+<p>This function is intended for compute shader invocations and any CPU-side logic that should occur before rendering. </p>
+
+</div>
+</div>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

@@ -98,6 +98,9 @@ $(function(){initNavTree('math_8hpp.html',''); initResizable(); });
   <div class="headertitle"><div class="title">math.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Defines various useful N dimensional structures such as matrices and vectors as well as helper functions.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;cassert&gt;</code><br />
 <code>#include &lt;cmath&gt;</code><br />
 <code>#include &lt;random&gt;</code><br />
@@ -110,12 +113,16 @@ $(function(){initNavTree('math_8hpp.html',''); initResizable(); });
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structdz_1_1vec.html">dz::vec&lt; T, N &gt;</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Template struct representing an N-dimensional vector of type T.  <a href="structdz_1_1vec.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structdz_1_1mat.html">dz::mat&lt; T, C, R &gt;</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">A generic fixed-size matrix template supporting common matrix operations.  <a href="structdz_1_1mat.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structdz_1_1_random.html">dz::Random</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Utility class for generating random values with optional seeding and support for multiple numeric types.  <a href="structdz_1_1_random.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structdz_1_1_a_a_b_b.html">dz::AABB&lt; T, N &gt;</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Axis-Aligned Bounding Box (<a class="el" href="structdz_1_1_a_a_b_b.html" title="Axis-Aligned Bounding Box (AABB) template structure.">AABB</a>) template structure.  <a href="structdz_1_1_a_a_b_b.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="namespaces" name="namespaces"></a>
@@ -127,6 +134,7 @@ Namespaces</h2></td></tr>
 Functions</h2></td></tr>
 <tr class="memitem:a28d36327a81f5e1ee551b42311721c47" id="r_a28d36327a81f5e1ee551b42311721c47"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a28d36327a81f5e1ee551b42311721c47"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a28d36327a81f5e1ee551b42311721c47">dz::lookAt</a> (const <a class="el" href="structdz_1_1vec.html">vec</a>&lt; T, 3 &gt; &amp;eye, const <a class="el" href="structdz_1_1vec.html">vec</a>&lt; T, 3 &gt; &amp;center, const <a class="el" href="structdz_1_1vec.html">vec</a>&lt; T, 3 &gt; &amp;up)</td></tr>
+<tr class="memdesc:a28d36327a81f5e1ee551b42311721c47"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a right-handed view matrix simulating a camera "look at" transform.  <br /></td></tr>
 <tr class="separator:a28d36327a81f5e1ee551b42311721c47"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a19476f3e906a78fdcd350f0b8839432d" id="r_a19476f3e906a78fdcd350f0b8839432d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a19476f3e906a78fdcd350f0b8839432d"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a19476f3e906a78fdcd350f0b8839432d">dz::perspectiveRH_ZO</a> (T fovy, T aspect, T zNear, T zFar)</td></tr>
@@ -142,6 +150,7 @@ Functions</h2></td></tr>
 <tr class="separator:ac36921592979d0f12328f0f2a8b6c8f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a59a97e5d6de5764964d355cd9c2fb305" id="r_a59a97e5d6de5764964d355cd9c2fb305"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a59a97e5d6de5764964d355cd9c2fb305"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a59a97e5d6de5764964d355cd9c2fb305">dz::perspective</a> (T fovy, T aspect, T zNear, T zFar)</td></tr>
+<tr class="memdesc:a59a97e5d6de5764964d355cd9c2fb305"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a perspective projection matrix suitable for rendering 3D scenes.  <br /></td></tr>
 <tr class="separator:a59a97e5d6de5764964d355cd9c2fb305"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaee56f124a9649785a7655d39f0c0a7d" id="r_aaee56f124a9649785a7655d39f0c0a7d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:aaee56f124a9649785a7655d39f0c0a7d"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#aaee56f124a9649785a7655d39f0c0a7d">dz::infinitePerspectiveRH_NO</a> (T fovy, T aspect, T zNear)</td></tr>
@@ -157,18 +166,24 @@ Functions</h2></td></tr>
 <tr class="separator:ac79d4847f1e75e3e1551f3a9fd2b394e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3b4aa7883ac79edf5a8b36ad087d9f9e" id="r_a3b4aa7883ac79edf5a8b36ad087d9f9e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a3b4aa7883ac79edf5a8b36ad087d9f9e"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a3b4aa7883ac79edf5a8b36ad087d9f9e">dz::infinitePerspective</a> (T fovy, T aspect, T zNear)</td></tr>
+<tr class="memdesc:a3b4aa7883ac79edf5a8b36ad087d9f9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an infinite perspective projection matrix.  <br /></td></tr>
 <tr class="separator:a3b4aa7883ac79edf5a8b36ad087d9f9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3dc01e573655f7c725eeccaf7feac40a" id="r_a3dc01e573655f7c725eeccaf7feac40a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a3dc01e573655f7c725eeccaf7feac40a"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structdz_1_1mat.html">mat</a>&lt; T, 4, 4 &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a3dc01e573655f7c725eeccaf7feac40a">dz::orthographic</a> (T left, T right, T bottom, T top, T znear, T zfar)</td></tr>
+<tr class="memdesc:a3dc01e573655f7c725eeccaf7feac40a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an orthographic projection matrix.  <br /></td></tr>
 <tr class="separator:a3dc01e573655f7c725eeccaf7feac40a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a11ae1a19c0477cb9a8d20aedcc530e7b" id="r_a11ae1a19c0477cb9a8d20aedcc530e7b"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a11ae1a19c0477cb9a8d20aedcc530e7b"><td class="memTemplItemLeft" align="right" valign="top">T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a11ae1a19c0477cb9a8d20aedcc530e7b">dz::radians</a> (T <a class="el" href="namespacedz.html#a4e4eb613a836d591c9c688565977f77d">degrees</a>)</td></tr>
+<tr class="memdesc:a11ae1a19c0477cb9a8d20aedcc530e7b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts an angle from degrees to radians.  <br /></td></tr>
 <tr class="separator:a11ae1a19c0477cb9a8d20aedcc530e7b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4e4eb613a836d591c9c688565977f77d" id="r_a4e4eb613a836d591c9c688565977f77d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a4e4eb613a836d591c9c688565977f77d"><td class="memTemplItemLeft" align="right" valign="top">T&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="namespacedz.html#a4e4eb613a836d591c9c688565977f77d">dz::degrees</a> (T <a class="el" href="namespacedz.html#a11ae1a19c0477cb9a8d20aedcc530e7b">radians</a>)</td></tr>
+<tr class="memdesc:a4e4eb613a836d591c9c688565977f77d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Converts an angle from radians to degrees.  <br /></td></tr>
 <tr class="separator:a4e4eb613a836d591c9c688565977f77d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-</div><!-- contents -->
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Defines various useful N dimensional structures such as matrices and vectors as well as helper functions. </p>
+</div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->

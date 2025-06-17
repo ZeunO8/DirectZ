@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['idrawlistmanager_0',['IDrawListManager',['../structdz_1_1_i_draw_list_manager.html',1,'dz']]]
+  ['globaluid_0',['GlobalUID',['../structdz_1_1_global_u_i_d.html',1,'dz']]]
 ];

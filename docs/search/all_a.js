@@ -1,8 +1,8 @@
 var searchData=
 [
-  ['mat_0',['mat',['../structdz_1_1mat.html',1,'dz::mat&lt; T, C, R &gt;'],['../structdz_1_1mat.html#afda9e78e5bac886b5ec3ce4c42745573',1,'dz::mat::mat()']]],
-  ['math_2ehpp_1',['math.hpp',['../math_8hpp.html',1,'']]],
-  ['matrix_2',['matrix',['../structdz_1_1mat.html#a9ccf6cfa7b8578e93bfff0b02162a229',1,'dz::mat']]],
-  ['max_3',['max',['../structdz_1_1_a_a_b_b.html#a30b38eb8bb83110e57a401854ca133b6',1,'dz::AABB']]],
-  ['min_4',['min',['../structdz_1_1_a_a_b_b.html#ae592995c6a83efc2c4a08fdd5e4b777b',1,'dz::AABB']]]
+  ['last_5fundefined_5fascii_5fin_5frange_0',['LAST_UNDEFINED_ASCII_IN_RANGE',['../_window_8hpp.html#a96fb1050606989f1c64acc83b6349390',1,'Window.hpp']]],
+  ['length_1',['length',['../structdz_1_1vec.html#a68ab81e0a6fc252ec0c7cd1f7723f921',1,'dz::vec']]],
+  ['location_2',['LOCATION',['../structdz_1_1_file_handle.html#adb9d0ba7357a2f774ff33f9272f4f9a4',1,'dz::FileHandle']]],
+  ['location_3',['location',['../structdz_1_1_file_handle.html#afe0637a1f0c3179aa6999f3f2ed5b0db',1,'dz::FileHandle']]],
+  ['lookat_4',['lookAt',['../namespacedz.html#a28d36327a81f5e1ee551b42311721c47',1,'dz']]]
 ];

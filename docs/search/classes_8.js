@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['windowcreateinfo_0',['WindowCreateInfo',['../structdz_1_1_window_create_info.html',1,'dz']]]
+  ['programargs_0',['ProgramArgs',['../structdz_1_1_program_args.html',1,'dz']]]
 ];

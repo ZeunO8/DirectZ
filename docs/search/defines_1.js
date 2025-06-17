@@ -1,4 +1,21 @@
 var searchData=
 [
-  ['last_5fundefined_5fascii_5fin_5frange_0',['LAST_UNDEFINED_ASCII_IN_RANGE',['../_window_8hpp.html#a96fb1050606989f1c64acc83b6349390',1,'Window.hpp']]]
+  ['keycode_5falt_0',['KEYCODE_ALT',['../_window_8hpp.html#afe09fc4a1de3575156b2202e9a80d030',1,'Window.hpp']]],
+  ['keycode_5fcapslock_1',['KEYCODE_CAPSLOCK',['../_window_8hpp.html#ad0e8014ce2ad75a82b10873313fe1885',1,'Window.hpp']]],
+  ['keycode_5fctrl_2',['KEYCODE_CTRL',['../_window_8hpp.html#adc4cf322c84d3b90d41f638800703c50',1,'Window.hpp']]],
+  ['keycode_5fdelete_3',['KEYCODE_DELETE',['../_window_8hpp.html#a4daec9798db4cad5026dce5be2d6beb8',1,'Window.hpp']]],
+  ['keycode_5fdown_4',['KEYCODE_DOWN',['../_window_8hpp.html#a169fe4378e521fd0296967738666bed5',1,'Window.hpp']]],
+  ['keycode_5fend_5',['KEYCODE_END',['../_window_8hpp.html#a0beb4679a4ee9b14e3586c8c3f7ba26a',1,'Window.hpp']]],
+  ['keycode_5fescape_6',['KEYCODE_ESCAPE',['../_window_8hpp.html#a7e311c0e509330880a3768245e98d640',1,'Window.hpp']]],
+  ['keycode_5fhome_7',['KEYCODE_HOME',['../_window_8hpp.html#af2fbcccf9b518df858d333abc3a7e655',1,'Window.hpp']]],
+  ['keycode_5finsert_8',['KEYCODE_INSERT',['../_window_8hpp.html#a835edc9880b3b14df0d75764f2e10efa',1,'Window.hpp']]],
+  ['keycode_5fleft_9',['KEYCODE_LEFT',['../_window_8hpp.html#aa3acf65701ff877e76cc83ebec62f917',1,'Window.hpp']]],
+  ['keycode_5fnumlock_10',['KEYCODE_NUMLOCK',['../_window_8hpp.html#ac0f8f79b809b1a9db43885288f09a731',1,'Window.hpp']]],
+  ['keycode_5fpause_11',['KEYCODE_PAUSE',['../_window_8hpp.html#a63ad8ca7c7c09ab39ed1e0a7ed08c88a',1,'Window.hpp']]],
+  ['keycode_5fpgdown_12',['KEYCODE_PGDOWN',['../_window_8hpp.html#a93acf3b99b5adce22b90e24e743e184d',1,'Window.hpp']]],
+  ['keycode_5fpgup_13',['KEYCODE_PGUP',['../_window_8hpp.html#a0fe343209b9ab5e6c3d08f59093fa6d7',1,'Window.hpp']]],
+  ['keycode_5fright_14',['KEYCODE_RIGHT',['../_window_8hpp.html#a67fbb51c362bf8f817f69c7cd2ed670f',1,'Window.hpp']]],
+  ['keycode_5fshift_15',['KEYCODE_SHIFT',['../_window_8hpp.html#a6e984a747f5e04bbd0f0c3eb652026c7',1,'Window.hpp']]],
+  ['keycode_5fsuper_16',['KEYCODE_SUPER',['../_window_8hpp.html#af9ece8ce961aafdb4e669f3871bdb6f9',1,'Window.hpp']]],
+  ['keycode_5fup_17',['KEYCODE_UP',['../_window_8hpp.html#ac530711f1bc0575f2baef1118f6f4219',1,'Window.hpp']]]
 ];

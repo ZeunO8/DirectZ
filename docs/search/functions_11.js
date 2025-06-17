@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['transition_5fimage_5flayout_0',['transition_image_layout',['../_shader_8cpp.html#a49b0974dfc1ae7120554db17cb6b4a5f',1,'Shader.cpp']]],
-  ['translate_1',['translate',['../structdz_1_1mat.html#afba8750c7e76f37c2ed5dadcd6a46ab3',1,'dz::mat']]]
+  ['underflow_0',['underflow',['../classmemory__buffer.html#a6c26f5dff82d4ad44591c93237b3cba9',1,'memory_buffer']]],
+  ['update_1',['update',['../_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5',1,'DirectZ.hpp']]]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['data_0',['data',['../structdz_1_1vec.html#ab9e594bb96b7f8b9ccf8d6320d5fc133',1,'dz::vec']]]
+  ['borderless_0',['borderless',['../structdz_1_1_window_create_info.html#adfb9a47d8d85b3852dcc294260f3a946',1,'dz::WindowCreateInfo']]]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['shadermoduletype_0',['ShaderModuleType',['../namespacedz.html#aa4255557b5a9250383f8e3746e9ed824',1,'dz']]]
+  ['location_0',['LOCATION',['../structdz_1_1_file_handle.html#adb9d0ba7357a2f774ff33f9272f4f9a4',1,'dz::FileHandle']]]
 ];

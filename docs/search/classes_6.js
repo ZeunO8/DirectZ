@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['singleton_0',['Singleton',['../structdz_1_1_singleton.html',1,'dz']]]
+  ['keyvaluestream_0',['KeyValueStream',['../classdz_1_1_key_value_stream.html',1,'dz']]]
 ];

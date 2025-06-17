@@ -98,8 +98,12 @@ $(function(){initNavTree('_shader_8hpp.html',''); initResizable(); });
   <div class="headertitle"><div class="title">Shader.hpp File Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Defines functions to create, configure, and bind shaders with SPIR-V and GLSL inputs.  
+<a href="#details">More...</a></p>
 <div class="textblock"><code>#include &lt;string&gt;</code><br />
 <code>#include &lt;memory&gt;</code><br />
+<code>#include &lt;filesystem&gt;</code><br />
 <code>#include &quot;<a class="el" href="_reflected_struct_view_8hpp_source.html">ReflectedStructView.hpp</a>&quot;</code><br />
 <code>#include &quot;<a class="el" href="math_8hpp_source.html">math.hpp</a>&quot;</code><br />
 </div>
@@ -121,29 +125,45 @@ Enumerations</h2></td></tr>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:a443a25427d41a1f5fdf048c712ea099f" id="r_a443a25427d41a1f5fdf048c712ea099f"><td class="memItemLeft" align="right" valign="top">Shader *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a443a25427d41a1f5fdf048c712ea099f">dz::shader_create</a> ()</td></tr>
+<tr class="memdesc:a443a25427d41a1f5fdf048c712ea099f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new Shader object.  <br /></td></tr>
 <tr class="separator:a443a25427d41a1f5fdf048c712ea099f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac781cb176b1bbea38611c2c2fe0c9e72" id="r_ac781cb176b1bbea38611c2c2fe0c9e72"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#ac781cb176b1bbea38611c2c2fe0c9e72">dz::shader_add_module</a> (Shader *shader, <a class="el" href="namespacedz.html#aa4255557b5a9250383f8e3746e9ed824">ShaderModuleType</a> module_type, const std::string &amp;glsl_source)</td></tr>
+<tr class="memdesc:ac781cb176b1bbea38611c2c2fe0c9e72"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a GLSL source module to the shader.  <br /></td></tr>
 <tr class="separator:ac781cb176b1bbea38611c2c2fe0c9e72"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a11ddf8cb8b4d3eef1e511d3cf88359c1" id="r_a11ddf8cb8b4d3eef1e511d3cf88359c1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a11ddf8cb8b4d3eef1e511d3cf88359c1">dz::shader_add_module_from_file</a> (Shader *shader, const std::filesystem::path &amp;file_path)</td></tr>
+<tr class="memdesc:a11ddf8cb8b4d3eef1e511d3cf88359c1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a GLSL source module loaded from a file.  <br /></td></tr>
+<tr class="separator:a11ddf8cb8b4d3eef1e511d3cf88359c1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a54b6c79ab6cb4a9f26aafe9017090a2e" id="r_a54b6c79ab6cb4a9f26aafe9017090a2e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a54b6c79ab6cb4a9f26aafe9017090a2e">dz::shader_add_buffer_group</a> (Shader *shader, BufferGroup *buffer_group)</td></tr>
+<tr class="memdesc:a54b6c79ab6cb4a9f26aafe9017090a2e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Binds a BufferGroup to the shader.  <br /></td></tr>
 <tr class="separator:a54b6c79ab6cb4a9f26aafe9017090a2e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7c4bf363bb30b055ee59c7d2be10fbb4" id="r_a7c4bf363bb30b055ee59c7d2be10fbb4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a7c4bf363bb30b055ee59c7d2be10fbb4">dz::shader_remove_buffer_group</a> (Shader *shader, BufferGroup *buffer_group)</td></tr>
+<tr class="memdesc:a7c4bf363bb30b055ee59c7d2be10fbb4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unbinds a BufferGroup from the shader.  <br /></td></tr>
 <tr class="separator:a7c4bf363bb30b055ee59c7d2be10fbb4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab8e3d3e5c3f3961809d4b8213281bad2" id="r_ab8e3d3e5c3f3961809d4b8213281bad2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#ab8e3d3e5c3f3961809d4b8213281bad2">dz::shader_dispatch</a> (Shader *shader, <a class="el" href="structdz_1_1vec.html">vec</a>&lt; int32_t, 3 &gt; dispatch_layout)</td></tr>
+<tr class="memdesc:ab8e3d3e5c3f3961809d4b8213281bad2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dispatches the compute shader with the given thread group layout.  <br /></td></tr>
 <tr class="separator:ab8e3d3e5c3f3961809d4b8213281bad2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0d0ee90ca77ba851aa3bb2f2e69c9728" id="r_a0d0ee90ca77ba851aa3bb2f2e69c9728"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a0d0ee90ca77ba851aa3bb2f2e69c9728">dz::shader_compile</a> (Shader *shader)</td></tr>
+<tr class="memdesc:a0d0ee90ca77ba851aa3bb2f2e69c9728"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compiles the shader source code to SPIR-V.  <br /></td></tr>
 <tr class="separator:a0d0ee90ca77ba851aa3bb2f2e69c9728"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa082466086ef375cdfc56cb2dc2015d7" id="r_aa082466086ef375cdfc56cb2dc2015d7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#aa082466086ef375cdfc56cb2dc2015d7">dz::shader_create_resources</a> (Shader *shader)</td></tr>
+<tr class="memdesc:aa082466086ef375cdfc56cb2dc2015d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates GPU resources for the shader.  <br /></td></tr>
 <tr class="separator:aa082466086ef375cdfc56cb2dc2015d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6a638f34d46afedfafa1e9b81bfeccee" id="r_a6a638f34d46afedfafa1e9b81bfeccee"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a6a638f34d46afedfafa1e9b81bfeccee">dz::shader_update_descriptor_sets</a> (Shader *shader)</td></tr>
+<tr class="memdesc:a6a638f34d46afedfafa1e9b81bfeccee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates descriptor sets associated with the shader.  <br /></td></tr>
 <tr class="separator:a6a638f34d46afedfafa1e9b81bfeccee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab20060275225a8d7449060820306377c" id="r_ab20060275225a8d7449060820306377c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#ab20060275225a8d7449060820306377c">dz::shader_initialize</a> (Shader *shader)</td></tr>
+<tr class="memdesc:ab20060275225a8d7449060820306377c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes the shader for usage after resource creation and compilation.  <br /></td></tr>
 <tr class="separator:ab20060275225a8d7449060820306377c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2557d71259f68658c40856d5640acb40" id="r_a2557d71259f68658c40856d5640acb40"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a2557d71259f68658c40856d5640acb40">dz::shader_set_define</a> (Shader *shader, const std::string &amp;key, const std::string &amp;value=&quot;&quot;)</td></tr>
+<tr class="memdesc:a2557d71259f68658c40856d5640acb40"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets a preprocessor definition for GLSL compilation.  <br /></td></tr>
 <tr class="separator:a2557d71259f68658c40856d5640acb40"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a890dbb3c5d1e88291713b2fabfd26b9b" id="r_a890dbb3c5d1e88291713b2fabfd26b9b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacedz.html#a890dbb3c5d1e88291713b2fabfd26b9b">dz::shader_bind</a> (Shader *shader)</td></tr>
+<tr class="memdesc:a890dbb3c5d1e88291713b2fabfd26b9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Binds the shader to the current render pipeline.  <br /></td></tr>
 <tr class="separator:a890dbb3c5d1e88291713b2fabfd26b9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-</div><!-- contents -->
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Defines functions to create, configure, and bind shaders with SPIR-V and GLSL inputs. </p>
+</div></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->

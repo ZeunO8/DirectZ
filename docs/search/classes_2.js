@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['globaluid_0',['GlobalUID',['../structdz_1_1_global_u_i_d.html',1,'dz']]]
+  ['filehandle_0',['FileHandle',['../structdz_1_1_file_handle.html',1,'dz']]]
 ];

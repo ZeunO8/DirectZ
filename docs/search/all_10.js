@@ -1,5 +1,27 @@
 var searchData=
 [
-  ['title_0',['title',['../structdz_1_1_window_create_info.html#a1a810a9a37b0edf1d5b7364911d2e985',1,'dz::WindowCreateInfo']]],
-  ['translate_1',['translate',['../structdz_1_1mat.html#afba8750c7e76f37c2ed5dadcd6a46ab3',1,'dz::mat']]]
+  ['scale_0',['scale',['../structdz_1_1mat.html#ad3162dc5481aea4807f0552c2a933b5b',1,'dz::mat']]],
+  ['seekoff_1',['seekoff',['../classmemory__buffer.html#aa4e801dc247f89306f5be790655b6539',1,'memory_buffer']]],
+  ['seekpos_2',['seekpos',['../classmemory__buffer.html#adf2ddc54d8832cf31f32d357b49b41af',1,'memory_buffer']]],
+  ['set_5fmember_3',['set_member',['../classdz_1_1_reflected_struct_view.html#a71cd6353a9469c3cb1f64a4ecb61e9ba',1,'dz::ReflectedStructView::set_member(const std::string &amp;member_name, const T &amp;value)'],['../classdz_1_1_reflected_struct_view.html#a69e1eefb823bbf6338e8d8676acadd5a',1,'dz::ReflectedStructView::set_member(const std::string &amp;member_name, const void *data_ptr, size_t data_size_bytes)']]],
+  ['shader_2ehpp_4',['Shader.hpp',['../_shader_8hpp.html',1,'']]],
+  ['shader_5fadd_5fbuffer_5fgroup_5',['shader_add_buffer_group',['../namespacedz.html#a54b6c79ab6cb4a9f26aafe9017090a2e',1,'dz']]],
+  ['shader_5fadd_5fmodule_6',['shader_add_module',['../namespacedz.html#ac781cb176b1bbea38611c2c2fe0c9e72',1,'dz']]],
+  ['shader_5fadd_5fmodule_5ffrom_5ffile_7',['shader_add_module_from_file',['../namespacedz.html#a11ddf8cb8b4d3eef1e511d3cf88359c1',1,'dz']]],
+  ['shader_5fbind_8',['shader_bind',['../namespacedz.html#a890dbb3c5d1e88291713b2fabfd26b9b',1,'dz']]],
+  ['shader_5fcompile_9',['shader_compile',['../namespacedz.html#a0d0ee90ca77ba851aa3bb2f2e69c9728',1,'dz']]],
+  ['shader_5fcreate_10',['shader_create',['../namespacedz.html#a443a25427d41a1f5fdf048c712ea099f',1,'dz']]],
+  ['shader_5fcreate_5fresources_11',['shader_create_resources',['../namespacedz.html#aa082466086ef375cdfc56cb2dc2015d7',1,'dz']]],
+  ['shader_5fdispatch_12',['shader_dispatch',['../namespacedz.html#ab8e3d3e5c3f3961809d4b8213281bad2',1,'dz']]],
+  ['shader_5finitialize_13',['shader_initialize',['../namespacedz.html#ab20060275225a8d7449060820306377c',1,'dz']]],
+  ['shader_5fremove_5fbuffer_5fgroup_14',['shader_remove_buffer_group',['../namespacedz.html#a7c4bf363bb30b055ee59c7d2be10fbb4',1,'dz']]],
+  ['shader_5fset_5fdefine_15',['shader_set_define',['../namespacedz.html#a2557d71259f68658c40856d5640acb40',1,'dz']]],
+  ['shader_5fupdate_5fdescriptor_5fsets_16',['shader_update_descriptor_sets',['../namespacedz.html#a6a638f34d46afedfafa1e9b81bfeccee',1,'dz']]],
+  ['shaderdrawlist_17',['ShaderDrawList',['../namespacedz.html#a785e670fc013de428f1202033bf835a5',1,'dz']]],
+  ['shadermoduletype_18',['ShaderModuleType',['../namespacedz.html#aa4255557b5a9250383f8e3746e9ed824',1,'dz']]],
+  ['shaders_19',['Shaders',['../index.html#autotoc_md4',1,'']]],
+  ['size_20',['size',['../structdz_1_1_key_value_stream_1_1_header_entry.html#aa0ed52dffde9ccc55b7f958573b3d630',1,'dz::KeyValueStream::HeaderEntry::size'],['../structdz_1_1size__ptr.html#a66b011b2adce003ee642a5c58c46aaa4',1,'dz::size_ptr::size']]],
+  ['size_5fptr_21',['size_ptr',['../structdz_1_1size__ptr.html',1,'dz::size_ptr&lt; T &gt;'],['../structdz_1_1size__ptr.html#a7ebac2b4b9cf6ba3f589c9a01f994f0a',1,'dz::size_ptr::size_ptr()=default'],['../structdz_1_1size__ptr.html#aa7f0cfea0027e3666ec81a8b31a73aa7',1,'dz::size_ptr::size_ptr(T *ptr, size_t size=1, void(*deleter)(void *)=&amp;default_delete_single::call&lt; T &gt;)'],['../structdz_1_1size__ptr.html#a8370faa3eabcabd0188b6990117e4855',1,'dz::size_ptr::size_ptr(const size_ptr &amp;other)']]],
+  ['size_5fptr_2ehpp_22',['size_ptr.hpp',['../size__ptr_8hpp.html',1,'']]],
+  ['str_23',['str',['../classmemory__buffer.html#a287789ebfda4354bb016cd376119fa0c',1,'memory_buffer::str() const'],['../classmemory__buffer.html#a0aa6617baba87ea406c3f415054e1165',1,'memory_buffer::str(const std::string &amp;s)'],['../classmemory__stream.html#a0991f7b53a7ed315a9364d3346ce05ca',1,'memory_stream::str()'],['../classmemory__stream.html#a0973ab7e700b7617453376158554dbd2',1,'memory_stream::str(const std::string &amp;s)']]]
 ];
