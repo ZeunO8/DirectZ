@@ -15,6 +15,11 @@ include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
 
 add_library(DirectZ STATIC src/DirectZ.mm)
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+	target_compile_options(DirectZ PRIVATE -fPIC)
+endif()
+
 add_executable(dzp src/DZP.cpp)
 
 set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
