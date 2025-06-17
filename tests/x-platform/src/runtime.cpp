@@ -1,24 +1,33 @@
 #include <DirectZ.hpp>
+#include <windows.h>
+#include <dxgi.h>
+#include <dxgi1_2.h> // for IDXGIFactory1 or newer
+#include <comdef.h>  // for _com_ptr_t if you want smart COM ptrs
+#include <initguid.h> // sometimes needed for __uuidof
 int main()
 {
-    auto window = window_create({
+    // ::LoadLibraryA("d3d12.dll");
+    // IDXGIFactory* dummy = nullptr;
+    // CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&dummy);
+    // if (dummy)
+    //     dummy->Release();
+    int ret = 0;
+
+    // call app-lib implementation of init
+    if ((ret = init({
         .title = "Example Window",
         .x = 128,
         .y = 128,
         .width = 640,
         .height = 480
-    });
-
-    int ret = 0;
-
-    // call app-lib implementation of dz_init
-    if ((ret = dz_init(window)))
+    })))
         return ret;
-    while (window_poll_events(window))
+
+    //
+    while (poll_events())
     {
-        // update and render
-        dz_update();
-        window_render(window);
+        update();
+        render();
     }
     return ret;
 }

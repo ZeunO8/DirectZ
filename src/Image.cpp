@@ -26,7 +26,7 @@ void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_dat
 
 Image* image_create(const ImageCreateInfo& info)
 {
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     Image* result = new Image{};
 
     // VkImageCreateInfo setup
@@ -108,7 +108,7 @@ Image* image_create(const ImageCreateInfo& info)
 
 void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_data)
 {
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
 
     VkDeviceSize image_size = info.width * info.height * info.depth * 4; // Assuming 4 bytes per texel (e.g., RGBA8)
 
@@ -208,12 +208,17 @@ void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_dat
 
 void image_free(Image* image)
 {
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     auto& device = direct_registry->device;
-    vkDestroyImage(device, image->image, 0);
-    vkDestroyImageView(device, image->imageView, 0);
-    vkFreeMemory(device, image->memory, 0);
-    if(image->sampler)
+    if (device == VK_NULL_HANDLE)
+        return;
+    if (image->image != VK_NULL_HANDLE)
+        vkDestroyImage(device, image->image, 0);
+    if (image->imageView != VK_NULL_HANDLE)
+        vkDestroyImageView(device, image->imageView, 0);
+    if (image->memory != VK_NULL_HANDLE)
+        vkFreeMemory(device, image->memory, 0);
+    if(image->sampler != VK_NULL_HANDLE)
         vkDestroySampler(device, image->sampler, 0);
     delete image;
 }

@@ -2,7 +2,7 @@ void buffer_group_destroy(BufferGroup* bg);
 
 BufferGroup* buffer_group_create(const std::string& group_name)
 {
-    auto& dr = *DZ_RGY;
+    auto& dr = *get_direct_registry();
     auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
         new BufferGroup{
             .group_name = group_name
@@ -232,8 +232,10 @@ ReflectedStructView buffer_group_get_buffer_element_view(BufferGroup* buffer_gro
 
 void buffer_group_destroy(BufferGroup* buffer_group)
 {
-    auto& dr = *DZ_RGY;
+    auto& dr = *get_direct_registry();
     auto& device = dr.device;
+    if (device == VK_NULL_HANDLE)
+        return;
     for (auto& bufferPair : buffer_group->buffers)
     {
         vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);

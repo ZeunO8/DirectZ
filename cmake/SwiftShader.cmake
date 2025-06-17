@@ -15,7 +15,7 @@ if(NOT swiftshader_POPULATED)
 endif()
 
 add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Headers EXCLUDE_FROM_ALL)
-add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Tools)
+add_subdirectory(${swiftshader_SOURCE_DIR}/third_party/SPIRV-Tools EXCLUDE_FROM_ALL)
 set_target_properties(SPIRV-Tools-static PROPERTIES DEBUG_POSTFIX "d")
 set_target_properties(SPIRV-Tools-opt PROPERTIES DEBUG_POSTFIX "d")
 
@@ -27,7 +27,7 @@ FetchContent_Declare(glslang
     GIT_TAG vulkan-sdk-1.3.283)
 FetchContent_MakeAvailable(glslang)
  
-add_subdirectory(${swiftshader_SOURCE_DIR} EXCLUDE_FROM_ALL)
+add_subdirectory(${swiftshader_SOURCE_DIR} EXCLUDE_FROM_ALL EXCLUDE_FROM_ALL)
 
 if(WIN32)
     set_target_properties(llvm PROPERTIES POSITION_INDEPENDENT_CODE "")

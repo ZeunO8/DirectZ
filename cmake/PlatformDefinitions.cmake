@@ -65,3 +65,13 @@ function(dz_setup_target
     set(DZ_LIBRARIES_TO_INSTALL ${DZ_LIBRARIES_TO_INSTALL} ${LIBRARY_LOCATION} ${IMPLIB_LOCATION} PARENT_SCOPE)
     # message(STATUS "${TARGET_NAME} \"${LIBRARY_LOCATION}\" library ${LIBRARY_EXISTS}")
 endfunction()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_LINKER "ld.bfd" CACHE FILEPATH "Use GNU BFD linker" FORCE)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_LINKER "ld.lld" CACHE FILEPATH "Use LLVM LLD linker" FORCE)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set(CMAKE_LINKER "link.exe" CACHE FILEPATH "Use MSVC linker" FORCE)
+else()
+    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
+endif()

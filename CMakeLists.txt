@@ -14,7 +14,7 @@ include(CMakePackageConfigHelpers)
 include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
 
-add_library(DirectZ src/DirectZ.mm)
+add_library(DirectZ STATIC src/DirectZ.mm)
 add_executable(dzp src/DZP.cpp)
 
 set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
@@ -45,7 +45,7 @@ include(cmake/dz-targets.cmake)
 
 target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 
-target_link_libraries(DirectZ PRIVATE dz::shaderc dz::shaderc_util dz::spirv-reflect-static)
+target_link_libraries(DirectZ PRIVATE shaderc shaderc_util spirv-reflect-static)
 
 if(WIN32)
 	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)

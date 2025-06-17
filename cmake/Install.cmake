@@ -3,7 +3,11 @@
 set(DIRECTZ_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/DirectZ")
 
 # Export targets
-install(TARGETS DirectZ shaderc shaderc_util spirv-reflect-static glslang GenericCodeGen OSDependent MachineIndependent SPIRV SPIRV-Tools-static SPIRV-Tools-opt
+install(TARGETS
+    DirectZ
+    shaderc shaderc_util spirv-reflect-static
+    glslang GenericCodeGen OSDependent MachineIndependent
+    SPIRV SPIRV-Tools-static SPIRV-Tools-opt
     EXPORT DirectZTargets
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -12,13 +16,9 @@ install(TARGETS DirectZ shaderc shaderc_util spirv-reflect-static glslang Generi
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-# install(TARGETS SPIRV-Tools-static SPIRV-Tools-opt
-#     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-#     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-#     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-#     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-# )
+install(TARGETS dzp
+    EXPORT DZPTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # Install headers
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
@@ -47,5 +47,9 @@ install(FILES
 
 install(EXPORT DirectZTargets
     NAMESPACE DirectZ::
+    DESTINATION ${DIRECTZ_INSTALL_CMAKEDIR}
+)
+
+install(EXPORT DZPTargets
     DESTINATION ${DIRECTZ_INSTALL_CMAKEDIR}
 )

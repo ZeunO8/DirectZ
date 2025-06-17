@@ -514,8 +514,5 @@ void main()
         //         window_render(stat_window);
         // }
     }
-
-    // window_free(stat_window);
-    window_free(main_window);
     return 0;
 }

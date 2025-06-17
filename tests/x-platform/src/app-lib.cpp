@@ -2,9 +2,9 @@
 
 WINDOW* cached_window = 0;
 
-int dz_init(WINDOW* window)
+DZ_EXPORT int init(const WindowCreateInfo& window_info)
 {
-    cached_window = window;
+    cached_window = window_create(window_info);
     Shader* compute_shader = shader_create();
     Shader* raster_shader = shader_create();
 
@@ -12,7 +12,17 @@ int dz_init(WINDOW* window)
     return 0;
 }
 
-void dz_update()
+DZ_EXPORT bool poll_events()
+{
+    return window_poll_events(cached_window);
+}
+
+DZ_EXPORT void update()
 {
     // Do any CPU side logic
+}
+
+DZ_EXPORT void render()
+{
+    window_render(cached_window);
 }

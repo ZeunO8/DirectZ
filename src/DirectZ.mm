@@ -1,7 +1,7 @@
 #include <DirectZ.hpp>
 #include <dz/Shader.hpp>
-#include <dz/Singleton.hpp>
 using namespace dz;
+#include <atomic>
 #include <algorithm>
 #include <map>
 #include <unordered_map>
@@ -78,33 +78,45 @@ struct DirectRegistry
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;
+    std::atomic<uint32_t> window_count = 0;
 };
 #if defined(MACOS)
 #include "WINDOWDelegate.mm"
 #endif
+struct DirectRegistry;
+extern "C" DirectRegistry* dz_registry_global;
 namespace dz
 {
-    void append_vk_icd_filename(const std::string& swiftshader_icd_path);
-    uint8_t get_window_type_platform();
-    void direct_registry_create_instance(DirectRegistry* direct_registry);
-    std::shared_ptr<DirectRegistry> make_direct_registry()
+    inline DirectRegistry*& get_direct_registry()
     {
-        auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
-            dr->buffer_groups.clear();
-            if (dr->device)
-            {
-                vkDestroyCommandPool(dr->device, dr->commandPool, 0);
-                vkDestroyRenderPass(dr->device, dr->surfaceRenderPass, 0);
-                vkDestroyDevice(dr->device, 0);
-            }
-            delete dr;
-        });
-        auto direct_registry = dr.get();
-        direct_registry->windowType = get_window_type_platform();
-        direct_registry_create_instance(direct_registry);
+        return dz_registry_global;
+    }
+    inline void set_direct_registry(DirectRegistry* ptr)
+    {
+        get_direct_registry() = ptr;
+    }
+    uint8_t get_window_type_platform();
+    void direct_registry_ensure_instance(DirectRegistry* direct_registry);
+    DirectRegistry* make_direct_registry()
+    {
+        auto dr = new DirectRegistry;
+        dr->windowType = get_window_type_platform();
         return dr;
     }
-    std::shared_ptr<DirectRegistry> DZ_RGY = make_direct_registry();
+    
+    void free_direct_registry()
+    {
+        auto direct_registry = get_direct_registry();
+        direct_registry->buffer_groups.clear();
+        direct_registry->uid_shader_map.clear();
+        if (direct_registry->device)
+        {
+            vkDestroyCommandPool(direct_registry->device, direct_registry->commandPool, 0);
+            vkDestroyRenderPass(direct_registry->device, direct_registry->surfaceRenderPass, 0);
+            vkDestroyDevice(direct_registry->device, 0);
+        }
+        delete direct_registry;
+    }
     struct Renderer;
     struct WINDOW;
     Renderer* renderer_init(WINDOW* window);
@@ -113,6 +125,8 @@ namespace dz
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
+    #include "env.cpp"
+    #include "path.cpp"
     #include "FileHandle.cpp"
     #include "AssetPack.cpp"
     #include "Window.mm"
@@ -120,95 +134,8 @@ namespace dz
     #include "Image.cpp"
     #include "Shader.cpp"
     #include "BufferGroup.cpp"
-    void set_env(const std::string& key, const std::string& value)
-    {
-    #if defined(_WIN32)
-        std::string full = key + "=" + value;
-        if (_putenv(full.c_str()) != 0)
-        {
-            throw std::runtime_error("Failed to set environment variable on Windows: " + key);
-        }
-    #elif defined(__linux__) || defined(__APPLE__)
-        if (setenv(key.c_str(), value.c_str(), 1) != 0)
-        {
-            throw std::runtime_error("Failed to set environment variable on POSIX system: " + key);
-        }
-    #else
-        #error "Unsupported platform for set_env"
-    #endif
-    }
-
-    std::string get_env(const std::string& key)
-    {
-    #if defined(_WIN32)
-        size_t requiredSize = 0;
-        getenv_s(&requiredSize, nullptr, 0, key.c_str());
-        if (requiredSize == 0)
-        {
-            return "";
-        }
-        std::string value(requiredSize, '\0');
-        getenv_s(&requiredSize, &value[0], requiredSize, key.c_str());
-        if (!value.empty() && value.back() == '\0')
-        {
-            value.pop_back();
-        }
-        return value;
-    #elif defined(__linux__) || defined(__APPLE__)
-        const char* val = std::getenv(key.c_str());
-        return val ? std::string(val) : "";
-    #else
-        #error "Unsupported platform for get_env"
-    #endif
-    }
-
-    void append_vk_icd_filename(const std::string& swiftshader_icd_path)
-    {
-        std::string key = "VK_ICD_FILENAMES";
-        std::string current = get_env(key);
-        std::string separator =
-    #if defined(_WIN32)
-            ";";
-    #else
-            ":";
-    #endif
-
-        if (!current.empty())
-        {
-            if (current.find(swiftshader_icd_path) == std::string::npos)
-            {
-                current += separator + swiftshader_icd_path;
-            }
-        }
-        else
-        {
-            current = swiftshader_icd_path;
-        }
-
-        set_env(key, current);
-    }
-    
-    std::filesystem::path getUserDirectoryPath() { return std::filesystem::path(getenv("HOME")); }
-    std::filesystem::path getProgramDirectoryPath()
-    {
-        std::filesystem::path exePath;
-    #if defined(_WIN32)
-        char path[MAX_PATH];
-        GetModuleFileNameA(NULL, path, MAX_PATH);
-        exePath = path;
-    #elif defined(MACOS)
-        char path[1024];
-        uint32_t size = sizeof(path);
-        if (_NSGetExecutablePath(path, &size) == 0)
-            exePath = path;
-    #elif defined(__linux__)
-        exePath = std::filesystem::canonical("/proc/self/exe");
-    #endif
-        return exePath.parent_path();
-    }
-    std::filesystem::path getProgramDataPath() { return std::filesystem::temp_directory_path(); }
-    std::filesystem::path getExecutableName() { return std::filesystem::path(getenv("_")).filename(); }
 }
 #if defined(MACOS)
 #include "WINDOWDelegateImpl.mm"
 #endif
+#include "runtime.cpp"

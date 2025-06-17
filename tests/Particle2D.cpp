@@ -557,7 +557,5 @@ void main()
         shader_dispatch(gravity_motion_shader, {dispatchX, 1, 1});
         window_render(window);
     }
-
-    window_free(window);
     return 0;
 }

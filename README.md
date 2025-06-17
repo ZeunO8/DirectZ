@@ -81,6 +81,7 @@ void dz_update()
 #include <DirectZ.hpp>
 int main()
 {
+    set_direct_registry(make_direct_registry());
     auto window = window_create({
         .title = "Example Window",
         .x = 128,

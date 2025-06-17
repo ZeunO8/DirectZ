@@ -93,9 +93,11 @@ Renderer* renderer_init(WINDOW* window)
 	renderer->presentInfo.swapchainCount = 1;
 	renderer->presentInfo.pResults = 0;
     //
+	auto direct_registry = get_direct_registry();
+	direct_registry_ensure_instance(direct_registry);
     create_surface(renderer);
-    direct_registry_ensure_physical_device(DZ_RGY.get(), renderer);
-    direct_registry_ensure_logical_device(DZ_RGY.get(), renderer);
+    direct_registry_ensure_physical_device(direct_registry, renderer);
+    direct_registry_ensure_logical_device(direct_registry, renderer);
     create_swap_chain(renderer);
     ensure_command_pool(renderer);
     ensure_command_buffers(renderer);
@@ -216,8 +218,10 @@ bool is_any_vulkan_implementation_available()
     return false;
 }
 
-void direct_registry_create_instance(DirectRegistry* direct_registry)
+void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 {
+	if (direct_registry->instance != VK_NULL_HANDLE)
+		return;
     if (!is_any_vulkan_implementation_available())
     {
         std::cout << "No Vulkan implementation found. Falling back to SwiftShader." << std::endl;
@@ -319,7 +323,7 @@ void direct_registry_create_instance(DirectRegistry* direct_registry)
         std::cout << "Vulkan instance creation failed. Falling back to SwiftShader." << std::endl;
         append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
         direct_registry->swiftshader_fallback = true;
-        direct_registry_create_instance(direct_registry);
+        direct_registry_ensure_instance(direct_registry);
     }
     else
     {
@@ -591,7 +595,7 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
 
 bool create_swap_chain(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	SwapChainSupportDetails swapChainSupport = query_swap_chain_support(renderer, direct_registry->physicalDevice);
 	if (direct_registry->firstSurfaceFormat.format == 0)
 	{
@@ -661,7 +665,7 @@ bool create_swap_chain(Renderer* renderer)
 
 SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	SwapChainSupportDetails details;
 	vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
 		vkGetPhysicalDeviceSurfaceCapabilitiesKHR(direct_registry->physicalDevice, renderer->surface, &details.capabilities));
@@ -725,7 +729,7 @@ VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capab
 
 void ensure_command_pool(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	if (direct_registry->commandPool != VK_NULL_HANDLE)
 		return;
 	QueueFamilyIndices queueFamilyIndices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
@@ -739,7 +743,7 @@ void ensure_command_pool(Renderer* renderer)
 
 void ensure_command_buffers(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	if (!renderer->commandBuffers.empty())
 		return;
 	renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -761,7 +765,7 @@ void ensure_command_buffers(Renderer* renderer)
 
 void create_image_views(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto swapChainImagesSize = renderer->swapChainImages.size();
 	renderer->swapChainImageViews.resize(swapChainImagesSize);
 	for (uint32_t index = 0; index < swapChainImagesSize; index++)
@@ -787,7 +791,7 @@ void create_image_views(Renderer* renderer)
 
 void ensure_render_pass(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	if (direct_registry->surfaceRenderPass != VK_NULL_HANDLE)
 		return;
 	VkAttachmentDescription2 colorAttachment{};
@@ -832,7 +836,7 @@ void ensure_render_pass(Renderer* renderer)
 
 void create_framebuffers(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto swapChainImageViewsSize = renderer->swapChainImageViews.size();
 	renderer->swapChainFramebuffers.resize(swapChainImageViewsSize);
 	for (uint32_t index = 0; index < swapChainImageViewsSize; index++)
@@ -855,7 +859,7 @@ void create_framebuffers(Renderer* renderer)
 
 void create_sync_objects(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	renderer->imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderer->renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 	renderer->inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -875,7 +879,7 @@ void create_sync_objects(Renderer* renderer)
 
 void pre_begin_render_pass(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
 	vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
@@ -895,7 +899,7 @@ void pre_begin_render_pass(Renderer* renderer)
 
 void begin_render_pass(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = direct_registry->surfaceRenderPass;
@@ -912,7 +916,7 @@ void begin_render_pass(Renderer* renderer)
 
 void post_render_pass(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	{
 		vkCmdEndRenderPass(*direct_registry->commandBuffer);
 		vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*direct_registry->commandBuffer));
@@ -927,9 +931,9 @@ void post_render_pass(Renderer* renderer)
 		renderer->submitInfo.pSignalSemaphores = renderer->signalSemaphores;
 		vk_check("vkQueueSubmit", vkQueueSubmit(direct_registry->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
 	}
-    // {
-    //     vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
-    // }
+    {
+        vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+    }
 	{
 		renderer->presentInfo.pWaitSemaphores = renderer->signalSemaphores;
 		renderer->swapChains[0] = {renderer->swapChain};
@@ -940,7 +944,7 @@ void post_render_pass(Renderer* renderer)
 
 bool swap_buffers(Renderer* renderer)
 {    
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto result = vkQueuePresentKHR(direct_registry->presentQueue, &renderer->presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
@@ -957,9 +961,11 @@ bool swap_buffers(Renderer* renderer)
 
 void renderer_destroy(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto& window = *renderer->window;
 	auto& device = direct_registry->device;
+	if (device == VK_NULL_HANDLE)
+		return;
 	vkDeviceWaitIdle(device);
 	window.registry->uid_shader_map.clear();
 	for (auto& drawPair : renderer->drawBuffers)
@@ -990,8 +996,10 @@ void renderer_destroy(Renderer* renderer)
 
 void destroy_swap_chain(Renderer* renderer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto& device = direct_registry->device;
+	if (device == VK_NULL_HANDLE)
+		return;
 	for (auto framebuffer : renderer->swapChainFramebuffers)
 	{
 		vkDestroyFramebuffer(device, framebuffer, 0);
@@ -1026,7 +1034,7 @@ void createBuffer(Renderer* renderer,
     VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
     VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	VkBufferCreateInfo bufferInfo{};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	bufferInfo.size = size;
@@ -1217,7 +1225,7 @@ bool vk_check(const char* fn, VkResult result)
 
 uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     VkPhysicalDeviceMemoryProperties mem_properties;
     vkGetPhysicalDeviceMemoryProperties(direct_registry->physicalDevice, &mem_properties);
 
@@ -1234,7 +1242,7 @@ uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties
 
 VkCommandBuffer begin_single_time_commands()
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     VkCommandBufferAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -1255,7 +1263,7 @@ VkCommandBuffer begin_single_time_commands()
 
 void end_single_time_commands(VkCommandBuffer command_buffer)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     vkEndCommandBuffer(command_buffer);
 
     VkSubmitInfo submit_info{};

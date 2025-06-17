@@ -26,7 +26,7 @@ struct WINDOW
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;
-    std::shared_ptr<DirectRegistry> registry;
+    DirectRegistry* registry;
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 #ifdef _WIN32
     HINSTANCE hInstance;
@@ -106,7 +106,9 @@ WINDOW* window_create(const WindowCreateInfo& info)
 	scissor.offset = {0, 0};
 	scissor.extent = {uint32_t(info.width), uint32_t(info.height)};
 
-	window->registry = DZ_RGY;
+	window->registry = get_direct_registry();
+
+	window->registry->window_count++;
 
     window->create_platform();
 
@@ -127,9 +129,14 @@ void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, Buf
 	if (vect.empty())
 		window->draw_list_managers.erase(mgr);
 }
+void window_free(WINDOW* window)
+{
+    renderer_free(window->renderer);
+    delete window;
+}
 bool window_poll_events(WINDOW* window)
 {
-	auto poll_exit = window->poll_events_platform();
+	auto poll_continue = window->poll_events_platform();
 	auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
 		std::chrono::system_clock::now()
 	);
@@ -142,7 +149,17 @@ bool window_poll_events(WINDOW* window)
 		*window->float_frametime = *window->double_frametime = steady_duration_seconds.count();
 		window->lastFrame = now;
 	}
-    return poll_exit;
+	if (!poll_continue)
+	{
+		window->registry->window_count--;
+		auto f_d_r = (window->registry->window_count == 0);
+		window_free(window);
+		if (f_d_r)
+		{
+			free_direct_registry();
+		}
+	}
+    return poll_continue;
 }
 void window_render(WINDOW* window)
 {
@@ -251,11 +268,6 @@ std::shared_ptr<float>& window_get_width_ref(WINDOW* window)
 std::shared_ptr<float>& window_get_height_ref(WINDOW* window)
 {
 	return window->height;
-}
-void window_free(WINDOW* window)
-{
-    renderer_free(window->renderer);
-    delete window;
 }
 
 #ifdef _WIN32

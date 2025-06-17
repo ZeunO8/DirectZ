@@ -7,5 +7,7 @@ set(DirectZ_LIBRARIES DirectZ::DirectZ)
 # Load the exported targets
 include("${CMAKE_CURRENT_LIST_DIR}/DirectZTargets.cmake")
 
+include("${CMAKE_CURRENT_LIST_DIR}/DZPTargets.cmake")
+
 # Optional: check required components if using COMPONENTS in find_package
 check_required_components(DirectZ)

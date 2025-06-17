@@ -222,7 +222,7 @@ void shader_destroy(Shader* shader);
 Shader* shader_create()
 {
     auto shader = new Shader;
-    auto& dr = *DZ_RGY;
+    auto& dr = *get_direct_registry();
     dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
         shader_destroy(shader);
         delete shader;
@@ -1237,7 +1237,7 @@ VkImageLayout infer_image_layout(Shader* shader, std::unordered_map<Shader*, VkD
  */
 bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_infos; 
     std::vector<VkDescriptorImageInfo> image_infos;
@@ -1427,7 +1427,7 @@ void shader_update_descriptor_sets(Shader* shader) {
     // }
 
     // if (!writes.empty()) {
-	//     auto direct_registry = DZ_RGY.get();
+	//     auto direct_registry = get_direct_registry();
     //     // Call the Vulkan API function (mocked here)
     //     vkUpdateDescriptorSets(direct_registry->device,
     //                            static_cast<uint32_t>(writes.size()),
@@ -1450,7 +1450,7 @@ void shader_initialize(Shader* shader)
 
 void shader_create_resources(Shader* shader)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     auto& device = direct_registry->device;
 
     if (!CreateDescriptorSetLayouts(device, shader)) return;
@@ -1572,7 +1572,7 @@ void shader_init_module(Shader* shader, ShaderModule& shader_module)
 	create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	create_info.codeSize = 4 * shader_module.spirv_vec.size();
 	create_info.pCode = shader_module.spirv_vec.data();
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     vkCreateShaderModule(direct_registry->device, &create_info, 0, &shader_module.vk_module);
 }
 
@@ -1635,7 +1635,7 @@ const std::map<std::pair<VkImageLayout, VkImageLayout>, TransitionInfo> kLayoutT
 
 void transition_image_layout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
 {
-    auto device = DZ_RGY.get()->device;
+    auto device = get_direct_registry()->device;
     auto command_buffer = begin_single_time_commands();
 
     VkImageMemoryBarrier barrier{};
@@ -1704,7 +1704,7 @@ void shader_ensure_image_layouts(Shader* shader)
 void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout)
 {
     shader_ensure_image_layouts(shader);
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(direct_registry->computeCommandBuffer, &beginInfo);
@@ -1745,7 +1745,7 @@ void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout)
 
 void shader_compile(Shader* shader)
 {
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     auto device = direct_registry->device;
 
     // --- Create Pipeline Layout ---
@@ -1941,7 +1941,7 @@ void shader_bind(Shader* shader)
         std::cerr << "Error: Attempted to bind a null graphics pipeline." << std::endl;
         return;
     }
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     vkCmdBindPipeline(
         *direct_registry->commandBuffer,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -1951,7 +1951,7 @@ void shader_bind(Shader* shader)
 
 void renderer_render(Renderer* renderer)
 {
-    auto direct_registry = DZ_RGY.get();
+    auto direct_registry = get_direct_registry();
     pre_begin_render_pass(renderer);
     begin_render_pass(renderer);
     auto& window = *renderer->window;
@@ -1980,7 +1980,7 @@ void renderer_render(Renderer* renderer)
 
 void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
 	auto drawsSize = commands.size();
 	auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
     auto buffer_hash = drawBufferSize ^ size_t(shader) << 2;
@@ -2082,19 +2082,23 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 
 void shader_destroy(Shader* shader)
 {
-	auto direct_registry = DZ_RGY.get();
+	auto direct_registry = get_direct_registry();
     auto& device = direct_registry->device;
     for (auto& pair : shader->descriptor_set_layouts)
     {
         vkDestroyDescriptorSetLayout(device, pair.second, 0);
     }
-    vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
+    if (shader->descriptor_pool != VK_NULL_HANDLE)
+        vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
     for (auto& modulePair : shader->module_map)
     {
         auto& module = modulePair.second;
         vkDestroyShaderModule(device, module.vk_module, 0);
     }
-    vkDestroyRenderPass(device, shader->render_pass, 0);
-    vkDestroyPipeline(device, shader->graphics_pipeline, 0);
-    vkDestroyPipelineLayout(device, shader->pipeline_layout, 0);
+    if (shader->render_pass != VK_NULL_HANDLE)
+        vkDestroyRenderPass(device, shader->render_pass, 0);
+    if (shader->graphics_pipeline != VK_NULL_HANDLE)
+        vkDestroyPipeline(device, shader->graphics_pipeline, 0);
+    if (shader->pipeline_layout != VK_NULL_HANDLE)
+        vkDestroyPipelineLayout(device, shader->pipeline_layout, 0);
 }
