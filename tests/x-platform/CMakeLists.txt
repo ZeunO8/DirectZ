@@ -5,8 +5,6 @@ project(dz-x-platform VERSION 1.0.0)
 set(LIB_NAME x-platform)
 
 add_library(${LIB_NAME} SHARED src/app-lib.cpp)
-add_fpic_flag(${LIB_NAME})
-target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)
 
 find_package(DirectZ REQUIRED)
 
