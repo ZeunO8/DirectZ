@@ -40,19 +40,27 @@ cmake_minimum_required(VERSION 3.2.1...4.8.8) # use a version range
 
 project(dz-x-platform VERSION 1.0.0)
 
-add_library(lib-${PROJECT_NAME} SHARED src/app-lib.cpp)
+set(LIB_NAME x-platform)
+
+add_library(${LIB_NAME} SHARED src/app-lib.cpp)
 
 find_package(DirectZ REQUIRED)
 
-target_link_libraries(lib-${PROJECT_NAME} PRIVATE ${DirectZ_LIBRARIES})
-target_include_directories(lib-${PROJECT_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})
+message(STATUS "DirectZ_LIBRARIES: ${DirectZ_LIBRARIES}")
+message(STATUS "DirectZ_INCLUDE_DIRS: ${DirectZ_INCLUDE_DIRS}")
+
+target_include_directories(${LIB_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})
+target_link_libraries(${LIB_NAME} PRIVATE ${DirectZ_LIBRARIES})
 
 if((WIN32 OR UNIX) AND NOT IOS AND NOT ANDROID)
     add_executable(${PROJECT_NAME} src/runtime.cpp)
-    target_link_libraries(${PROJECT_NAME} PRIVATE lib-${PROJECT_NAME})
+    target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIB_NAME})
 elseif(ANDROID OR IOS)
-    # we can link lib-${PROJECT_NAME} in an app loader and call native code
+    # we can link ${LIB_NAME} in an app loader and call native code
 endif()
+
 ```
 
 **src/app-lib.cpp**
@@ -61,18 +69,30 @@ endif()
 #include <DirectZ.hpp>
 
 WINDOW* cached_window = 0;
-int dz_init(WINDOW* window)
+
+DZ_EXPORT int init(const WindowCreateInfo& window_info)
 {
-    cached_window = window;
+    cached_window = window_create(window_info);
     Shader* compute_shader = shader_create();
     Shader* raster_shader = shader_create();
 
     // See "Shaders" section for information on creating shaders
+    return 0;
 }
 
-void dz_update()
+DZ_EXPORT bool poll_events()
+{
+    return window_poll_events(cached_window);
+}
+
+DZ_EXPORT void update()
 {
     // Do any CPU side logic
+}
+
+DZ_EXPORT void render()
+{
+    window_render(cached_window);
 }
 ```
 
@@ -81,28 +101,27 @@ void dz_update()
 #include <DirectZ.hpp>
 int main()
 {
-    set_direct_registry(make_direct_registry());
-    auto window = window_create({
+    int ret = 0;
+
+    // call app-lib implementation of init
+    if ((ret = init({
         .title = "Example Window",
         .x = 128,
         .y = 128,
         .width = 640,
         .height = 480
-    });
-
-    int ret = 0;
-
-    // call app-lib implementation of dz_init
-    if ((ret = dz_init(window)))
+    })))
         return ret;
-    while (window_poll_events(window))
+
+    //
+    while (poll_events())
     {
-        // update and render
-        dz_update();
-        window_render(window);
+        update();
+        render();
     }
     return ret;
 }
+
 ```
 
 ##### Buffer Groups
