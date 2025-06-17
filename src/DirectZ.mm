@@ -91,9 +91,12 @@ namespace dz
     {
         auto dr = std::shared_ptr<DirectRegistry>(new DirectRegistry, [](DirectRegistry* dr) {
             dr->buffer_groups.clear();
-	        vkDestroyCommandPool(dr->device, dr->commandPool, 0);
-	        vkDestroyRenderPass(dr->device, dr->surfaceRenderPass, 0);
-	        vkDestroyDevice(dr->device, 0);
+            if (dr->device)
+            {
+                vkDestroyCommandPool(dr->device, dr->commandPool, 0);
+                vkDestroyRenderPass(dr->device, dr->surfaceRenderPass, 0);
+                vkDestroyDevice(dr->device, 0);
+            }
             delete dr;
         });
         auto direct_registry = dr.get();
@@ -110,6 +113,8 @@ namespace dz
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
+    #include "FileHandle.cpp"
+    #include "AssetPack.cpp"
     #include "Window.mm"
     #include "Renderer.cpp"
     #include "Image.cpp"

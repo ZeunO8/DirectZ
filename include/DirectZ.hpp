@@ -8,6 +8,12 @@
 #include <dz/Window.hpp>
 #include <dz/DrawListManager.hpp>
 #include <dz/math.hpp>
+#include <dz/FileHandle.hpp>
+#include <dz/internal/memory_stream.hpp>
+#include <dz/size_ptr.hpp>
+#include <dz/AssetPack.hpp>
+#include <dz/KeyValueStream.hpp>
+#include <dz/ProgramArgs.hpp>
 namespace dz
 {
     void set_env(const std::string& key, const std::string& value);

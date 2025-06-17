@@ -15,9 +15,12 @@ include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
 
 add_library(DirectZ src/DirectZ.mm)
+add_executable(dzp src/DZP.cpp)
+
 set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
 
-target_compile_features(DirectZ PRIVATE cxx_std_20) 
+target_compile_features(DirectZ PRIVATE cxx_std_20)
+target_compile_features(dzp PRIVATE cxx_std_20)
 
 find_package(Vulkan REQUIRED)
 
@@ -26,7 +29,12 @@ message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
 target_include_directories(DirectZ PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_include_directories(DirectZ PRIVATE include)
 
+target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS})
+target_include_directories(dzp PRIVATE include)
+
 target_link_libraries(DirectZ PRIVATE ${Vulkan_LIBRARIES})
+
+target_link_libraries(dzp PRIVATE DirectZ)
 
 include(FetchContent)
 
