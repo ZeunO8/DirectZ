@@ -1,15 +1,37 @@
+/**
+ * @file DrawListManager.hpp
+ * @brief Defines an interface and template manager for producing shader draw lists from buffer groups.
+ */
 #pragma once
 #include "DrawList.hpp"
 #include <functional>
 #include "Shader.hpp"
+
 namespace dz
 {
     struct Shader;
+
+    /**
+     * @brief Interface for draw list manager implementations.
+     */
     struct IDrawListManager
     {
-        ~IDrawListManager() = default;
+        virtual ~IDrawListManager() = default;
+
+        /**
+         * @brief Generates a ShaderDrawList using the provided buffer group.
+         * 
+         * @param buffer_group Pointer to a BufferGroup.
+         * @return A map of shaders to draw command lists.
+         */
         virtual ShaderDrawList genDrawList(BufferGroup* buffer_group) = 0;
     };
+
+    /**
+     * @brief Template draw list manager for producing draw commands from a struct buffer.
+     * 
+     * @tparam DrawT Struct type used for draw data.
+     */
     template<typename DrawT>
     struct DrawListManager : IDrawListManager
     {
@@ -18,17 +40,29 @@ namespace dz
         DrawTToVertexCountFunction fn_determineDrawTVertexCount;
         std::string draw_key;
     public:
+        /**
+         * @brief Constructs a DrawListManager with a draw key and logic function.
+         * 
+         * @param draw_key Buffer key to iterate over.
+         * @param fn_determineDrawTVertexCount Function that maps a DrawT instance to shader and vertex count.
+         */
         DrawListManager(const std::string& draw_key, const DrawTToVertexCountFunction& fn_determineDrawTVertexCount):
             fn_determineDrawTVertexCount(fn_determineDrawTVertexCount),
             draw_key(draw_key)
         {}
+
+        /**
+         * @brief Generates a ShaderDrawList by scanning elements in the buffer group.
+         * 
+         * @param buffer_group Pointer to a BufferGroup.
+         * @return A map from Shader* to lists of DrawIndirectCommand.
+         */
         ShaderDrawList genDrawList(BufferGroup* buffer_group) override
         {
             const size_t draw_elements = buffer_group_get_buffer_element_count(buffer_group, draw_key);
 
             ShaderDrawList shaderDrawList;
 
-            // Track running instance offset per shader
             std::unordered_map<Shader*, uint32_t> shader_instance_counter;
 
             for (size_t i = 0; i < draw_elements;)
@@ -37,7 +71,6 @@ namespace dz
                 auto& element = element_view.template as_struct<DrawT>();
                 auto [shader, vertexCount] = fn_determineDrawTVertexCount(buffer_group, element);
 
-                // Count how many contiguous elements share this shader and vertexCount
                 uint32_t run_start = static_cast<uint32_t>(i);
                 uint32_t instance_count = 1;
                 size_t j = i + 1;
@@ -57,7 +90,6 @@ namespace dz
                     j += 1;
                 }
 
-                // Add draw command to that shader's draw list
                 DrawIndirectCommand cmd;
                 cmd.vertexCount = vertexCount;
                 cmd.instanceCount = instance_count;

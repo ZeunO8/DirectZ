@@ -1,3 +1,7 @@
+/**
+ * @file KeyValueStream.hpp
+ * @brief Provides a templated key-value stream for binary serialization to file with in-place update and erase.
+ */
 #pragma once
 
 #include "FileHandle.hpp"
@@ -5,15 +9,27 @@
 
 namespace dz
 {
+    /**
+     * @brief A key-value binary stream writer/reader with support for serialization, deserialization, and deletion.
+     * @tparam KeyT Type of the key.
+     * @tparam ValueT Type of the value.
+     */
     template <typename KeyT, typename ValueT>
     class KeyValueStream {
     public:
+        /**
+         * @brief Represents metadata for a key-value entry in the file.
+         */
         struct HeaderEntry {
-            KeyT key;
-            uint64_t offset;
-            uint64_t size;
+            KeyT key;               /**< Key associated with the value. */
+            uint64_t offset;        /**< Offset from the header end to the value. */
+            uint64_t size;          /**< Size of the value data. */
         };
 
+        /**
+         * @brief Constructs a KeyValueStream with a reference to an existing file handle.
+         * @param file_handle The file handle to operate on.
+         */
         KeyValueStream(FileHandle& file_handle):
             file_handle(file_handle),
             m_append_stream_ptr(file_handle.open(std::ios::in | std::ios::out | std::ios::app | std::ios::binary)),
@@ -22,6 +38,11 @@ namespace dz
             readHeader();
         }
 
+        /**
+         * @brief Writes a key-value pair to the stream, replacing any existing value for the key.
+         * @param key The key to write.
+         * @param value The value to write.
+         */
         void write(const KeyT& key, const ValueT& value) {
             std::string buffer = serialize(value);
             auto it = m_keyToIndex.find(key);
@@ -48,6 +69,12 @@ namespace dz
             writeHeader();
         }
 
+        /**
+         * @brief Reads a value by key.
+         * @param key The key to look up.
+         * @param out Output parameter for the deserialized value.
+         * @return True if the value was found and read successfully, false otherwise.
+         */
         bool read(const KeyT& key, ValueT& out) {
             auto it = m_keyToIndex.find(key);
             if (it == m_keyToIndex.end()) return false;
@@ -71,6 +98,11 @@ namespace dz
             return true;
         }
 
+        /**
+         * @brief Removes a key-value pair from the stream.
+         * @param key The key to erase.
+         * @return True if erased successfully, false if the key did not exist.
+         */
         bool erase(const KeyT& key) {
             auto it = m_keyToIndex.find(key);
             if (it == m_keyToIndex.end()) return false;
@@ -105,12 +137,12 @@ namespace dz
         }
 
     private:
-        FileHandle& file_handle;
-        std::shared_ptr<std::iostream> m_append_stream_ptr;
-        std::iostream& m_append_stream;
-        std::vector<HeaderEntry> m_entries;
-        std::unordered_map<KeyT, uint64_t> m_keyToIndex;
-        size_t header_size = 0;
+        FileHandle& file_handle;                                     /**< Underlying file handle. */
+        std::shared_ptr<std::iostream> m_append_stream_ptr;          /**< Shared stream pointer for read/write. */
+        std::iostream& m_append_stream;                               /**< Reference to the stream. */
+        std::vector<HeaderEntry> m_entries;                           /**< Metadata for entries. */
+        std::unordered_map<KeyT, uint64_t> m_keyToIndex;             /**< Mapping of key to entry index. */
+        size_t header_size = 0;                                       /**< Size of the current header. */
 
         void readHeader() {
             m_append_stream.clear();
@@ -174,6 +206,11 @@ namespace dz
             header_size = wrote_bytes;
         }
 
+        /**
+         * @brief Serializes a value into a string buffer.
+         * @param val The value to serialize.
+         * @return Serialized byte buffer.
+         */
         std::string serialize(const ValueT& val) {
             if constexpr (std::is_same_v<ValueT, std::string>)
             {
@@ -209,49 +246,12 @@ namespace dz
             }
         }
 
-        KeyT deserialize_key(std::istream& stream, size_t read_bytes)
-        {
-            if constexpr (std::is_trivially_copyable_v<KeyT>)
-            {
-                KeyT key;
-                stream.read((char*)&key, sizeof(KeyT));
-                read_bytes += sizeof(KeyT);
-                return key;
-            }
-            else if constexpr (std::is_same_v<KeyT, std::string>)
-            {
-                KeyT str;
-                uint64_t size;
-                if (!vlen::read_u64(stream, size, read_bytes))
-                    return str;
-                str.resize(size);
-                stream.read(str.data(), size);
-                read_bytes += size;
-                return str;
-            }
-            else
-            {
-                throw std::runtime_error("Unsupported KeyT for deserialization");
-            }
-        }
-
-        void serialize_key(std::ostream& stream, const KeyT& key, size_t wrote_bytes)
-        {
-            if constexpr (std::is_trivially_copyable_v<KeyT>)
-            {
-                KeyT key;
-                stream.write((const char*)&key, sizeof(KeyT));
-                wrote_bytes += sizeof(KeyT);
-            }
-            else if constexpr (std::is_same_v<KeyT, std::string>)
-            {
-                auto size = key.size();
-                vlen::write_u64(stream, size, wrote_bytes);
-                stream.write(key.data(), size);
-                wrote_bytes += size;
-            }
-        }
-
+        /**
+         * @brief Deserializes a value from a byte buffer.
+         * @param size Size of the value.
+         * @param buf Byte buffer to read from.
+         * @return Deserialized value.
+         */
         ValueT deserialize(size_t size, const std::vector<char>& buf) {
             if constexpr (std::is_same_v<ValueT, std::string>)
             {
@@ -275,6 +275,61 @@ namespace dz
             else
             {
                 throw std::runtime_error("Unsupported deserialize type");
+            }
+        }
+
+        /**
+         * @brief Serializes a key to a stream.
+         * @param stream Output stream.
+         * @param key Key to serialize.
+         * @param wrote_bytes Byte counter updated during write.
+         */
+        void serialize_key(std::ostream& stream, const KeyT& key, size_t wrote_bytes)
+        {
+            if constexpr (std::is_trivially_copyable_v<KeyT>)
+            {
+                KeyT key;
+                stream.write((const char*)&key, sizeof(KeyT));
+                wrote_bytes += sizeof(KeyT);
+            }
+            else if constexpr (std::is_same_v<KeyT, std::string>)
+            {
+                auto size = key.size();
+                vlen::write_u64(stream, size, wrote_bytes);
+                stream.write(key.data(), size);
+                wrote_bytes += size;
+            }
+        }
+
+        /**
+         * @brief Deserializes a key from a stream.
+         * @param stream Stream to read from.
+         * @param read_bytes Byte counter updated during read.
+         * @return The deserialized key.
+         */
+        KeyT deserialize_key(std::istream& stream, size_t read_bytes)
+        {
+            if constexpr (std::is_trivially_copyable_v<KeyT>)
+            {
+                KeyT key;
+                stream.read((char*)&key, sizeof(KeyT));
+                read_bytes += sizeof(KeyT);
+                return key;
+            }
+            else if constexpr (std::is_same_v<KeyT, std::string>)
+            {
+                KeyT str;
+                uint64_t size;
+                if (!vlen::read_u64(stream, size, read_bytes))
+                    return str;
+                str.resize(size);
+                stream.read(str.data(), size);
+                read_bytes += size;
+                return str;
+            }
+            else
+            {
+                throw std::runtime_error("Unsupported KeyT for deserialization");
             }
         }
     };

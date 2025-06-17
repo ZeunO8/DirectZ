@@ -1,3 +1,7 @@
+/**
+ * @file ReflectedStructView.hpp
+ * @brief A reflected view of a buffer offset allowing access to struct members 
+ */
 #pragma once
 #include <string>
 namespace dz {
