@@ -30,6 +30,8 @@
 
 using namespace dz;
 
+inline static std::string DZ_GLSL_VERSION = "#version 450\n";
+
 /**
  * @brief Initializes the runtime environment.
  * 
