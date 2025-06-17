@@ -18,7 +18,7 @@ if((WIN32 OR UNIX) AND NOT IOS AND NOT ANDROID)
     add_executable(${PROJECT_NAME} src/runtime.cpp)
     target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
     target_include_directories(${PROJECT_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIB_NAME} dxgi)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIB_NAME})
     # note we don't link DirectZ here to avoid copies
 
     # This eliminates duplicates of the DirectZ registry
