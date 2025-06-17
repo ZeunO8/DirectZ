@@ -132,7 +132,7 @@ As we are now GPU driven, the core location of data for logic and rendering exis
 
 Buffer Groups allow us to group a set of buffers (known as SSBOs in glsl) and images such that their data can be shared between Shaders. 
 
-Before creating any shaders in `dz_init` *add*:
+Before creating any shaders in `init` *add*:
 
 ```cpp
 auto main_buffer_group = buffer_group_create("main_buffer_group");
@@ -157,7 +157,7 @@ Shaders *drive* DirectZ. You write your shader using `.glsl`, DirectZ uses `spir
 For our `raster_shader` we need two modules, Vertex and Fragment. Below is an implementation of a raster_shader that declares a Quad struct and the "Quads" Buffer
 
 ```cpp
-shader_add_module(render_shader, ShaderModuleType::Vertex,
+shader_add_module(raster_shader, ShaderModuleType::Vertex,
 DZ_GLSL_VERSION + R"(
 struct Quad {
     vec4 viewport;
@@ -202,8 +202,8 @@ void main() {
 }
 )");
 
-shader_add_module(render_shader, ShaderModuleType::Fragment,
-version + R"(
+shader_add_module(raster_shader, ShaderModuleType::Fragment,
+DZ_GLSL_VERSION + R"(
 layout(location = 0) out vec4 outColor;
 void main() {
     outColor = vec4(1, 0, 0, 1);
