@@ -1,5 +1,10 @@
 @PACKAGE_INIT@
 
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+    find_package(Threads REQUIRED)
+    find_package(GTKMM REQUIRED)
+endif()
+
 # Set variables pointing to install locations
 set_and_check(DirectZ_INCLUDE_DIRS "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
 set(DirectZ_LIBRARIES DirectZ::DirectZ)
