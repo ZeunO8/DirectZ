@@ -31,7 +31,9 @@ cmake --install build
 
 ##### Building apps with DirectZ
 
-To get setup with a cross platform compatible render context, create the following files: (note, this example is available at [/tests/x-platform](/tests/x-platform))
+To get setup with a cross platform compatible render context, create the following files.
+
+(**note**: this example is available in full at [/tests/x-platform](/tests/x-platform))
 
 **CMakeLists.txt**
 
@@ -43,6 +45,7 @@ project(dz-x-platform VERSION 1.0.0)
 set(LIB_NAME x-platform)
 
 add_library(${LIB_NAME} SHARED src/app-lib.cpp)
+target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)
 
 find_package(DirectZ REQUIRED)
 
@@ -60,7 +63,6 @@ if((WIN32 OR UNIX) AND NOT IOS AND NOT ANDROID)
 elseif(ANDROID OR IOS)
     # we can link ${LIB_NAME} in an app loader and call native code
 endif()
-
 ```
 
 **src/app-lib.cpp**
