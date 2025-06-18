@@ -19,6 +19,7 @@
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
 <link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -106,7 +107,7 @@ $(function(){initNavTree('index.html',''); initResizable(); });
 <h4><a class="anchor" id="autotoc_md1"></a>
 Getting hands on DirectZ</h4>
 <p>You can download a Release installer from the releases page or, if building from source, I recommend a clone and install</p>
-<div class="fragment"><div class="line">git clone https://github.com/Zeucor/DirectZ.git</div>
+<div class="fragment"><div class="line">git clone https://github.com/Zeucor/DirectZ.git --recurse-submodules</div>
 <div class="line">cd DirectZ</div>
 <div class="line">cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++</div>
 <div class="line">cmake --build build</div>
@@ -118,65 +119,90 @@ Getting hands on DirectZ</h4>
 <div class="line">cmake --install build</div>
 </div><!-- fragment --><h4><a class="anchor" id="autotoc_md2"></a>
 Building apps with DirectZ</h4>
-<p>To get setup with a cross platform compatible render context, create the following files: (note, this example is available at <a href="/tests/x-platform">/tests/x-platform</a>)</p>
+<p>To get setup with a cross platform compatible render context, create the following files.</p>
+<p>(<b>note</b>: this example is available in full at <a href="https://github.com/ZeunO8/DirectZ/tree/master/tests/x-platform">/tests/x-platform</a>)</p>
 <p><b>CMakeLists.txt</b></p>
 <div class="fragment"><div class="line">cmake_minimum_required(VERSION 3.2.1...4.8.8) # use a version range</div>
 <div class="line"> </div>
 <div class="line">project(dz-x-platform VERSION 1.0.0)</div>
 <div class="line"> </div>
-<div class="line">add_library(lib-${PROJECT_NAME} SHARED src/app-lib.cpp)</div>
+<div class="line">set(LIB_NAME x-platform)</div>
+<div class="line"> </div>
+<div class="line">add_library(${LIB_NAME} SHARED src/app-lib.cpp)</div>
+<div class="line">target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)</div>
 <div class="line"> </div>
 <div class="line">find_package(DirectZ REQUIRED)</div>
 <div class="line"> </div>
-<div class="line">target_link_libraries(lib-${PROJECT_NAME} PRIVATE ${DirectZ_LIBRARIES})</div>
-<div class="line">target_include_directories(lib-${PROJECT_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})</div>
+<div class="line">message(STATUS &quot;DirectZ_LIBRARIES: ${DirectZ_LIBRARIES}&quot;)</div>
+<div class="line">message(STATUS &quot;DirectZ_INCLUDE_DIRS: ${DirectZ_INCLUDE_DIRS}&quot;)</div>
+<div class="line"> </div>
+<div class="line">target_include_directories(${LIB_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})</div>
+<div class="line">target_link_libraries(${LIB_NAME} PRIVATE ${DirectZ_LIBRARIES})</div>
 <div class="line"> </div>
 <div class="line">if((WIN32 OR UNIX) AND NOT IOS AND NOT ANDROID)</div>
 <div class="line">    add_executable(${PROJECT_NAME} src/runtime.cpp)</div>
-<div class="line">    target_link_libraries(${PROJECT_NAME} PRIVATE lib-${PROJECT_NAME})</div>
+<div class="line">    target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)</div>
+<div class="line">    target_include_directories(${PROJECT_NAME} PRIVATE ${DirectZ_INCLUDE_DIRS})</div>
+<div class="line">    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIB_NAME})</div>
 <div class="line">elseif(ANDROID OR IOS)</div>
-<div class="line">    # we can link lib-${PROJECT_NAME} in an app loader and call native code</div>
+<div class="line">    # we can link ${LIB_NAME} in an app loader and call native code</div>
 <div class="line">endif()</div>
 </div><!-- fragment --><p><b>src/app-lib.cpp</b></p>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="_direct_z_8hpp.html">DirectZ.hpp</a>&gt;</span></div>
 <div class="line"> </div>
 <div class="line">WINDOW* cached_window = 0;</div>
-<div class="line"><span class="keywordtype">int</span> dz_init(WINDOW* window)</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">int</span> <a class="code hl_function" href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">init</a>(<span class="keyword">const</span> WindowCreateInfo&amp; window_info)</div>
 <div class="line">{</div>
-<div class="line">    cached_window = window;</div>
+<div class="line">    cached_window = window_create(window_info);</div>
 <div class="line">    Shader* compute_shader = shader_create();</div>
 <div class="line">    Shader* raster_shader = shader_create();</div>
 <div class="line"> </div>
 <div class="line">    <span class="comment">// See &quot;Shaders&quot; section for information on creating shaders</span></div>
+<div class="line">    <span class="keywordflow">return</span> 0;</div>
 <div class="line">}</div>
 <div class="line"> </div>
-<div class="line"><span class="keywordtype">void</span> dz_update()</div>
+<div class="line"><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">bool</span> <a class="code hl_function" href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a>()</div>
+<div class="line">{</div>
+<div class="line">    <span class="keywordflow">return</span> window_poll_events(cached_window);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">void</span> <a class="code hl_function" href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">update</a>()</div>
 <div class="line">{</div>
 <div class="line">    <span class="comment">// Do any CPU side logic</span></div>
 <div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_define" href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a> <span class="keywordtype">void</span> <a class="code hl_function" href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">render</a>()</div>
+<div class="line">{</div>
+<div class="line">    <a class="code hl_function" href="namespacedz.html#a8ea84db4acebb038cdf5a0a1404cf312">window_render</a>(cached_window);</div>
+<div class="line">}</div>
 <div class="ttc" id="a_direct_z_8hpp_html"><div class="ttname"><a href="_direct_z_8hpp.html">DirectZ.hpp</a></div><div class="ttdoc">Includes the headers required to get started with a DirectZ instance, developers should include this ...</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_a7098dd6b61e32cf292cfb419467ea713"><div class="ttname"><a href="_direct_z_8hpp.html#a7098dd6b61e32cf292cfb419467ea713">DZ_EXPORT</a></div><div class="ttdeci">#define DZ_EXPORT</div><div class="ttdef"><b>Definition</b> DirectZ.hpp:28</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_a82c7b80bbdbda5afec4477bda7f6bcb7"><div class="ttname"><a href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a></div><div class="ttdeci">DZ_EXPORT bool poll_events()</div><div class="ttdoc">Polls for runtime events.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_aa4218317b90536af90e642661b5fe878"><div class="ttname"><a href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">init</a></div><div class="ttdeci">DZ_EXPORT int init(const WindowCreateInfo &amp;window_info)</div><div class="ttdoc">Initializes the runtime environment.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_ae14d864e152386451db5e2f0d8d881da"><div class="ttname"><a href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">render</a></div><div class="ttdeci">DZ_EXPORT void render()</div><div class="ttdoc">Renders the current frame.</div></div>
+<div class="ttc" id="a_direct_z_8hpp_html_ae8883745e028f2aae610cf4509b1f6a5"><div class="ttname"><a href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">update</a></div><div class="ttdeci">DZ_EXPORT void update()</div><div class="ttdoc">Performs per-frame logic before rendering.</div></div>
+<div class="ttc" id="anamespacedz_html_a8ea84db4acebb038cdf5a0a1404cf312"><div class="ttname"><a href="namespacedz.html#a8ea84db4acebb038cdf5a0a1404cf312">dz::window_render</a></div><div class="ttdeci">void window_render(WINDOW *window)</div><div class="ttdoc">Renders the specified window based on its context configuration.</div></div>
 </div><!-- fragment --><p><b>src/runtime.cpp</b> </p><div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="_direct_z_8hpp.html">DirectZ.hpp</a>&gt;</span></div>
 <div class="line"><span class="keywordtype">int</span> main()</div>
 <div class="line">{</div>
-<div class="line">    set_direct_registry(make_direct_registry());</div>
-<div class="line">    <span class="keyword">auto</span> window = window_create({</div>
+<div class="line">    <span class="keywordtype">int</span> ret = 0;</div>
+<div class="line"> </div>
+<div class="line">    <span class="comment">// call app-lib implementation of init</span></div>
+<div class="line">    <span class="keywordflow">if</span> ((ret = <a class="code hl_function" href="_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878">init</a>({</div>
 <div class="line">        .title = <span class="stringliteral">&quot;Example Window&quot;</span>,</div>
 <div class="line">        .x = 128,</div>
 <div class="line">        .y = 128,</div>
 <div class="line">        .width = 640,</div>
 <div class="line">        .height = 480</div>
-<div class="line">    });</div>
-<div class="line"> </div>
-<div class="line">    <span class="keywordtype">int</span> ret = 0;</div>
-<div class="line"> </div>
-<div class="line">    <span class="comment">// call app-lib implementation of dz_init</span></div>
-<div class="line">    <span class="keywordflow">if</span> ((ret = dz_init(window)))</div>
+<div class="line">    })))</div>
 <div class="line">        <span class="keywordflow">return</span> ret;</div>
-<div class="line">    <span class="keywordflow">while</span> (window_poll_events(window))</div>
+<div class="line"> </div>
+<div class="line">    <span class="comment">//</span></div>
+<div class="line">    <span class="keywordflow">while</span> (<a class="code hl_function" href="_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7">poll_events</a>())</div>
 <div class="line">    {</div>
-<div class="line">        <span class="comment">// update and render</span></div>
-<div class="line">        dz_update();</div>
-<div class="line">        window_render(window);</div>
+<div class="line">        <a class="code hl_function" href="_direct_z_8hpp.html#ae8883745e028f2aae610cf4509b1f6a5">update</a>();</div>
+<div class="line">        <a class="code hl_function" href="_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da">render</a>();</div>
 <div class="line">    }</div>
 <div class="line">    <span class="keywordflow">return</span> ret;</div>
 <div class="line">}</div>
@@ -185,7 +211,7 @@ Buffer Groups</h4>
 <p>Before we get into Shaders, we must touch on Buffer Groups.</p>
 <p>As we are now GPU driven, the core location of data for logic and rendering exists on the GPU.</p>
 <p>Buffer Groups allow us to group a set of buffers (known as SSBOs in glsl) and images such that their data can be shared between Shaders.</p>
-<p>Before creating any shaders in <code>dz_init</code> <em>add</em>:</p>
+<p>Before creating any shaders in <code>init</code> <em>add</em>:</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> main_buffer_group = buffer_group_create(<span class="stringliteral">&quot;main_buffer_group&quot;</span>);</div>
 </div><!-- fragment --><p>If using multiple buffer groups (you would when sharing specific portions of data with specific shaders) you should resetrict to specific keys in the shader.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> main_buffer_group = buffer_group_create(<span class="stringliteral">&quot;main_buffer_group&quot;</span>);</div>
@@ -198,7 +224,7 @@ Shaders</h4>
 <p>Shaders <em>drive</em> DirectZ. You write your shader using <code>.glsl</code>, DirectZ uses <code>spirv_reflect</code> to reflect the inputs/outputs, SSBOs, images back to DirectZ such that you can interface with the Shader as if it were mapped to your program.</p>
 <h5>Writing a raster pipeline</h5>
 <p>For our <code>raster_shader</code> we need two modules, Vertex and Fragment. Below is an implementation of a raster_shader that declares a Quad struct and the "Quads" Buffer</p>
-<div class="fragment"><div class="line">shader_add_module(render_shader, ShaderModuleType::Vertex,</div>
+<div class="fragment"><div class="line">shader_add_module(raster_shader, ShaderModuleType::Vertex,</div>
 <div class="line">DZ_GLSL_VERSION + R<span class="stringliteral">&quot;(</span></div>
 <div class="line"><span class="stringliteral">struct Quad {</span></div>
 <div class="line"><span class="stringliteral">    vec4 viewport;</span></div>
@@ -243,8 +269,8 @@ Shaders</h4>
 <div class="line"><span class="stringliteral">}</span></div>
 <div class="line"><span class="stringliteral">)&quot;);</span></div>
 <div class="line"><span class="stringliteral"></span> </div>
-<div class="line"><span class="stringliteral">shader_add_module(render_shader, ShaderModuleType::Fragment,</span></div>
-<div class="line"><span class="stringliteral">version + R</span><span class="stringliteral">&quot;(</span></div>
+<div class="line"><span class="stringliteral">shader_add_module(raster_shader, ShaderModuleType::Fragment,</span></div>
+<div class="line"><span class="stringliteral">DZ_GLSL_VERSION + R</span><span class="stringliteral">&quot;(</span></div>
 <div class="line"><span class="stringliteral">layout(location = 0) out vec4 outColor;</span></div>
 <div class="line"><span class="stringliteral">void main() {</span></div>
 <div class="line"><span class="stringliteral">    outColor = vec4(1, 0, 0, 1);</span></div>
