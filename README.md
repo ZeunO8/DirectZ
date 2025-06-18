@@ -17,7 +17,7 @@ DirectZ provides:
 You can download a Release installer from the releases page or, if building from source, I recommend a clone and install
 
 ```bash
-git clone https://github.com/Zeucor/DirectZ.git
+git clone https://github.com/Zeucor/DirectZ.git --recurse-submodules
 cd DirectZ
 cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++
 cmake --build build
@@ -33,7 +33,7 @@ cmake --install build
 
 To get setup with a cross platform compatible render context, create the following files.
 
-(**note**: this example is available in full at [/tests/x-platform](/tests/x-platform))
+(**note**: this example is available in full at [/tests/x-platform](https://github.com/ZeunO8/DirectZ/tree/master/tests/x-platform))
 
 **CMakeLists.txt**
 
