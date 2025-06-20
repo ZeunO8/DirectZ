@@ -59,7 +59,7 @@ namespace dz
 
             uint64_t offset = static_cast<uint64_t>(pos) - header_size;
             size_t wrote_bytes = 0;
-            vlen::write_u64(m_append_stream, buffer.size(), wrote_bytes);
+            vlen::write_u64(m_append_stream, buffer.size() + sizeof(uint64_t), wrote_bytes);
             m_append_stream.write(buffer.data(), buffer.size());
             wrote_bytes += buffer.size();
 
@@ -87,12 +87,11 @@ namespace dz
             uint64_t size = 0;
             if (!vlen::read_u64(m_append_stream, size, read_bytes))
                 return false;
-            if (size != (entry.size - read_bytes)) return false;
+            if (size != entry.size) return false;
 
             std::vector<char> buf(size);
             m_append_stream.read(buf.data(), size);
             read_bytes += size;
-            if (m_append_stream.gcount() != static_cast<std::streamsize>(size)) return false;
 
             out = deserialize(size, buf);
             return true;
@@ -262,7 +261,7 @@ namespace dz
             }
             else if constexpr (std::is_same_v<ValueT, Asset>)
             {
-                ValueT asset(new int8_t(), size);
+                ValueT asset((char*)malloc(size), size, &default_free_deleter::call);
                 memcpy(asset.ptr, buf.data(), size);
                 return asset;
             }
@@ -284,7 +283,7 @@ namespace dz
          * @param key Key to serialize.
          * @param wrote_bytes Byte counter updated during write.
          */
-        void serialize_key(std::ostream& stream, const KeyT& key, size_t wrote_bytes)
+        void serialize_key(std::ostream& stream, const KeyT& key, size_t& wrote_bytes)
         {
             if constexpr (std::is_trivially_copyable_v<KeyT>)
             {
@@ -307,7 +306,7 @@ namespace dz
          * @param read_bytes Byte counter updated during read.
          * @return The deserialized key.
          */
-        KeyT deserialize_key(std::istream& stream, size_t read_bytes)
+        KeyT deserialize_key(std::istream& stream, size_t& read_bytes)
         {
             if constexpr (std::is_trivially_copyable_v<KeyT>)
             {

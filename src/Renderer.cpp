@@ -24,6 +24,8 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
     // PFN_vkCreateDebugUtilsMessengerEXT _vkCreateDebugUtilsMessengerEXT;
+	void destroy_surface();
+	void cleanup_swapchain();
 };
 constexpr int MAX_FRAMES_IN_FLIGHT = 4;
 struct QueueFamilyIndices
@@ -48,24 +50,19 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 );
 void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 #endif
-void create_surface(Renderer* renderer);
-
 VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer);
 void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer);
 uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
 bool is_device_suitable(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
 QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
 void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer);
-bool create_swap_chain(Renderer* renderer);
 SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device);
 VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<VkPresentModeKHR>& availablePresentModes);
 VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities);
 void ensure_command_pool(Renderer* renderer);
 void ensure_command_buffers(Renderer* renderer);
-void create_image_views(Renderer* renderer);
 void ensure_render_pass(Renderer* renderer);
-void create_framebuffers(Renderer* renderer);
 void create_sync_objects(Renderer* renderer);
 bool vk_check(const char* fn, VkResult result);
 void pre_begin_render_pass(Renderer* renderer);
@@ -235,7 +232,11 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "DirectZ";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_2;
+#ifdef __ANDROID__
+	appInfo.apiVersion = VK_API_VERSION_1_1;
+#else
+	appInfo.apiVersion = VK_API_VERSION_1_2;
+#endif
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -290,7 +291,9 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 #endif
 
 #ifndef NDEBUG
+#ifndef __ANDROID__
     extensions.push_back("VK_EXT_debug_utils");
+#endif
 #endif
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -298,7 +301,8 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     std::vector<const char*> layers;
-#if !defined(NDEBUG)
+#ifndef NDEBUG
+#ifndef __ANDROID__
     if (check_validation_layers_support())
     {
         layers.push_back("VK_LAYER_KHRONOS_validation");
@@ -312,6 +316,7 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
         std::cout << "Validation layers requested, but not available" << std::endl;
         createInfo.enabledLayerCount = 0;
     }
+#endif
 #endif
 
     auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &direct_registry->instance);
@@ -338,7 +343,7 @@ void create_surface(Renderer* renderer)
     auto& window = *renderer->window;
 	auto& dr = *window.registry;
 	auto& windowType = dr.windowType;
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 	VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
 	surfaceCreateInfo.connection = window.connection;
@@ -346,6 +351,11 @@ void create_surface(Renderer* renderer)
 	vk_check("vkCreateXcbSurfaceKHR",
 		vkCreateXcbSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(ANDROID)
+	VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{};
+	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+	surfaceCreateInfo.window = window.android_window;
+	vk_check("vkCreateAndroidSurfaceKHR",
+		vkCreateAndroidSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(_WIN32)
 	VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
 	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -360,6 +370,38 @@ void create_surface(Renderer* renderer)
     vk_check("vkCreateMacOSSurfaceMVK",
 		vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
+}
+
+void Renderer::destroy_surface()
+{
+	auto& dr = *get_direct_registry();
+    vkDeviceWaitIdle(dr.device);
+    if (surface != VK_NULL_HANDLE)
+    {
+        vkDestroySurfaceKHR(dr.instance, surface, nullptr);
+        surface = VK_NULL_HANDLE;
+    }
+	cleanup_swapchain();
+}
+
+void Renderer::cleanup_swapchain()
+{
+	auto& dr = *get_direct_registry();
+	for (auto framebuffer : swapChainFramebuffers)
+	{
+		vkDestroyFramebuffer(dr.device, framebuffer, 0);
+	}
+	swapChainFramebuffers.clear();
+	for (auto imageView : swapChainImageViews)
+	{
+		vkDestroyImageView(dr.device, imageView, 0);
+	}
+	swapChainImageViews.clear();
+	if (swapChain)
+	{
+		vkDestroySwapchainKHR(dr.device, swapChain, 0);
+		swapChain = 0;
+	}
 }
 
 VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer)
@@ -490,107 +532,103 @@ QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer
 
 void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer)
 {
-	if (direct_registry->device)
-		return;
-	QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
-	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-	std::vector<int32_t> uniqueQueueFamilies({indices.graphicsAndComputeFamily, indices.presentFamily});
-	float queuePriority = 1;
-	int32_t index = 0;
-	for (auto& queueFamily : uniqueQueueFamilies)
-	{
-		VkDeviceQueueCreateInfo queueCreateInfo{};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = queueFamily;
-		queueCreateInfo.queueCount = 1;
-		queueCreateInfo.pQueuePriorities = &queuePriority;
-		queueCreateInfos.push_back(queueCreateInfo);
-		if (index == 0 && queueFamily == uniqueQueueFamilies[1])
-		{
-			break;
-		}
-		continue;
-	}
-	VkDeviceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = queueCreateInfos.size();
-	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-	std::vector<const char*> extensions;
-	// check extensions
-	uint32_t extensionCount = 0;
-	// Query number of available extensions
-	vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, 0, &extensionCount, 0));
-	std::vector<VkExtensionProperties> deviceExtensions(extensionCount);
-	vk_check("vkEnumerateDeviceExtensionProperties",
-		vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, 0, &extensionCount, deviceExtensions.data()));
-	for (const auto& ext : deviceExtensions)
-	{
-		if (strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0)
-		{
-			extensions.push_back("VK_KHR_portability_subset");
-		}
-	}
-	extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-	extensions.push_back("VK_KHR_maintenance1");
-	extensions.push_back("VK_KHR_swapchain");
-	// extensions[2] = VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME;
-	// extensions[3] = VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME;
-	// extensions[4] = VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME;
-	createInfo.enabledExtensionCount = extensions.size();
-	createInfo.ppEnabledExtensionNames = extensions.data();
-	createInfo.enabledLayerCount = 0;
-	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
-	descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-	descriptorIndexingFeatures.pNext = 0;
-	// descriptorIndexingFeatures.robustBufferAccessUpdateAfterBind = VK_FALSE;
-	descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_FALSE;
-	descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind = VK_FALSE;
-	descriptorIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_FALSE;
-	descriptorIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_FALSE;
-	// assert(descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing);
-	// assert(descriptorIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind);
-	// assert(descriptorIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing);
-	// #ifndef MACOS
-	// 	assert(descriptorIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind);
-	// #endif
-	// 	assert(descriptorIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing);
-	// 	assert(descriptorIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind);
-	VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeatures_query = {};
-	shaderDrawParamsFeatures_query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-	shaderDrawParamsFeatures_query.shaderDrawParameters = VK_TRUE;
+    if (direct_registry->device)
+        return;
+
+    QueueFamilyIndices indices = find_queue_families(direct_registry, renderer, direct_registry->physicalDevice);
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    std::vector<int32_t> uniqueQueueFamilies({indices.graphicsAndComputeFamily, indices.presentFamily});
+    float queuePriority = 1.0f;
+    std::unordered_set<int32_t> seen;
+    for (auto& queueFamily : uniqueQueueFamilies)
+    {
+        if (seen.insert(queueFamily).second)
+        {
+            VkDeviceQueueCreateInfo queueCreateInfo{};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueCount = 1;
+            queueCreateInfo.pQueuePriorities = &queuePriority;
+            queueCreateInfos.push_back(queueCreateInfo);
+        }
+    }
+
+    std::vector<const char*> extensions;
+    uint32_t extensionCount = 0;
+    vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, nullptr, &extensionCount, nullptr));
+    std::vector<VkExtensionProperties> deviceExtensions(extensionCount);
+    vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(direct_registry->physicalDevice, nullptr, &extensionCount, deviceExtensions.data()));
+
+    auto is_supported = [&](const char* name) {
+        return std::any_of(deviceExtensions.begin(), deviceExtensions.end(), [&](const VkExtensionProperties& p) {
+            return strcmp(p.extensionName, name) == 0;
+        });
+    };
+
+    if (is_supported("VK_KHR_portability_subset"))
+        extensions.push_back("VK_KHR_portability_subset");
+    if (is_supported(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+        extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    if (is_supported("VK_KHR_maintenance1"))
+        extensions.push_back("VK_KHR_maintenance1");
+    if (is_supported("VK_KHR_swapchain"))
+        extensions.push_back("VK_KHR_swapchain");
+
+    VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeatures_query{};
+    shaderDrawParamsFeatures_query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
+
+#ifndef __ANDROID__
     VkPhysicalDeviceVulkan12Features vulkan12Features{};
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-	vulkan12Features.pNext = &shaderDrawParamsFeatures_query;
-	// vulkan12Features.pNext = &descriptorIndexingFeatures;
-    vulkan12Features.drawIndirectCount = VK_TRUE;
-	vulkan12Features.descriptorBindingVariableDescriptorCount = VK_FALSE;
-	vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_FALSE;
-	vulkan12Features.descriptorBindingPartiallyBound = VK_FALSE;
-	vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_FALSE;
-	vulkan12Features.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_FALSE;
-	vulkan12Features.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_FALSE;
-	VkPhysicalDeviceFeatures2 deviceFeatures{};
-	deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-	deviceFeatures.pNext = &vulkan12Features;
-	vkGetPhysicalDeviceFeatures2(direct_registry->physicalDevice, &deviceFeatures);
-	deviceFeatures.features.sampleRateShading = VK_TRUE;
-	deviceFeatures.features.depthClamp = VK_TRUE;
-	deviceFeatures.features.depthBiasClamp = VK_TRUE;
-	deviceFeatures.features.samplerAnisotropy = VK_TRUE;
-	deviceFeatures.features.robustBufferAccess = VK_FALSE;
-	deviceFeatures.features.multiDrawIndirect = VK_TRUE;
-	deviceFeatures.features.drawIndirectFirstInstance = VK_TRUE;
-	createInfo.pNext = &deviceFeatures;
-	auto createdDevice = vk_check("vkCreateDevice", vkCreateDevice(direct_registry->physicalDevice, &createInfo, 0, &direct_registry->device));
-	if (!createdDevice)
-	{
-		throw std::runtime_error("VulkanRenderer-createLogicalDevice: failed to create device");
-	}
-	vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->graphicsQueue);
-	vkGetDeviceQueue(direct_registry->device, indices.presentFamily, 0, &direct_registry->presentQueue);
-	vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->computeQueue);
-	return;
+    vulkan12Features.pNext = &shaderDrawParamsFeatures_query;
+#else
+    void* pNextFeatureChain = &shaderDrawParamsFeatures_query;
+#endif
+
+    VkPhysicalDeviceFeatures2 supportedFeatures{};
+    supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+#ifndef __ANDROID__
+    supportedFeatures.pNext = &vulkan12Features;
+#else
+    supportedFeatures.pNext = pNextFeatureChain;
+#endif
+
+    vkGetPhysicalDeviceFeatures2(direct_registry->physicalDevice, &supportedFeatures);
+
+    // Prepare desired features but only enable if supported
+    shaderDrawParamsFeatures_query.shaderDrawParameters = shaderDrawParamsFeatures_query.shaderDrawParameters ? VK_TRUE : VK_FALSE;
+#ifndef __ANDROID__
+    vulkan12Features.drawIndirectCount = vulkan12Features.drawIndirectCount ? VK_TRUE : VK_FALSE;
+    vulkan12Features.descriptorBindingVariableDescriptorCount = VK_FALSE;
+    vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_FALSE;
+    vulkan12Features.descriptorBindingPartiallyBound = VK_FALSE;
+    vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_FALSE;
+    vulkan12Features.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_FALSE;
+    vulkan12Features.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_FALSE;
+#endif
+
+    supportedFeatures.features.sampleRateShading = supportedFeatures.features.sampleRateShading ? VK_TRUE : VK_FALSE;
+    supportedFeatures.features.depthClamp = supportedFeatures.features.depthClamp ? VK_TRUE : VK_FALSE;
+    supportedFeatures.features.depthBiasClamp = supportedFeatures.features.depthBiasClamp ? VK_TRUE : VK_FALSE;
+    supportedFeatures.features.samplerAnisotropy = supportedFeatures.features.samplerAnisotropy ? VK_TRUE : VK_FALSE;
+    supportedFeatures.features.robustBufferAccess = VK_FALSE;
+    supportedFeatures.features.multiDrawIndirect = supportedFeatures.features.multiDrawIndirect ? VK_TRUE : VK_FALSE;
+    supportedFeatures.features.drawIndirectFirstInstance = supportedFeatures.features.drawIndirectFirstInstance ? VK_TRUE : VK_FALSE;
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    createInfo.ppEnabledExtensionNames = extensions.data();
+    createInfo.enabledLayerCount = 0;
+    createInfo.pNext = &supportedFeatures;
+
+    vk_check("vkCreateDevice", vkCreateDevice(direct_registry->physicalDevice, &createInfo, nullptr, &direct_registry->device));
+
+    vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->graphicsQueue);
+    vkGetDeviceQueue(direct_registry->device, indices.presentFamily, 0, &direct_registry->presentQueue);
+    vkGetDeviceQueue(direct_registry->device, indices.graphicsAndComputeFamily, 0, &direct_registry->computeQueue);
 }
 
 bool create_swap_chain(Renderer* renderer)
@@ -794,8 +832,12 @@ void ensure_render_pass(Renderer* renderer)
 	auto direct_registry = get_direct_registry();
 	if (direct_registry->surfaceRenderPass != VK_NULL_HANDLE)
 		return;
+#if defined(__ANDROID__)
+	VkAttachmentDescription colorAttachment{};
+#else
 	VkAttachmentDescription2 colorAttachment{};
 	colorAttachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
+#endif
 	colorAttachment.format = direct_registry->firstSurfaceFormat.format;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;//maxMSAASamples;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -804,33 +846,54 @@ void ensure_render_pass(Renderer* renderer)
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+#if defined(__ANDROID__)
+	VkAttachmentReference colorAttachmentRef{};
+#else
 	VkAttachmentReference2 colorAttachmentRef{};
 	colorAttachmentRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+#endif
 	colorAttachmentRef.attachment = 0;
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+#if defined(__ANDROID__)
+	VkSubpassDescription subpass{};
+#else
 	VkSubpassDescription2 subpass{};
 	subpass.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
+#endif
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
+#if defined(__ANDROID__)
+	VkSubpassDependency dependency{};
+#else
 	VkSubpassDependency2 dependency{};
 	dependency.sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
+#endif
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
 	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependency.srcAccessMask = 0;
 	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+#if defined(__ANDROID__)
+	std::array<VkAttachmentDescription, 1> attachments = {colorAttachment};
+	VkRenderPassCreateInfo renderPassInfo{};
+#else
 	std::array<VkAttachmentDescription2, 1> attachments = {colorAttachment};
 	VkRenderPassCreateInfo2 renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
+#endif
 	renderPassInfo.attachmentCount = attachments.size();
 	renderPassInfo.pAttachments = attachments.data();
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
+#if defined(__ANDROID__)
+	vk_check("vkCreateRenderPass", vkCreateRenderPass(direct_registry->device, &renderPassInfo, 0, &direct_registry->surfaceRenderPass));
+#else
 	vk_check("vkCreateRenderPass2", vkCreateRenderPass2(direct_registry->device, &renderPassInfo, 0, &direct_registry->surfaceRenderPass));
+#endif
 	return;
 }
 

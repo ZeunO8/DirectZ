@@ -3,3 +3,11 @@
 build-release
 build-debug
 build
+build-android
+android/commit.h
+.idea
+.gradle
+.cxx
+pack.bin
+gradle-wrapper.jar
+gradle-wrapper.properties

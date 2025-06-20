@@ -1,3 +1,9 @@
+@interface WINDOWDelegate : NSObject <NSWindowDelegate>
+{
+    dz::WINDOW* window_ptr;
+}
+- (instancetype)initWithWindow:(WINDOW*)window;
+@end
 @implementation WINDOWDelegate
 - (instancetype)initWithWindow:(WINDOW*)window
 {

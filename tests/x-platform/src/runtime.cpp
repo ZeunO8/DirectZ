@@ -1,17 +1,17 @@
 #include <DirectZ.hpp>
 int main()
 {
-    int ret = 0;
+    EventInterface* ei = 0;
 
     // call app-lib implementation of init
-    if ((ret = init({
+    if (!(ei = init({
         .title = "Example Window",
         .x = 128,
         .y = 128,
         .width = 640,
         .height = 480
     })))
-        return ret;
+        return 1;
 
     //
     while (poll_events())
@@ -19,5 +19,5 @@ int main()
         update();
         render();
     }
-    return ret;
+    return 0;
 }

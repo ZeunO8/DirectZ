@@ -4,6 +4,8 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     find_package(Threads REQUIRED)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-3.0)
+elseif(ANDROID)
+    find_package(Threads REQUIRED)
 endif()
 
 # Set variables pointing to install locations
@@ -15,15 +17,103 @@ include("${CMAKE_CURRENT_LIST_DIR}/DirectZTargets.cmake")
 
 include("${CMAKE_CURRENT_LIST_DIR}/DZPTargets.cmake")
 
-function(add_fpic_flag TARGET)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-        target_compile_options(${TARGET} PRIVATE -fPIC)
-    elseif(MSVC)
-        # No fPIC equivalent needed or supported on MSVC
-    else()
-        message(WARNING "Unknown compiler: fPIC flag not added to target '${TARGET}'")
+if(ANDROID)
+    set(PACK_DIR ${RES_DIR})
+else()
+    set(PACK_DIR ${CMAKE_BINARY_DIR}/assets)
+endif()
+
+function(pack_assets_at_configure OUTPUT_NAME)
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs SOURCES)
+    cmake_parse_arguments(PACK "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT PACK_SOURCES)
+        message(FATAL_ERROR "pack_assets_at_configure: SOURCES must be provided")
     endif()
+
+    # Compose the full command
+    set(COMMAND_ARGS -o ${OUTPUT_NAME})
+    foreach(SRC ${PACK_SOURCES})
+        list(APPEND COMMAND_ARGS ${SRC})
+    endforeach()
+
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" CAP_BUILD_TYPE)
+
+    get_target_property(dzp_path dzp IMPORTED_LOCATION_${CAP_BUILD_TYPE})
+
+    if(ANDROID)
+        string(REPLACE "android/${CMAKE_SYSTEM_PROCESSOR}/" "" dzp_path "${dzp_path}")
+    endif()
+    
+    execute_process(
+        COMMAND ${dzp_path} ${COMMAND_ARGS}
+        RESULT_VARIABLE result
+        OUTPUT_VARIABLE out
+        ERROR_VARIABLE err
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+
+    if(NOT result EQUAL 0)
+        message(FATAL_ERROR "Asset packing failed: ${err}")
+    else()
+        message(STATUS "Packed assets to ${OUTPUT_NAME}")
+    endif()
+endfunction()
+
+function(pack_assets OUTPUT_NAME)
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs SOURCES)
+    cmake_parse_arguments(PACK "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(NOT PACK_SOURCES)
+        message(FATAL_ERROR "pack_assets: SOURCES must be provided")
+    endif()
+
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" CAP_BUILD_TYPE)
+    get_target_property(dzp_path dzp IMPORTED_LOCATION_${CAP_BUILD_TYPE})
+
+    if(ANDROID)
+        string(REPLACE "android/${CMAKE_SYSTEM_PROCESSOR}/" "" dzp_path "${dzp_path}")
+    endif()
+
+    set(COMMAND_ARGS -o ${OUTPUT_NAME})
+    foreach(SRC ${PACK_SOURCES})
+        list(APPEND COMMAND_ARGS ${SRC})
+    endforeach()
+
+    # Ensure full paths for dependency tracking
+    set(ABS_SOURCES)
+    foreach(SRC ${PACK_SOURCES})
+        if(IS_ABSOLUTE "${SRC}")
+            list(APPEND ABS_SOURCES "${SRC}")
+        else()
+            list(APPEND ABS_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SRC}")
+        endif()
+    endforeach()
+
+    # Add custom command to generate packed output
+    add_custom_command(
+        OUTPUT ${OUTPUT_NAME}
+        COMMAND ${dzp_path} ${COMMAND_ARGS}
+        DEPENDS ${ABS_SOURCES}
+        COMMENT "Packing assets into ${OUTPUT_NAME}"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        VERBATIM
+    )
+
+    # Add a dummy custom target so you can depend on it
+    add_custom_target(pack_assets_pack ALL
+        DEPENDS ${OUTPUT_NAME}
+    )
 endfunction()
 
 # Optional: check required components if using COMPONENTS in find_package
 check_required_components(DirectZ)
+
+
+if(ANDROID)
+    list(APPEND DirectZ_LIBRARIES android log)
+endif()

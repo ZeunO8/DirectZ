@@ -6,9 +6,10 @@ set(SWIFTSHADER_BUILD_CPPDAP OFF)
 set(SWIFTSHADER_BUILD_TESTS OFF)
 set(SWIFTSHADER_BUILD_BENCHMARKS OFF)
 set(SWIFTSHADER_WARNINGS_AS_ERRORS OFF)
+message(STATUS "FetchContent: swiftshader")
 FetchContent_Declare(swiftshader
 	GIT_REPOSITORY https://github.com/ZeunO8/swiftshader.git
-	GIT_TAG PIC)
+	GIT_TAG ANDROID)
 FetchContent_GetProperties(swiftshader)
 if(NOT swiftshader_POPULATED)
     FetchContent_Populate(swiftshader)
@@ -22,11 +23,17 @@ set_target_properties(SPIRV-Tools-opt PROPERTIES DEBUG_POSTFIX "d")
 set(GLSLANG_TESTS OFF)
 set(GLSLANG_ENABLE_INSTALL OFF)
 set(ENABLE_GLSLANG_BINARIES OFF)
+message(STATUS "FetchContent: glslang")
 FetchContent_Declare(glslang
     GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
     GIT_TAG vulkan-sdk-1.3.283)
 FetchContent_MakeAvailable(glslang)
  
+set_target_properties(glslang PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(OSDependent PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(MachineIndependent PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(SPIRV PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(GenericCodeGen PROPERTIES DEBUG_POSTFIX "d")
 add_subdirectory(${swiftshader_SOURCE_DIR} EXCLUDE_FROM_ALL EXCLUDE_FROM_ALL)
 
 if(WIN32)
@@ -50,7 +57,7 @@ elseif(LINUX)
     set(VULKAN_API_LIBRARY_NAME "libvulkan.so.1")
 elseif(APPLE)
     set(VULKAN_API_LIBRARY_NAME "libvulkan.dylib")
-elseif(FUCHSIA)
+elseif(FUCHSIA OR ANDROID)
     set(VULKAN_API_LIBRARY_NAME "libvulkan.so")
 else()
     message(FATAL_ERROR "Platform does not support Vulkan yet")
@@ -73,3 +80,31 @@ configure_file(
     "${swiftshader_SOURCE_DIR}/src/Vulkan/vk_swiftshader_icd.json.tmpl"
     "${CMAKE_BINARY_DIR}/SwiftShader/vk_swiftshader_icd.json"
 )
+
+
+if(ANDROID)
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+	target_include_directories(vk_pipeline PUBLIC ${swiftshader_SOURCE_DIR}/include/Android)
+	target_include_directories(vk_pipeline PUBLIC ${CMAKE_SOURCE_DIR}/android)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} ${swiftshader_SOURCE_DIR}/src/commit_id.py gen ${CMAKE_SOURCE_DIR}/android/commit.h
+        RESULT_VARIABLE res
+        OUTPUT_VARIABLE out
+        ERROR_VARIABLE err
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    if(NOT res EQUAL 0)
+        message(FATAL_ERROR "Python script failed with error: ${err}")
+    endif()
+
+    message(STATUS "Python script output: ${out}")
+
+    # Extract numeric API level (e.g. from "android-30" → "30")
+    string(REGEX REPLACE "^android-([0-9]+).*$" "\\1" ANDROID_API_LEVEL "${ANDROID_PLATFORM}")
+
+    # Define __ANDROID_API__ macro
+    add_compile_definitions(__ANDROID_API__=${ANDROID_API_LEVEL})
+
+    message(STATUS "Derived __ANDROID_API__=${ANDROID_API_LEVEL} from ANDROID_PLATFORM=${ANDROID_PLATFORM}")
+endif()

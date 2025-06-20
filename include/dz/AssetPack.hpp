@@ -12,7 +12,7 @@ namespace dz
     /**
      * @brief Asset alias representing a pointer to int8_t data.
      */
-    using Asset = dz::size_ptr<int8_t>;
+    using Asset = dz::size_ptr<char>;
 
     /**
      * @brief Creates an AssetPack using the provided file handle.
@@ -36,7 +36,7 @@ namespace dz
      * @param path Path identifying the asset.
      * @return Asset data as size_ptr<int8_t>.
      */
-    Asset get_asset(AssetPack* asset_pack, const std::string& path);
+    bool get_asset(AssetPack* asset_pack, const std::string& path, Asset& out);
 
     /**
      * @brief Adds a new asset from a size_ptr buffer to the pack.

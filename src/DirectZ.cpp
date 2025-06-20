@@ -5,6 +5,7 @@ using namespace dz;
 #include <algorithm>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <memory>
 #include <iostream>
 #include <sstream>
@@ -20,17 +21,19 @@ using namespace dz;
 #include <shaderc/shaderc.hpp>
 #if defined(_WIN32)
 #define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(__ANDROID__)
 #define VK_USE_PLATFORM_XCB_KHR
 #elif defined(MACOS)
 #define VK_USE_PLATFORM_MACOS_MVK
+#elif defined(__ANDROID__)
+#define VK_USE_PLATFORM_ANDROID_KHR
 #endif
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #include <ShellScalingApi.h>
 #pragma comment(lib, "Shcore.lib")
 #include <windows.h>
-#elif defined(__linux__)
+#elif defined(__linux__) && !defined(__ANDROID__)
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
 #include <X11/Xlib.h>
@@ -42,12 +45,8 @@ using namespace dz;
 #include <xkbcommon/xkbcommon.h>
 #include <dlfcn.h>
 #elif defined(MACOS)
-#include <AppKit/AppKit.h>
-#import <Cocoa/Cocoa.h>
-#import <QuartzCore/CAMetalLayer.h>
-#include <Metal/Metal.h>
-#include <ApplicationServices/ApplicationServices.h>
-#include <mach-o/dyld.h>
+#include <dlfcn.h>
+#elif defined(__ANDROID__)
 #include <dlfcn.h>
 #endif
 #undef min
@@ -79,10 +78,10 @@ struct DirectRegistry
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;
     std::atomic<uint32_t> window_count = 0;
-};
-#if defined(MACOS)
-#include "WINDOWDelegate.mm"
+#ifdef __ANDROID__
+    AAssetManager* android_asset_manager = 0;
 #endif
+};
 struct DirectRegistry;
 extern "C" DirectRegistry* dz_registry_global;
 namespace dz
@@ -122,6 +121,10 @@ namespace dz
     Renderer* renderer_init(WINDOW* window);
     void renderer_render(Renderer* renderer);
     void renderer_free(Renderer* renderer);
+    void create_surface(Renderer* renderer);
+    bool create_swap_chain(Renderer* renderer);
+    void create_image_views(Renderer* renderer);
+    void create_framebuffers(Renderer* renderer);
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
@@ -129,13 +132,11 @@ namespace dz
     #include "path.cpp"
     #include "FileHandle.cpp"
     #include "AssetPack.cpp"
-    #include "Window.mm"
+    #include "Window.cpp"
     #include "Renderer.cpp"
     #include "Image.cpp"
     #include "Shader.cpp"
     #include "BufferGroup.cpp"
+    #include "EventInterface.cpp"
 }
-#if defined(MACOS)
-#include "WINDOWDelegateImpl.mm"
-#endif
 #include "runtime.cpp"

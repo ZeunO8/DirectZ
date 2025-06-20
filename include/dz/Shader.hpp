@@ -29,6 +29,11 @@ namespace dz
     Shader* shader_create();
 
     /**
+     * @brief Sets the include path to an asset_pack for include lookup
+     */
+    void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack);
+
+    /**
      * @brief Adds a GLSL source module to the shader.
      * 
      * @param shader Pointer to the Shader.

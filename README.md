@@ -72,14 +72,14 @@ endif()
 
 WINDOW* cached_window = 0;
 
-DZ_EXPORT int init(const WindowCreateInfo& window_info)
+DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
 {
     cached_window = window_create(window_info);
     Shader* compute_shader = shader_create();
     Shader* raster_shader = shader_create();
 
     // See "Shaders" section for information on creating shaders
-    return 0;
+    return window_get_event_interface(cached_window);
 }
 
 DZ_EXPORT bool poll_events()
@@ -103,17 +103,17 @@ DZ_EXPORT void render()
 #include <DirectZ.hpp>
 int main()
 {
-    int ret = 0;
+    EventInterface* ei = 0;
 
     // call app-lib implementation of init
-    if ((ret = init({
+    if (!(ei = init({
         .title = "Example Window",
         .x = 128,
         .y = 128,
         .width = 640,
         .height = 480
     })))
-        return ret;
+        return 1;
 
     //
     while (poll_events())
@@ -121,7 +121,8 @@ int main()
         update();
         render();
     }
-    return ret;
+
+    return 0;
 }
 
 ```

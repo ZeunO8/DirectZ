@@ -205,6 +205,7 @@ struct Shader
     VkPipeline graphics_pipeline = VK_NULL_HANDLE;
     VkRenderPass render_pass = VK_NULL_HANDLE;
     std::map<std::string, std::string> define_map;
+    AssetPack* include_asset_pack = 0;
 };
 
 struct BufferGroup
@@ -215,6 +216,90 @@ struct BufferGroup
     std::unordered_map<std::string, std::shared_ptr<Image>> runtime_images;
     std::unordered_map<Shader*, bool> shaders;
     std::unordered_map<std::string, bool> restricted_to_keys;
+};
+
+class DynamicIncluder : public shaderc::CompileOptions::IncluderInterface
+{
+    Shader* shader = nullptr;
+
+public:
+
+    DynamicIncluder(Shader* shader)
+        : shader(shader)
+    {}
+
+    shaderc_include_result* GetInclude(const char* requested_source,
+                                       shaderc_include_type type,
+                                       const char* requesting_source,
+                                       size_t include_depth) override
+    {
+        if (!shader || !shader->include_asset_pack || !requested_source)
+            return MakeErrorInclude("Missing shader or include asset pack");
+
+        auto asset_pack = shader->include_asset_pack;
+        Asset glsl;
+        auto asset_available = get_asset(asset_pack, requested_source, glsl);
+
+        if (!asset_available || !glsl.ptr || glsl.size == 0)
+        {
+            return MakeErrorInclude(std::string("Failed to resolve include: ") + requested_source);
+        }
+
+        std::string source_string((const char*)(glsl.ptr));
+        return MakeSuccessInclude(source_string, requested_source);
+    }
+
+    void ReleaseInclude(shaderc_include_result* result) override
+    {
+        if (result)
+        {
+            delete[] result->source_name;
+            delete[] result->content;
+            delete result;
+        }
+    }
+
+private:
+
+    shaderc_include_result* MakeSuccessInclude(const std::string& content, const std::string& fullPath)
+    {
+        shaderc_include_result* result = new shaderc_include_result();
+
+        result->source_name = CopyString(fullPath);
+        result->source_name_length = fullPath.size();
+
+        result->content = CopyString(content);
+        result->content_length = content.size();
+
+        result->user_data = nullptr;
+
+        return result;
+    }
+
+    shaderc_include_result* MakeErrorInclude(const std::string& errorMessage)
+    {
+        shaderc_include_result* result = new shaderc_include_result();
+
+        std::string name = "<error>";
+
+        result->source_name = CopyString(name);
+        result->source_name_length = name.size();
+
+        result->content = CopyString(errorMessage);
+        result->content_length = errorMessage.size();
+
+        result->user_data = nullptr;
+
+        return result;
+    }
+
+    char* CopyString(const std::string& str)
+    {
+        char* mem = new char[str.size() + 1];
+        memcpy(mem, str.c_str(), str.size());
+        mem[str.size()] = '\0';
+        return mem;
+    }
 };
 
 void shader_destroy(Shader* shader);
@@ -228,6 +313,11 @@ Shader* shader_create()
         delete shader;
     });
     return shader;
+}
+
+void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack)
+{
+    shader->include_asset_pack = asset_pack;
 }
 
 /* REFLECT */
@@ -1522,6 +1612,7 @@ void shader_add_module(
 {
 	if (!shader)
 		throw std::runtime_error("shader is null");
+    
     auto shaderString = glsl_source;
     auto after_version_idx = find_newline_after_token(shaderString, "#version") + 1;
     for (auto& define_pair : shader->define_map)
@@ -1531,11 +1622,19 @@ void shader_add_module(
         auto next_it = shaderString.insert(shaderString.begin() + after_version_idx, defineString.begin(), defineString.end());
         after_version_idx = std::distance(shaderString.begin(), next_it + defineString.size());
     }
-    // std::cout << "Adding Shader Module!" << std::endl << std::endl
-    //           << shaderString << std::endl;
+    
 	shaderc::Compiler compiler;
 	shaderc::CompileOptions compileOptions;
+
+    std::unique_ptr<DynamicIncluder> includer = std::make_unique<DynamicIncluder>(shader);
+    compileOptions.SetIncluder(std::move(includer));
+
 	auto stage = stageEShaderc[module_type];
+
+    // auto pre_result = compiler.PreprocessGlsl(shaderString.c_str(), stage, "Shader", compileOptions);
+    // std::string preprocessed(pre_result.begin(), pre_result.end());
+    // std::cout << "--- Preprocessed Shader ---\n" << preprocessed << "\n";
+
 	shaderc::SpvCompilationResult compiled_module = compiler.CompileGlslToSpv(
         shaderString.c_str(),
         shaderString.size(),
@@ -2048,10 +2147,15 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 	);
 
 	// Detect whether indirect count is supported
-	bool supportsIndirectCount = false;//renderer->supportsIndirectCount;
+#ifdef __ANDROID__
+	static constexpr bool supportsIndirectCount = false;
+#else
+    static constexpr bool supportsIndirectCount = true;
+#endif
 
 	if (supportsIndirectCount)
 	{
+#ifdef __ANDROID__
 		vkCmdDrawIndirectCount(
 			passCB,
 			drawBufferPair.first,
@@ -2061,6 +2165,7 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 			drawCount,
 			sizeof(VkDrawIndirectCommand)
 		);
+#endif
 	}
 	else
 	{

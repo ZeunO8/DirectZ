@@ -9,6 +9,16 @@ target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)
 
 find_package(DirectZ REQUIRED)
 
+pack_assets(
+    ${PACK_DIR}/pack.bin
+    SOURCES
+    shaders/quad.glsl
+    shaders/window.glsl
+    shaders/raster.vert.glsl
+    shaders/raster.frag.glsl
+    shaders/quad_pos.comp.glsl
+)
+
 message(STATUS "DirectZ_LIBRARIES: ${DirectZ_LIBRARIES}")
 message(STATUS "DirectZ_INCLUDE_DIRS: ${DirectZ_INCLUDE_DIRS}")
 

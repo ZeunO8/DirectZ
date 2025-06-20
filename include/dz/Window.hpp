@@ -6,9 +6,17 @@
 #include <string>
 #include "math.hpp"
 #include "DrawListManager.hpp"
+#ifdef __ANDROID__
+#include <android/native_window_jni.h>
+#include <android/log.h>
+#include <android/asset_manager.h>
+#include <android/asset_manager_jni.h>
+#include <android/input.h>
+#endif
 namespace dz
 {
     struct WINDOW;
+    struct EventInterface;
     struct WindowCreateInfo
     {
         std::string title;
@@ -18,6 +26,10 @@ namespace dz
         float height;
         bool borderless = false;
         bool vsync = true;
+#ifdef __ANDROID__
+        ANativeWindow* android_window = 0;
+        AAssetManager* android_asset_manager = 0;
+#endif
     };
 
     /**
@@ -200,6 +212,11 @@ namespace dz
     * @brief Removes a drawn buffer group.
     */
     void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+
+    /**
+    * @brief Returns the EventInterface for a given WINDOW
+    */
+    EventInterface* window_get_event_interface(WINDOW* window);
 
 #define KEYCODE_ESCAPE 27
 #define KEYCODE_DELETE 127

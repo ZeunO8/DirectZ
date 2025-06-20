@@ -11,16 +11,17 @@
 
 #include <filesystem>
 #include <dz/BufferGroup.hpp>
+#include <dz/size_ptr.hpp>
+#include <dz/AssetPack.hpp>
 #include <dz/Shader.hpp>
 #include <dz/Window.hpp>
 #include <dz/DrawListManager.hpp>
 #include <dz/math.hpp>
 #include <dz/FileHandle.hpp>
 #include <dz/internal/memory_stream.hpp>
-#include <dz/size_ptr.hpp>
-#include <dz/AssetPack.hpp>
 #include <dz/KeyValueStream.hpp>
 #include <dz/ProgramArgs.hpp>
+#include <dz/EventInterface.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)
@@ -41,18 +42,19 @@ inline static std::string DZ_GLSL_VERSION = "#version 450\n";
  * @code
  * // Example implementation:
  * WINDOW* cached_window = 0;
- * DZ_EXPORT int init(const WindowCreateInfo& window_info)
+ * DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
  * {
  *     cached_window = window_create(window_info);
  *     
  *     // shader & image setup
+ *     return window_get_event_interface(cached_window);
  * }
  * @endcode
  * 
  * @param window_info Structure containing window creation parameters.
  * @return int Status code indicating success or failure.
  */
-DZ_EXPORT int init(const WindowCreateInfo& window_info);
+DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info);
 
 /**
  * @brief Polls for runtime events.
@@ -92,3 +94,10 @@ DZ_EXPORT void update();
  * @endcode
  */
 DZ_EXPORT void render();
+
+#ifdef __ANDROID__
+#define LOG_TAG "DirectZ"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#endif
