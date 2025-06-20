@@ -2,13 +2,14 @@
 #include <android/native_window_jni.h>
 #include <android/log.h>
 #include <thread>
+#include <atomic>
 #include <DirectZ.hpp>
 
 ANativeWindow* android_window = nullptr;
 EventInterface* event_interface = 0;
 
 std::shared_ptr<std::thread> update_thread;
-bool updating = false;
+std::atomic<bool> updating = false;
 
 void glue_update()
 {
@@ -52,6 +53,9 @@ Java_dev_zeucor_mdirecz_MainActivity_nativeInit(JNIEnv* env, jobject, jobject su
     if (recreate)
     {
         assert(event_interface);
+        updating = false;
+        if (update_thread->joinable())
+            update_thread->join();
         event_interface->recreate_window(android_window, width, height);
     }
     else

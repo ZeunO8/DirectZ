@@ -25,7 +25,7 @@ std::shared_ptr<std::iostream> FileHandle::open(std::ios_base::openmode ios)
             free(data);
             return cached_mem_stream;
         #else
-            final_path = (getProgramDirectoryPath / path).string();
+            final_path = (getProgramDirectoryPath() / "assets" / path).string();
         #endif
         }
         case PATH:

@@ -14,6 +14,9 @@ import androidx.core.view.WindowInsetsControllerCompat
 class MainActivity : AppCompatActivity()
 {
     private lateinit var surfaceView: SurfaceView
+    private var lastWidth = 0
+    private var lastHeight = 0
+    private var surfaceInitialized = false
 
     companion object
     {
@@ -90,7 +93,7 @@ class MainActivity : AppCompatActivity()
         {
             override fun surfaceCreated(holder: SurfaceHolder)
             {
-                init();
+                //init();
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder)
@@ -100,8 +103,14 @@ class MainActivity : AppCompatActivity()
 
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int)
             {
-                destroy()
-                init()
+                if (width != lastWidth || height != lastHeight)
+                {
+                    lastWidth = width
+                    lastHeight = height
+                    if (surfaceInitialized)
+                        destroy()
+                    init()
+                }
             }
         })
     }
@@ -115,11 +124,13 @@ class MainActivity : AppCompatActivity()
     private fun init()
     {
         nativeInit(surfaceView.holder.surface, assets)
+        surfaceInitialized = true
     }
 
     private fun destroy()
     {
         nativeDestroy();
+        surfaceInitialized = false
     }
 
     private fun onTouch(

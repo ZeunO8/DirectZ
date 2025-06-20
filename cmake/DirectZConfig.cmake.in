@@ -73,6 +73,9 @@ function(pack_assets OUTPUT_NAME)
     endif()
 
     string(TOUPPER "${CMAKE_BUILD_TYPE}" CAP_BUILD_TYPE)
+    if("${CAP_BUILD_TYPE}" STREQUAL "RELWITHDEBINFO")
+        set(CAP_BUILD_TYPE RELEASE)
+    endif()
     get_target_property(dzp_path dzp IMPORTED_LOCATION_${CAP_BUILD_TYPE})
 
     if(ANDROID)

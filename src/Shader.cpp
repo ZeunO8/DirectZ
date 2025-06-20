@@ -2155,7 +2155,7 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 
 	if (supportsIndirectCount)
 	{
-#ifdef __ANDROID__
+#ifndef __ANDROID__
 		vkCmdDrawIndirectCount(
 			passCB,
 			drawBufferPair.first,

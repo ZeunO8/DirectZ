@@ -4,6 +4,9 @@ build-release
 build-debug
 build
 build-android
+build-windows
+build-linux
+build-mac
 android/commit.h
 .idea
 .gradle

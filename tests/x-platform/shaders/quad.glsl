@@ -9,12 +9,12 @@ layout(std430, binding = 0) buffer QuadsBuffer {
 vec3 get_quad_position(int index)
 {
     const vec3 positions[6] = vec3[6](
-        vec3(0.7, 0.7, 0),
-        vec3(-0.7, 0.7, 0),
-        vec3(-0.7, -0.7, 0),
-        vec3(-0.7, -0.7, 0),
-        vec3(0.7, -0.7, 0),
-        vec3(0.7, 0.7, 0)
+        vec3(0.5, 0.5, 0),
+        vec3(-0.5, 0.5, 0),
+        vec3(-0.5, -0.5, 0),
+        vec3(-0.5, -0.5, 0),
+        vec3(0.5, -0.5, 0),
+        vec3(0.5, 0.5, 0)
     );
 
     return positions[index % 6];

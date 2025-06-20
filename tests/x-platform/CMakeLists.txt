@@ -17,6 +17,7 @@ pack_assets(
     shaders/raster.vert.glsl
     shaders/raster.frag.glsl
     shaders/quad_pos.comp.glsl
+    shaders/camera.glsl
 )
 
 message(STATUS "DirectZ_LIBRARIES: ${DirectZ_LIBRARIES}")
