@@ -101,3 +101,5 @@ DZ_EXPORT void render();
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #endif
+mat<float, 4, 4> window_mvp(WINDOW* window, const mat<float, 4, 4>& mvp);
+mat<double, 4, 4> window_mvp(WINDOW* window, const mat<double, 4, 4>& mvp);

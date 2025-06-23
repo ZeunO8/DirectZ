@@ -140,3 +140,31 @@ namespace dz
     #include "EventInterface.cpp"
 }
 #include "runtime.cpp"
+template<typename T>
+mat<T, 4, 4> window_mvp_T(WINDOW* window, const mat<T, 4, 4>& mvp)
+{
+    mat<T, 4, 4> pre_rotate_mat(1.0);
+    vec<T, 3> rotation_axis(0, 0, 1);
+    switch (window->renderer->currentTransform)
+    {
+    case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+        pre_rotate_mat.rotate(radians<T>(90.0), rotation_axis);
+        break;
+    case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+        pre_rotate_mat.rotate(radians<T>(270.0), rotation_axis);
+        break;
+    case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+        pre_rotate_mat.rotate(radians<T>(180.0), rotation_axis);
+        break;
+    default: break;
+    }
+    return pre_rotate_mat * mvp;
+}
+mat<float, 4, 4> window_mvp(WINDOW* window, const mat<float, 4, 4>& mvp)
+{
+    return window_mvp_T<float>(window, mvp);
+}
+mat<double, 4, 4> window_mvp(WINDOW* window, const mat<double, 4, 4>& mvp)
+{
+    return window_mvp_T<double>(window, mvp);
+}
