@@ -36,14 +36,14 @@ namespace dz
 			[nsWindow setTitle:nsTitle];
 			[nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
 			[nsWindow makeKeyAndOrderFront:nil];
-			nsView = [nsWindow contentView];
+			nsView = [(NDWindow*)nsWindow contentView];
 			NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
 			[NSApp setMainMenu:mainMenu];
 		}
 		nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
 		NSRect rect = NSMakeRect(0, 0, *width, *height);
 		nsImageView = [[NSImageView alloc] initWithFrame:rect];
-		[nsView addSubview:nsImageView];
+		[nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
 	bool WINDOW::poll_events_platform()
