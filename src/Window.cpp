@@ -192,75 +192,93 @@ double& window_get_double_frametime_ref(WINDOW* window)
 }
 void window_set_float_frametime_pointer(WINDOW* window, float* pointer)
 {
-	window->float_frametime = std::shared_ptr<float>(pointer, [](auto p){});
+	window_set_float_frametime_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 }
 void window_set_double_frametime_pointer(WINDOW* window, double* pointer)
 {
-	window->double_frametime = std::shared_ptr<double>(pointer, [](auto p){});
+	window_set_double_frametime_pointer(window, std::shared_ptr<double>(pointer, [](auto p){}));
 }
 void window_set_keys_pointer(WINDOW* window, int32_t* pointer)
 {
-	window->keys = std::shared_ptr<int32_t>(pointer, [](auto p){});
+	window_set_keys_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 }
 void window_set_buttons_pointer(WINDOW* window, int32_t* pointer)
 {
-	window->buttons = std::shared_ptr<int32_t>(pointer, [](auto p){});
+	window_set_buttons_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 }
 void window_set_cursor_pointer(WINDOW* window, float* pointer)
 {
-	window->cursor = std::shared_ptr<float>(pointer, [](auto p){});
+	window_set_cursor_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 }
 void window_set_mod_pointer(WINDOW* window, int32_t* pointer)
 {
-	window->mod = std::shared_ptr<int32_t>(pointer, [](auto p){});
+	window_set_mod_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 }
 void window_set_focused_pointer(WINDOW* window, int32_t* pointer)
 {
-	window->focused = std::shared_ptr<int32_t>(pointer, [](auto p){});
+	window_set_focused_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 }
 void window_set_width_pointer(WINDOW* window, float* pointer)
 {
-	window->width = std::shared_ptr<float>(pointer, [](auto p){});
+	window_set_width_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 }
 void window_set_height_pointer(WINDOW* window, float* pointer)
 {
-	window->height = std::shared_ptr<float>(pointer, [](auto p){});
+	window_set_height_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 }
 void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
+	auto old_float_frametime = *window->float_frametime;
 	window->float_frametime = pointer;
+	*window->float_frametime = old_float_frametime;
 }
 void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer)
 {
+	auto old_double_frametime = *window->double_frametime;
 	window->double_frametime = pointer;
+	*window->double_frametime = old_double_frametime;
 }
 void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
+	auto old_keys = window->keys;
 	window->keys = pointer;
+	memcpy(window->keys.get(), old_keys.get(), 256 * sizeof(int32_t));
 }
 void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
+	auto old_buttons = window->buttons;
 	window->buttons = pointer;
+	memcpy(window->buttons.get(), old_buttons.get(), 8 * sizeof(int32_t));
 }
 void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
+	auto old_cursor = window->cursor;
 	window->cursor = pointer;
+	memcpy(window->cursor.get(), old_cursor.get(), 2 * sizeof(float));
 }
 void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
+	auto old_mod = *window->mod;
 	window->mod = pointer;
+	*window->mod = old_mod;
 }
 void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
 {
+	auto old_focused = *window->focused;
 	window->focused = pointer;
+	*window->focused = old_focused;
 }
 void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
+	auto old_width = *window->width;
 	window->width = pointer;
+	*window->width = old_width;
 }
 void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
 {
+	auto old_height = *window->height;
 	window->height = pointer;
+	*window->height = old_height;
 }
 int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode)
 {
