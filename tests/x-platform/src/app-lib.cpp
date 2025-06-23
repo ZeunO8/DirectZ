@@ -21,12 +21,15 @@ struct Window
 {
     float deltaTime;
     float time;
+    float width;
+    float height;
+    int buttons[8];
+    float cursor[2];
 };
 
 struct Camera
 {
-    mat4 view;
-    mat4 proj;
+    mat4 mvp;
 };
 
 std::shared_ptr<DrawListManager<Quad>> quad_draw_list_mg_ptr;
@@ -114,11 +117,6 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
     buffer_group_initialize(windows_buffer_group);
     buffer_group_initialize(cameras_buffer_group);
 
-    auto& window_width_ptr = window_get_width_ref(cached_window);
-    auto& window_width = *window_width_ptr;
-    auto& window_height_ptr = window_get_height_ref(cached_window);
-    auto& window_height = *window_height_ptr;
-
     for (size_t i = 0; i < quad_ptrs.size(); ++i)
     {
         auto quad_view = buffer_group_get_buffer_element_view(main_buffer_group, "Quads", i);
@@ -141,6 +139,10 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
     for (auto wp : window_ptrs)
     {
         window_set_float_frametime_pointer(cached_window, &wp->deltaTime);
+        window_set_buttons_pointer(cached_window, wp->buttons);
+        window_set_cursor_pointer(cached_window, wp->cursor);
+        window_set_width_pointer(cached_window, &wp->width);
+        window_set_height_pointer(cached_window, &wp->height);
     }
 
     for (size_t i = 0; i < camera_ptrs.size(); ++i)
@@ -150,10 +152,17 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
         camera_ptrs[i] = &camera;
     }
 
+    auto& window_width_ptr = window_get_width_ref(cached_window);
+    auto& window_width = *window_width_ptr;
+    auto& window_height_ptr = window_get_height_ref(cached_window);
+    auto& window_height = *window_height_ptr;
+
     for (auto cp : camera_ptrs)
     {
-        cp->view = lookAt<Real>({0, 0, 5}, {0, 0, 0}, {0, 1, 0});
-        cp->proj = perspective<Real>(radians(81.f), window_width / window_height, 0.01, 100.f);
+        auto view = lookAt<Real>({0, 0, 5}, {0, 0, 0}, {0, 1, 0});
+        auto aspect = (window_width / window_height);
+        auto proj = perspective<Real>(radians(81.f), aspect, 0.01, 100.f);
+        cp->mvp = window_mvp(cached_window, proj * view);
     }
 
     free_asset_pack(asset_pack);

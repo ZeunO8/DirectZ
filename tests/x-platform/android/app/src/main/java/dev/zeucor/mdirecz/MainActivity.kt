@@ -1,17 +1,18 @@
 package dev.zeucor.mdirecz
 
-import android.app.*
+import android.app.Activity
 import android.content.res.AssetManager
 import android.graphics.PixelFormat
-import android.os.*
-import android.view.*
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import android.os.Bundle
+import android.view.MotionEvent
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewTreeObserver
 
-class MainActivity : AppCompatActivity()
+
+class MainActivity : Activity()
 {
     private lateinit var surfaceView: SurfaceView
     private var lastWidth = 0
@@ -45,6 +46,7 @@ class MainActivity : AppCompatActivity()
 
     override fun onCreate(savedInstanceState: Bundle?)
     {
+        setFullscreen(window.decorView);
         super.onCreate(savedInstanceState)
 
         surfaceView = object : SurfaceView(this)
@@ -85,7 +87,6 @@ class MainActivity : AppCompatActivity()
             override fun onGlobalLayout()
             {
                 surfaceView.viewTreeObserver.removeOnGlobalLayoutListener(this)
-                hideSystemUI()
             }
         })
 
@@ -93,7 +94,8 @@ class MainActivity : AppCompatActivity()
         {
             override fun surfaceCreated(holder: SurfaceHolder)
             {
-                //init();
+                if (!surfaceInitialized)
+                    init();
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder)
@@ -118,7 +120,6 @@ class MainActivity : AppCompatActivity()
     override fun onResume()
     {
         super.onResume()
-        hideSystemUI()
     }
 
     private fun init()
@@ -146,12 +147,13 @@ class MainActivity : AppCompatActivity()
         nativeOnTouch(action, pointerIndex, pointerId, x, y, pressure, size);
     }
 
-    private fun hideSystemUI()
-    {
-        surfaceView.post {
-            val controller = WindowCompat.getInsetsController(window, surfaceView)
-            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            controller?.hide(WindowInsetsCompat.Type.systemBars())
-        }
+    fun setFullscreen(decorView: View) {
+        val ui_Options = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        decorView.systemUiVisibility = ui_Options
     }
 }
