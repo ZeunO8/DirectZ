@@ -2054,8 +2054,50 @@ void renderer_render(Renderer* renderer)
     pre_begin_render_pass(renderer);
     begin_render_pass(renderer);
     auto& window = *renderer->window;
-    vkCmdSetViewport(*direct_registry->commandBuffer, 0, 1, &window.viewport);
-    vkCmdSetScissor(*direct_registry->commandBuffer, 0, 1, &window.scissor);
+    auto window_width = *window.width;
+    auto window_height = *window.height;
+
+    vec<float, 4> viewportData;
+
+    switch (renderer->currentTransform)
+    {
+        case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
+            viewportData = {renderer->swapChainExtent.width - window_height - window.y, window.x, window_height, window_width};
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
+            viewportData = {renderer->swapChainExtent.width - window_width - window.x, renderer->swapChainExtent.height - window_height - window.y, window_width, window_height};
+            break;
+        case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
+            viewportData = {window.y, renderer->swapChainExtent.height - window_width - window.x, window_height, window_width};
+            break;
+        default:
+            viewportData = {window.x, window.y, window_width, window_height};
+            break;
+    }
+
+    const VkViewport viewport = {
+        .x = viewportData[0],
+        .y = viewportData[1],
+        .width = viewportData[2],
+        .height = viewportData[3],
+        .minDepth = 0.0F,
+        .maxDepth = 1.0F,
+    };
+    vkCmdSetViewport(*direct_registry->commandBuffer, 0, 1, &viewport);
+
+    const VkRect2D scissor = {
+        .offset =
+            {
+                .x = (int32_t)viewportData[0],
+                .y = (int32_t)viewportData[1],
+            },
+        .extent =
+            {
+                .width = (uint32_t)viewportData[2],
+                .height = (uint32_t)viewportData[3],
+            },
+    };
+    vkCmdSetScissor(*direct_registry->commandBuffer, 0, 1, &scissor);
     for (auto& draw_mgr_group_vec_pair : window.draw_list_managers)
     {
         auto& draw_mgr = *draw_mgr_group_vec_pair.first;

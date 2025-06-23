@@ -23,6 +23,7 @@ struct Renderer
     VkSemaphore signalSemaphores[1];
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
+	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     // PFN_vkCreateDebugUtilsMessengerEXT _vkCreateDebugUtilsMessengerEXT;
 	void destroy_surface();
 	void cleanup_swapchain();
@@ -644,7 +645,6 @@ bool create_swap_chain(Renderer* renderer)
 	VkExtent2D extent = choose_swap_extent(renderer, swapChainSupport.capabilities);
 	if (extent.height == 0 || extent.width == 0)
 	{
-
 		return false;
 	}
 	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
@@ -758,10 +758,17 @@ VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capab
 {
 	auto& window = *renderer->window;
 	VkExtent2D actualExtent = {static_cast<uint32_t>(*window.width), static_cast<uint32_t>(*window.height)};
-	actualExtent.width =
+	auto width = actualExtent.width =
 		std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-	actualExtent.height =
+	auto height = actualExtent.height =
 		std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+	if (capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
+    	capabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR)
+	{
+		actualExtent.height = width;
+		actualExtent.width = height;
+	}
+	renderer->currentTransform = capabilities.currentTransform;
 	return actualExtent;
 }
 
