@@ -4,8 +4,12 @@
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
+#include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
-#include "WindowImpl.hpp"
+namespace dz
+{
+	#include "WindowImpl.hpp"
+}
 #include "WINDOWDelegateImpl.mm"
 namespace dz
 {
