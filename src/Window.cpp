@@ -103,15 +103,15 @@ WINDOW* window_create(const WindowCreateInfo& info)
     	AConfiguration_fromAssetManager(window->registry->android_config, info.android_asset_manager);
 #endif
 
-	window->width = std::shared_ptr<float>(new float(info.width), [](float* fp) { delete fp; });
-	window->height = std::shared_ptr<float>(new float(info.height), [](float* fp) { delete fp; });
-	window->float_frametime = std::shared_ptr<float>(new float(0), [](float* fp) { delete fp; });
-	window->double_frametime = std::shared_ptr<double>(new double(0), [](double* dp) { delete dp; });
-	window->keys = std::shared_ptr<int32_t>(new int32_t[256], [](int32_t* bp) { delete[] bp; });
-	window->buttons = std::shared_ptr<int32_t>(new int32_t[8], [](int32_t* bp) { delete[] bp; });
-	window->cursor = std::shared_ptr<float>(new float[2], [](float* fp) { delete[] fp; });
-	window->mod = std::shared_ptr<int32_t>(new int32_t(0), [](int32_t* up) { delete up; });
-	window->focused = std::shared_ptr<int32_t>(new int32_t(0), [](int32_t* ip) { delete ip; });
+	window->width = std::shared_ptr<float>(zmalloc<float>(1, info.width), [](float* fp) { zfree(fp, 1); });
+	window->height = std::shared_ptr<float>(zmalloc<float>(1, info.height), [](float* fp) { zfree(fp, 1); });
+	window->float_frametime = std::shared_ptr<float>(zmalloc<float>(1, 0), [](float* fp) { zfree(fp, 1); });
+	window->double_frametime = std::shared_ptr<double>(zmalloc<double>(1, 0), [](double* dp) { zfree(dp, 1); });
+	window->keys = std::shared_ptr<int32_t>(zmalloc<int32_t>(256, 0), [](int32_t* bp) { zfree(bp, 256); });
+	window->buttons = std::shared_ptr<int32_t>(zmalloc<int32_t>(8, 0), [](int32_t* bp) { zfree(bp, 8); });
+	window->cursor = std::shared_ptr<float>(zmalloc<float>(2, 0), [](float* fp) { zfree(fp, 2); });
+	window->mod = std::shared_ptr<int32_t>(zmalloc<int32_t>(1, 0), [](int32_t* up) { zfree(up, 1); });
+	window->focused = std::shared_ptr<int32_t>(zmalloc<int32_t>(1, 0), [](int32_t* ip) { zfree(ip, 1); });
 
 	auto& viewport = window->viewport;
 	viewport.x = 0.0f;

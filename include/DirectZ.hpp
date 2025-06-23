@@ -22,6 +22,7 @@
 #include <dz/KeyValueStream.hpp>
 #include <dz/ProgramArgs.hpp>
 #include <dz/EventInterface.hpp>
+#include <dz/zmalloc.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)
