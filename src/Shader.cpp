@@ -2062,16 +2062,16 @@ void renderer_render(Renderer* renderer)
     switch (renderer->currentTransform)
     {
         case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
-            viewportData = {renderer->swapChainExtent.width - window_height - window.y, window.x, window_height, window_width};
+            viewportData = {renderer->swapChainExtent.width - window_height - 0, 0, window_height, window_width};
             break;
         case VK_SURFACE_TRANSFORM_ROTATE_180_BIT_KHR:
-            viewportData = {renderer->swapChainExtent.width - window_width - window.x, renderer->swapChainExtent.height - window_height - window.y, window_width, window_height};
+            viewportData = {renderer->swapChainExtent.width - window_width - 0, renderer->swapChainExtent.height - window_height - 0, window_width, window_height};
             break;
         case VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR:
-            viewportData = {window.y, renderer->swapChainExtent.height - window_width - window.x, window_height, window_width};
+            viewportData = {0, renderer->swapChainExtent.height - window_width - 0, window_height, window_width};
             break;
         default:
-            viewportData = {window.x, window.y, window_width, window_height};
+            viewportData = {0, 0, window_width, window_height};
             break;
     }
 
