@@ -4,9 +4,9 @@
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
-#include "WindowImpl.hpp"
 #include "Directz.cpp.hpp"
-#include "WINDOWDelegate"
+#include "WindowImpl.hpp"
+#include "WINDOWDelegateImpl.mm"
 namespace dz
 {
 	uint8_t get_window_type_platform()
