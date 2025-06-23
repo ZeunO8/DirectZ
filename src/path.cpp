@@ -12,6 +12,8 @@ std::filesystem::path getProgramDirectoryPath()
 #endif
     return exePath.parent_path();
 }
+#else
+std::filesystem::path getProgramDirectoryPath();
 #endif
 std::filesystem::path getProgramDataPath() { return std::filesystem::temp_directory_path(); }
 std::filesystem::path getExecutableName() { return std::filesystem::path(getenv("_")).filename(); }
