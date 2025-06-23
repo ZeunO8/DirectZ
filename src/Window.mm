@@ -9,6 +9,7 @@
 #include "WINDOWDelegateImpl.mm"
 namespace dz
 {
+	#include "path.mm"
 	uint8_t get_window_type_platform()
 	{
 		return WINDOW_TYPE_MACOS;
