@@ -97,7 +97,10 @@ WINDOW* window_create(const WindowCreateInfo& info)
 
 #ifdef __ANDROID__
 	window->android_window = info.android_window;
-	window->registry->android_asset_manager = info.android_asset_manager;
+	if (!window->registry->android_asset_manager)
+		window->registry->android_asset_manager = info.android_asset_manager;
+	if (!window->registry->android_config)
+    	AConfiguration_fromAssetManager(window->registry->android_config, info.android_asset_manager);
 #endif
 
 	window->width = std::shared_ptr<float>(new float(info.width), [](float* fp) { delete fp; });

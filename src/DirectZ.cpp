@@ -80,6 +80,7 @@ struct DirectRegistry
     std::atomic<uint32_t> window_count = 0;
 #ifdef __ANDROID__
     AAssetManager* android_asset_manager = 0;
+    AConfiguration* android_config = 0;
 #endif
 };
 struct DirectRegistry;
@@ -100,12 +101,18 @@ namespace dz
     {
         auto dr = new DirectRegistry;
         dr->windowType = get_window_type_platform();
+#ifdef __ANDROID__
+        dr->android_config = AConfiguration_new();
+#endif
         return dr;
     }
     
     void free_direct_registry()
     {
         auto direct_registry = get_direct_registry();
+#ifdef __ANDROID__
+        AConfiguration_delete(direct_registry->android_config);
+#endif
         direct_registry->buffer_groups.clear();
         direct_registry->uid_shader_map.clear();
         if (direct_registry->device)
