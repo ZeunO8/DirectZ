@@ -21,7 +21,7 @@ include(cmake/InstallPaths.cmake)
 set(DZ_SOURCES src/DirectZ.cpp)
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
-	list(APPEND DZ_SOURCES src/Window.mm src/WINDOWDelegateImpl.mm)
+	list(APPEND DZ_SOURCES src/Window.mm)
 endif()
 
 add_library(DirectZ STATIC ${DZ_SOURCES})
