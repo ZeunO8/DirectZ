@@ -9,6 +9,7 @@
 namespace dz
 {
 	#include "WindowImpl.hpp"
+	#include "RendererImpl.hpp"
 
 	void create_surface(Renderer* renderer)
 	{
@@ -22,7 +23,7 @@ namespace dz
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
 		surfaceCreateInfo.pNext = nullptr;
 		surfaceCreateInfo.flags = 0;
-		surfaceCreateInfo.pLayer = (__bridge void*)metalLayer;
+		surfaceCreateInfo.pLayer = metalLayer;
 
 		vk_check("vkCreateMetalSurfaceEXT",
 			vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
