@@ -37,8 +37,6 @@ void ensure_command_pool(Renderer* renderer);
 void ensure_command_buffers(Renderer* renderer);
 void ensure_render_pass(Renderer* renderer);
 void create_sync_objects(Renderer* renderer);
-bool vk_check(const char* fn, VkResult result);
-void vk_log(const char* fn, VkResult result);
 void pre_begin_render_pass(Renderer* renderer);
 void begin_render_pass(Renderer* renderer);
 void post_render_pass(Renderer* renderer);
