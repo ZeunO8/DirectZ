@@ -9,6 +9,29 @@
 namespace dz
 {
 	#include "WindowImpl.hpp"
+
+	void create_surface(Renderer* renderer)
+	{
+		auto& window = *renderer->window;
+		auto& dr = *window.registry;
+		auto& windowType = dr.windowType;
+
+		CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
+
+		VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
+		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+		surfaceCreateInfo.pNext = nullptr;
+		surfaceCreateInfo.flags = 0;
+		surfaceCreateInfo.pLayer = (__bridge void*)metalLayer;
+
+		vk_check("vkCreateMetalSurfaceEXT",
+			vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
+		// VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
+		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
+		// surfaceCreateInfo.pView = window.nsView;
+		// vk_check("vkCreateMacOSSurfaceMVK",
+		// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+	}
 }
 #include "WINDOWDelegateImpl.mm"
 namespace dz
@@ -41,14 +64,22 @@ namespace dz
 			[(NSWindow*)nsWindow setTitle:nsTitle];
 			[(NSWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
 			[(NSWindow*)nsWindow makeKeyAndOrderFront:nil];
-			nsView = [(NSWindow*)nsWindow contentView];
-			NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
-			[NSApp setMainMenu:mainMenu];
+			CAMetalLayer* metalLayer = [CAMetalLayer layer];
+			metalLayer.device = MTLCreateSystemDefaultDevice();
+			metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+			metalLayer.framebufferOnly = YES;
+			metalLayer.contentsScale = [(NSView*)nsView window].backingScaleFactor;
+			metalLayer.frame = NSMakeRect(0, 0, *width, *height);
+			[(NSView*)nsView setLayer:metalLayer];
+			[(NSView*)nsView setWantsLayer:YES];
+			// nsView = [(NSWindow*)nsWindow contentView];
+			// NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
+			// [NSApp setMainMenu:mainMenu];
 		}
-		nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
-		NSRect rect = NSMakeRect(0, 0, *width, *height);
-		nsImageView = [[NSImageView alloc] initWithFrame:rect];
-		[(NSView*)nsView addSubview:(NSImageView*)nsImageView];
+		// nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
+		// NSRect rect = NSMakeRect(0, 0, *width, *height);
+		// nsImageView = [[NSImageView alloc] initWithFrame:rect];
+		// [(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
 	bool WINDOW::poll_events_platform()
@@ -75,6 +106,7 @@ namespace dz
 	}
 	void WINDOW::destroy_platform()
 	{
+		[(NSView*)nsView setLayer:nil];
 		if (nsWindow)
 			[(NSWindow*)nsWindow release];
 	}

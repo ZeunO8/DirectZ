@@ -332,7 +332,7 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     }
 }
 
-
+#ifndef MACOS
 void create_surface(Renderer* renderer)
 {
     auto& window = *renderer->window;
@@ -359,13 +359,24 @@ void create_surface(Renderer* renderer)
 	vk_check("vkCreateWin32SurfaceKHR",
 		vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(MACOS)
-    VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
-    surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
-    surfaceCreateInfo.pView = window.nsView;
-    vk_check("vkCreateMacOSSurfaceMVK",
-		vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+	CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
+
+	VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
+	surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+	surfaceCreateInfo.pNext = nullptr;
+	surfaceCreateInfo.flags = 0;
+	surfaceCreateInfo.pLayer = (__bridge void*)metalLayer;
+
+	vk_check("vkCreateMetalSurfaceEXT",
+		vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
+    // VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
+    // surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
+    // surfaceCreateInfo.pView = window.nsView;
+    // vk_check("vkCreateMacOSSurfaceMVK",
+	// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
 }
+#endif
 
 void Renderer::destroy_surface()
 {
