@@ -65,17 +65,17 @@ namespace dz
 			[(NSWindow*)nsWindow setTitle:nsTitle];
 			[(NSWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
 			[(NSWindow*)nsWindow makeKeyAndOrderFront:nil];
+			nsView = [(NSWindow*)nsWindow contentView];
+			NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
+			[NSApp setMainMenu:mainMenu];
 			CAMetalLayer* metalLayer = [CAMetalLayer layer];
 			metalLayer.device = MTLCreateSystemDefaultDevice();
 			metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 			metalLayer.framebufferOnly = YES;
 			metalLayer.contentsScale = [(NSView*)nsView window].backingScaleFactor;
 			metalLayer.frame = NSMakeRect(0, 0, *width, *height);
-			[(NSView*)nsView setLayer:metalLayer];
 			[(NSView*)nsView setWantsLayer:YES];
-			// nsView = [(NSWindow*)nsWindow contentView];
-			// NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
-			// [NSApp setMainMenu:mainMenu];
+			[(NSView*)nsView setLayer:metalLayer];
 		}
 		// nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
 		// NSRect rect = NSMakeRect(0, 0, *width, *height);
