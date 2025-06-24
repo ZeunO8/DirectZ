@@ -930,6 +930,7 @@ void pre_begin_render_pass(Renderer* renderer)
 	vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
 		&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
+	_aquire:
 	auto res = vkAcquireNextImageKHR(direct_registry->device,
 		renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
 		VK_NULL_HANDLE, &renderer->imageIndex);
@@ -938,7 +939,7 @@ void pre_begin_render_pass(Renderer* renderer)
 		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			recreate_swap_chain(renderer);
-			return;
+			goto _aquire;
 		}
 		else
 		{
