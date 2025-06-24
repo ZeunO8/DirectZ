@@ -938,6 +938,7 @@ void pre_begin_render_pass(Renderer* renderer)
 		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			recreate_swap_chain(renderer);
+			return;
 		}
 		else
 		{
@@ -1004,6 +1005,7 @@ void recreate_swap_chain(Renderer* renderer)
 	create_swap_chain(renderer);
 	create_image_views(renderer);
 	create_framebuffers(renderer);
+	std::cout << "Recreated Swap Chain" << std::endl;
 }
 
 bool swap_buffers(Renderer* renderer)
