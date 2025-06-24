@@ -2125,14 +2125,7 @@ void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vecto
 		nullptr
 	);
 
-	// Detect whether indirect count is supported
-#ifdef __ANDROID__
-	static constexpr bool supportsIndirectCount = false;
-#else
-    static constexpr bool supportsIndirectCount = true;
-#endif
-
-	if (supportsIndirectCount)
+	if (renderer->supportsIndirectCount)
 	{
 #ifndef __ANDROID__
 		vkCmdDrawIndirectCount(

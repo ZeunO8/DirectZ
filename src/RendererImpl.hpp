@@ -23,6 +23,11 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
 	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+#ifdef __ANDROID__
+	bool supportsIndirectCount = false;
+#else
+    bool supportsIndirectCount = true;
+#endif
     // PFN_vkCreateDebugUtilsMessengerEXT _vkCreateDebugUtilsMessengerEXT;
 	void destroy_surface();
 	void cleanup_swapchain();

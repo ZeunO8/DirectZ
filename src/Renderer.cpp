@@ -574,7 +574,7 @@ void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Rend
     // Prepare desired features but only enable if supported
     shaderDrawParamsFeatures_query.shaderDrawParameters = shaderDrawParamsFeatures_query.shaderDrawParameters ? VK_TRUE : VK_FALSE;
 #ifndef __ANDROID__
-    vulkan12Features.drawIndirectCount = vulkan12Features.drawIndirectCount ? VK_TRUE : VK_FALSE;
+    renderer->supportsIndirectCount = (vulkan12Features.drawIndirectCount = vulkan12Features.drawIndirectCount ? VK_TRUE : VK_FALSE);
     vulkan12Features.descriptorBindingVariableDescriptorCount = VK_FALSE;
     vulkan12Features.descriptorBindingUniformBufferUpdateAfterBind = VK_FALSE;
     vulkan12Features.descriptorBindingPartiallyBound = VK_FALSE;
