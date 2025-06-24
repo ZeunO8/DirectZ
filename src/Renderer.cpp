@@ -930,9 +930,20 @@ void pre_begin_render_pass(Renderer* renderer)
 	vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
 		&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
-	vk_check("vkAcquireNextImageKHR", vkAcquireNextImageKHR(direct_registry->device,
+	auto res = vkAcquireNextImageKHR(direct_registry->device,
 		renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
-		VK_NULL_HANDLE, &renderer->imageIndex));
+		VK_NULL_HANDLE, &renderer->imageIndex);
+	if (res != VK_SUCCESS)
+	{
+		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			recreate_swap_chain(renderer);
+		}
+		else
+		{
+			vk_check("vkAcquireNextImageKHR", res);
+		}
+	}
 
 	vk_check("vkResetFences", vkResetFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
 	direct_registry->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
@@ -987,14 +998,21 @@ void post_render_pass(Renderer* renderer)
 	}
 }
 
+void recreate_swap_chain(Renderer* renderer)
+{
+	destroy_swap_chain(renderer);
+	create_swap_chain(renderer);
+	create_image_views(renderer);
+	create_framebuffers(renderer);
+}
+
 bool swap_buffers(Renderer* renderer)
 {    
 	auto direct_registry = get_direct_registry();
 	auto result = vkQueuePresentKHR(direct_registry->presentQueue, &renderer->presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
-		// if (!recreate_swap_chain(renderer))
-		// 	return false;
+		recreate_swap_chain(renderer);
 		// *viewportResized = false;
 	}
 	else

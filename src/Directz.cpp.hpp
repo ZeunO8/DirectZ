@@ -88,4 +88,5 @@ namespace dz
 {
     bool vk_check(const char* fn, VkResult result);
     void vk_log(const char* fn, VkResult result);
+    void recreate_swap_chain(Renderer* renderer);
 }
