@@ -66,6 +66,7 @@ void ensure_command_buffers(Renderer* renderer);
 void ensure_render_pass(Renderer* renderer);
 void create_sync_objects(Renderer* renderer);
 bool vk_check(const char* fn, VkResult result);
+void vk_log(const char* fn, VkResult result);
 void pre_begin_render_pass(Renderer* renderer);
 void begin_render_pass(Renderer* renderer);
 void post_render_pass(Renderer* renderer);
@@ -188,7 +189,7 @@ void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& cr
 }
 #endif
 
-bool is_any_vulkan_implementation_available()
+bool is_any_vulkan_implementation_available(const std::vector<const char*>& possible_extensions, std::vector<const char*>& available_extensions)
 {
     uint32_t count = 0;
     VkResult res = vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
@@ -208,24 +209,68 @@ bool is_any_vulkan_implementation_available()
 
     for (const auto& ext : extensions)
     {
-		std::cerr << "EXT: " << ext.extensionName << std::endl;
-        if (strcmp(ext.extensionName, "VK_KHR_surface") == 0)
-            return true;
+		for (auto& pos_ext : possible_extensions)
+		{
+			if (strcmp(ext.extensionName, pos_ext) == 0)
+			{
+				available_extensions.push_back(pos_ext);
+				break;
+			}
+		}
     }
 
-    return false;
+    return !available_extensions.empty();
 }
 
 void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 {
 	if (direct_registry->instance != VK_NULL_HANDLE)
 		return;
-    if (!is_any_vulkan_implementation_available())
+
+    std::vector<const char*> possible_extensions;
+    std::vector<const char*> extensions;
+    possible_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+	possible_extensions.push_back(VK_KHR_ANDROID_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
+	possible_extensions.push_back(VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_WIN32_KHR)
+	possible_extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_XCB_KHR)
+	possible_extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_METAL_EXT)
+	possible_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+#endif
+
+#if defined(MACOS)
+    possible_extensions.push_back("VK_KHR_portability_enumeration");
+#endif
+
+#ifndef NDEBUG
+#ifndef __ANDROID__
+    possible_extensions.push_back("VK_EXT_debug_utils");
+#endif
+#endif
+
+	std::cout << "Possible Extensions:" << std::endl;
+	for (auto& pos_ext : possible_extensions)
+	{
+		std::cout << "\t" << pos_ext << std::endl;
+	}
+
+    if (!is_any_vulkan_implementation_available(possible_extensions, extensions))
     {
         std::cout << "No Vulkan implementation found. Falling back to SwiftShader." << std::endl;
         append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
         direct_registry->swiftshader_fallback = true;
     }
+
+	std::cout << std::endl << "Available Extensions:" << std::endl;
+	for (auto& avail_ext : extensions)
+	{
+		std::cout << "\t" << avail_ext << std::endl;
+	}
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -243,58 +288,8 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    std::vector<const char*> extensions;
-    extensions.push_back("VK_KHR_surface");
-
-    auto& windowType = direct_registry->windowType;
-    switch (windowType)
-    {
-        case WINDOW_TYPE_XCB:
-        {
-            extensions.push_back("VK_KHR_xcb_surface");
-            break;
-        }
-        case WINDOW_TYPE_X11:
-        {
-            extensions.push_back("VK_KHR_xlib_surface");
-            break;
-        }
-        case WINDOW_TYPE_WAYLAND:
-        {
-            extensions.push_back("VK_KHR_wayland_surface");
-            break;
-        }
-        case WINDOW_TYPE_WIN32:
-        {
-            extensions.push_back("VK_KHR_win32_surface");
-            break;
-        }
-        case WINDOW_TYPE_ANDROID:
-        {
-            extensions.push_back("VK_KHR_android_surface");
-            break;
-        }
-        case WINDOW_TYPE_MACOS:
-        {
-            extensions.push_back("VK_MVK_macos_surface");
-            break;
-        }
-        case WINDOW_TYPE_IOS:
-        {
-            extensions.push_back("VK_MVK_ios_surface");
-            break;
-        }
-    }
-
 #if defined(MACOS)
-    extensions.push_back("VK_KHR_portability_enumeration");
     createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-
-#ifndef NDEBUG
-#ifndef __ANDROID__
-    extensions.push_back("VK_EXT_debug_utils");
-#endif
 #endif
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -319,11 +314,10 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     }
 #endif
 #endif
-
     auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &direct_registry->instance);
     if (instance_create_result == VK_SUCCESS)
         return;
-
+	vk_log("vkCreateInstance", instance_create_result);
     if (!direct_registry->swiftshader_fallback)
     {
         std::cout << "Vulkan instance creation failed. Falling back to SwiftShader." << std::endl;
@@ -1132,18 +1126,14 @@ void createBuffer(Renderer* renderer,
 	vkBindBufferMemory(direct_registry->device, buffer, bufferMemory, 0);
 }
 
-bool vk_check(const char* fn, VkResult result)
+std::string vk_result_string(VkResult result)
 {
-	if (result == VK_SUCCESS)
-	{
-		return true;
-	}
-
 	std::string resultString;
 	switch (result)
 	{
-	// Success Codes (should not normally be handled here unless logic changes)
-	// case VK_SUCCESS: resultString = "VK_SUCCESS"; break; // Handled above
+	case VK_SUCCESS:
+		resultString = "VK_SUCCESS";
+		break;
 	case VK_NOT_READY:
 		resultString = "VK_NOT_READY";
 		break;
@@ -1287,11 +1277,27 @@ bool vk_check(const char* fn, VkResult result)
 		resultString = "Unknown VkResult code: " + std::to_string(result);
 		break;
 	}
+	return resultString;
+}
+
+bool vk_check(const char* fn, VkResult result)
+{
+	if (result == VK_SUCCESS)
+	{
+		return true;
+	}
+
+	auto resultString = vk_result_string(result);
 
 	// Print error message to standard error stream
 	throw std::runtime_error("Vulkan Error: Function '" + std::string(fn) + "' failed with " + resultString + " (" + std::to_string(result) + ")");
 }
 
+void vk_log(const char* fn, VkResult result)
+{	
+	auto resultString = vk_result_string(result);
+	std::cerr << "Vulkan Error: Function '" << std::string(fn) << "' failed with " << resultString << " (" + std::to_string(result) << ")";
+}
 
 uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
 {

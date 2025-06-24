@@ -51,6 +51,8 @@ namespace dz
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
+    struct ShaderBuffer;
+    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
     #include "env.cpp"
     #include "path.cpp"
     #include "FileHandle.cpp"

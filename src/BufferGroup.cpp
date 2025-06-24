@@ -122,13 +122,34 @@ void buffer_group_set_buffer_element_count(BufferGroup* buffer_group, const std:
         return;
     }
 
+    auto old_element_count = buffer.element_count;
+    auto old_data_ptr = buffer.data_ptr;
+
     buffer.element_count = element_count;
     size_t new_size = buffer.element_count * buffer.element_stride;
 
-    // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
-    buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
-    memset(buffer.data_ptr.get(), 0, new_size);
-    std::cout << "Set dynamic buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
+    if (!buffer.gpu_buffer.mapped_memory)
+    {
+        // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
+        buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
+        memset(buffer.data_ptr.get(), 0, new_size);
+    
+        if (old_element_count && old_data_ptr)
+        {
+            auto copy_size = std::min(old_element_count, element_count);
+            memcpy(buffer.data_ptr.get(), old_data_ptr.get(), copy_size);
+            std::cout << "Resized dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
+        }
+        else
+        {
+            std::cout << "Set dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
+        }
+    }
+    else
+    {
+        // we need to recreate GPU buffer
+        std::cerr << "Do this?" << std::endl;
+    }
 }
 
 uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name)
@@ -241,4 +262,67 @@ void buffer_group_destroy(BufferGroup* buffer_group)
         vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);
         vkFreeMemory(device, bufferPair.second.gpu_buffer.memory, 0);
     }
+}
+
+void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
+{
+	auto direct_registry = get_direct_registry();
+    VkDeviceSize buffer_size = 0;
+    if (buffer.is_dynamic_sized) {
+        if (buffer.element_count == 0) {
+                std::cout << "Skipping dynamic buffer '" << name << "' as its element count was not set by the application." << std::endl;
+                return;
+        }
+        buffer_size = buffer.element_count * buffer.element_stride;
+    } else {
+        buffer_size = buffer.static_size;
+    }
+
+    if (buffer_size == 0) {
+        std::cerr << "Warning: Skipping buffer '" << name << "' with zero size." << std::endl;
+        return;
+    }
+
+    // Create the GpuBuffer
+    VkBufferUsageFlags usage = (buffer.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+        ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+        : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    
+    VkBufferCreateInfo buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    buffer_info.size = buffer_size;
+    buffer_info.usage = usage;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(direct_registry->device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create buffer for " + name);
+    }
+
+    VkMemoryRequirements mem_reqs;
+    vkGetBufferMemoryRequirements(direct_registry->device, buffer.gpu_buffer.buffer, &mem_reqs);
+    
+    VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    alloc_info.allocationSize = mem_reqs.size;
+    alloc_info.memoryTypeIndex = FindMemoryType(direct_registry->physicalDevice, mem_reqs.memoryTypeBits, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+    if (vkAllocateMemory(direct_registry->device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to allocate memory for buffer " + name);
+    }
+    vkBindBufferMemory(direct_registry->device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
+
+    // Persistently map the memory
+    vkMapMemory(direct_registry->device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
+    buffer.gpu_buffer.size = buffer_size;
+
+    // Copy from CPU staging pointer to mapped GPU pointer
+    if (buffer.data_ptr) {
+        memcpy(buffer.gpu_buffer.mapped_memory, buffer.data_ptr.get(), buffer_size);
+        std::cout << "Copied initial data to GPU for buffer '" << name << "'." << std::endl;
+    }
+    
+    // ** THE MAGIC **
+    // Reset the shared_ptr to point to the GPU mapped memory.
+    // The custom empty deleter prevents the shared_ptr from trying to free Vulkan's memory.
+    buffer.data_ptr.reset(static_cast<uint8_t*>(buffer.gpu_buffer.mapped_memory), [](uint8_t*){ /* Do nothing */ });
+    std::cout << "Remapped data_ptr for '" << name << "' to point directly to GPU memory." << std::endl;
 }
