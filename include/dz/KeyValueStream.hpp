@@ -6,6 +6,9 @@
 
 #include "FileHandle.hpp"
 #include "internal/vlen.hpp"
+#include <iostream>
+#include <vector>
+#include <unordered_map>
 
 namespace dz
 {
