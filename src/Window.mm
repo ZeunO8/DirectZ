@@ -38,17 +38,17 @@ namespace dz
 								backing:NSBackingStoreBuffered
 								defer:NO];
 			NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
-			[nsWindow setTitle:nsTitle];
-			[nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
-			[nsWindow makeKeyAndOrderFront:nil];
-			nsView = [(NDWindow*)nsWindow contentView];
+			[(NSWindow*)nsWindow setTitle:nsTitle];
+			[(NSWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
+			[(NSWindow*)nsWindow makeKeyAndOrderFront:nil];
+			nsView = [(NSWindow*)nsWindow contentView];
 			NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
 			[NSApp setMainMenu:mainMenu];
 		}
 		nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
 		NSRect rect = NSMakeRect(0, 0, *width, *height);
 		nsImageView = [[NSImageView alloc] initWithFrame:rect];
-		[nsView addSubview:(NSImageView*)nsImageView];
+		[(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
 	bool WINDOW::poll_events_platform()

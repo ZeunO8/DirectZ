@@ -1,38 +1,5 @@
 #include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
-static std::unordered_map<ShaderModuleType, shaderc_shader_kind> stageEShaderc = {
-	{ShaderModuleType::Vertex, shaderc_vertex_shader},
-	{ShaderModuleType::Fragment, shaderc_fragment_shader},
-	{ShaderModuleType::Compute, shaderc_compute_shader}};
-static std::unordered_map<ShaderModuleType, VkShaderStageFlagBits> stageFlags = {
-	{ShaderModuleType::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
-	{ShaderModuleType::Fragment, VK_SHADER_STAGE_FRAGMENT_BIT},
-	{ShaderModuleType::Compute, VK_SHADER_STAGE_COMPUTE_BIT}};
-struct DirectRegistry
-{
-    uint8_t windowType;
-    VkInstance instance = VK_NULL_HANDLE;
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device = VK_NULL_HANDLE;
-    VkSurfaceFormatKHR firstSurfaceFormat = {};
-    VkRenderPass surfaceRenderPass = VK_NULL_HANDLE;
-    VkQueue graphicsQueue;
-    VkQueue computeQueue;
-    VkQueue presentQueue;
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    VkCommandBuffer* commandBuffer = 0;
-    VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
-    VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
-    std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
-    std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
-    bool swiftshader_fallback = false;
-    std::atomic<uint32_t> window_count = 0;
-#ifdef __ANDROID__
-    AAssetManager* android_asset_manager = 0;
-    AConfiguration* android_config = 0;
-#endif
-};
-struct DirectRegistry;
 extern "C" DirectRegistry* dz_registry_global;
 namespace dz
 {
