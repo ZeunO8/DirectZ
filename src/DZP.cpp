@@ -16,7 +16,7 @@ int main(int argc, char** argv)
     auto asset_pack = create_asset_pack(asset_handle);
     for (auto& input_file_name : args.arguments)
     {
-        FileHandle file_handle(FileHandle::PATH, input_file_name);
+        FileHandle file_handle{FileHandle::PATH, input_file_name};
         add_asset(asset_pack, file_handle);
     }
     free_asset_pack(asset_pack);
