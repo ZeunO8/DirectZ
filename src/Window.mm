@@ -35,6 +35,7 @@ namespace dz
 	}
 }
 #include "WINDOWDelegateImpl.mm"
+#include "MetalView.mm"
 namespace dz
 {
 	#include "path.mm"
@@ -65,20 +66,25 @@ namespace dz
 			[(NSWindow*)nsWindow setTitle:nsTitle];
 			[(NSWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
 			[(NSWindow*)nsWindow makeKeyAndOrderFront:nil];
-			nsView = [(NSWindow*)nsWindow contentView];
-			NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
-			[NSApp setMainMenu:mainMenu];
-			CAMetalLayer* metalLayer = [CAMetalLayer layer];
-			metalLayer.device = MTLCreateSystemDefaultDevice();
-			metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-			metalLayer.framebufferOnly = YES;
-			metalLayer.contentsScale = [(NSView*)nsView window].backingScaleFactor;
-			metalLayer.frame = NSMakeRect(0, 0, *width, *height);
-			[(NSView*)nsView setWantsLayer:YES];
-			[(NSView*)nsView setLayer:metalLayer];
+
+			NSRect frame = NSMakeRect(0, 0, *width, *height);
+			metalView = [[MetalView alloc] initWithFrame:frame];
+			[(NSWindow*)nsWindow setContentView:(MetalView*)metalView];
+
+			// nsView = [(NSWindow*)nsWindow contentView];
+			// NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
+			// [NSApp setMainMenu:mainMenu];
+			// CAMetalLayer* metalLayer = [CAMetalLayer layer];
+			// metalLayer.device = MTLCreateSystemDefaultDevice();
+			// metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+			// metalLayer.framebufferOnly = YES;
+			// metalLayer.contentsScale = [(NSView*)nsView window].backingScaleFactor;
+			// metalLayer.frame = NSMakeRect(0, 0, *width, *height);
+			// [(NSView*)nsView setWantsLayer:YES];
+			// [(NSView*)nsView setLayer:metalLayer];
 		}
 		// nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
-		// NSRect rect = NSMakeRect(0, 0, *width, *height);
+		// 
 		// nsImageView = [[NSImageView alloc] initWithFrame:rect];
 		// [(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}

@@ -55,6 +55,7 @@ struct WINDOW
 	void *nsView;
 	void *nsImage = 0;
 	void *nsImageView = 0;
+	void *metalView = 0;
 #endif
 	void create_platform();
 	void post_init_platform();
