@@ -17,7 +17,7 @@ namespace dz
 		auto& dr = *window.registry;
 		auto& windowType = dr.windowType;
 
-		CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
+		auto metalLayer = [(MetalView*)window.metalView metalLayer];
 
 		VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
