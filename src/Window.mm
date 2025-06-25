@@ -6,6 +6,7 @@
 #include <mach-o/dyld.h>
 #include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
+#include "MetalView.mm"
 namespace dz
 {
 	#include "WindowImpl.hpp"
@@ -35,7 +36,6 @@ namespace dz
 	}
 }
 #include "WINDOWDelegateImpl.mm"
-#include "MetalView.mm"
 namespace dz
 {
 	#include "path.mm"
