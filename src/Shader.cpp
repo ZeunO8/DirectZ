@@ -420,9 +420,16 @@ uint32_t GetMinimumTypeSizeInBytes(const SpvReflectTypeDescription& type_desc) {
     if (type_desc.op == SpvOpTypeRuntimeArray) {
         if (type_desc.struct_member_name)
         {
-            return CalculateStructSize(type_desc);
+            auto ret = CalculateStructSize(type_desc);
+            if (!ret)
+                goto _array_traits;
+            return ret;
         }
-        return 0; // Runtime arrays have size determined at runtime
+        else
+        {
+_array_traits:
+            return type_desc.traits.array.stride;
+        }
     }
 
     if ((type_desc.type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) != 0) {
@@ -707,6 +714,85 @@ VkImageLayout infer_required_image_layout(VkDescriptorType descriptor_type)
     }
 }
 
+std::string GetTypeDescriptionString(const SpvReflectTypeDescription* type_desc)
+{
+	if (type_desc == nullptr)
+	{
+		return "<null type>";
+	}
+
+	const SpvReflectTypeDescription::Traits& traits = type_desc->traits;
+
+	std::ostringstream oss;
+
+	if (traits.numeric.scalar.width == 0)
+	{
+		oss << "<unknown>";
+		return oss.str();
+	}
+
+	bool is_float = traits.numeric.scalar.signedness == 0 && traits.numeric.scalar.width == 32;
+	bool is_signed_int = traits.numeric.scalar.signedness == 1;
+	bool is_unsigned_int = traits.numeric.scalar.signedness == 0 && !is_float;
+
+	if (is_float)
+	{
+		oss << "float";
+	}
+	else if (is_signed_int)
+	{
+		switch (traits.numeric.scalar.width)
+		{
+			case 8: oss << "int8_t"; break;
+			case 16: oss << "int16_t"; break;
+			case 32: oss << "int"; break;
+			case 64: oss << "int64_t"; break;
+			default: oss << "int" << traits.numeric.scalar.width << "_t"; break;
+		}
+	}
+	else if (is_unsigned_int)
+	{
+		switch (traits.numeric.scalar.width)
+		{
+			case 8: oss << "uint8_t"; break;
+			case 16: oss << "uint16_t"; break;
+			case 32: oss << "uint"; break;
+			case 64: oss << "uint64_t"; break;
+			default: oss << "uint" << traits.numeric.scalar.width << "_t"; break;
+		}
+	}
+	else
+	{
+		oss << "unknown";
+	}
+
+	if (traits.numeric.matrix.column_count > 0 && traits.numeric.matrix.row_count > 0)
+	{
+		oss << traits.numeric.matrix.column_count << "x" << traits.numeric.matrix.row_count;
+	}
+	else if (traits.numeric.vector.component_count > 1)
+	{
+		oss << traits.numeric.vector.component_count;
+	}
+
+	if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY)
+	{
+		for (uint32_t i = 0; i < traits.array.dims_count; ++i)
+		{
+			if (traits.array.dims[i] == 0)
+			{
+				oss << "[]"; // runtime array
+			}
+			else
+			{
+				oss << "[" << traits.array.dims[i] << "]";
+			}
+		}
+	}
+
+	return oss.str();
+}
+
 void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection)
 {
     for (uint32_t i = 0; i < module.descriptor_binding_count; ++i)
@@ -807,7 +893,15 @@ void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderM
                             buffer_data.element_stride = primary_member.type_description->traits.array.stride;
                         }
                         buffer_data.element_count = 0; // Requires application to set size for dynamic buffers
-                        std::cout << "Detected dynamic SSBO '" << name << "': runtime array of " << element_type_desc_ptr->type_name << "s." << std::endl;
+                        if (!element_type_desc_ptr->type_name)
+                        {
+                            std::string type_str = GetTypeDescriptionString(element_type_desc_ptr);
+                            std::cout << "Detected dynamic SSBO: runtime array of " << type_str << std::endl;
+                        }
+                        else
+                        {
+                            std::cout << "Detected dynamic SSBO '" << name << "': runtime array of " << element_type_desc_ptr->type_name << "s." << std::endl;
+                        }
                     } else if (primary_member.type_description->op == SpvOpTypeArray) {
                         // This is an SSBO with a fixed-size array as its primary content (e.g., `buffer MyBlock { SomeType data[10]; }`)
                         element_type_desc_ptr = primary_member.type_description;
