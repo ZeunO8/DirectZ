@@ -929,35 +929,33 @@ void create_sync_objects(Renderer* renderer)
 
 void pre_begin_render_pass(Renderer* renderer)
 {
-	auto direct_registry = get_direct_registry();
-	renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    auto direct_registry = get_direct_registry();
+    renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
-	vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
-		&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+    vk_check("vkWaitForFences", vkWaitForFences(direct_registry->device, 1,
+        &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
-	_aquire:
-	auto res = vkAcquireNextImageKHR(direct_registry->device,
-		renderer->swapChain, UINT64_MAX, renderer->imageAvailableSemaphores[renderer->currentFrame],
-		VK_NULL_HANDLE, &renderer->imageIndex);
-	if (res != VK_SUCCESS)
-	{
-		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
-		{
-			recreate_swap_chain(renderer);
-			goto _aquire;
-		}
-		else
-		{
-			vk_check("vkAcquireNextImageKHR", res);
-		}
-	}
+    VkResult res = vkAcquireNextImageKHR(direct_registry->device,
+        renderer->swapChain, UINT64_MAX,
+        renderer->imageAvailableSemaphores[renderer->currentFrame],
+        VK_NULL_HANDLE, &renderer->imageIndex);
 
-	vk_check("vkResetFences", vkResetFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
-	direct_registry->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
+    if (res == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        recreate_swap_chain(renderer);
+        return;
+    }
+    else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+    {
+        vk_check("vkAcquireNextImageKHR", res);
+    }
 
-	vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*direct_registry->commandBuffer, 0));
+    vk_check("vkResetFences", vkResetFences(direct_registry->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
+    direct_registry->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
 
-	vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*direct_registry->commandBuffer, &renderer->beginInfo));
+    vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*direct_registry->commandBuffer, 0));
+
+    vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*direct_registry->commandBuffer, &renderer->beginInfo));
 }
 
 void begin_render_pass(Renderer* renderer)
