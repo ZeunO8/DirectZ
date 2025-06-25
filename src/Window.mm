@@ -17,21 +17,21 @@ namespace dz
 		auto& dr = *window.registry;
 		auto& windowType = dr.windowType;
 
-		// CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
+		CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
 
-		// VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
-		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-		// surfaceCreateInfo.pNext = nullptr;
-		// surfaceCreateInfo.flags = 0;
-		// surfaceCreateInfo.pLayer = metalLayer;
+		VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
+		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+		surfaceCreateInfo.pNext = nullptr;
+		surfaceCreateInfo.flags = 0;
+		surfaceCreateInfo.pLayer = metalLayer;
 
-		// vk_check("vkCreateMetalSurfaceEXT",
-		// 	vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
-		VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
-		surfaceCreateInfo.pView = (NSView*)window.nsView;
-		vk_check("vkCreateMacOSSurfaceMVK",
-			vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+		vk_check("vkCreateMetalSurfaceEXT",
+			vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
+		// VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
+		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
+		// surfaceCreateInfo.pView = (NSView*)window.nsView;
+		// vk_check("vkCreateMacOSSurfaceMVK",
+		// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 	}
 }
 #include "WINDOWDelegateImpl.mm"
@@ -77,10 +77,10 @@ namespace dz
 			[(NSView*)nsView setWantsLayer:YES];
 			[(NSView*)nsView setLayer:metalLayer];
 		}
-		nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
-		NSRect rect = NSMakeRect(0, 0, *width, *height);
-		nsImageView = [[NSImageView alloc] initWithFrame:rect];
-		[(NSView*)nsView addSubview:(NSImageView*)nsImageView];
+		// nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
+		// NSRect rect = NSMakeRect(0, 0, *width, *height);
+		// nsImageView = [[NSImageView alloc] initWithFrame:rect];
+		// [(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
 	bool WINDOW::poll_events_platform()
