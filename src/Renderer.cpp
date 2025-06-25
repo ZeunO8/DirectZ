@@ -269,7 +269,7 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     std::vector<const char*> layers;
 #ifndef NDEBUG
 #ifndef __ANDROID__
-	if (!get_env("DISABLE_VALIDATION_LAYERS").empty())
+	if (get_env("DISABLE_VALIDATION_LAYERS").empty())
 	{
 		if (check_validation_layers_support())
 		{
