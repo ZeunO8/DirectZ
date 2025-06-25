@@ -1,5 +1,4 @@
 #include <DirectZ.hpp>
-using namespace dz;
 
 // #define DOUBLE_PRECISION
 #if defined(DOUBLE_PRECISION)
