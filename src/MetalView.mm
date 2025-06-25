@@ -20,4 +20,7 @@
         self.metalLayer.device = self.device;
         self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
     }
+    return self;
 }
+
+@end
