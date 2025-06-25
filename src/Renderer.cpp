@@ -269,19 +269,22 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
     std::vector<const char*> layers;
 #ifndef NDEBUG
 #ifndef __ANDROID__
-    if (check_validation_layers_support())
-    {
-        layers.push_back("VK_LAYER_KHRONOS_validation");
-        createInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
-        createInfo.ppEnabledLayerNames = layers.data();
-        populate_debug_messenger_create_info(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-    }
-    else
-    {
-        std::cout << "Validation layers requested, but not available" << std::endl;
-        createInfo.enabledLayerCount = 0;
-    }
+	if (!get_env("DISABLE_VALIDATION_LAYERS").empty())
+	{
+		if (check_validation_layers_support())
+		{
+			layers.push_back("VK_LAYER_KHRONOS_validation");
+			createInfo.enabledLayerCount = static_cast<uint32_t>(layers.size());
+			createInfo.ppEnabledLayerNames = layers.data();
+			populate_debug_messenger_create_info(debugCreateInfo);
+			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+		}
+		else
+		{
+			std::cout << "Validation layers requested, but not available" << std::endl;
+			createInfo.enabledLayerCount = 0;
+		}
+	}
 #endif
 #endif
     auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &direct_registry->instance);
