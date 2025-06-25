@@ -211,6 +211,8 @@ void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 	possible_extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
 #elif defined(VK_USE_PLATFORM_METAL_EXT)
 	possible_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
+#elif defined(VK_USE_PLATFORM_MACOS_MVK)
+	possible_extensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
 #endif
 
 #if defined(MACOS)

@@ -23,8 +23,8 @@ using namespace dz;
 #elif defined(__linux__) && !defined(__ANDROID__)
 #define VK_USE_PLATFORM_XCB_KHR
 #elif defined(MACOS)
-// #define VK_USE_PLATFORM_MACOS_MVK
-#define VK_USE_PLATFORM_METAL_EXT
+#define VK_USE_PLATFORM_MACOS_MVK
+// #define VK_USE_PLATFORM_METAL_EXT
 #elif defined(__ANDROID__)
 #define VK_USE_PLATFORM_ANDROID_KHR
 #endif
