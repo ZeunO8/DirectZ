@@ -18,6 +18,16 @@ namespace dz
         Compute = 3   /**< Compute shader module. */
     };
 
+    enum class ShaderTopology
+    {
+        PointList = 0,
+        LineList = 1,
+        LineStrip = 2,
+        TriangleList = 3,
+        TriangleStrip = 4,
+        TriangleFan = 5
+    };
+
     struct Renderer;
     struct Shader;
 
@@ -26,7 +36,7 @@ namespace dz
      * 
      * @return A pointer to the newly created Shader.
      */
-    Shader* shader_create();
+    Shader* shader_create(ShaderTopology topology = ShaderTopology::TriangleList);
 
     /**
      * @brief Sets the include path to an asset_pack for include lookup

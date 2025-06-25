@@ -206,6 +206,7 @@ struct Shader
     VkRenderPass render_pass = VK_NULL_HANDLE;
     std::map<std::string, std::string> define_map;
     AssetPack* include_asset_pack = 0;
+    ShaderTopology topology;
 };
 
 struct BufferGroup
@@ -304,9 +305,11 @@ private:
 
 void shader_destroy(Shader* shader);
 
-Shader* shader_create()
+Shader* shader_create(ShaderTopology topology)
 {
-    auto shader = new Shader;
+    auto shader = new Shader{
+        .topology = topology
+    };
     auto& dr = *get_direct_registry();
     dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
         shader_destroy(shader);
@@ -1965,7 +1968,7 @@ void shader_compile(Shader* shader)
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = (VkPrimitiveTopology)shader->topology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport dummyViewport{};
