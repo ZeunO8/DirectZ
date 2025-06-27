@@ -732,7 +732,7 @@ VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<
 			return availablePresentMode;
 		}
 	}
-	return VK_PRESENT_MODE_MAILBOX_KHR;
+	return availablePresentModes.empty() ? VK_PRESENT_MODE_FIFO_KHR : availablePresentModes[0];
 }
 VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities)
 {
