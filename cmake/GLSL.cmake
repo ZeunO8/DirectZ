@@ -6,7 +6,7 @@ set(SHADERC_ENABLE_WERROR_COMPILE OFF)
 message(STATUS "FetchContent: shaderc")
 FetchContent_Declare(shaderc
     GIT_REPOSITORY https://github.com/google/shaderc.git
-    GIT_TAG v2024.2)
+    GIT_TAG main)
 FetchContent_MakeAvailable(shaderc)
 
 set_target_properties(shaderc PROPERTIES DEBUG_POSTFIX "d")
