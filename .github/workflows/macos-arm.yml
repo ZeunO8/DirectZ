@@ -1,0 +1,31 @@
+name: Build MacOS (ARM)
+on:
+  push:
+    branches:
+      - run-actions
+permissions:
+  contents: write
+jobs:
+  configure-build-and-package-macos-arm:
+    runs-on: macos-latest
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies on macOS
+        run: |
+          brew install nasm
+        shell: bash
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+      - name: Build Package on macOS
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+          cmake --build build
+        shell: bash

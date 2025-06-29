@@ -1,0 +1,32 @@
+name: Build Windows
+on:
+  push:
+    branches:
+      - run-actions
+permissions:
+  contents: write
+jobs:
+  configure-build-and-package-windows:
+    runs-on: windows-2025
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies on Windows
+        run: |
+          choco install dos2unix ninja nasm openssl
+          C:\\msys64\\msys2_shell.cmd -defterm -no-start -mingw64 -here -use-full-path -c "pacman -S --noconfirm make diffutils"
+        shell: bash
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+      - name: Build Package on Windows
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+          cmake --build build
+        shell: cmd

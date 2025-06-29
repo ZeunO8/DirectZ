@@ -1,0 +1,45 @@
+name: Build Linux
+on:
+  push:
+    branches:
+      - run-actions
+permissions:
+  contents: write
+jobs:
+  configure-build-and-package-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies on Linux
+        run: |
+          sudo apt update
+          sudo apt install nasm libvulkan-dev libssl-dev libx11-dev uuid-dev libglx-dev libgl1-mesa-dev libxfixes-dev libxrandr-dev libxkbcommon-dev libxcb-keysyms1-dev libdrm-dev ninja-build libwayland-client0 libwayland-server0 libwayland-dev libxfixes-dev libxcb-xfixes0-dev libxrender-dev libxrandr-dev libxcb-util-dev libdrm-dev libgtkmm-3.0-dev
+        shell: bash
+
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: 1.4.309.0
+          cache: true
+
+      - name: Build Package on Linux
+        run: |
+          cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+          cmake --build build
+        shell: bash
+        
+      - name: Install Doxygen
+        if: runner.os == 'Linux'
+        uses: ssciwr/doxygen-install@v1

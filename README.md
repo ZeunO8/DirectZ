@@ -12,6 +12,13 @@ DirectZ provides:
 - Quick access to a fully reflected Shader pipeline
 - GPU driven rendering
 
+##### Build Status
+[![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=run-actions&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
+[![MacOS (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=run-actions&label=MacOS%20x86_64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml)
+[![Linux Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=run-actions&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
+[![Windows Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
+[![Android Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android.yml/badge.svg?branch=run-actions&label=Android%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android.yml)
+
 ##### Getting hands on DirectZ
 
 You can download a Release installer from the releases page or, if building from source, I recommend a clone and install
