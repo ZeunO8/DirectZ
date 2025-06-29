@@ -29,10 +29,10 @@ jobs:
 
       - name: Download and Extract Android NDK
         run: |
-          $url = "https://dl.google.com/android/repository/android-ndk-${env:ANDROID_NDK_VERSION}-windows.zip"
+          $url = "https://dl.google.com/android/repository/android-ndk-r27c-windows.zip"
           wget $url -OutFile "ndk.zip"
           Expand-Archive ndk.zip -DestinationPath "$env:USERPROFILE\\ndk"
-          echo "ANDROID_NDK_ROOT=$env:USERPROFILE\\ndk\\android-ndk-${env:ANDROID_NDK_VERSION}" | Out-File -Append $env:GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$env:USERPROFILE\\ndk\\android-ndk-r27c" | Out-File -Append $env:GITHUB_ENV
         shell: powershell
 
       - name: Configure and Build
