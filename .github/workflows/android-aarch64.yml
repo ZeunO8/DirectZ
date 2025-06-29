@@ -40,8 +40,18 @@ jobs:
           unzip -q "$NDK_ZIP" -d "$USERPROFILE/ndk"
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
 
-      - name: Configure and Build
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM         
-          cmake --build build
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM
+        shell: bash
+
+      - name: fix_format_security
+        run: python fix_format_security.py build
+        shell: bash
+
+      - name: Build
+        run: cmake --build build
+        shell: bash
+
+      - name: Install
+        run: cmake --install build
         shell: bash

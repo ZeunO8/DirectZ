@@ -24,8 +24,14 @@ jobs:
           version: 1.4.309.0
           cache: true
 
-      - name: Build Package on macOS
-        run: |
-          cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
-          cmake --build build
+      - name: Configure
+        run: cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+        shell: bash
+
+      - name: Build
+        run: cmake --build build
+        shell: bash
+
+      - name: Install
+        run: sudo cmake --install build
         shell: bash
