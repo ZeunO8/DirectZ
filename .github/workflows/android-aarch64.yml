@@ -27,21 +27,21 @@ jobs:
           choco install ninja openssl wget unzip
         shell: powershell
 
-      - name: Download and Extract Android NDK
+      - name: Download and Extract Android NDK (bash)
+        shell: bash
         run: |
-          $url = "https://dl.google.com/android/repository/android-ndk-r27c-windows.zip"
-          wget $url -OutFile "ndk.zip"
-          Expand-Archive ndk.zip -DestinationPath "$env:USERPROFILE\\ndk"
-          echo "ANDROID_NDK_ROOT=$env:USERPROFILE\\ndk\\android-ndk-r27c" | Out-File -Append $env:GITHUB_ENV
-        shell: powershell
+          export NDK_VERSION=r27c
+          export NDK_URL="https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-windows.zip"
+          export NDK_ZIP="ndk.zip"
+          export NDK_DIR="$USERPROFILE/ndk/android-ndk-${NDK_VERSION}"
+
+          mkdir -p "$USERPROFILE/ndk"
+          curl -fsSL "$NDK_URL" -o "$NDK_ZIP"
+          unzip -q "$NDK_ZIP" -d "$USERPROFILE/ndk"
+          echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
 
       - name: Configure and Build
         run: |
-          cmake -B build -G Ninja `
-            -DCMAKE_BUILD_TYPE=Debug `
-            -DCMAKE_TOOLCHAIN_FILE=$env:ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake `
-            -DANDROID_ABI=${{ env.ANDROID_ABI }} `
-            -DANDROID_PLATFORM=${{ env.ANDROID_PLATFORM }}
-          
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM         
           cmake --build build
-        shell: powershell
+        shell: bash
