@@ -47,19 +47,6 @@ endif()
 
 message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
 
-target_include_directories(DirectZ PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_include_directories(DirectZ PRIVATE include)
-
-target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_include_directories(dzp PRIVATE include)
-
-target_link_libraries(DirectZ PRIVATE ${Vulkan_LIBRARIES})
-
-target_link_libraries(dzp PRIVATE DirectZ)
-if(ANDROID)
-	target_link_libraries(dzp PRIVATE android log)
-endif()
-
 include(FetchContent)
 
 include(cmake/SwiftShader.cmake)
@@ -67,9 +54,26 @@ include(cmake/GLSL.cmake)
 
 include(cmake/dz-targets.cmake)
 
-target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
 
-target_link_libraries(DirectZ PRIVATE shaderc shaderc_util spirv-reflect-static)
+target_include_directories(DirectZ PRIVATE
+	include
+	${Vulkan_INCLUDE_DIRS}
+	${spirv_reflect_SOURCE_DIR})
+
+target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS} include)
+
+target_link_libraries(DirectZ PRIVATE
+	${Vulkan_LIBRARIES}
+	shaderc
+	shaderc_util
+	spirv-reflect-static)
+
+target_link_libraries(dzp PRIVATE DirectZ)
+if(ANDROID)
+	target_link_libraries(dzp PRIVATE android log)
+endif()
+
+target_link_libraries(DirectZ PRIVATE)
 
 if(WIN32)
 	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)
