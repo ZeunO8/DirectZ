@@ -1,8 +1,14 @@
 name: Build MacOS (ARM)
+
 on:
   push:
     branches:
       - run-actions
+      - main
+  pull_request:
+    branches:
+      - main
+
 permissions:
   contents: write
 jobs:
