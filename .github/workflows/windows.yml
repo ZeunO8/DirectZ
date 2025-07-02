@@ -22,7 +22,7 @@ jobs:
 
       - name: Install Dependencies on Windows
         run: |
-          choco install dos2unix ninja nasm openssl
+          choco install dos2unix nasm
           C:\\msys64\\msys2_shell.cmd -defterm -no-start -mingw64 -here -use-full-path -c "pacman -S --noconfirm make diffutils"
         shell: bash
 

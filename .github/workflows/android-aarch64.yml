@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          choco install ninja openssl wget unzip
+          choco install wget unzip
         shell: powershell
 
       - name: Download and Extract Android NDK (bash)
