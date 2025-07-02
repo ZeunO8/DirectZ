@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - run-actions
-      - main
+      - master
   pull_request:
     branches:
-      - main
+      - master
 
 permissions:
   contents: write
