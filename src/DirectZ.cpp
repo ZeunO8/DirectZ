@@ -63,6 +63,8 @@ namespace dz
     #include "Shader.cpp"
     #include "BufferGroup.cpp"
     #include "EventInterface.cpp"
+    #include "D7Stream.cpp"
+    #include "ImGuiLayer.cpp"
 }
 #include "runtime.cpp"
 template<typename T>

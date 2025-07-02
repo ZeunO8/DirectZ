@@ -23,6 +23,8 @@
 #include <dz/ProgramArgs.hpp>
 #include <dz/EventInterface.hpp>
 #include <dz/zmalloc.hpp>
+#include <dz/D7Stream.hpp>
+#include <dz/ImGuiLayer.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)

@@ -47,10 +47,12 @@ endif()
 
 message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
 
+set(FETCHCONTENT_QUIET OFF)
 include(FetchContent)
 
 include(cmake/SwiftShader.cmake)
 include(cmake/GLSL.cmake)
+include(cmake/ImGui.cmake)
 
 include(cmake/dz-targets.cmake)
 
@@ -58,7 +60,9 @@ include(cmake/dz-targets.cmake)
 target_include_directories(DirectZ PRIVATE
 	include
 	${Vulkan_INCLUDE_DIRS}
-	${spirv_reflect_SOURCE_DIR})
+	${spirv_reflect_SOURCE_DIR}
+	${imgui_SOURCE_DIR}
+)
 
 target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS} include)
 
@@ -66,7 +70,9 @@ target_link_libraries(DirectZ PRIVATE
 	${Vulkan_LIBRARIES}
 	shaderc
 	shaderc_util
-	spirv-reflect-static)
+	spirv-reflect-static
+	imgui
+)
 
 target_link_libraries(dzp PRIVATE DirectZ)
 if(ANDROID)
