@@ -10,6 +10,8 @@ endif()
 
 include(cmake/Version.cmake)
 
+set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 0)
+
 project(DirectZ VERSION ${DZ_V_MAJ}.${DZ_V_MIN}.${DZ_V_PAT}.${DZ_V_TWE})
 
 include(GNUInstallDirs)
@@ -56,7 +58,6 @@ include(cmake/ImGui.cmake)
 
 include(cmake/dz-targets.cmake)
 
-
 target_include_directories(DirectZ PRIVATE
 	include
 	${Vulkan_INCLUDE_DIRS}
@@ -64,7 +65,10 @@ target_include_directories(DirectZ PRIVATE
 	${imgui_SOURCE_DIR}
 )
 
-target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS} include)
+target_include_directories(dzp PRIVATE
+	${Vulkan_INCLUDE_DIRS}
+	${imgui_SOURCE_DIR}
+	include)
 
 target_link_libraries(DirectZ PRIVATE
 	${Vulkan_LIBRARIES}

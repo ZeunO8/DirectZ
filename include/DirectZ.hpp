@@ -9,6 +9,17 @@
 #define RENDERER_VULKAN
 #endif
 
+#if defined(_WIN32)
+#define VK_USE_PLATFORM_WIN32_KHR
+#elif defined(__linux__) && !defined(__ANDROID__)
+#define VK_USE_PLATFORM_XCB_KHR
+#elif defined(MACOS)
+// #define VK_USE_PLATFORM_MACOS_MVK
+#define VK_USE_PLATFORM_METAL_EXT
+#elif defined(__ANDROID__)
+#define VK_USE_PLATFORM_ANDROID_KHR
+#endif
+
 #include <filesystem>
 #include <dz/BufferGroup.hpp>
 #include <dz/size_ptr.hpp>
@@ -24,6 +35,9 @@
 #include <dz/EventInterface.hpp>
 #include <dz/zmalloc.hpp>
 #include <dz/D7Stream.hpp>
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include <imgui.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <dz/ImGuiLayer.hpp>
 
 #ifdef _WIN32

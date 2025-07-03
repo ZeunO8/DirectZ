@@ -23,6 +23,7 @@ struct WINDOW
     DirectRegistry* registry;
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
+	ImGuiLayer imguiLayer;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;

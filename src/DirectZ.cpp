@@ -53,19 +53,20 @@ namespace dz
     void end_single_time_commands(VkCommandBuffer command_buffer);
     struct ShaderBuffer;
     void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
-    #include "env.cpp"
-    #include "path.cpp"
-    #include "FileHandle.cpp"
-    #include "AssetPack.cpp"
-    #include "Window.cpp"
-    #include "Renderer.cpp"
-    #include "Image.cpp"
-    #include "Shader.cpp"
-    #include "BufferGroup.cpp"
-    #include "EventInterface.cpp"
-    #include "D7Stream.cpp"
-    #include "ImGuiLayer.cpp"
 }
+
+#include "env.cpp"
+#include "path.cpp"
+#include "FileHandle.cpp"
+#include "AssetPack.cpp"
+#include "Window.cpp"
+#include "Renderer.cpp"
+#include "Image.cpp"
+#include "Shader.cpp"
+#include "BufferGroup.cpp"
+#include "EventInterface.cpp"
+#include "D7Stream.cpp"
+#include "ImGuiLayer.cpp"
 #include "runtime.cpp"
 template<typename T>
 mat<T, 4, 4> window_mvp_T(WINDOW* window, const mat<T, 4, 4>& mvp)

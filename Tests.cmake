@@ -1,8 +1,10 @@
 include(CTest)
 function(add_dz_test TEST_NAME TEST_SRC)
     add_executable(${TEST_NAME} ${TEST_SRC})
-    target_include_directories(${TEST_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
-    target_include_directories(${TEST_NAME} PRIVATE include)
+    target_include_directories(${TEST_NAME} PRIVATE
+        ${Vulkan_INCLUDE_DIRS}
+        ${imgui_SOURCE_DIR}
+        include)
     target_link_libraries(${TEST_NAME} PRIVATE DirectZ)
     if(ANDROID)
         target_link_libraries(${TEST_NAME} PRIVATE android log)
@@ -15,3 +17,4 @@ add_dz_test(Particle2D tests/Particle2D.cpp)
 add_dz_test(AssetStream tests/AssetStream.cpp)
 add_dz_test(LineGrid tests/LineGrid.cpp)
 add_dz_test(D7Stream tests/D7Stream.cpp)
+add_dz_test(ImGuiTest tests/ImGui.cpp)

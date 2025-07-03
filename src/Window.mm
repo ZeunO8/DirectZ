@@ -139,7 +139,7 @@ namespace dz
 					keycode = [characters characterAtIndex:0];
 				}
 				*window.mod = mod;
-				window.keys.get()[keycode] = pressed;
+				window.event_interface->key_press(keycode, pressed);
 				break;
 			}
 			case NSEventTypeMouseMoved:
@@ -150,9 +150,7 @@ namespace dz
 				NSPoint location = [event locationInWindow];
 				auto x = location.x;
 				auto y = location.y;
-				auto cursor = window.cursor.get();
-				cursor[0] = x;
-				cursor[1] = y;
+				window.event_interface->cursor_move(x, y);
 				break;
 			}
 			case NSEventTypeLeftMouseDown:
@@ -163,7 +161,7 @@ namespace dz
 				NSInteger button = [event buttonNumber]; // 0 = left, 1 = right, 2+ = middle/extra
 				if (button >= 0 && button < 8)
 				{
-					buttons[button] = true;
+					window.event_interface->cursor_move(button, true);
 				}
 				break;
 			}
@@ -175,7 +173,7 @@ namespace dz
 				NSInteger button = [event buttonNumber];
 				if (button >= 0 && button < 8)
 				{
-					buttons[button] = false;
+					window.event_interface->cursor_move(button, false);
 				}
 				break;
 			}
