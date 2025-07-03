@@ -161,7 +161,7 @@ namespace dz
 				NSInteger button = [event buttonNumber]; // 0 = left, 1 = right, 2+ = middle/extra
 				if (button >= 0 && button < 8)
 				{
-					window.event_interface->cursor_move(button, true);
+					window.event_interface->cursor_press(button, true);
 				}
 				break;
 			}
@@ -173,7 +173,7 @@ namespace dz
 				NSInteger button = [event buttonNumber];
 				if (button >= 0 && button < 8)
 				{
-					window.event_interface->cursor_move(button, false);
+					window.event_interface->cursor_press(button, false);
 				}
 				break;
 			}
