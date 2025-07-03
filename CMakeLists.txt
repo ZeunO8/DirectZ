@@ -10,6 +10,8 @@ endif()
 
 include(cmake/Version.cmake)
 
+set(CMAKE_EXPERIMENTAL_CXX_MODULE_DYNDEP 0)
+
 project(DirectZ VERSION ${DZ_V_MAJ}.${DZ_V_MIN}.${DZ_V_PAT}.${DZ_V_TWE})
 
 include(GNUInstallDirs)
@@ -47,29 +49,41 @@ endif()
 
 message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
 
-target_include_directories(DirectZ PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_include_directories(DirectZ PRIVATE include)
+set(FETCHCONTENT_QUIET OFF)
+include(FetchContent)
 
-target_include_directories(dzp PRIVATE ${Vulkan_INCLUDE_DIRS})
-target_include_directories(dzp PRIVATE include)
+include(cmake/SwiftShader.cmake)
+include(cmake/GLSL.cmake)
+include(cmake/ImGui.cmake)
 
-target_link_libraries(DirectZ PRIVATE ${Vulkan_LIBRARIES})
+include(cmake/dz-targets.cmake)
+
+target_include_directories(DirectZ PRIVATE
+	include
+	${Vulkan_INCLUDE_DIRS}
+	${spirv_reflect_SOURCE_DIR}
+	${imgui_SOURCE_DIR}
+)
+
+target_include_directories(dzp PRIVATE
+	${Vulkan_INCLUDE_DIRS}
+	${imgui_SOURCE_DIR}
+	include)
+
+target_link_libraries(DirectZ PRIVATE
+	${Vulkan_LIBRARIES}
+	shaderc
+	shaderc_util
+	spirv-reflect-static
+	imgui
+)
 
 target_link_libraries(dzp PRIVATE DirectZ)
 if(ANDROID)
 	target_link_libraries(dzp PRIVATE android log)
 endif()
 
-include(FetchContent)
-
-include(cmake/SwiftShader.cmake)
-include(cmake/GLSL.cmake)
-
-include(cmake/dz-targets.cmake)
-
-target_include_directories(DirectZ PRIVATE ${spirv_reflect_SOURCE_DIR})
-
-target_link_libraries(DirectZ PRIVATE shaderc shaderc_util spirv-reflect-static)
+target_link_libraries(DirectZ PRIVATE)
 
 if(WIN32)
 	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)

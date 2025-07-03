@@ -18,16 +18,6 @@ using namespace dz;
 #include <dz/GlobalUID.hpp>
 #include <spirv_reflect.h>
 #include <shaderc/shaderc.hpp>
-#if defined(_WIN32)
-#define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__linux__) && !defined(__ANDROID__)
-#define VK_USE_PLATFORM_XCB_KHR
-#elif defined(MACOS)
-// #define VK_USE_PLATFORM_MACOS_MVK
-#define VK_USE_PLATFORM_METAL_EXT
-#elif defined(__ANDROID__)
-#define VK_USE_PLATFORM_ANDROID_KHR
-#endif
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #include <ShellScalingApi.h>
@@ -70,6 +60,8 @@ struct DirectRegistry
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue presentQueue;
+    int32_t graphicsAndComputeFamily = -1;
+    int32_t presentFamily = -1;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkCommandBuffer* commandBuffer = 0;
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;

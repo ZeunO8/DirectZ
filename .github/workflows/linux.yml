@@ -1,10 +1,17 @@
 name: Build Linux
+
 on:
   push:
     branches:
       - run-actions
+      - master
+  pull_request:
+    branches:
+      - master
+
 permissions:
   contents: write
+
 jobs:
   configure-build-and-package-ubuntu:
     runs-on: ubuntu-latest

@@ -18,6 +18,7 @@ namespace dz
 {
     struct WINDOW;
     struct EventInterface;
+    struct ImGuiLayer;
     struct WindowCreateInfo
     {
         std::string title;
@@ -51,6 +52,11 @@ namespace dz
     * @brief Renders the specified window based on its context configuration.
     */
     void window_render(WINDOW* window);
+
+    /**
+    * @brief Gets the ImGuiLayer of a window
+    */
+    ImGuiLayer& window_get_ImGuiLayer(WINDOW* window);
 
     /**
     * @brief Returns a reference to the frametime value as a float.
@@ -235,7 +241,7 @@ namespace dz
 #define KEYCODE_CTRL 0x87
 #define KEYCODE_SHIFT 0x88
 #define KEYCODE_ALT 0x89
-#define KEYCODE_PAUSE 0x87
-#define KEYCODE_SUPER 0x88
+#define KEYCODE_PAUSE 0x8A
+#define KEYCODE_SUPER 0x8B
 #define LAST_UNDEFINED_ASCII_IN_RANGE 0x9F
 }
