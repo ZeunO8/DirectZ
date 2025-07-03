@@ -149,7 +149,7 @@ namespace dz
 			{
 				NSPoint location = [event locationInWindow];
 				auto x = location.x;
-				auto y = location.y;
+				auto y = ((*window.height) - location.y) - 1;
 				window.event_interface->cursor_move(x, y);
 				break;
 			}
