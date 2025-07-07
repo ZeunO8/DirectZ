@@ -470,11 +470,11 @@ void main()
 
     bool entity_right = true;
 
-    auto& right_pressed = window_get_keypress_ref(main_window, KEYCODE_RIGHT);
-    auto& left_pressed = window_get_keypress_ref(main_window, KEYCODE_LEFT);
-    auto& up_pressed = window_get_keypress_ref(main_window, KEYCODE_UP);
-    auto& down_pressed = window_get_keypress_ref(main_window, KEYCODE_DOWN);
-    auto& esc_pressed = window_get_keypress_ref(main_window, KEYCODE_ESCAPE);
+    auto& right_pressed = window_get_keypress_ref(main_window, KEYCODES::RIGHT);
+    auto& left_pressed = window_get_keypress_ref(main_window, KEYCODES::LEFT);
+    auto& up_pressed = window_get_keypress_ref(main_window, KEYCODES::UP);
+    auto& down_pressed = window_get_keypress_ref(main_window, KEYCODES::DOWN);
+    auto& esc_pressed = window_get_keypress_ref(main_window, KEYCODES::ESCAPE);
     auto& u_pressed = window_get_keypress_ref(main_window, 'u');
     auto& o_pressed = window_get_keypress_ref(main_window, 'o');
     auto& r_pressed = window_get_keypress_ref(main_window, 'r');

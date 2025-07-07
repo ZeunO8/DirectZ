@@ -19,6 +19,7 @@ namespace dz
     struct WINDOW;
     struct EventInterface;
     struct ImGuiLayer;
+
     struct WindowCreateInfo
     {
         std::string title;
@@ -32,6 +33,145 @@ namespace dz
         ANativeWindow* android_window = 0;
         AAssetManager* android_asset_manager = 0;
 #endif
+    };
+
+    /**
+    * @brief Provides a mapping of ASCII keys
+    *
+    * @note Some non printable ASCII codes are used for keys such as RIGHT, HOME, PGUP, etc
+    */
+    enum class KEYCODES : uint8_t {
+
+        NUL = 0,
+
+        BACKSPACE = 8,
+        TAB = 9,
+        ENTER = 10,
+        
+        HOME = 14,
+        END = 15,
+
+        UP = 17,
+        DOWN = 18,
+        RIGHT = 19,
+        LEFT = 20,
+
+        PGUP = 21,
+        PGDOWN = 22,
+        INSERT = 23,
+        NUMLOCK = 24,
+        CAPSLOCK = 25,
+        CTRL = 26,
+        
+        ESCAPE = 27,
+        
+        SHIFT = 28,
+        ALT = 29,
+        PAUSE = 30,
+        SUPER = 31,
+        
+        SPACE = 32,
+        EXCLAMATION = 33,
+        DOUBLEQUOTE = 34,
+        HASHTAG = 35,
+        DOLLAR = 36,
+        PERCENTSIGN = 37,
+        AMPERSAND = 38,
+        SINGLEQUOTE = 39,
+        LEFTPARENTHESIS = 40,
+        RIGHTPARENTHESIS = 41,
+        ASTERISK = 42,
+        PLUS = 43,
+        COMMA = 44,
+        MINUS = 45,
+        PERIOD = 46,
+        SLASH = 47,
+        
+        _0 = 48,
+        _1 = 49,
+        _2 = 50,
+        _3 = 51,
+        _4 = 52,
+        _5 = 53,
+        _6 = 54,
+        _7 = 55,
+        _8 = 56,
+        _9 = 57,
+        
+        COLON = 58,
+        SEMICOLON = 59,
+        LESSTHAN = 60,
+        EQUAL = 61,
+        GREATERTHAN = 62,
+        QUESTIONMARK = 63,
+        ATSIGN = 64,
+        
+        A = 65,
+        B = 66,
+        C = 67,
+        D = 68,
+        E = 69,
+        F = 70,
+        G = 71,
+        H = 72,
+        I = 73,
+        J = 74,
+        K = 75,
+        L = 76,
+        M = 77,
+        N = 78,
+        O = 79,
+        P = 80,
+        Q = 81,
+        R = 82,
+        S = 83,
+        T = 84,
+        U = 85,
+        V = 86,
+        W = 87,
+        X = 88,
+        Y = 89,
+        Z = 90,
+        
+        LEFTBRACKET = 91,
+        BACKSLASH = 92,
+        RIGHTBRACKET = 93,
+        CARET = 94,
+        UNDERSCORE = 95,
+        GRAVEACCENT = 96,
+        
+        a = 97,
+        c = 99,
+        b = 98,
+        d = 100,
+        e = 101,
+        f = 102,
+        g = 103,
+        h = 104,
+        i = 105,
+        j = 106,
+        k = 107,
+        l = 108,
+        m = 109,
+        n = 110,
+        o = 111,
+        p = 112,
+        q = 113,
+        r = 114,
+        s = 115,
+        t = 116,
+        u = 117,
+        v = 118,
+        w = 119,
+        x = 120,
+        y = 121,
+        z = 122,
+        
+        LEFTBRACE = 123,
+        VERTICALBAR = 124,
+        RIGHTBRACE = 125,
+        TILDE = 126,
+        Delete = 127
     };
 
     /**
@@ -182,6 +322,11 @@ namespace dz
     int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode);
 
     /**
+    * @brief overload of window_get_keypress_ref with KEYCODES enum
+    */
+    int32_t& window_get_keypress_ref(WINDOW* window, KEYCODES keycode);
+
+    /**
     * @brief Gets a reference to the specified button in the underlying buttons pointer.
     * 
     * @note If the buttons pointer is updated (e.g., to GPU memory), a previously fetched reference becomes invalid.
@@ -225,23 +370,4 @@ namespace dz
     */
     EventInterface* window_get_event_interface(WINDOW* window);
 
-#define KEYCODE_ESCAPE 27
-#define KEYCODE_DELETE 127
-#define KEYCODE_UP 17
-#define KEYCODE_DOWN 18
-#define KEYCODE_RIGHT 19
-#define KEYCODE_LEFT 20
-#define KEYCODE_HOME 0x80
-#define KEYCODE_END 0x81
-#define KEYCODE_PGUP 0x82
-#define KEYCODE_PGDOWN 0x83
-#define KEYCODE_INSERT 0x84
-#define KEYCODE_NUMLOCK 0x85
-#define KEYCODE_CAPSLOCK 0x86
-#define KEYCODE_CTRL 0x87
-#define KEYCODE_SHIFT 0x88
-#define KEYCODE_ALT 0x89
-#define KEYCODE_PAUSE 0x8A
-#define KEYCODE_SUPER 0x8B
-#define LAST_UNDEFINED_ASCII_IN_RANGE 0x9F
 }

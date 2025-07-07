@@ -200,10 +200,15 @@ namespace dz {
 		window->height = pointer;
 		*window->height = old_height;
 	}
-	int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode)
-	{
+
+	int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode) {
 		return window->keys.get()[keycode];
 	}
+
+    int32_t& window_get_keypress_ref(WINDOW* window, KEYCODES keycode) {
+		return window_get_keypress_ref(window, (uint8_t)keycode);
+	}
+
 	std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode)
 	{
 		return window->keys;
@@ -506,6 +511,7 @@ namespace dz {
 
 
 	#ifdef _WIN32
+	KEYCODES GetCorrectedKeycode(KEYCODES keycode, bool shift);
 	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		struct WINDOW* window_ptr = (WINDOW*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -589,7 +595,7 @@ namespace dz {
 				wParam == VK_LMENU ||
 				wParam == VK_RMENU)
 			{
-				window.event_interface->key_press(KEYCODE_ALT, (msg == WM_SYSKEYDOWN));
+				window.event_interface->key_press(KEYCODES::ALT, (msg == WM_SYSKEYDOWN));
 			}
 			else
 			{
@@ -612,20 +618,14 @@ namespace dz {
 				auto mod = ((GetKeyState(VK_CONTROL) & 0x8000) >> 15) | ((GetKeyState(VK_SHIFT) & 0x8000) >> 14) |
 					((GetKeyState(VK_MENU) & 0x8000) >> 13) | (((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) >> 12);
 				auto keycodeHiword = HIWORD(lParam) & 0x1ff;
-				if (keycodeHiword < 0 || keycodeHiword > sizeof(KEYCODES) / sizeof(KEYCODES[0]))
+				if (keycodeHiword < 0 || keycodeHiword > sizeof(WIN_MAP_KEYCODES) / sizeof(WIN_MAP_KEYCODES[0]))
 				{
 					break;
 				}
-				auto keycode = KEYCODES[keycodeHiword];
+				auto keycode = WIN_MAP_KEYCODES[keycodeHiword];
 				auto keypress = !((lParam >> 31) & 1);
-				BYTE keyboardState[256];
-				GetKeyboardState(keyboardState);
-				wchar_t translatedChar[2] = {};
-				int result = ToUnicode(keycode, keycodeHiword, keyboardState, translatedChar, 2, 0);
-				if (result > 0)
-				{
-					keycode = translatedChar[0];
-				}
+				auto shift = mod & 2;
+				keycode = GetCorrectedKeycode(keycode, shift);
 				*window.mod = mod;
 				window.event_interface->key_press(keycode, keypress);
 			}
@@ -659,6 +659,115 @@ namespace dz {
 		}
 		return 0;
 	}
+	KEYCODES GetCorrectedKeycode(KEYCODES keycode, bool shift) {
+        switch (keycode)
+        {
+            case KEYCODES::ESCAPE:
+            case KEYCODES::Delete:
+            case KEYCODES::UP:
+            case KEYCODES::DOWN:
+            case KEYCODES::LEFT:
+            case KEYCODES::RIGHT:
+            case KEYCODES::HOME:
+            case KEYCODES::END:
+            case KEYCODES::PGUP:
+            case KEYCODES::PGDOWN:
+            case KEYCODES::INSERT:
+            case KEYCODES::NUMLOCK:
+            case KEYCODES::CAPSLOCK:
+            case KEYCODES::CTRL:
+            case KEYCODES::SHIFT:
+            case KEYCODES::ALT:
+            case KEYCODES::PAUSE:
+            case KEYCODES::SUPER:
+			case KEYCODES::BACKSPACE:
+			case KEYCODES::TAB:
+			case KEYCODES::ENTER:
+			case KEYCODES::SPACE:
+				return keycode;
+
+            case KEYCODES::SINGLEQUOTE: return shift ? KEYCODES::DOUBLEQUOTE : KEYCODES::SINGLEQUOTE;
+            case KEYCODES::COMMA: return shift ? KEYCODES::LESSTHAN : KEYCODES::COMMA;
+            case KEYCODES::MINUS: return shift ? KEYCODES::UNDERSCORE : KEYCODES::MINUS;
+            case KEYCODES::PERIOD: return shift ? KEYCODES::GREATERTHAN : KEYCODES::PERIOD;
+            case KEYCODES::SLASH: return shift ? KEYCODES::QUESTIONMARK : KEYCODES::SLASH;
+            case KEYCODES::SEMICOLON: return shift ? KEYCODES::COLON : KEYCODES::SEMICOLON;
+            case KEYCODES::LEFTBRACKET: return shift ? KEYCODES::LEFTBRACE : KEYCODES::LEFTBRACKET;
+            case KEYCODES::BACKSLASH: return shift ? KEYCODES::VERTICALBAR : KEYCODES::BACKSLASH;
+            case KEYCODES::RIGHTBRACKET: return shift ? KEYCODES::RIGHTBRACE : KEYCODES::RIGHTBRACKET;
+			
+            case KEYCODES::GRAVEACCENT: return shift ? KEYCODES::TILDE : KEYCODES::GRAVEACCENT;
+            case KEYCODES::EQUAL: return shift ? KEYCODES::PLUS : KEYCODES::EQUAL;
+
+            case KEYCODES::_0: return shift ? KEYCODES::RIGHTPARENTHESIS : KEYCODES::_0;
+            case KEYCODES::_1: return shift ? KEYCODES::EXCLAMATION : KEYCODES::_1;
+            case KEYCODES::_2: return shift ? KEYCODES::ATSIGN : KEYCODES::_2;
+            case KEYCODES::_3: return shift ? KEYCODES::HASHTAG : KEYCODES::_3;
+            case KEYCODES::_4: return shift ? KEYCODES::DOLLAR : KEYCODES::_4;
+            case KEYCODES::_5: return shift ? KEYCODES::PERCENTSIGN : KEYCODES::_5;
+            case KEYCODES::_6: return shift ? KEYCODES::CARET : KEYCODES::_6;
+            case KEYCODES::_7: return shift ? KEYCODES::AMPERSAND : KEYCODES::_7;
+            case KEYCODES::_8: return shift ? KEYCODES::ASTERISK : KEYCODES::_8;
+            case KEYCODES::_9: return shift ? KEYCODES::LEFTPARENTHESIS : KEYCODES::_9;
+
+            case KEYCODES::A:	return shift ? KEYCODES::A : KEYCODES::a;
+            case KEYCODES::C:	return shift ? KEYCODES::C : KEYCODES::c;
+            case KEYCODES::B:	return shift ? KEYCODES::B : KEYCODES::b;
+            case KEYCODES::D:	return shift ? KEYCODES::D : KEYCODES::d;
+            case KEYCODES::E:	return shift ? KEYCODES::E : KEYCODES::e;
+            case KEYCODES::F:	return shift ? KEYCODES::F : KEYCODES::f;
+            case KEYCODES::G:	return shift ? KEYCODES::G : KEYCODES::g;
+            case KEYCODES::H:	return shift ? KEYCODES::H : KEYCODES::h;
+            case KEYCODES::I:	return shift ? KEYCODES::I : KEYCODES::i;
+            case KEYCODES::J:	return shift ? KEYCODES::J : KEYCODES::j;
+            case KEYCODES::K:	return shift ? KEYCODES::K : KEYCODES::k;
+            case KEYCODES::L:	return shift ? KEYCODES::L : KEYCODES::l;
+            case KEYCODES::M:	return shift ? KEYCODES::M : KEYCODES::m;
+            case KEYCODES::N:	return shift ? KEYCODES::N : KEYCODES::n;
+            case KEYCODES::O:	return shift ? KEYCODES::O : KEYCODES::o;
+            case KEYCODES::P:	return shift ? KEYCODES::P : KEYCODES::p;
+            case KEYCODES::Q:	return shift ? KEYCODES::Q : KEYCODES::q;
+            case KEYCODES::R:	return shift ? KEYCODES::R : KEYCODES::r;
+            case KEYCODES::S:	return shift ? KEYCODES::S : KEYCODES::s;
+            case KEYCODES::T:	return shift ? KEYCODES::T : KEYCODES::t;
+            case KEYCODES::U:	return shift ? KEYCODES::U : KEYCODES::u;
+            case KEYCODES::V:	return shift ? KEYCODES::V : KEYCODES::v;
+            case KEYCODES::W:	return shift ? KEYCODES::W : KEYCODES::w;
+            case KEYCODES::X:	return shift ? KEYCODES::X : KEYCODES::x;
+            case KEYCODES::Y:	return shift ? KEYCODES::Y : KEYCODES::y;
+            case KEYCODES::Z:	return shift ? KEYCODES::Z : KEYCODES::z;
+
+            case KEYCODES::a:	return shift ? KEYCODES::A : KEYCODES::a; 
+            case KEYCODES::c:	return shift ? KEYCODES::C : KEYCODES::c; 
+            case KEYCODES::b:	return shift ? KEYCODES::B : KEYCODES::b; 
+            case KEYCODES::d:	return shift ? KEYCODES::D : KEYCODES::d; 
+            case KEYCODES::e:	return shift ? KEYCODES::E : KEYCODES::e; 
+            case KEYCODES::f:	return shift ? KEYCODES::F : KEYCODES::f; 
+            case KEYCODES::g:	return shift ? KEYCODES::G : KEYCODES::g; 
+            case KEYCODES::h:	return shift ? KEYCODES::H : KEYCODES::h; 
+            case KEYCODES::i:	return shift ? KEYCODES::I : KEYCODES::i; 
+            case KEYCODES::j:	return shift ? KEYCODES::J : KEYCODES::j; 
+            case KEYCODES::k:	return shift ? KEYCODES::K : KEYCODES::k; 
+            case KEYCODES::l:	return shift ? KEYCODES::L : KEYCODES::l; 
+            case KEYCODES::m:	return shift ? KEYCODES::M : KEYCODES::m; 
+            case KEYCODES::n:	return shift ? KEYCODES::N : KEYCODES::n; 
+            case KEYCODES::o:	return shift ? KEYCODES::O : KEYCODES::o; 
+            case KEYCODES::p:	return shift ? KEYCODES::P : KEYCODES::p; 
+            case KEYCODES::q:	return shift ? KEYCODES::Q : KEYCODES::q; 
+            case KEYCODES::r:	return shift ? KEYCODES::R : KEYCODES::r; 
+            case KEYCODES::s:	return shift ? KEYCODES::S : KEYCODES::s; 
+            case KEYCODES::t:	return shift ? KEYCODES::T : KEYCODES::t; 
+            case KEYCODES::u:	return shift ? KEYCODES::U : KEYCODES::u; 
+            case KEYCODES::v:	return shift ? KEYCODES::V : KEYCODES::v; 
+            case KEYCODES::w:	return shift ? KEYCODES::W : KEYCODES::w; 
+            case KEYCODES::x:	return shift ? KEYCODES::X : KEYCODES::x; 
+            case KEYCODES::y:	return shift ? KEYCODES::Y : KEYCODES::y; 
+            case KEYCODES::z:	return shift ? KEYCODES::Z : KEYCODES::z; 
+
+            default:
+                return keycode;
+        }
+	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
 	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
 	{
@@ -680,46 +789,46 @@ namespace dz {
 					switch (keysym)
 					{
 					case XK_Up:
-						keycode = KEYCODE_UP;
+						keycode = KEYCODES::UP;
 						break;
 					case XK_Down:
-						keycode = KEYCODE_DOWN;
+						keycode = KEYCODES::DOWN;
 						break;
 					case XK_Left:
-						keycode = KEYCODE_LEFT;
+						keycode = KEYCODES::LEFT;
 						break;
 					case XK_Right:
-						keycode = KEYCODE_RIGHT;
+						keycode = KEYCODES::RIGHT;
 						break;
 					case XK_Home:
-						keycode = KEYCODE_HOME;
+						keycode = KEYCODES::HOME;
 						break;
 					case XK_End:
-						keycode = KEYCODE_END;
+						keycode = KEYCODES::END;
 						break;
 					case XK_Page_Up:
-						keycode = KEYCODE_PGUP;
+						keycode = KEYCODES::PGUP;
 						break;
 					case XK_Page_Down:
-						keycode = KEYCODE_PGDOWN;
+						keycode = KEYCODES::PGDOWN;
 						break;
 					case XK_Insert:
-						keycode = KEYCODE_INSERT;
+						keycode = KEYCODES::INSERT;
 						break;
 					case XK_Num_Lock:
-						keycode = KEYCODE_NUMLOCK;
+						keycode = KEYCODES::NUMLOCK;
 						break;
 					case XK_Caps_Lock:
-						keycode = KEYCODE_CAPSLOCK;
+						keycode = KEYCODES::CAPSLOCK;
 						break;
 					case XK_Pause:
-						keycode = KEYCODE_PAUSE;
+						keycode = KEYCODES::PAUSE;
 						break;
 					case XK_Super_L:
-						keycode = KEYCODE_SUPER;
+						keycode = KEYCODES::SUPER;
 						break;
 					case XK_Super_R:
-						keycode = KEYCODE_SUPER;
+						keycode = KEYCODES::SUPER;
 						break;
 					default:
 						keycode = 0;

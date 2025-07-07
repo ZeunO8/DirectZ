@@ -14,7 +14,7 @@ namespace dz
         void destroy_surface();
 #elif defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
         void cursor_move(float x, float y);
-        void key_press(int key, int pressed);
+        void key_press(KEYCODES key, int pressed);
         void cursor_press(int button, int pressed);
 #endif
     };
