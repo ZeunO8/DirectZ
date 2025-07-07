@@ -29,6 +29,11 @@ jobs:
           C:\\msys64\\msys2_shell.cmd -defterm -no-start -mingw64 -here -use-full-path -c "pacman -S --noconfirm make diffutils"
         shell: bash
 
+      - name: Install NSIS
+        run: |
+          wget https://cytranet-dal.dl.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11-setup.exe?viasf=1
+          nsis-3.11-setup.exe /S
+
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
@@ -36,7 +41,10 @@ jobs:
           cache: true
 
       - name: Configure
-        run: cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+        run: cmake -G Ninja -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_INSTALL_PREFIX=install
         shell: cmd
 
       - name: Build

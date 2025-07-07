@@ -45,7 +45,10 @@ jobs:
           cache: true
 
       - name: Configure
-        run: cmake -B build -D CMAKE_BUILD_TYPE=Debug -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ -G Ninja
+        run: cmake -G Ninja -B build \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_INSTALL_PREFIX=install
         shell: bash
 
       - name: Build
@@ -53,7 +56,7 @@ jobs:
         shell: bash
 
       - name: Install
-        run: sudo cmake --install build
+        run: cmake --install build
         shell: bash
 
       - name: Package
@@ -65,5 +68,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DirectZ-${{ env.DIRECTZ_VERSION }}-linux-x86_64.deb
-          path: DirectZ-${{ env.DIRECTZ_VERSION }}-linux-x86_64.deb
+          name: DirectZ-${{ env.DIRECTZ_VERSION }}-debian-x86_64.deb
+          path: DirectZ-${{ env.DIRECTZ_VERSION }}-debian-x86_64.deb
