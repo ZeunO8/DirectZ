@@ -12,6 +12,9 @@ on:
 permissions:
   contents: write
 
+env:
+  DIRECTZ_VERSION: "1.1.1.1"
+
 jobs:
   configure-build-and-package-windows:
     runs-on: windows-2025
@@ -43,3 +46,15 @@ jobs:
       - name: Install
         run: cmake --install build
         shell: cmd
+
+      - name: Package
+        run: |
+          cpack --config build/CPackConfig.cmake
+          ls -lah releases
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DirectZ-${{ env.DIRECTZ_VERSION }}-windows-AMD64.exe
+          path: DirectZ-${{ env.DIRECTZ_VERSION }}-windows-AMD64.exe

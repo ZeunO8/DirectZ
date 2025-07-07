@@ -12,6 +12,9 @@ on:
 permissions:
   contents: write
 
+env:
+  DIRECTZ_VERSION: "1.1.1.1"
+
 jobs:
   configure-build-and-package-ubuntu:
     runs-on: ubuntu-latest
@@ -52,3 +55,15 @@ jobs:
       - name: Install
         run: sudo cmake --install build
         shell: bash
+
+      - name: Package
+        run: |
+          cpack --config build/CPackConfig.cmake
+          ls -lah releases
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DirectZ-${{ env.DIRECTZ_VERSION }}-linux-x86_64.deb
+          path: DirectZ-${{ env.DIRECTZ_VERSION }}-linux-x86_64.deb
