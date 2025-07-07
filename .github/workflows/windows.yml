@@ -33,6 +33,7 @@ jobs:
         run: |
           wget https://cytranet-dal.dl.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11-setup.exe?viasf=1
           nsis-3.11-setup.exe /S
+        shell: bash
 
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
