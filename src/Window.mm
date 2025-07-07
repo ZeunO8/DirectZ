@@ -133,7 +133,7 @@ namespace dz
 				mod |= (flags & NSEventModifierFlagOption) ? (1 << 2) : 0;
 				mod |= (flags & NSEventModifierFlagCommand) ? (1 << 3) : 0;
 				NSString *characters = [event characters];
-				uint32_t keycode = 0;
+				KEYCODES keycode = KEYCODES::NUL;
 				if (characters.length > 0)
 				{
 					keycode = [characters characterAtIndex:0];
