@@ -785,7 +785,7 @@ namespace dz {
 				uint32_t keycode_utf = xkb_keysym_to_utf32(keysym);
 				KEYCODES keycode = (KEYCODES)keycode_utf;
 				int32_t mod = 0;
-				if (keycode == 0)
+				if (keycode == KEYCODE::NUL)
 				{
 					switch (keysym)
 					{
@@ -832,7 +832,7 @@ namespace dz {
 						keycode = KEYCODES::SUPER;
 						break;
 					default:
-						keycode = 0;
+						keycode = KEYCODE::NUL;
 						break;
 					}
 				}
