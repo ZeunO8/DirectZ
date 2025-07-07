@@ -782,7 +782,8 @@ namespace dz {
 				xcb_key_press_event_t* keyEvent = (xcb_key_press_event_t*)event;
 				bool shiftPressed = keyEvent->state & (XCB_MOD_MASK_SHIFT);
 				xcb_keysym_t keysym = xcb_key_symbols_get_keysym(window.keysyms, keyEvent->detail, shiftPressed ? 1 : 0);
-				uint32_t keycode = xkb_keysym_to_utf32(keysym);
+				uint32_t keycode_utf = xkb_keysym_to_utf32(keysym);
+				KEYCODES keycode = (KEYCODES)keycode_utf;
 				int32_t mod = 0;
 				if (keycode == 0)
 				{
