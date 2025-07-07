@@ -136,7 +136,7 @@ namespace dz
 				KEYCODES keycode = KEYCODES::NUL;
 				if (characters.length > 0)
 				{
-					keycode = [characters characterAtIndex:0];
+					keycode = (KEYCODES)[characters characterAtIndex:0];
 				}
 				*window.mod = mod;
 				window.event_interface->key_press(keycode, pressed);
