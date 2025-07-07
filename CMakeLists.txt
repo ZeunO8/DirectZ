@@ -107,3 +107,31 @@ include(./Tests.cmake)
 include(./cmake/Install.cmake)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-macro-redefined")
+
+include(./cmake/Package.cmake)
+
+crossplatform_cpack_helper(
+    ${CMAKE_SOURCE_DIR}/releases
+    DirectZ
+    DirectZ
+    ${DZ_V_MAJ}
+    ${DZ_V_MIN}
+    ${DZ_V_PAT}
+    ${DZ_V_TWE}
+    ${CMAKE_SOURCE_DIR}/LICENSE
+    "DirectZ: GPU driven renders"
+    "An abstraction over the GPU/CPU memory+render layers to provide high performance reflected shader contexts. Has various included dependencies including an ImGui layer for rendering UI"
+    ""
+    ""
+    "Zeucor"
+    "Zeun"
+    "Zeun"
+    "libgl1-mesa-dri,libx11-6,libssl-dev,libvulkan1,libxrandr2,libxfixes3,libxkbcommon-x11-0,libsecret-1-0,libglib2.0-dev,libdrm-dev"
+    ""
+    "Development/Tools"
+    "Program Files\\\\DirectZ"
+    "C:"
+    "DirectZ-uninstaller"
+    "dev.zeucor.DirectZ"
+    "Core;Headers;CMakeConfig"
+)
