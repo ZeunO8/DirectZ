@@ -31,6 +31,18 @@ jobs:
         with:
           nsis-version: '3.10'
 
+      - name: Add NSIS to PATH
+        shell: pwsh
+        run: |
+          $nsisPath = 'C:\Program Files (x86)\NSIS\Bin'
+          echo "Adding $nsisPath to PATH"
+          echo "$nsisPath" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+
+      - name: Dir NSIS
+        run: |
+          dir C:\Program Files (x86)\NSIS\Bin
+        shell: pwsh
+
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
