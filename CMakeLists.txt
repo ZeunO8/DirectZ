@@ -40,9 +40,14 @@ target_compile_features(DirectZ PRIVATE cxx_std_20)
 target_compile_features(dzp PRIVATE cxx_std_20)
 
 if(ANDROID)
-	set(Vulkan_LIBRARIES "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${ANDROID_TRIPLET}/${ANDROID_PLATFORM_LEVEL}/libvulkan.so")
-	set(Vulkan_INCLUDE_DIRS "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")
-	set(Vulkan_FOUND TRUE)
+    set(VULKAN_LIB_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${ANDROID_TRIPLET}/${ANDROID_PLATFORM_LEVEL}/libvulkan.so")
+    set(VULKAN_INCLUDE_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")
+    add_library(Vulkan::Vulkan SHARED IMPORTED GLOBAL)
+    set_target_properties(Vulkan::Vulkan PROPERTIES
+        IMPORTED_LOCATION "${VULKAN_LIB_PATH}"
+        INTERFACE_INCLUDE_DIRECTORIES "${VULKAN_INCLUDE_PATH}"
+    )
+    set(Vulkan_FOUND TRUE)
 else()
 	find_package(Vulkan REQUIRED)
 endif()
