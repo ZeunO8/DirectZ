@@ -71,7 +71,7 @@ target_include_directories(dzp PRIVATE
 	include)
 
 target_link_libraries(DirectZ PRIVATE
-	${Vulkan_LIBRARIES}
+	Vulkan::Vulkan
 	shaderc
 	shaderc_util
 	spirv-reflect-static
