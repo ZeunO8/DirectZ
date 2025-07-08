@@ -47,7 +47,7 @@ foreach(TGT ${DirectZ_TGTS})
     else()
         set(OUT_DIR "${CMAKE_BINARY_DIR}/lib")
     endif()
-    set(LOCATION "${OUT_DIR}/${TGT}${POSTFIX}${STATIC_DZ_LIB_SUFFIX}")
+    set(LOCATION "${OUT_DIR}/${DZ_LIB_PREFIX}${TGT}${POSTFIX}${STATIC_DZ_LIB_SUFFIX}")
     list(APPEND TGT_LOCATIONS ${LOCATION})
 endforeach()
 
