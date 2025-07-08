@@ -27,10 +27,7 @@ jobs:
         shell: bash
 
       - name: Install NSIS
-        run: |
-          curl -L -o nsis-3.11-setup.exe "https://cytranet-dal.dl.sourceforge.net/project/nsis/NSIS%203/3.11/nsis-3.11-setup.exe?viasf=1"
-          ./nsis-3.11-setup.exe /S
-        shell: bash
+        uses: uses: repolevedavaj/install-nsis@v1.0.1
 
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
