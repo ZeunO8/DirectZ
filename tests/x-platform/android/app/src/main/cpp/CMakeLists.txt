@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.18.1)
 project("mdirecz")
 
 if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
-    set(DirectZ_DIR "C:/Program Files (x86)/DirectZ/android/${CMAKE_SYSTEM_PROCESSOR}/lib/cmake/DirectZ")
+    if(NOT DirectZ_DIR)
+        set(DirectZ_DIR "C:/Program Files/DirectZ/lib/android/${CMAKE_SYSTEM_PROCESSOR}/cmake/DirectZ")
+    endif()
 endif()
 
 add_subdirectory(../../../../../ build_x_platform)
