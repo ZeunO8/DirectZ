@@ -27,6 +27,7 @@ endforeach()
 
 # Export targets
 if(ANDROID)
+    set_target_properties(spirv-reflect-static PROPERTIES PUBLIC_HEADER "")
     install(TARGETS ${DirectZ_TGTS}
         EXPORT DirectZTargets
         COMPONENT Core
