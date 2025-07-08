@@ -40,7 +40,7 @@ jobs:
 
       - name: Dir NSIS
         run: |
-          dir C:\Program Files (x86)\NSIS\Bin
+          dir "C:\Program Files (x86)\NSIS\Bin"
         shell: pwsh
 
       - name: Install Vulkan SDK
