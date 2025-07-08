@@ -27,7 +27,7 @@ jobs:
         shell: bash
 
       - name: Install NSIS
-        uses: uses: repolevedavaj/install-nsis@v1.0.1
+        uses: repolevedavaj/install-nsis@v1.0.1
 
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
