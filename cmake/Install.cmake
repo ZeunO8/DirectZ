@@ -26,14 +26,19 @@ foreach(TGT ${DirectZ_TGTS})
 endforeach()
 
 # Export targets
-install(TARGETS ${DirectZ_TGTS}
-    EXPORT DirectZTargets
-    # LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    # ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT Core
-)
+if(ANDROID)
+    install(TARGETS ${DirectZ_TGTS}
+        EXPORT DirectZTargets
+        COMPONENT Core
+    )
+else()
+    install(TARGETS ${DirectZ_TGTS}
+        EXPORT DirectZTargets
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT Core
+    )
+endif()
 
 foreach(TGT ${DirectZ_TGTS})
     if("${TGT}" STREQUAL "SPIRV-Tools-static")
@@ -63,16 +68,18 @@ install(TARGETS dzp
 )
 
 # Install headers
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT Core)
-install(FILES
-    ${imgui_SOURCE_DIR}/imgui.h
-    ${imgui_SOURCE_DIR}/imconfig.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-    COMPONENT Core)
-install(FILES
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.h
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/backends
-    COMPONENT Core)
+if(NOT ANDROID)
+    install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT Core)
+    install(FILES
+        ${imgui_SOURCE_DIR}/imgui.h
+        ${imgui_SOURCE_DIR}/imconfig.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT Core)
+    install(FILES
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.h
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/backends
+        COMPONENT Core)
+endif()
 
 # Configure Config file
 configure_package_config_file(
