@@ -12,9 +12,6 @@ on:
 permissions:
   contents: write
 
-env:
-  DIRECTZ_VERSION: "1.1.1.1"
-
 jobs:
   configure-build-and-package-macos-arm:
     runs-on: macos-latest
@@ -55,5 +52,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DirectZ-${{ env.DIRECTZ_VERSION }}-macos-arm64.pkg
-          path: DirectZ-${{ env.DIRECTZ_VERSION }}-macos-arm64.pkg
+          name: releases
+          path: releases

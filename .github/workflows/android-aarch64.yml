@@ -12,9 +12,6 @@ on:
 permissions:
   contents: write
 
-env:
-  DIRECTZ_VERSION: "1.1.1.1"
-
 jobs:
   build-android:
     runs-on: windows-2025
@@ -71,5 +68,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DirectZ-${{ env.DIRECTZ_VERSION }}-android-aarch64.tar.gz
-          path: DirectZ-${{ env.DIRECTZ_VERSION }}-android-aarch64.tar.gz
+          name: releases
+          path: releases
