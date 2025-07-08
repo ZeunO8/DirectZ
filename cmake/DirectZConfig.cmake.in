@@ -10,7 +10,19 @@ endif()
 
 # Set variables pointing to install locations
 set_and_check(DirectZ_INCLUDE_DIRS "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")
-set(DirectZ_LIBRARIES DirectZ::DirectZ)
+set(DirectZ_LIBRARIES DirectZ)
+
+if(ANDROID)
+	set(Vulkan_LIBRARIES "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${ANDROID_TRIPLET}/${ANDROID_PLATFORM_LEVEL}/libvulkan.so")
+	set(Vulkan_INCLUDE_DIRS "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")
+	set(Vulkan_FOUND TRUE)
+else()
+	find_package(Vulkan REQUIRED)
+endif()
+
+message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
+
+list(APPEND DirectZ_INCLUDE_DIRS ${Vulkan_INCLUDE_DIRS})
 
 # Load the exported targets
 include("${CMAKE_CURRENT_LIST_DIR}/DirectZTargets.cmake")

@@ -1,3 +1,5 @@
+set(BUILD_SHARED_LIBS OFF)
+
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     set(LINUX ON)
     set(DZ_LIB_PREFIX "lib")

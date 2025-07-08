@@ -76,6 +76,9 @@ target_link_libraries(DirectZ PRIVATE
 	shaderc_util
 	spirv-reflect-static
 	imgui
+	SPIRV
+	SPIRV-Tools
+	SPIRV-Tools-opt
 )
 
 target_link_libraries(dzp PRIVATE DirectZ)
@@ -110,6 +113,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-macro-redefined")
 
 include(./cmake/Package.cmake)
 
+set(DZ_COMPONENTS Core)
+
 crossplatform_cpack_helper(
     ${CMAKE_SOURCE_DIR}/releases
     DirectZ
@@ -133,5 +138,5 @@ crossplatform_cpack_helper(
     "C:"
     "DirectZ-uninstaller"
     "dev.zeucor.DirectZ"
-    "Core;Headers;CMakeConfig"
+    "${DZ_COMPONENTS}"
 )

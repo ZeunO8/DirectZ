@@ -22,3 +22,4 @@ target_include_directories(imgui PRIVATE
 )
 
 target_compile_features(imgui PRIVATE cxx_std_20)
+set_target_properties(imgui PROPERTIES DEBUG_POSTFIX "d")

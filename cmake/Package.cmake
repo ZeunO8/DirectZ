@@ -68,7 +68,6 @@ function(crossplatform_cpack_helper
         set(CPACK_PACKAGE_INSTALL_DIRECTORY "/")
     elseif(WINDOWS)
         set(CPACK_GENERATOR "NSIS")
-        set(CPACK_CMAKE_GENERATOR "Ninja")
         set(CPACK_NSIS_MODIFY_PATH ON)
         set(CPACK_NSIS_DISPLAY_NAME ${DISPLAY_NAME})
         set(CPACK_NSIS_PACKAGE_NAME ${TARGET_NAME})
