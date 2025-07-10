@@ -46,8 +46,6 @@ namespace dz {
 
 		window->post_init_platform();
 
-		window->imguiLayer.Init(*window);
-
 		return window;
 	}
 	

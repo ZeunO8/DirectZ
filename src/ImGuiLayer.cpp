@@ -36,10 +36,19 @@ namespace dz {
         return descriptorPool;
     }
 
-    
-    bool ImGuiLayer::Init(WINDOW& window)
+    void DestroyImGuiDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool)
     {
-        auto& renderer = *window.renderer;
+        if (descriptorPool != VK_NULL_HANDLE)
+        {
+            vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+        }
+    }
+
+    
+    bool ImGuiLayer::Init() {
+        if (ensured) {
+            return false;
+        }
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -67,7 +76,7 @@ namespace dz {
         init_info.Instance = dr.instance;
         init_info.PhysicalDevice = dr.physicalDevice;
         init_info.Device = dr.device;
-        init_info.DescriptorPool = CreateImGuiDescriptorPool(dr.device);
+        DescriptorPool = init_info.DescriptorPool = CreateImGuiDescriptorPool(dr.device);
         init_info.QueueFamily = dr.graphicsAndComputeFamily;
         init_info.Queue = dr.graphicsQueue;
         init_info.PipelineCache = VK_NULL_HANDLE;
@@ -93,11 +102,22 @@ namespace dz {
             return false;
         }
 
+        ensured = true;
+
         return true;
     }
 
-    void ImGuiLayer::Render(WINDOW& window)
-    {
+    bool ImGuiLayer::Shutdown(DirectRegistry& direct_registry) {
+        if (!ensured) {
+            return false;
+        }
+		ImGui_ImplVulkan_Shutdown();
+        DestroyImGuiDescriptorPool(direct_registry.device, DescriptorPool);
+        ensured = false;
+        return true;
+    }
+
+    void ImGuiLayer::Render(WINDOW& window) {
         auto& io = ImGui::GetIO();
 
         io.DisplaySize = ImVec2(*window.width, *window.height);

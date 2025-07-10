@@ -75,6 +75,7 @@ namespace dz {
 		// createDepthResources();
 		create_framebuffers(renderer);
 		create_sync_objects(renderer);
+		direct_registry_ensure_imgui(direct_registry);
 		return renderer;
 	}
 
@@ -305,6 +306,13 @@ namespace dz {
 			std::cerr << "Failed to create Vulkan instance even with SwiftShader fallback." << std::endl;
 			assert(false);
 		}
+	}
+
+
+
+	void direct_registry_ensure_imgui(DirectRegistry* direct_registry)
+	{
+		ImGuiLayer::Init();
 	}
 
 	#ifndef MACOS
