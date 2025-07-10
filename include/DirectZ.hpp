@@ -35,6 +35,7 @@
 #include <dz/EventInterface.hpp>
 #include <dz/zmalloc.hpp>
 #include <dz/D7Stream.hpp>
+#include <dz/ECS.hpp>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
