@@ -10,6 +10,9 @@
 
 namespace dz
 {
+    struct Shader;
+    struct Framebuffer;
+
     /**
      * @brief Represents a single indirect draw command for use with GPU draw calls.
      *
@@ -36,4 +39,14 @@ namespace dz
      * This allows organizing draw commands by the shader used, enabling grouped rendering submissions.
      */
     using ShaderDrawList = std::unordered_map<Shader*, DrawList>;
+
+    /**
+     * @brief Maps each Framebuffer pointer to the ShaderDrawList
+     */
+    using FramebufferDrawList = std::unordered_map<Framebuffer*, ShaderDrawList>;
+
+    /**
+    * @brief A DrawTuple is the information required to produce a DrawList in a DrawListManager
+    */
+    using DrawTuple = std::tuple<Framebuffer*, Shader*, uint32_t>;
 } // namespace dz

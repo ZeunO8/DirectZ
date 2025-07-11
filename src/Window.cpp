@@ -66,6 +66,12 @@ namespace dz {
 	}
 	void window_free(WINDOW* window)
 	{
+		auto& event_interface = *window->event_interface; 
+		while (!event_interface.window_free_queue.empty()) {
+			auto callback = event_interface.window_free_queue.front();
+			event_interface.window_free_queue.pop();
+			callback();
+		}
 		renderer_free(window->renderer);
 		delete window;
 	}
@@ -888,6 +894,10 @@ namespace dz {
 	EventInterface* window_get_event_interface(WINDOW* window)
 	{
 		return window->event_interface;
+	}
+
+    void window_register_free_callback(WINDOW* window, const std::function<void()>& callback) {
+		window->event_interface->window_free_queue.push(callback);
 	}
 
 	#ifdef __ANDROID__

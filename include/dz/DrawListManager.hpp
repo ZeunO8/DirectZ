@@ -5,6 +5,7 @@
 #pragma once
 #include "DrawList.hpp"
 #include <functional>
+#include <tuple>
 #include "Shader.hpp"
 
 namespace dz
@@ -24,7 +25,7 @@ namespace dz
          * @param buffer_group Pointer to a BufferGroup.
          * @return A map of shaders to draw command lists.
          */
-        virtual ShaderDrawList genDrawList(BufferGroup* buffer_group) = 0;
+        virtual FramebufferDrawList& ensureDrawList(BufferGroup* buffer_group) = 0;
     };
 
     /**
@@ -35,10 +36,12 @@ namespace dz
     template<typename DrawT>
     struct DrawListManager : IDrawListManager
     {
-        using DrawTToVertexCountFunction = std::function<std::pair<Shader*, uint32_t>(BufferGroup*, DrawT&)>;
+        using DrawTToDrawTupleFunction = std::function<DrawTuple(BufferGroup*, DrawT&)>;
     private:
-        DrawTToVertexCountFunction fn_determineDrawTVertexCount;
+        DrawTToDrawTupleFunction fn_determineDrawTVertexCount;
         std::string draw_key;
+        FramebufferDrawList framebufferDrawList;
+        bool draw_list_dirty = true;
     public:
         /**
          * @brief Constructs a DrawListManager with a draw key and logic function.
@@ -46,7 +49,7 @@ namespace dz
          * @param draw_key Buffer key to iterate over.
          * @param fn_determineDrawTVertexCount Function that maps a DrawT instance to shader and vertex count.
          */
-        DrawListManager(const std::string& draw_key, const DrawTToVertexCountFunction& fn_determineDrawTVertexCount):
+        DrawListManager(const std::string& draw_key, const DrawTToDrawTupleFunction& fn_determineDrawTVertexCount):
             fn_determineDrawTVertexCount(fn_determineDrawTVertexCount),
             draw_key(draw_key)
         {}
@@ -57,19 +60,18 @@ namespace dz
          * @param buffer_group Pointer to a BufferGroup.
          * @return A map from Shader* to lists of DrawIndirectCommand.
          */
-        ShaderDrawList genDrawList(BufferGroup* buffer_group) override
+        FramebufferDrawList& ensureDrawList(BufferGroup* buffer_group) override
         {
+            if (!draw_list_dirty)
+                return framebufferDrawList;
+
             const size_t draw_elements = buffer_group_get_buffer_element_count(buffer_group, draw_key);
-
-            ShaderDrawList shaderDrawList;
-
-            std::unordered_map<Shader*, uint32_t> shader_instance_counter;
 
             for (size_t i = 0; i < draw_elements;)
             {
                 auto element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, i);
                 auto& element = element_view.template as_struct<DrawT>();
-                auto [shader, vertexCount] = fn_determineDrawTVertexCount(buffer_group, element);
+                auto [framebuffer, shader, vertexCount] = fn_determineDrawTVertexCount(buffer_group, element);
 
                 uint32_t run_start = static_cast<uint32_t>(i);
                 uint32_t instance_count = 1;
@@ -79,9 +81,9 @@ namespace dz
                 {
                     auto next_element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, j);
                     auto& next_element = next_element_view.template as_struct<DrawT>();
-                    auto [next_shader, next_vertexCount] = fn_determineDrawTVertexCount(buffer_group, next_element);
+                    auto [next_framebuffer, next_shader, next_vertexCount] = fn_determineDrawTVertexCount(buffer_group, next_element);
 
-                    if (next_shader != shader || next_vertexCount != vertexCount)
+                    if (next_shader != shader || next_vertexCount != vertexCount || next_framebuffer != framebuffer)
                     {
                         break;
                     }
@@ -96,12 +98,18 @@ namespace dz
                 cmd.firstVertex = 0;
                 cmd.firstInstance = run_start;
 
-                shaderDrawList[shader].push_back(cmd);
+                framebufferDrawList[framebuffer][shader].push_back(cmd);
 
                 i = j;
             }
 
-            return shaderDrawList;
+            draw_list_dirty = false;
+
+            return framebufferDrawList;
+        }
+
+        void SetDirty() {
+            draw_list_dirty = true;
         }
     };
 }

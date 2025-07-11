@@ -4,6 +4,7 @@
  */
 #pragma once
 #include <string>
+#include <functional>
 #include "math.hpp"
 #include "DrawListManager.hpp"
 #ifdef __ANDROID__
@@ -186,188 +187,192 @@ namespace dz
     * 
     * This should be called in a loop before any update and render code. Returns true if the window is still active, false if it has been closed.
     */
-    bool window_poll_events(WINDOW* window);
+    bool window_poll_events(WINDOW*);
 
     /**
     * @brief Renders the specified window based on its context configuration.
     */
-    void window_render(WINDOW* window);
+    void window_render(WINDOW*);
 
     /**
     * @brief Gets the ImGuiLayer of a window
     */
-    ImGuiLayer& window_get_ImGuiLayer(WINDOW* window);
+    ImGuiLayer& window_get_ImGuiLayer(WINDOW*);
 
     /**
     * @brief Returns a reference to the frametime value as a float.
     */
-    float& window_get_float_frametime_ref(WINDOW* window);
+    float& window_get_float_frametime_ref(WINDOW*);
 
     /**
     * @brief Returns a reference to the frametime value as a double.
     */
-    double& window_get_double_frametime_ref(WINDOW* window);
+    double& window_get_double_frametime_ref(WINDOW*);
 
     // Raw pointer setters
 
     /**
     * @brief Sets the underlying frametime float pointer, useful for binding to GPU memory.
     */
-    void window_set_float_frametime_pointer(WINDOW* window, float* pointer);
+    void window_set_float_frametime_pointer(WINDOW*, float* pointer);
 
     /**
     * @brief Sets the underlying frametime double pointer, useful for binding to GPU memory.
     */
-    void window_set_double_frametime_pointer(WINDOW* window, double* pointer);
+    void window_set_double_frametime_pointer(WINDOW*, double* pointer);
 
     /**
     * @brief Sets the underlying keys pointer, useful for binding to GPU memory.
     * 
     * @note Keys expects the pointer to have a size of 256 * sizeof(int32_t).
     */
-    void window_set_keys_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_keys_pointer(WINDOW*, int32_t* pointer);
 
     /**
     * @brief Sets the underlying buttons pointer, useful for binding to GPU memory.
     * 
     * @note Buttons expects the pointer to have a size of 8 * sizeof(int32_t).
     */
-    void window_set_buttons_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_buttons_pointer(WINDOW*, int32_t* pointer);
 
     /**
     * @brief Sets the underlying cursor pointer, useful for binding to GPU memory.
     * 
     * @note Cursor expects the pointer to have a size of 2 * sizeof(float).
     */
-    void window_set_cursor_pointer(WINDOW* window, float* pointer);
+    void window_set_cursor_pointer(WINDOW*, float* pointer);
 
     /**
     * @brief Sets the underlying mod pointer, useful for binding to GPU memory.
     */
-    void window_set_mod_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_mod_pointer(WINDOW*, int32_t* pointer);
 
     /**
     * @brief Sets the underlying focused pointer, useful for binding to GPU memory.
     */
-    void window_set_focused_pointer(WINDOW* window, int32_t* pointer);
+    void window_set_focused_pointer(WINDOW*, int32_t* pointer);
 
     /**
     * @brief Sets the underlying width pointer, useful for binding to GPU memory.
     */
-    void window_set_width_pointer(WINDOW* window, float* pointer);
+    void window_set_width_pointer(WINDOW*, float* pointer);
 
     /**
     * @brief Sets the underlying height pointer, useful for binding to GPU memory.
     */
-    void window_set_height_pointer(WINDOW* window, float* pointer);
+    void window_set_height_pointer(WINDOW*, float* pointer);
 
     // std::shared_ptr setters
 
     /**
     * @brief Sets the underlying frametime float pointer, useful for binding to GPU memory.
     */
-    void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_float_frametime_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
 
     /**
     * @brief Sets the underlying frametime double pointer, useful for binding to GPU memory.
     */
-    void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer);
+    void window_set_double_frametime_pointer(WINDOW*, const std::shared_ptr<double>& pointer);
 
     /**
     * @brief Sets the underlying keys pointer, useful for binding to GPU memory.
     * 
     * @note Keys expects the pointer to have a size of 256 * sizeof(int32_t).
     */
-    void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_keys_pointer(WINDOW*, const std::shared_ptr<int32_t>& pointer);
 
     /**
     * @brief Sets the underlying buttons pointer, useful for binding to GPU memory.
     * 
     * @note Buttons expects the pointer to have a size of 8 * sizeof(int32_t).
     */
-    void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_buttons_pointer(WINDOW*, const std::shared_ptr<int32_t>& pointer);
 
     /**
     * @brief Sets the underlying cursor pointer, useful for binding to GPU memory.
     * 
     * @note Cursor expects the pointer to have a size of 2 * sizeof(float).
     */
-    void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_cursor_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
 
     /**
     * @brief Sets the underlying mod pointer, useful for binding to GPU memory.
     */
-    void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_mod_pointer(WINDOW*, const std::shared_ptr<int32_t>& pointer);
 
     /**
     * @brief Sets the underlying focused pointer, useful for binding to GPU memory.
     */
-    void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer);
+    void window_set_focused_pointer(WINDOW*, const std::shared_ptr<int32_t>& pointer);
 
     /**
     * @brief Sets the underlying width pointer, useful for binding to GPU memory.
     */
-    void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_width_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
 
     /**
     * @brief Sets the underlying height pointer, useful for binding to GPU memory.
     */
-    void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer);
+    void window_set_height_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
 
     /**
     * @brief Gets a reference to the specified key in the underlying keys pointer.
     * 
     * @note If the keys pointer is updated (e.g., to GPU memory), a previously fetched reference becomes invalid.
     */
-    int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode);
+    int32_t& window_get_keypress_ref(WINDOW*, uint8_t keycode);
 
     /**
     * @brief overload of window_get_keypress_ref with KEYCODES enum
     */
-    int32_t& window_get_keypress_ref(WINDOW* window, KEYCODES keycode);
+    int32_t& window_get_keypress_ref(WINDOW*, KEYCODES keycode);
 
     /**
     * @brief Gets a reference to the specified button in the underlying buttons pointer.
     * 
     * @note If the buttons pointer is updated (e.g., to GPU memory), a previously fetched reference becomes invalid.
     */
-    int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button);
+    int32_t& window_get_buttonpress_ref(WINDOW*, uint8_t button);
 
     /**
     * @brief Gets a shared pointer reference to all key values.
     */
-    std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode);
+    std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW*, uint8_t keycode);
 
     /**
     * @brief Gets a shared pointer reference to all button values.
     */
-    std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t button);
+    std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW*, uint8_t button);
 
     /**
     * @brief Gets a shared pointer reference to window width.
     */
-    std::shared_ptr<float>& window_get_width_ref(WINDOW* window);
+    std::shared_ptr<float>& window_get_width_ref(WINDOW*);
 
     /**
     * @brief Gets a shared pointer reference to window height.
     */
-    std::shared_ptr<float>& window_get_height_ref(WINDOW* window);
+    std::shared_ptr<float>& window_get_height_ref(WINDOW*);
 
     /**
     * @brief Adds a drawn buffer group.
     * 
     * Registers a DrawListManager along with a compatible buffer group so draw commands can be computed dynamically based on buffer data.
     */
-    void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+    void window_add_drawn_buffer_group(WINDOW*, IDrawListManager* mgr, BufferGroup* buffer_group);
 
     /**
     * @brief Removes a drawn buffer group.
     */
-    void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group);
+    void window_remove_drawn_buffer_group(WINDOW*, IDrawListManager* mgr, BufferGroup* buffer_group);
 
     /**
     * @brief Returns the EventInterface for a given WINDOW
     */
-    EventInterface* window_get_event_interface(WINDOW* window);
+    EventInterface* window_get_event_interface(WINDOW*);
 
+    /**
+    * @brief Adds a destroy event callback function
+    */
+    void window_register_free_callback(WINDOW*, const std::function<void()>&);
 }

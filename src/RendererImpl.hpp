@@ -23,6 +23,10 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
 	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+    std::vector<FramebufferDrawList*> total_fb_draw_lists;
+    std::vector<ShaderDrawList*> screen_draw_lists;
+    std::vector<std::pair<Framebuffer*, ShaderDrawList*>> fb_draw_lists;
 #ifdef __ANDROID__
 	bool supportsIndirectCount = false;
 #else

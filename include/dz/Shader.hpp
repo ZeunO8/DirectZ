@@ -30,6 +30,7 @@ namespace dz
 
     struct Renderer;
     struct Shader;
+    struct Framebuffer;
 
     /**
      * @brief Creates a new Shader object.
@@ -39,9 +40,16 @@ namespace dz
     Shader* shader_create(ShaderTopology topology = ShaderTopology::TriangleList);
 
     /**
+    * @brief Sets the shaders RenderPass to the passed Framebuffers RenderPass
+    *
+    * @note must be called before shader is compiled (call this before adding modules)
+    */
+    void shader_set_render_pass(Shader*, Framebuffer*);
+
+    /**
      * @brief Sets the include path to an asset_pack for include lookup
      */
-    void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack);
+    void shader_include_asset_pack(Shader*, AssetPack* asset_pack);
 
     /**
      * @brief Adds a GLSL source module to the shader.
@@ -50,7 +58,7 @@ namespace dz
      * @param module_type The type of shader module.
      * @param glsl_source GLSL source code string.
      */
-    void shader_add_module(Shader* shader, ShaderModuleType module_type, const std::string& glsl_source);
+    void shader_add_module(Shader*, ShaderModuleType module_type, const std::string& glsl_source);
 
     /**
      * @brief Adds a GLSL source module loaded from a file.
@@ -58,7 +66,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param file_path Path to the file containing GLSL source code.
      */
-    void shader_add_module_from_file(Shader* shader, const std::filesystem::path& file_path);
+    void shader_add_module_from_file(Shader*, const std::filesystem::path& file_path);
 
     /**
      * @brief Binds a BufferGroup to the shader.
@@ -66,7 +74,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param buffer_group Pointer to the BufferGroup.
      */
-    void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group);
+    void shader_add_buffer_group(Shader*, BufferGroup* buffer_group);
 
     /**
      * @brief Unbinds a BufferGroup from the shader.
@@ -74,7 +82,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param buffer_group Pointer to the BufferGroup.
      */
-    void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group);
+    void shader_remove_buffer_group(Shader*, BufferGroup* buffer_group);
 
     /**
      * @brief Dispatches the compute shader with the given thread group layout.
@@ -82,7 +90,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param dispatch_layout Layout dimensions as vec<int32_t, 3>.
      */
-    void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout);
+    void shader_dispatch(Shader*, vec<int32_t, 3> dispatch_layout);
 
     /**
      * @brief Compiles the shader source code to SPIR-V.
@@ -119,7 +127,7 @@ namespace dz
      * @param key Define macro name.
      * @param value Optional value for the macro.
      */
-    void shader_set_define(Shader* shader, const std::string& key, const std::string& value = "");
+    void shader_set_define(Shader*, const std::string& key, const std::string& value = "");
 
     /**
      * @brief Binds the shader to the current render pipeline.
@@ -127,4 +135,11 @@ namespace dz
      * @param shader Pointer to the Shader.
      */
     void shader_bind(Shader* shader);
+
+    /**
+    * @brief Emplaces an override when constructing images from reflection data based on key and provided image
+    *
+    * @note Should be called before adding any modules (directly after create)
+    */
+    void shader_use_image(Shader*, const std::string& sampler_key, Image* image_override);
 } // namespace dz

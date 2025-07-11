@@ -62,6 +62,7 @@ struct DirectRegistry
     VkQueue presentQueue;
     int32_t graphicsAndComputeFamily = -1;
     int32_t presentFamily = -1;
+    Renderer* currentRenderer = 0;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkCommandBuffer* commandBuffer = 0;
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;

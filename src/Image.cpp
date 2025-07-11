@@ -1,15 +1,20 @@
 namespace dz {
     struct Image
     {
+        uint32_t width;
+        uint32_t height;
+        uint32_t depth;
+        VkFormat format;
         VkImage image = VK_NULL_HANDLE;
         VkImageView imageView = VK_NULL_HANDLE;
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkSampler sampler = VK_NULL_HANDLE;
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkSampleCountFlagBits multisampling;
     };
 
-    struct ImageCreateInfo
+    struct ImageCreateInfoInternal
     {
         uint32_t width = 1;
         uint32_t height = 1;
@@ -20,17 +25,64 @@ namespace dz {
         VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
         void* data = nullptr;
     };
 
-    void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_data);
+    void upload_image_data(Image* image, const ImageCreateInfoInternal& info, void* src_data);
 
-    Image* image_create(const ImageCreateInfo& info)
+    Image* image_create_internal(const ImageCreateInfoInternal& info);
+    
+    Image* image_create(const ImageCreateInfo& info) {
+        auto usage = info.usage;
+        switch (info.format)
+        {
+        case VK_FORMAT_R8_UNORM:
+        case VK_FORMAT_R8G8_UNORM:
+        case VK_FORMAT_R8G8B8_UNORM:
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            if (info.is_framebuffer_attachment)
+                usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        case VK_FORMAT_R8_UINT:
+            if (info.is_framebuffer_attachment)
+                usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            break;
+        default:
+            break;
+        }
+        ImageCreateInfoInternal internal_info{
+            .width = info.width,
+            .height = info.height,
+            .depth = info.depth,
+            .format = info.format,
+            .usage = usage,
+            .image_type = info.image_type,
+            .view_type = info.view_type,
+            .tiling = info.tiling,
+            .memory_properties = info.memory_properties,
+            .multisampling = info.multisampling,
+            .data = info.data
+        };
+        return image_create_internal(internal_info);
+    }
+
+    Image* image_create_internal(const ImageCreateInfoInternal& info)
     {
         auto direct_registry = get_direct_registry();
-        Image* result = new Image{};
 
-        // VkImageCreateInfo setup
+        Image* result = new Image{
+            .width = info.width,
+            .height = info.height,
+            .depth = info.depth,
+            .format = info.format,
+            .multisampling = info.multisampling
+        };
+
+        // VkImageCreateInfoInternal setup
         VkImageCreateInfo imageInfo{};
         imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageInfo.imageType = info.image_type;
@@ -41,9 +93,9 @@ namespace dz {
         imageInfo.arrayLayers = 1;
         imageInfo.format = info.format;
         imageInfo.tiling = info.tiling;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        imageInfo.initialLayout = result->current_layout;
         imageInfo.usage = info.usage;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageInfo.samples = info.multisampling;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         vkCreateImage(direct_registry->device, &imageInfo, nullptr, &result->image);
@@ -63,7 +115,7 @@ namespace dz {
         // Upload data if provided
         if (info.data)
         {
-            upload_image_data(result->image, info, info.data);
+            upload_image_data(result, info, info.data);
         }
 
         // Create ImageView
@@ -107,7 +159,7 @@ namespace dz {
         return result;
     }
 
-    void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_data)
+    void upload_image_data(Image* image, const ImageCreateInfoInternal& info, void* src_data)
     {
         auto direct_registry = get_direct_registry();
 
@@ -142,13 +194,15 @@ namespace dz {
 
         VkCommandBuffer command_buffer = begin_single_time_commands();
 
+        auto new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
         VkImageMemoryBarrier barrier_to_transfer{};
         barrier_to_transfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier_to_transfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        barrier_to_transfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier_to_transfer.oldLayout = image->current_layout;
+        barrier_to_transfer.newLayout = new_layout;
         barrier_to_transfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier_to_transfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier_to_transfer.image = image;
+        barrier_to_transfer.image = image->image;
         barrier_to_transfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier_to_transfer.subresourceRange.baseMipLevel = 0;
         barrier_to_transfer.subresourceRange.levelCount = 1;
@@ -167,6 +221,8 @@ namespace dz {
             1, &barrier_to_transfer
         );
 
+        image->current_layout = new_layout;
+
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
@@ -178,15 +234,16 @@ namespace dz {
         region.imageOffset = {0, 0, 0};
         region.imageExtent = {info.width, info.height, info.depth};
 
-        vkCmdCopyBufferToImage(command_buffer, staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        vkCmdCopyBufferToImage(command_buffer, staging_buffer, image->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
         VkImageMemoryBarrier barrier_to_shader{};
         barrier_to_shader.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier_to_shader.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        barrier_to_shader.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier_to_shader.oldLayout = image->current_layout;
+        new_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier_to_shader.newLayout = new_layout;
         barrier_to_shader.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier_to_shader.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier_to_shader.image = image;
+        barrier_to_shader.image = image->image;
         barrier_to_shader.subresourceRange = barrier_to_transfer.subresourceRange;
         barrier_to_shader.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier_to_shader.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -201,6 +258,8 @@ namespace dz {
             1, &barrier_to_shader
         );
 
+        image->current_layout = new_layout;
+
         end_single_time_commands(command_buffer);
 
         vkDestroyBuffer(direct_registry->device, staging_buffer, nullptr);
@@ -209,6 +268,8 @@ namespace dz {
 
     void image_free(Image* image)
     {
+        if (!image)
+            return;
         auto direct_registry = get_direct_registry();
         auto& device = direct_registry->device;
         if (device == VK_NULL_HANDLE)
@@ -222,5 +283,6 @@ namespace dz {
         if(image->sampler != VK_NULL_HANDLE)
             vkDestroySampler(device, image->sampler, 0);
         delete image;
+        return;
     }
 }

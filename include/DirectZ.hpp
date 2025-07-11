@@ -4,22 +4,7 @@
  */
 #pragma once
 
-// Yes DirectZ just uses Vulkan (for v1.0 at the very least) 
-#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(ANDROID)
-#define RENDERER_VULKAN
-#endif
-
-#if defined(_WIN32)
-#define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__linux__) && !defined(__ANDROID__)
-#define VK_USE_PLATFORM_XCB_KHR
-#elif defined(MACOS)
-// #define VK_USE_PLATFORM_MACOS_MVK
-#define VK_USE_PLATFORM_METAL_EXT
-#elif defined(__ANDROID__)
-#define VK_USE_PLATFORM_ANDROID_KHR
-#endif
-
+#include <dz/Renderer.hpp>
 #include <filesystem>
 #include <dz/BufferGroup.hpp>
 #include <dz/size_ptr.hpp>
@@ -36,9 +21,6 @@
 #include <dz/zmalloc.hpp>
 #include <dz/D7Stream.hpp>
 #include <dz/ECS.hpp>
-#define IMGUI_DEFINE_MATH_OPERATORS
-#include <imgui.h>
-#include <backends/imgui_impl_vulkan.h>
 #include <dz/ImGuiLayer.hpp>
 
 #ifdef _WIN32
@@ -121,3 +103,17 @@ DZ_EXPORT void render();
 #endif
 mat<float, 4, 4> window_mvp(WINDOW* window, const mat<float, 4, 4>& mvp);
 mat<double, 4, 4> window_mvp(WINDOW* window, const mat<double, 4, 4>& mvp);
+
+#ifndef USING_VULKAN_1_2
+    #define UsingAttachmentDescription VkAttachmentDescription
+    #define UsingAttachmentReference VkAttachmentReference
+    #define UsingSubpassDescription VkSubpassDescription
+    #define UsingSubpassDependency VkSubpassDependency
+    #define UsingRenderPassCreateInfo VkRenderPassCreateInfo
+#else
+    #define UsingAttachmentDescription VkAttachmentDescription2
+    #define UsingAttachmentReference VkAttachmentReference2
+    #define UsingSubpassDescription VkSubpassDescription2
+    #define UsingSubpassDependency VkSubpassDependency2
+    #define UsingRenderPassCreateInfo VkRenderPassCreateInfo2
+#endif

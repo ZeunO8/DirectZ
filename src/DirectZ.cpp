@@ -64,12 +64,14 @@ namespace dz
 #include "Window.cpp"
 #include "Renderer.cpp"
 #include "Image.cpp"
+#include "Framebuffer.cpp"
 #include "Shader.cpp"
 #include "BufferGroup.cpp"
 #include "EventInterface.cpp"
 #include "D7Stream.cpp"
 #include "ImGuiLayer.cpp"
 #include "runtime.cpp"
+
 template<typename T>
 mat<T, 4, 4> window_mvp_T(WINDOW* window, const mat<T, 4, 4>& mvp)
 {

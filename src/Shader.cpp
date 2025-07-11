@@ -1,6 +1,8 @@
+#include <dz/Shader.hpp>
+#include <dz/Framebuffer.hpp>
+
 namespace dz {
-    struct ReflectedType
-    {
+    struct ReflectedType {
         uint32_t id;
         std::string name;
         std::string type_kind; // e.g., "float", "vec3", "mat4", "struct", "array"
@@ -16,8 +18,7 @@ namespace dz {
     uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc);
     bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader);
 
-    struct ReflectedVariable
-    {
+    struct ReflectedVariable {
         std::string name;
         uint32_t location = static_cast<uint32_t>(-1);
         uint32_t binding = static_cast<uint32_t>(-1);
@@ -29,8 +30,7 @@ namespace dz {
         SpvReflectDecorationFlags decorations; // Decorations applied to the variable
     };
 
-    struct ReflectedBlock
-    {
+    struct ReflectedBlock {
         std::string name;
         uint32_t binding;
         uint32_t set;
@@ -38,8 +38,7 @@ namespace dz {
         ReflectedType type; // Represents the type of the block itself (e.g., UniformBufferObject)
     };
 
-    struct ReflectedStruct
-    {
+    struct ReflectedStruct {
         std::string name;
         uint32_t id;
         SpvReflectTypeDescription type;
@@ -88,8 +87,7 @@ namespace dz {
         uint32_t member_offset = offset_it->second;
         uint32_t reflected_size = size_it->second;
 
-        if (!(reflected_size == data_size_bytes))
-        {
+        if (!(reflected_size == data_size_bytes)) {
             throw std::runtime_error("ReflectedSize does not match data_size (bytes)");
         }
 
@@ -99,14 +97,12 @@ namespace dz {
         memcpy(target_addr, data_ptr, bytes_to_copy);
     }
 
-    uint8_t* ReflectedStructView::get_member(const std::string& member_name, size_t data_size_bytes)
-    {
+    uint8_t* ReflectedStructView::get_member(const std::string& member_name, size_t data_size_bytes) {
         auto offset_it = m_struct_def.member_offsets_map.find(member_name);
         auto size_it = m_struct_def.member_sizes_map.find(member_name);
         
         if (offset_it == m_struct_def.member_offsets_map.end() ||
-            size_it == m_struct_def.member_sizes_map.end())
-        {
+            size_it == m_struct_def.member_sizes_map.end()) {
             throw std::runtime_error("ReflectedStructView Error: Member '" + member_name + "' not found in struct '"
                         + m_struct_def.name + "'.");
         }
@@ -114,16 +110,14 @@ namespace dz {
         uint32_t member_offset = offset_it->second;
         uint32_t reflected_size = size_it->second;
 
-        if (!(reflected_size == data_size_bytes))
-        {
+        if (!(reflected_size == data_size_bytes)) {
             throw std::runtime_error("ReflectedSize does not match data_size (bytes)");
         }
 
         return m_base_ptr + member_offset;
     }
 
-    struct SPIRVReflection
-    {
+    struct SPIRVReflection {
         std::vector<ReflectedVariable> inputs;
         std::vector<ReflectedVariable> outputs;
         std::vector<ReflectedBlock> ssbos;
@@ -140,24 +134,21 @@ namespace dz {
 
     const ReflectedStruct& getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type);
 
-    struct ShaderModule
-    {
+    struct ShaderModule {
         std::vector<uint32_t> spirv_vec;
         VkShaderModule vk_module;
         ShaderModuleType type;
         SPIRVReflection reflection;
     };
 
-    struct GpuBuffer
-    {
+    struct GpuBuffer {
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         void* mapped_memory = nullptr; // Persistently mapped pointer
         VkDeviceSize size = 0;
     };
 
-    struct ShaderBuffer
-    {
+    struct ShaderBuffer {
         std::string name; // Name from GLSL (e.g., "ubo_scene", "particles")
         uint32_t set = 0;
         uint32_t binding = 0;
@@ -180,8 +171,7 @@ namespace dz {
         GpuBuffer gpu_buffer;
     };
 
-    struct ShaderImage
-    {
+    struct ShaderImage {
         std::string name;
         uint32_t set = 0;
         uint32_t binding = 0;
@@ -191,8 +181,7 @@ namespace dz {
         std::unordered_map<Shader*, VkImageLayout> expected_layouts;
     };
 
-    struct Shader
-    {
+    struct Shader {
         bool initialized = false;
         std::map<ShaderModuleType, ShaderModule> module_map;
         std::map<uint32_t, VkDescriptorSetLayout> descriptor_set_layouts;
@@ -206,10 +195,11 @@ namespace dz {
         std::map<std::string, std::string> define_map;
         AssetPack* include_asset_pack = 0;
         ShaderTopology topology;
+        VkRenderPass renderPass = VK_NULL_HANDLE;
+        std::unordered_map<std::string, Image*> sampler_key_image_override_map;
     };
 
-    struct BufferGroup
-    {
+    struct BufferGroup {
         std::string group_name;
         std::unordered_map<std::string, ShaderBuffer> buffers;
         std::unordered_map<std::string, ShaderImage> images;
@@ -218,15 +208,13 @@ namespace dz {
         std::unordered_map<std::string, bool> restricted_to_keys;
     };
 
-    class DynamicIncluder : public shaderc::CompileOptions::IncluderInterface
-    {
+    class DynamicIncluder : public shaderc::CompileOptions::IncluderInterface {
         Shader* shader = nullptr;
 
     public:
 
         DynamicIncluder(Shader* shader)
-            : shader(shader)
-        {}
+            : shader(shader) {}
 
         shaderc_include_result* GetInclude(const char* requested_source,
                                         shaderc_include_type type,
@@ -261,8 +249,7 @@ namespace dz {
 
     private:
 
-        shaderc_include_result* MakeSuccessInclude(const std::string& content, const std::string& fullPath)
-        {
+        shaderc_include_result* MakeSuccessInclude(const std::string& content, const std::string& fullPath) {
             shaderc_include_result* result = new shaderc_include_result();
 
             result->source_name = CopyString(fullPath);
@@ -276,8 +263,7 @@ namespace dz {
             return result;
         }
 
-        shaderc_include_result* MakeErrorInclude(const std::string& errorMessage)
-        {
+        shaderc_include_result* MakeErrorInclude(const std::string& errorMessage) {
             shaderc_include_result* result = new shaderc_include_result();
 
             std::string name = "<error>";
@@ -293,8 +279,7 @@ namespace dz {
             return result;
         }
 
-        char* CopyString(const std::string& str)
-        {
+        char* CopyString(const std::string& str) {
             char* mem = new char[str.size() + 1];
             memcpy(mem, str.c_str(), str.size());
             mem[str.size()] = '\0';
@@ -304,12 +289,12 @@ namespace dz {
 
     void shader_destroy(Shader* shader);
 
-    Shader* shader_create(ShaderTopology topology)
-    {
-        auto shader = new Shader{
-            .topology = topology
-        };
+    Shader* shader_create(ShaderTopology topology) {
         auto& dr = *get_direct_registry();
+        auto shader = new Shader{
+            .topology = topology,
+            .renderPass = dr.surfaceRenderPass
+        };
         dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
             shader_destroy(shader);
             delete shader;
@@ -317,8 +302,13 @@ namespace dz {
         return shader;
     }
 
-    void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack)
-    {
+    void shader_set_render_pass(Shader* shader_ptr, Framebuffer* framebuffer_ptr) {
+        if (!shader_ptr || !framebuffer_ptr)
+            return;
+        shader_ptr->renderPass = framebuffer_ptr->renderPass;
+    }
+
+    void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack) {
         shader->include_asset_pack = asset_pack;
     }
 
@@ -400,11 +390,9 @@ namespace dz {
         return kind_str;
     }
 
-    uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc)
-    {
+    uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc) {
         uint32_t size = 0;
-        for (uint32_t i = 0; i < type_desc.member_count; ++i)
-        {
+        for (uint32_t i = 0; i < type_desc.member_count; ++i) {
             const auto& m = type_desc.members[i];
             size += GetMinimumTypeSizeInBytes(m);
             continue;
@@ -469,11 +457,9 @@ namespace dz {
         return rtype;
     }
 
-    size_t HashStructSignature(const SpvReflectTypeDescription& type)
-    {
+    size_t HashStructSignature(const SpvReflectTypeDescription& type) {
         size_t hash = 0;
-        for (uint32_t i = 0; i < type.member_count; ++i)
-        {
+        for (uint32_t i = 0; i < type.member_count; ++i) {
             const auto& m = type.members[i];
             hash ^= std::hash<std::string>()(m.struct_member_name ? m.struct_member_name : "") << 1;
             hash ^= m.type_flags + 0x9e3779b9;
@@ -487,13 +473,11 @@ namespace dz {
         return hash;
     }
 
-    void ReflectAllTypes(const SpvReflectShaderModule& module, SPIRVReflection& out)
-    {
+    void ReflectAllTypes(const SpvReflectShaderModule& module, SPIRVReflection& out) {
         auto& internal = *module._internal;
         std::unordered_map<size_t, uint32_t> seen_structs;
 
-        for (uint32_t i = 0; i < internal.type_description_count; ++i)
-        {
+        for (uint32_t i = 0; i < internal.type_description_count; ++i) {
             const SpvReflectTypeDescription& type = internal.type_descriptions[i];
             // Only process named types or structs that might be referenced
             if (!(type.type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT))
@@ -518,15 +502,13 @@ namespace dz {
         }
     }
 
-    void ReflectStructMembersRecursive(const SpvReflectTypeDescription* type_desc, std::vector<ReflectedVariable>& container, const std::string& prefix = "")
-    {
+    void ReflectStructMembersRecursive(const SpvReflectTypeDescription* type_desc, std::vector<ReflectedVariable>& container, const std::string& prefix = "") {
         if (!type_desc || !(type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT))
             return;
 
         // Use the type_desc->members (which are SpvReflectTypeDescription) for recursive calls
         // but the actual block variable members (if available) for offsets/strides
-        for (uint32_t mi = 0; mi < type_desc->member_count; ++mi)
-        {
+        for (uint32_t mi = 0; mi < type_desc->member_count; ++mi) {
             const SpvReflectTypeDescription* member_type_desc = &type_desc->members[mi];
             // Note: SpvReflectTypeDescription::members are just type descriptions,
             // they don't have the full SpvReflectBlockVariable info (like offset, array.stride, decorations)
@@ -572,10 +554,8 @@ namespace dz {
         }
     }
 
-    void ReflectIO(const SpvReflectShaderModule& module, SPIRVReflection& out)
-    {
-        for (uint32_t i = 0; i < module.input_variable_count; ++i)
-        {
+    void ReflectIO(const SpvReflectShaderModule& module, SPIRVReflection& out) {
+        for (uint32_t i = 0; i < module.input_variable_count; ++i) {
             const SpvReflectInterfaceVariable* var = module.input_variables[i];
             if (!var || !var->type_description)
                 continue;
@@ -588,8 +568,7 @@ namespace dz {
             out.inputs.push_back(rvar);
         }
 
-        for (uint32_t i = 0; i < module.output_variable_count; ++i)
-        {
+        for (uint32_t i = 0; i < module.output_variable_count; ++i) {
             const SpvReflectInterfaceVariable* var = module.output_variables[i];
             if (!var || !var->type_description)
                 continue;
@@ -606,8 +585,7 @@ namespace dz {
     void ReflectStructMembers(
         const SpvReflectTypeDescription* type_desc,
         SPIRVReflection& out,
-        std::vector<ReflectedVariable>& container)
-    {
+        std::vector<ReflectedVariable>& container) {
         if (!type_desc || !(type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT))
             return;
 
@@ -615,8 +593,7 @@ namespace dz {
         if ((type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) && type_desc->struct_type_description)
             struct_desc = type_desc->struct_type_description;
 
-        for (uint32_t mi = 0; mi < struct_desc->member_count; ++mi)
-        {
+        for (uint32_t mi = 0; mi < struct_desc->member_count; ++mi) {
             const SpvReflectTypeDescription* member_desc = &struct_desc->members[mi];
             if (!member_desc)
                 continue;
@@ -630,10 +607,8 @@ namespace dz {
         }
     }
 
-    VkImageViewType infer_view_type(const SpvReflectImageTraits& image)
-    {
-        switch (image.dim)
-        {
+    VkImageViewType infer_view_type(const SpvReflectImageTraits& image) {
+        switch (image.dim) {
             case SpvDim1D: return image.arrayed ? VK_IMAGE_VIEW_TYPE_1D_ARRAY : VK_IMAGE_VIEW_TYPE_1D;
             case SpvDim2D: return image.arrayed ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
             case SpvDim3D: return VK_IMAGE_VIEW_TYPE_3D;
@@ -642,10 +617,8 @@ namespace dz {
         }
     }
 
-    VkFormat infer_format(SpvImageFormat fmt)
-    {
-        switch (fmt)
-        {
+    VkFormat infer_format(SpvImageFormat fmt) {
+        switch (fmt) {
             case SpvImageFormatRgba32f: return VK_FORMAT_R32G32B32A32_SFLOAT;
             case SpvImageFormatRgba16f: return VK_FORMAT_R16G16B16A16_SFLOAT;
             case SpvImageFormatR32f: return VK_FORMAT_R32_SFLOAT;
@@ -696,10 +669,8 @@ namespace dz {
         }
     }
 
-    VkImageLayout infer_required_image_layout(VkDescriptorType descriptor_type)
-    {
-        switch (descriptor_type)
-        {
+    VkImageLayout infer_required_image_layout(VkDescriptorType descriptor_type) {
+        switch (descriptor_type) {
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
@@ -716,10 +687,8 @@ namespace dz {
         }
     }
 
-    std::string GetTypeDescriptionString(const SpvReflectTypeDescription* type_desc)
-    {
-        if (type_desc == nullptr)
-        {
+    std::string GetTypeDescriptionString(const SpvReflectTypeDescription* type_desc) {
+        if (type_desc == nullptr) {
             return "<null type>";
         }
 
@@ -727,8 +696,7 @@ namespace dz {
 
         std::ostringstream oss;
 
-        if (traits.numeric.scalar.width == 0)
-        {
+        if (traits.numeric.scalar.width == 0) {
             oss << "<unknown>";
             return oss.str();
         }
@@ -737,12 +705,10 @@ namespace dz {
         bool is_signed_int = traits.numeric.scalar.signedness == 1;
         bool is_unsigned_int = traits.numeric.scalar.signedness == 0 && !is_float;
 
-        if (is_float)
-        {
+        if (is_float) {
             oss << "float";
         }
-        else if (is_signed_int)
-        {
+        else if (is_signed_int) {
             switch (traits.numeric.scalar.width)
             {
                 case 8: oss << "int8_t"; break;
@@ -752,8 +718,7 @@ namespace dz {
                 default: oss << "int" << traits.numeric.scalar.width << "_t"; break;
             }
         }
-        else if (is_unsigned_int)
-        {
+        else if (is_unsigned_int) {
             switch (traits.numeric.scalar.width)
             {
                 case 8: oss << "uint8_t"; break;
@@ -768,17 +733,14 @@ namespace dz {
             oss << "unknown";
         }
 
-        if (traits.numeric.matrix.column_count > 0 && traits.numeric.matrix.row_count > 0)
-        {
+        if (traits.numeric.matrix.column_count > 0 && traits.numeric.matrix.row_count > 0) {
             oss << traits.numeric.matrix.column_count << "x" << traits.numeric.matrix.row_count;
         }
-        else if (traits.numeric.vector.component_count > 1)
-        {
+        else if (traits.numeric.vector.component_count > 1) {
             oss << traits.numeric.vector.component_count;
         }
 
-        if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY)
-        {
+        if (type_desc->type_flags & SPV_REFLECT_TYPE_FLAG_ARRAY) {
             for (uint32_t i = 0; i < traits.array.dims_count; ++i)
             {
                 if (traits.array.dims[i] == 0)
@@ -795,10 +757,8 @@ namespace dz {
         return oss.str();
     }
 
-    void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection)
-    {
-        for (uint32_t i = 0; i < module.descriptor_binding_count; ++i)
-        {
+    void ReflectAndPrepareBuffers(BufferGroup* buffer_group, const SpvReflectShaderModule& module, Shader* shader, SPIRVReflection& reflection) {
+        for (uint32_t i = 0; i < module.descriptor_binding_count; ++i) {
             const auto& binding_info = module.descriptor_bindings[i];
             std::string name = binding_info.name ? binding_info.name : "";
 
@@ -969,10 +929,8 @@ namespace dz {
         }
     }
 
-    void ReflectPushConstants(const SpvReflectShaderModule& module, SPIRVReflection& out)
-    {
-        for (uint32_t i = 0; i < module.push_constant_block_count; ++i)
-        {
+    void ReflectPushConstants(const SpvReflectShaderModule& module, SPIRVReflection& out) {
+        for (uint32_t i = 0; i < module.push_constant_block_count; ++i) {
             const SpvReflectBlockVariable& push = module.push_constant_blocks[i];
             ReflectedBlock block;
             block.name = push.name ? push.name : "";
@@ -1038,10 +996,8 @@ namespace dz {
         return "Unknown";
     }
 
-    void ReflectEntryPoints(const SpvReflectShaderModule& module)
-    {
-        for (uint32_t i = 0; i < module.entry_point_count; ++i)
-        {
+    void ReflectEntryPoints(const SpvReflectShaderModule& module) {
+        for (uint32_t i = 0; i < module.entry_point_count; ++i) {
             const SpvReflectEntryPoint& entry = module.entry_points[i];
             std::cout << "Entry Point: " << entry.name << std::endl;
             std::cout << "  Execution Model: " << CustomSpvReflectExecutionModelToString(entry.spirv_execution_model) << std::endl;
@@ -1050,12 +1006,10 @@ namespace dz {
         }
     }
 
-    void PrintTypeTree(const SpvReflectTypeDescription& type, int indent = 0)
-    {
+    void PrintTypeTree(const SpvReflectTypeDescription& type, int indent = 0) {
         std::string pad(indent, ' ');
         auto size = 0;
-        if (type.type_name ? (std::string(type.type_name) == "Entity") : false)
-        {
+        if (type.type_name ? (std::string(type.type_name) == "Entity") : false) {
             size *= 2;
         }
         size = GetMinimumTypeSizeInBytes(type);
@@ -1067,8 +1021,7 @@ namespace dz {
         std::cout << ", Flags: " << type.type_flags << std::endl;
 
 
-        if ((type.type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT) != 0)
-        {
+        if ((type.type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT) != 0) {
             for (uint32_t i = 0; i < type.member_count; ++i)
             {
                 const auto& member = type.members[i];
@@ -1082,8 +1035,7 @@ namespace dz {
 
     void PrintMember(const SPIRVReflection& reflection, const SpvReflectTypeDescription& member, int indent = 0);
 
-    void PrintStruct(const SPIRVReflection& reflection, const ReflectedStruct& s, int indent = 0)
-    {
+    void PrintStruct(const SPIRVReflection& reflection, const ReflectedStruct& s, int indent = 0) {
         std::string pad(indent, ' ');
         std::cout << pad << "Struct: " << s.name << " (ID: " << s.id << "), Size: " << CalculateStructSize(s.type) << std::endl;
         if (s.member_type_descs.empty()) {
@@ -1097,24 +1049,20 @@ namespace dz {
         }
     }
 
-    bool hasCanonicalStruct(const ReflectedType& type)
-    {
+    bool hasCanonicalStruct(const ReflectedType& type) {
         return (type.type_desc.struct_type_description != nullptr);
     }
 
-    const ReflectedStruct& getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type)
-    {
+    const ReflectedStruct& getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type) {
         const SpvReflectTypeDescription* struct_definition_desc = type.type_desc.struct_type_description;
         auto it = reflection.structs_by_name.find(struct_definition_desc->type_name);
         assert (it != reflection.structs_by_name.end());
         return it->second;
     }
 
-    void PrintType(const SPIRVReflection& reflection, const ReflectedType& type, int indent)
-    {
+    void PrintType(const SPIRVReflection& reflection, const ReflectedType& type, int indent) {
         std::string pad(indent, ' ');
-        if (hasCanonicalStruct(type))
-        {
+        if (hasCanonicalStruct(type)) {
             std::cout << pad << "ReflectedVariable '" << type.name << "' (Named Type ID: " << type.id << ")";
             std::cout << pad << " refers to canonical Struct Definition ID: " << type.type_desc.struct_type_description->id << std::endl;
             auto& canonical_truct = getCanonicalStruct(reflection, type);
@@ -1131,14 +1079,12 @@ namespace dz {
         }
     }
 
-    void PrintMember(const SPIRVReflection& reflection, const SpvReflectTypeDescription& member, int indent)
-    {
+    void PrintMember(const SPIRVReflection& reflection, const SpvReflectTypeDescription& member, int indent) {
         std::string pad(indent, ' ');
         PrintTypeTree(member, indent + 2);
     }
 
-    void PrintVariable(const SPIRVReflection& reflection, const ReflectedVariable& var, int indent = 0)
-    {
+    void PrintVariable(const SPIRVReflection& reflection, const ReflectedVariable& var, int indent = 0) {
         std::string pad(indent, ' ');
         std::cout << pad << "Variable: " << (var.name.empty() ? "<unnamed>" : var.name) << std::endl;
 
@@ -1169,8 +1115,7 @@ namespace dz {
         PrintType(reflection, var.type, indent + 4);
     }
 
-    void PrintBlock(const SPIRVReflection& reflection, const ReflectedBlock& block, int indent = 0)
-    {
+    void PrintBlock(const SPIRVReflection& reflection, const ReflectedBlock& block, int indent = 0) {
         std::string pad(indent, ' ');
         std::cout << pad << "Block: " << (block.name.empty() ? "<unnamed>" : block.name) << std::endl;
         std::cout << pad << "  Binding: " << block.binding << std::endl;
@@ -1187,8 +1132,7 @@ namespace dz {
         }
     }
 
-    void PrintSPIRVReflection(const SPIRVReflection& refl)
-    {
+    void PrintSPIRVReflection(const SPIRVReflection& refl) {
         std::cout << "=== INPUTS ===" << std::endl;
         if (refl.inputs.empty()) std::cout << "  (No inputs)" << std::endl;
         for (const auto& input : refl.inputs)
@@ -1228,8 +1172,7 @@ namespace dz {
         }
     }
 
-    void PrintShaderReflection(Shader* shader)
-    {
+    void PrintShaderReflection(Shader* shader) {
         std::cout << "===============" << std::endl;
         std::cout << "  Shader Dump  " << std::endl;
         std::cout << "===============" << std::endl;
@@ -1238,8 +1181,7 @@ namespace dz {
         std::cout << std::endl;
     }
 
-    void shader_reflect(Shader* shader, ShaderModuleType module_type, shaderc_shader_kind stage)
-    {
+    void shader_reflect(Shader* shader, ShaderModuleType module_type, shaderc_shader_kind stage) {
         auto& shader_module = shader->module_map[module_type];
         auto& spirv_vec = shader_module.spirv_vec;
 
@@ -1252,8 +1194,7 @@ namespace dz {
         ReflectPushConstants(module, shader_module.reflection);
         ReflectEntryPoints(module);
 
-        for (auto& bgp : shader->buffer_groups)
-        {
+        for (auto& bgp : shader->buffer_groups) {
             auto buffer_group = bgp.first;
             ReflectAndPrepareBuffers(buffer_group, module, shader, shader_module.reflection);
         }
@@ -1264,13 +1205,11 @@ namespace dz {
     }
 
 
-    bool CreateDescriptorSetLayouts(VkDevice device, Shader* shader)
-    {
+    bool CreateDescriptorSetLayouts(VkDevice device, Shader* shader) {
         std::map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> set_bindings;
 
         // 1. Aggregate bindings from all shader stages
-        for (auto const& [stage, module] : shader->module_map)
-        {
+        for (auto const& [stage, module] : shader->module_map) {
             SpvReflectShaderModule* reflect_module = module.reflection.module_ptr.get();
 
             for (uint32_t i = 0; i < reflect_module->descriptor_binding_count; ++i)
@@ -1300,8 +1239,7 @@ namespace dz {
         }
 
         // 2. Create a VkDescriptorSetLayout for each set
-        for (auto const& [set_num, bindings] : set_bindings)
-        {
+        for (auto const& [set_num, bindings] : set_bindings) {
             VkDescriptorSetLayoutCreateInfo layout_info{};
             layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
             layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -1325,13 +1263,11 @@ namespace dz {
         return true;
     }
 
-    bool CreateDescriptorPool(VkDevice device, Shader* shader, uint32_t max_sets_per_pool)
-    {
+    bool CreateDescriptorPool(VkDevice device, Shader* shader, uint32_t max_sets_per_pool) {
         std::map<VkDescriptorType, uint32_t> descriptor_counts;
 
         // 1. Aggregate descriptor counts from all shader modules
-        for (auto const& [stage, module] : shader->module_map)
-        {
+        for (auto const& [stage, module] : shader->module_map) {
             SpvReflectShaderModule* reflect_module = module.reflection.module_ptr.get();
             for (uint32_t i = 0; i < reflect_module->descriptor_binding_count; ++i)
             {
@@ -1348,8 +1284,7 @@ namespace dz {
 
         // 2. Create VkDescriptorPoolSize structures
         std::vector<VkDescriptorPoolSize> pool_sizes;
-        for (auto const& [type, count] : descriptor_counts)
-        {
+        for (auto const& [type, count] : descriptor_counts) {
             // We multiply by max_sets_per_pool to allow for multiple sets of this type to be allocated.
             pool_sizes.push_back({type, count * max_sets_per_pool});
         }
@@ -1363,8 +1298,7 @@ namespace dz {
         // You might want VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT if you need to free individual sets
         pool_info.flags = 0;
 
-        if (vkCreateDescriptorPool(device, &pool_info, nullptr, &shader->descriptor_pool) != VK_SUCCESS)
-        {
+        if (vkCreateDescriptorPool(device, &pool_info, nullptr, &shader->descriptor_pool) != VK_SUCCESS) {
             std::cerr << "Failed to create descriptor pool." << std::endl;
             return false;
         }
@@ -1373,14 +1307,12 @@ namespace dz {
         return true;
     }
 
-    bool AllocateDescriptorSets(VkDevice device, Shader* shader)
-    {
+    bool AllocateDescriptorSets(VkDevice device, Shader* shader) {
         if (shader->descriptor_set_layouts.empty()) {
             return true; // Nothing to allocate
         }
 
-        for (auto const& [set_num, layout] : shader->descriptor_set_layouts)
-        {
+        for (auto const& [set_num, layout] : shader->descriptor_set_layouts) {
             VkDescriptorSetAllocateInfo alloc_info{};
             alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             alloc_info.descriptorPool = shader->descriptor_pool;
@@ -1399,11 +1331,9 @@ namespace dz {
         return true;
     }
 
-    VkImageLayout infer_image_layout(Shader* shader, std::unordered_map<Shader*, VkDescriptorType>& types)
-    {
+    VkImageLayout infer_image_layout(Shader* shader, std::unordered_map<Shader*, VkDescriptorType>& types) {
         auto& type = types[shader];
-        switch (type)
-        {
+        switch (type) {
             case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
@@ -1421,8 +1351,7 @@ namespace dz {
     * @brief The core creation function. It iterates the prepared ShaderBuffer map, creates the
     * actual Vulkan buffers, copies initial data, and performs the shared_ptr swap.
     */
-    bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader)
-    {
+    bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader) {
         auto direct_registry = get_direct_registry();
         std::vector<VkWriteDescriptorSet> descriptor_writes;
         std::vector<VkDescriptorBufferInfo> buffer_infos; 
@@ -1456,17 +1385,25 @@ namespace dz {
         }
 
         for (auto& [name, image_ref] : buffer_group->images) {
-            auto image_it = buffer_group->runtime_images.find(name);
-            if (image_it == buffer_group->runtime_images.end())
-            {
-                std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
-                continue;
+            Image* img = 0;
+            auto override_it = shader->sampler_key_image_override_map.find(name);
+            if (override_it != shader->sampler_key_image_override_map.end()) {
+                img = override_it->second;
             }
-            Image* img = image_it->second.get();
+            else {
+                auto image_it = buffer_group->runtime_images.find(name);
+                if (image_it == buffer_group->runtime_images.end())
+                {
+                    std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
+                    continue;
+                }
+                img = image_it->second.get();
+            }
+
             image_infos.emplace_back();
             image_infos.back().imageView = img->imageView;
             image_infos.back().imageLayout = infer_image_layout(shader, image_ref.descriptor_types);
-            image_infos.back().sampler = img->sampler; // Use a real sampler if necessary
+            image_infos.back().sampler = img->sampler;
         }
 
         size_t j = 0;
@@ -1562,8 +1499,7 @@ namespace dz {
         // }
     }
 
-    void shader_initialize(Shader* shader)
-    {
+    void shader_initialize(Shader* shader) {
         if (shader->initialized)
             return;
         shader_create_resources(shader);
@@ -1571,8 +1507,7 @@ namespace dz {
         shader->initialized = true;
     }
 
-    void shader_create_resources(Shader* shader)
-    {
+    void shader_create_resources(Shader* shader) {
         auto direct_registry = get_direct_registry();
         auto& device = direct_registry->device;
 
@@ -1583,21 +1518,18 @@ namespace dz {
         std::cout << "Shader resources created and bound successfully using data-driven approach." << std::endl;
     }
 
-    void shader_set_define(Shader* shader, const std::string& key, const std::string& value)
-    {
+    void shader_set_define(Shader* shader, const std::string& key, const std::string& value) {
         shader->define_map.emplace(key, value);
     }
 
     void shader_init_module(Shader* shader, ShaderModule& shader_module);
 
-    size_t find_newline_after_token(const std::string& input, const std::string& token)
-    {
+    size_t find_newline_after_token(const std::string& input, const std::string& token) {
         // Find the first occurrence of the token in the string
         size_t token_pos = input.find(token);
 
         // If token is not found, return std::string::npos as an indicator of failure
-        if (token_pos == std::string::npos)
-        {
+        if (token_pos == std::string::npos) {
             return std::string::npos;
         }
 
@@ -1611,22 +1543,19 @@ namespace dz {
         return newline_pos;
     }
 
-    std::string addLineNumbers(const std::string &input)
-    {
+    std::string addLineNumbers(const std::string &input) {
         std::stringstream inputStream(input);
         std::stringstream outputStream;
         std::string line;
         std::size_t lineIndex = 0;
 
-        while (std::getline(inputStream, line))
-        {
+        while (std::getline(inputStream, line)) {
             outputStream << std::setw(4) << std::setfill(' ') << lineIndex << ": " << line << "\n";
             ++lineIndex;
         }
 
         // If input ends with a newline, preserve that
-        if (!input.empty() && input.back() == '\n' && (input.length() == 1 || input[input.length() - 2] != '\r'))
-        {
+        if (!input.empty() && input.back() == '\n' && (input.length() == 1 || input[input.length() - 2] != '\r')) {
             // Remove the last newline and add an empty line with a line number
             if (input.back() == '\n' && input[input.length() - 2] != '\n')
             {
@@ -1641,15 +1570,13 @@ namespace dz {
         Shader* shader,
         ShaderModuleType module_type,
         const std::string& glsl_source
-    )
-    {
+    ) {
         if (!shader)
             throw std::runtime_error("shader is null");
         
         auto shaderString = glsl_source;
         auto after_version_idx = find_newline_after_token(shaderString, "#version") + 1;
-        for (auto& define_pair : shader->define_map)
-        {
+        for (auto& define_pair : shader->define_map) {
             std::string defineString("#define ");
             defineString += define_pair.first + " " + define_pair.second + "\n";
             auto next_it = shaderString.insert(shaderString.begin() + after_version_idx, defineString.begin(), defineString.end());
@@ -1676,8 +1603,7 @@ namespace dz {
             compileOptions
         );
         auto status = compiled_module.GetCompilationStatus();
-        if (status != shaderc_compilation_status_success)
-        {
+        if (status != shaderc_compilation_status_success) {
             std::cerr << "Shader Source:" << std::endl << std::endl << addLineNumbers(shaderString) << std::endl;
             std::cerr << "Shader Compile Error: " << compiled_module.GetErrorMessage() << std::endl;
             return;
@@ -1693,13 +1619,11 @@ namespace dz {
     void shader_add_module_from_file(
         Shader* shader,
         const std::filesystem::path& file_path
-    )
-    {
+    ) {
         
     }
 
-    void shader_init_module(Shader* shader, ShaderModule& shader_module)
-    {
+    void shader_init_module(Shader* shader, ShaderModule& shader_module) {
         VkShaderModuleCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         create_info.codeSize = 4 * shader_module.spirv_vec.size();
@@ -1708,28 +1632,24 @@ namespace dz {
         vkCreateShaderModule(direct_registry->device, &create_info, 0, &shader_module.vk_module);
     }
 
-    void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group)
-    {
+    void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group) {
         buffer_group->shaders[shader] = true;
         shader->buffer_groups[buffer_group] = true;
     }
 
-    void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group)
-    {
+    void shader_remove_buffer_group(Shader* shader, BufferGroup* buffer_group) {
         buffer_group->shaders.erase(shader);
         shader->buffer_groups.erase(buffer_group);
     }
 
-    struct TransitionInfo
-    {
+    struct TransitionInfo {
         VkAccessFlags srcAccessMask;
         VkAccessFlags dstAccessMask;
         VkPipelineStageFlags srcStage;
         VkPipelineStageFlags dstStage;
     };
 
-    const std::map<std::pair<VkImageLayout, VkImageLayout>, TransitionInfo> kLayoutTransitions =
-    {
+    const std::map<std::pair<VkImageLayout, VkImageLayout>, TransitionInfo> kLayoutTransitions = {
         // Undefined to Usable Layouts
         {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL}, {0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
         {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL}, {0, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT}},
@@ -1753,8 +1673,7 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL}, {0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT}},
         {{VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL}, {0, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
         
-        // Present to Shader Read (e.g., post-processing)
-        {{VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+        // Present to Shader Read (e.g., post-processing) {{VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_MEMORY_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
         
         // Feedback loop
         {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT}},
@@ -1765,8 +1684,7 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
-    void transition_image_layout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout)
-    {
+    void transition_image_layout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout) {
         auto device = get_direct_registry()->device;
         auto command_buffer = begin_single_time_commands();
 
@@ -1784,8 +1702,7 @@ namespace dz {
         barrier.subresourceRange.layerCount = 1;
 
         auto it = kLayoutTransitions.find({old_layout, new_layout});
-        if (it == kLayoutTransitions.end())
-        {
+        if (it == kLayoutTransitions.end()) {
             throw std::runtime_error("Unsupported image layout transition!");
         }
 
@@ -1806,10 +1723,8 @@ namespace dz {
         end_single_time_commands(command_buffer);
     }
 
-    void shader_ensure_image_layouts(Shader* shader)
-    {
-        for (auto& bound_buffer_group : shader->bound_buffer_groups)
-        {
+    void shader_ensure_image_layouts(Shader* shader) {
+        for (auto& bound_buffer_group : shader->bound_buffer_groups) {
             for (auto& [name, shader_image] : bound_buffer_group->images)
             {
                 auto runtime_ite = bound_buffer_group->runtime_images.find(name);
@@ -1833,8 +1748,7 @@ namespace dz {
         }
     }
 
-    void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout)
-    {
+    void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout) {
         shader_ensure_image_layouts(shader);
         auto direct_registry = get_direct_registry();
         VkCommandBufferBeginInfo beginInfo{};
@@ -1847,8 +1761,7 @@ namespace dz {
         );
         std::vector<VkDescriptorSet> sets;
         sets.reserve(shader->descriptor_sets.size());
-        for (auto& set_pair : shader->descriptor_sets)
-        {
+        for (auto& set_pair : shader->descriptor_sets) {
             sets.push_back(set_pair.second);
         }
         vkCmdBindDescriptorSets(
@@ -1875,8 +1788,7 @@ namespace dz {
         vkQueueWaitIdle(direct_registry->computeQueue);
     }
 
-    void shader_compile(Shader* shader)
-    {
+    void shader_compile(Shader* shader) {
         auto direct_registry = get_direct_registry();
         auto device = direct_registry->device;
 
@@ -1886,8 +1798,7 @@ namespace dz {
 
         std::vector<VkDescriptorSetLayout> layouts;
         layouts.reserve(shader->descriptor_set_layouts.size());
-        for (auto& layout : shader->descriptor_set_layouts)
-        {
+        for (auto& layout : shader->descriptor_set_layouts) {
             layouts.push_back(layout.second);
         }
 
@@ -1896,8 +1807,7 @@ namespace dz {
         pipelineLayoutInfo.pushConstantRangeCount = 0;
         pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shader->pipeline_layout) != VK_SUCCESS)
-        {
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shader->pipeline_layout) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create pipeline layout!");
         }
 
@@ -1908,8 +1818,7 @@ namespace dz {
         bool requires_rasterization = false;
         bool uses_compute = false;
 
-        for (auto& [module_type, shader_module] : shader->module_map)
-        {
+        for (auto& [module_type, shader_module] : shader->module_map) {
             VkPipelineShaderStageCreateInfo stage_info{};
             stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
             stage_info.stage = stageFlags[shader_module.type];
@@ -1932,14 +1841,12 @@ namespace dz {
             shaderStages.push_back(stage_info);
         }
 
-        if (uses_compute && requires_rasterization)
-        {
+        if (uses_compute && requires_rasterization) {
             throw std::runtime_error("Cannot mix compute and raster shader stages in one pipeline");
         }
 
         // --- Create Compute Pipeline ---
-        if (uses_compute)
-        {
+        if (uses_compute) {
             if (shaderStages.size() != 1 || shaderStages[0].stage != VK_SHADER_STAGE_COMPUTE_BIT)
             {
                 throw std::runtime_error("Compute pipelines must have exactly one compute shader stage");
@@ -2053,23 +1960,20 @@ namespace dz {
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
         pipelineInfo.layout = shader->pipeline_layout;
-        pipelineInfo.renderPass = direct_registry->surfaceRenderPass;
+        pipelineInfo.renderPass = shader->renderPass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
         pipelineInfo.basePipelineIndex = -1;
 
-        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS)
-        {
+        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create graphics pipeline!");
         }
 
         std::cout << "Created graphics pipeline: " << shader->graphics_pipeline << std::endl;
     }
 
-    void shader_bind(Shader* shader)
-    {
-        if (shader->graphics_pipeline == VK_NULL_HANDLE)
-        {
+    void shader_bind(Shader* shader) {
+        if (shader->graphics_pipeline == VK_NULL_HANDLE) {
             std::cerr << "Error: Attempted to bind a null graphics pipeline." << std::endl;
             return;
         }
@@ -2081,19 +1985,119 @@ namespace dz {
         );
     }
 
-    void renderer_render(Renderer* renderer)
-    {
+    void shader_use_image(Shader* shader, const std::string& sampler_key, Image* image_override) {
+        shader->sampler_key_image_override_map[sampler_key] = image_override;
+    }
+
+    void draw_shader_draw_list(Renderer* renderer, ShaderDrawList& shaderDrawList) {
+        for (auto& shader_pair : shaderDrawList) {
+            auto shader = shader_pair.first;
+            auto& draw_list = shader_pair.second;
+            shader_ensure_image_layouts(shader);
+            shader_bind(shader);
+            renderer_draw_commands(renderer, shader, draw_list);
+        }
+    }
+
+    void renderer_render(Renderer* renderer) {
         auto direct_registry = get_direct_registry();
+
+        direct_registry->currentRenderer = renderer;
+
+        auto& window = *renderer->window;
+
+        size_t total_fb_draw_list = 0;
+        size_t screen_draw_list_count = 0;
+        size_t fb_draw_list_count = 0;
+
+        for (auto& draw_mgr_group_vec_pair : window.draw_list_managers) {
+            auto& draw_mgr = *draw_mgr_group_vec_pair.first;
+            auto& group_vec = draw_mgr_group_vec_pair.second;
+            for (auto& buffer_group : group_vec)
+            {
+                total_fb_draw_list++;
+            }
+        }
+
+        bool total_fb_list_changed = false;
+        if (total_fb_draw_list != renderer->total_fb_draw_lists.size()) {
+            renderer->total_fb_draw_lists.resize(total_fb_draw_list);
+            total_fb_list_changed = true;
+        }
+
+        size_t total_fb_list_index = 0;
+        for (auto& draw_mgr_group_vec_pair : window.draw_list_managers) {
+            auto& draw_mgr = *draw_mgr_group_vec_pair.first;
+            auto& group_vec = draw_mgr_group_vec_pair.second;
+            for (auto& buffer_group : group_vec)
+            {
+                renderer->total_fb_draw_lists[total_fb_list_index++] = &draw_mgr.ensureDrawList(buffer_group);
+            }
+        }
+
+        for (auto& framebufferDrawList_ptr : renderer->total_fb_draw_lists) {
+            auto& framebufferDrawList = *framebufferDrawList_ptr;
+            for (auto& framebuffer_pair : framebufferDrawList) {
+                auto framebuffer_ptr = framebuffer_pair.first;
+                auto& shaderDrawList = framebuffer_pair.second;
+                if (!framebuffer_ptr) {
+                    screen_draw_list_count++;
+                }
+                else {
+                    fb_draw_list_count++;
+                }
+            }
+        }
+
+        bool screen_list_changed = false, fb_list_changed = false;
+        if (screen_draw_list_count != renderer->screen_draw_lists.size()) {
+            renderer->screen_draw_lists.resize(screen_draw_list_count);
+            screen_list_changed = true;
+        }
+        if (fb_draw_list_count != renderer->fb_draw_lists.size()) {
+            renderer->fb_draw_lists.resize(fb_draw_list_count);
+            fb_list_changed = true;
+        }
+
+        size_t screen_draw_list_index = 0;
+        size_t fb_draw_list_index = 0;
+
+        for (auto& framebufferDrawList_ptr : renderer->total_fb_draw_lists) {
+            auto& framebufferDrawList = *framebufferDrawList_ptr;
+            for (auto& framebuffer_pair : framebufferDrawList) {
+                auto framebuffer_ptr = framebuffer_pair.first;
+                auto& shaderDrawList = framebuffer_pair.second;
+                if (!framebuffer_ptr) {
+                    if (screen_list_changed) {
+                        renderer->screen_draw_lists[screen_draw_list_index] = &shaderDrawList;
+                    }
+                    screen_draw_list_index++;
+                }
+                else {
+                    if (fb_list_changed) {
+                        renderer->fb_draw_lists[fb_draw_list_index] = {framebuffer_ptr, &shaderDrawList};
+                    }
+                    fb_draw_list_index++;
+                }
+            }
+        }
+
+        for (auto& fb_pair : renderer->fb_draw_lists) {
+            auto framebuffer_ptr = fb_pair.first;
+            framebuffer_bind(framebuffer_ptr);
+            draw_shader_draw_list(renderer, *fb_pair.second);
+            framebuffer_unbind(framebuffer_ptr);
+        }
+
         pre_begin_render_pass(renderer);
         begin_render_pass(renderer);
-        auto& window = *renderer->window;
+
         auto window_width = *window.width;
         auto window_height = *window.height;
 
         vec<float, 4> viewportData;
 
-        switch (renderer->currentTransform)
-        {
+        switch (renderer->currentTransform) {
             case VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR:
                 viewportData = {renderer->swapChainExtent.width - window_height - 0, 0, window_height, window_width};
                 break;
@@ -2131,30 +2135,20 @@ namespace dz {
                 },
         };
         vkCmdSetScissor(*direct_registry->commandBuffer, 0, 1, &scissor);
-        for (auto& draw_mgr_group_vec_pair : window.draw_list_managers)
-        {
-            auto& draw_mgr = *draw_mgr_group_vec_pair.first;
-            auto& group_vec = draw_mgr_group_vec_pair.second;
-            for (auto& buffer_group : group_vec)
-            {
-                auto shaderDrawList = draw_mgr.genDrawList(buffer_group);
-                for (auto& shader_pair : shaderDrawList)
-                {
-                    auto shader = shader_pair.first;
-                    auto& draw_list = shader_pair.second;
-                    shader_ensure_image_layouts(shader);
-                    shader_bind(shader);
-                    renderer_draw_commands(renderer, shader, draw_list);
-                }
-            }
+        
+        for (auto& screen_draw_list : renderer->screen_draw_lists) {
+            draw_shader_draw_list(renderer, *screen_draw_list);
         }
+
         window.imguiLayer.Render(window);
+
         post_render_pass(renderer);
         swap_buffers(renderer);
+
+        direct_registry->currentRenderer = nullptr;
     }
 
-    void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands)
-    {
+    void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands) {
         auto direct_registry = get_direct_registry();
         auto drawsSize = commands.size();
         auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
@@ -2162,8 +2156,7 @@ namespace dz {
         VkCommandBuffer passCB = *direct_registry->commandBuffer;
 
         auto& drawBufferPair = renderer->drawBuffers[buffer_hash];
-        if (!drawBufferPair.first)
-        {
+        if (!drawBufferPair.first) {
             createBuffer(
                 renderer,
                 drawBufferSize,
@@ -2175,8 +2168,7 @@ namespace dz {
         }
 
         auto& countBufferPair = renderer->countBuffers[buffer_hash];
-        if (!countBufferPair.first)
-        {
+        if (!countBufferPair.first) {
             createBuffer(
                 renderer,
                 sizeof(uint32_t),
@@ -2206,8 +2198,7 @@ namespace dz {
         // Descriptor sets
         std::vector<VkDescriptorSet> sets;
         sets.reserve(shader->descriptor_sets.size());
-        for (auto& set_pair : shader->descriptor_sets)
-        {
+        for (auto& set_pair : shader->descriptor_sets) {
             sets.push_back(set_pair.second);
         }
 
@@ -2222,8 +2213,7 @@ namespace dz {
             nullptr
         );
 
-        if (renderer->supportsIndirectCount)
-        {
+        if (renderer->supportsIndirectCount) {
     #ifndef __ANDROID__
             vkCmdDrawIndirectCount(
                 passCB,
@@ -2254,18 +2244,15 @@ namespace dz {
         }
     }
 
-    void shader_destroy(Shader* shader)
-    {
+    void shader_destroy(Shader* shader) {
         auto direct_registry = get_direct_registry();
         auto& device = direct_registry->device;
-        for (auto& pair : shader->descriptor_set_layouts)
-        {
+        for (auto& pair : shader->descriptor_set_layouts) {
             vkDestroyDescriptorSetLayout(device, pair.second, 0);
         }
         if (shader->descriptor_pool != VK_NULL_HANDLE)
             vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
-        for (auto& modulePair : shader->module_map)
-        {
+        for (auto& modulePair : shader->module_map) {
             auto& module = modulePair.second;
             vkDestroyShaderModule(device, module.vk_module, 0);
         }

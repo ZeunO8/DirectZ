@@ -57,7 +57,7 @@ namespace dz {
     {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
-        ImageCreateInfo create_info{};
+        ImageCreateInfoInternal create_info{};
         create_info.width = image_width;
         create_info.height = image_height;
         create_info.depth = 1;
@@ -67,7 +67,7 @@ namespace dz {
         create_info.data = data_pointer;
         create_info.usage = infer_image_usage_flags(shader_image.descriptor_types);
 
-        auto image = image_create(create_info);
+        auto image = image_create_internal(create_info);
 
         buffer_group->runtime_images[buffer_name] = std::shared_ptr<Image>(image, image_free);
 
@@ -78,17 +78,18 @@ namespace dz {
     {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
-        ImageCreateInfo create_info{};
-        create_info.width = image_width;
-        create_info.height = image_height;
-        create_info.depth = image_depth;
-        create_info.format = shader_image.format;
-        create_info.image_type = VK_IMAGE_TYPE_3D;
-        create_info.view_type = VK_IMAGE_VIEW_TYPE_3D;
-        create_info.data = data_pointer;
-        create_info.usage = infer_image_usage_flags(shader_image.descriptor_types);
+        ImageCreateInfoInternal create_info{
+            .width = image_width,
+            .height = image_height,
+            .depth = image_depth,
+            .format = shader_image.format,
+            .usage = infer_image_usage_flags(shader_image.descriptor_types),
+            .image_type = VK_IMAGE_TYPE_3D,
+            .view_type = VK_IMAGE_VIEW_TYPE_3D,
+            .data = data_pointer
+        };
 
-        auto image = image_create(create_info);
+        auto image = image_create_internal(create_info);
 
         buffer_group->runtime_images[buffer_name] = std::shared_ptr<Image>(image, image_free);
 

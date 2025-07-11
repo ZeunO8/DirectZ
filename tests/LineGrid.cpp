@@ -33,8 +33,8 @@ int main()
 
     auto render_line_grid_shader = shader_create(ShaderTopology::LineStrip);
 
-    DrawListManager<Line> line_draw_list_mg("Lines", [&](auto buffer_group, auto& line) -> std::pair<Shader*, uint32_t> {
-        return {render_line_grid_shader, line.vert_count};
+    DrawListManager<Line> line_draw_list_mg("Lines", [&](auto buffer_group, auto& line) -> DrawTuple {
+        return {nullptr, render_line_grid_shader, line.vert_count};
     });
 
     window_add_drawn_buffer_group(window, &line_draw_list_mg, line_buffer_group);
