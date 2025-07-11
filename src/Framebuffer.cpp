@@ -89,9 +89,11 @@ namespace dz {
         std::vector<UsingAttachmentReference> colorAttachmentRefs;
         std::vector<UsingAttachmentReference> resolveAttachmentRefs;
         UsingAttachmentReference depthStencilRef{};
+#ifdef USING_VULKAN_1_2
         VkSubpassDescriptionDepthStencilResolve subpassDepthStencilResolve{};
-        bool requiresDepthResolve = false;
         subpassDepthStencilResolve.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE;
+#endif
+        bool requiresDepthResolve = false;
         UsingAttachmentReference depthResolveRef{};
 #ifdef USING_VULKAN_1_2
         depthStencilRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
@@ -173,8 +175,10 @@ namespace dz {
 #endif
                 depthResolveRef.attachment = attachmentIndex;
                 depthResolveRef.layout = subpassLayout;
+#ifdef USING_VULKAN_1_2
                 subpassDepthStencilResolve.depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
                 subpassDepthStencilResolve.pDepthStencilResolveAttachment = &depthResolveRef;
+#endif
                 requiresDepthResolve = true;
                 break;
             }
@@ -258,8 +262,10 @@ namespace dz {
         subpass.pColorAttachments = colorAttachmentRefs.empty() ? nullptr : colorAttachmentRefs.data();
         subpass.pDepthStencilAttachment = hasDepthStencil ? &depthStencilRef : nullptr;
         subpass.pResolveAttachments = resolveAttachmentRefs.data();
+#ifdef USING_VULKAN_1_2
         if (requiresDepthResolve)
             subpass.pNext = &subpassDepthStencilResolve;
+#endif
 
         // --- Define Dependencies ---
         std::array<UsingSubpassDependency, 2> dependencies;
