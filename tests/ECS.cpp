@@ -414,7 +414,7 @@ int main() {
         }
     });
 
-    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&](auto& layer) {
+    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&, frame_image_ds](auto& layer) {
         static bool show_viewport = true;
         if (show_viewport)
         {
