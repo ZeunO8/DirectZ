@@ -197,6 +197,7 @@ namespace dz {
         ShaderTopology topology;
         VkRenderPass renderPass = VK_NULL_HANDLE;
         std::unordered_map<std::string, Image*> sampler_key_image_override_map;
+        std::unordered_map<std::string, uint32_t> keyed_set_binding_index_map;
     };
 
     struct BufferGroup {
@@ -1234,7 +1235,10 @@ namespace dz {
                 layout_binding.pImmutableSamplers = nullptr;
 
                 // Add the binding to the correct set
-                set_bindings[binding_info.set].push_back(layout_binding);
+                auto& set_binding = set_bindings[binding_info.set];
+                auto layout_index = set_binding.size();
+                set_binding.push_back(layout_binding);
+                shader->keyed_set_binding_index_map[binding_info.name] = binding_info.set;
             }
         }
 
@@ -1246,8 +1250,7 @@ namespace dz {
             layout_info.pBindings = bindings.data();
 
             VkDescriptorSetLayout layout;
-            if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &layout) != VK_SUCCESS)
-            {
+            if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &layout) != VK_SUCCESS) {
                 std::cerr << "Failed to create descriptor set layout for set " << set_num << std::endl;
                 // Cleanup previously created layouts before returning
                 for(auto const& [num, l] : shader->descriptor_set_layouts) {
@@ -1295,7 +1298,6 @@ namespace dz {
         pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
         pool_info.pPoolSizes = pool_sizes.data();
         pool_info.maxSets = max_sets_per_pool * static_cast<uint32_t>(shader->descriptor_set_layouts.size());
-        // You might want VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT if you need to free individual sets
         pool_info.flags = 0;
 
         if (vkCreateDescriptorPool(device, &pool_info, nullptr, &shader->descriptor_pool) != VK_SUCCESS) {
@@ -1308,9 +1310,8 @@ namespace dz {
     }
 
     bool AllocateDescriptorSets(VkDevice device, Shader* shader) {
-        if (shader->descriptor_set_layouts.empty()) {
+        if (shader->descriptor_set_layouts.empty())
             return true; // Nothing to allocate
-        }
 
         for (auto const& [set_num, layout] : shader->descriptor_set_layouts) {
             VkDescriptorSetAllocateInfo alloc_info{};
@@ -1373,15 +1374,19 @@ namespace dz {
         
         size_t i = 0;
         for (auto& [name, buffer] : buffer_group->buffers) {
+
+            auto dstSet = shader_get_descriptor_set(shader, name);
+
             VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            write_set.dstSet = shader->descriptor_sets.at(buffer.set);
+            write_set.dstSet = dstSet;
             write_set.dstBinding = buffer.binding;
             write_set.dstArrayElement = 0;
             write_set.descriptorType = buffer.descriptor_type;
             write_set.descriptorCount = 1;
             write_set.pBufferInfo = &buffer_infos[i];
-            i++;
             descriptor_writes.push_back(write_set);
+            
+            i++;
         }
 
         for (auto& [name, image_ref] : buffer_group->images) {
@@ -1408,16 +1413,19 @@ namespace dz {
 
         size_t j = 0;
         for (auto& [name, image_ref] : buffer_group->images) {
+            auto dstSet = shader_get_descriptor_set(shader, name);
+            
             VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            write_set.dstSet = shader->descriptor_sets.at(image_ref.set);
+            write_set.dstSet = dstSet;
             write_set.dstBinding = image_ref.binding;
             write_set.dstArrayElement = 0;
             auto type = image_ref.descriptor_types[shader];
             write_set.descriptorType = type;
             write_set.descriptorCount = 1;
             write_set.pImageInfo = &image_infos[j];
-            j++;
             descriptor_writes.push_back(write_set);
+
+            j++;
         }
         
         if (!descriptor_writes.empty()) {
@@ -1759,11 +1767,13 @@ namespace dz {
             VK_PIPELINE_BIND_POINT_COMPUTE,
             shader->graphics_pipeline
         );
+
         std::vector<VkDescriptorSet> sets;
         sets.reserve(shader->descriptor_sets.size());
         for (auto& set_pair : shader->descriptor_sets) {
             sets.push_back(set_pair.second);
         }
+
         vkCmdBindDescriptorSets(
             direct_registry->computeCommandBuffer,
             VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -1987,6 +1997,14 @@ namespace dz {
 
     void shader_use_image(Shader* shader, const std::string& sampler_key, Image* image_override) {
         shader->sampler_key_image_override_map[sampler_key] = image_override;
+    }
+
+    VkDescriptorSet shader_get_descriptor_set(Shader* shader, const std::string& key) {
+        auto set_num_it = shader->keyed_set_binding_index_map.find(key);
+        if (set_num_it == shader->keyed_set_binding_index_map.end())
+            return VK_NULL_HANDLE;
+        auto set_num = set_num_it->second;
+        return shader->descriptor_sets[set_num];
     }
 
     void draw_shader_draw_list(Renderer* renderer, ShaderDrawList& shaderDrawList) {
@@ -2247,9 +2265,8 @@ namespace dz {
     void shader_destroy(Shader* shader) {
         auto direct_registry = get_direct_registry();
         auto& device = direct_registry->device;
-        for (auto& pair : shader->descriptor_set_layouts) {
+        for (auto& pair : shader->descriptor_set_layouts)
             vkDestroyDescriptorSetLayout(device, pair.second, 0);
-        }
         if (shader->descriptor_pool != VK_NULL_HANDLE)
             vkDestroyDescriptorPool(device, shader->descriptor_pool, 0);
         for (auto& modulePair : shader->module_map) {

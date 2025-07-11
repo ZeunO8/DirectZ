@@ -142,4 +142,9 @@ namespace dz
     * @note Should be called before adding any modules (directly after create)
     */
     void shader_use_image(Shader*, const std::string& sampler_key, Image* image_override);
+
+    /**
+    * @brief Returns a VkDescriptorSet given a key
+    */
+    VkDescriptorSet shader_get_descriptor_set(Shader*, const std::string&);
 } // namespace dz

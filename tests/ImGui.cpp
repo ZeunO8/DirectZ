@@ -189,7 +189,7 @@ int main() {
         }
     });
 
-    imgui.AddImmediateDrawFunction(3.0, "Demo", [](auto& layer) {
+    imgui.AddImmediateDrawFunction(3.0, "HiFromDirectZ", [](auto& layer) {
         static bool show_custom = true;
         if (show_custom)
         {

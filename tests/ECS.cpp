@@ -187,14 +187,6 @@ struct System {
 float ORIGINAL_WINDOW_WIDTH = 1280.f;
 float ORIGINAL_WINDOW_HEIGHT = 768.f;
 
-struct Frame {
-    int width;
-    int height;
-};
-
-std::string GenerateFrameVertexShader();
-std::string GenerateFrameFragmentShader();
-
 int main() {
     auto window = window_create({
         .title = "ECS Test",
@@ -245,81 +237,200 @@ int main() {
     auto& e2 = *e2_ptr;
     auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {2.f, 2.f, 2.f, 1.f});
 
-    auto frame_image_buffer_group = buffer_group_create("FramesGroup");
-    buffer_group_restrict_to_keys(frame_image_buffer_group, {"Frames", "frame_image"});
-
-    auto frame_shader = shader_create();
-
-    shader_add_buffer_group(frame_shader, frame_image_buffer_group);
-
     auto frame_image = ecs.GetFramebufferImage();
 
-    shader_use_image(frame_shader, "frame_image", frame_image);
+    auto& imgui = window_get_ImGuiLayer(window);
 
-    shader_add_module(frame_shader, ShaderModuleType::Vertex, GenerateFrameVertexShader());
-    shader_add_module(frame_shader, ShaderModuleType::Fragment, GenerateFrameFragmentShader());
-
-    buffer_group_set_buffer_element_count(frame_image_buffer_group, "Frames", 1);
-
-    buffer_group_initialize(frame_image_buffer_group);
-
-    DrawListManager<Frame> frame_draw_list_mg("Frames", [&](auto buffer_group, auto& frame) -> DrawTuple {
-        return {0, frame_shader, 6};
-    });
+    auto [frame_image_ds_layout, frame_image_ds] = imgui.CreateDescriptorSet(frame_image);
     
-    window_add_drawn_buffer_group(window, &frame_draw_list_mg, frame_image_buffer_group);
+    auto& window_width = *window_get_width_ref(window);
+    auto& window_height = *window_get_height_ref(window);
+    
+    imgui.AddImmediateDrawFunction(0.5, "Menu", [](auto& layer)
+    {
+        if (ImGui::BeginMainMenuBar())
+        {
+            if (ImGui::BeginMenu("File"))
+            {
+                if (ImGui::MenuItem("New", "Ctrl+N"))
+                {
+                    // Handle new file creation logic here
+                }
+
+                if (ImGui::MenuItem("Open", "Ctrl+O"))
+                {
+                    // Handle file open logic here
+                }
+
+                if (ImGui::MenuItem("Save", "Ctrl+S"))
+                {
+                    // Handle file save logic here
+                }
+
+                if (ImGui::MenuItem("Save As..", "Ctrl+Shift+S"))
+                {
+                    // Handle save as logic here
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Exit", "Alt+F4"))
+                {
+                    // Handle exit logic here
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Edit"))
+            {
+                if (ImGui::MenuItem("Undo", "Ctrl+Z"))
+                {
+                    // Undo logic here
+                }
+
+                if (ImGui::MenuItem("Redo", "Ctrl+Y"))
+                {
+                    // Redo logic here
+                }
+
+                ImGui::Separator();
+
+                if (ImGui::MenuItem("Cut", "Ctrl+X"))
+                {
+                    // Cut logic here
+                }
+
+                if (ImGui::MenuItem("Copy", "Ctrl+C"))
+                {
+                    // Copy logic here
+                }
+
+                if (ImGui::MenuItem("Paste", "Ctrl+V"))
+                {
+                    // Paste logic here
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("View"))
+            {
+                static bool showToolbar = true;
+                static bool showSidebar = true;
+                static bool showStatusbar = true;
+
+                ImGui::MenuItem("Toolbar", nullptr, &showToolbar);
+                ImGui::MenuItem("Sidebar", nullptr, &showSidebar);
+                ImGui::MenuItem("Status Bar", nullptr, &showStatusbar);
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Window"))
+            {
+                if (ImGui::MenuItem("Minimize", "Ctrl+M"))
+                {
+                    // Minimize window logic
+                }
+
+                if (ImGui::MenuItem("Maximize", "Ctrl+Shift+M"))
+                {
+                    // Maximize window logic
+                }
+
+                if (ImGui::MenuItem("Restore", "Ctrl+R"))
+                {
+                    // Restore window size
+                }
+
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Help"))
+            {
+                if (ImGui::MenuItem("Documentation", "F1"))
+                {
+                    // Open documentation link or popup
+                }
+
+                if (ImGui::MenuItem("About"))
+                {
+                    // Show about dialog
+                }
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
+    });
+
+    imgui.AddImmediateDrawFunction(1.0f, "DockspaceRoot", [](dz::ImGuiLayer& layer)
+    {
+        static bool opt_fullscreen = true;
+        static bool opt_is_open = true;
+        static bool opt_padding = false;
+
+        static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
+        
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+
+        if (opt_fullscreen) {
+            const ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->WorkPos);
+            ImGui::SetNextWindowSize(viewport->WorkSize);
+            ImGui::SetNextWindowViewport(viewport->ID);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+            window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+            window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus; 
+        }
+        else {
+            dockspace_flags &= ~ImGuiDockNodeFlags_PassthruCentralNode;
+        }
+        if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
+            window_flags |= ImGuiWindowFlags_NoBackground;
+        
+        if (!opt_padding) {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+        }
+        ImGui::Begin("Dockspace Begin", &opt_is_open, window_flags);
+        if (!opt_padding) {
+            ImGui::PopStyleVar();
+        }
+        if (opt_fullscreen) {
+            ImGui::PopStyleVar(2);
+        }
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+            ImGuiID dockspace_id = ImGui::GetID("DockspaceID");
+            ImVec2 dockspaceSize = ImGui::GetContentRegionAvail();
+            ImGui::DockSpace(dockspace_id, dockspaceSize, dockspace_flags);
+        }
+        else {
+            // Docking is disabled
+            // NOTE: Not sure how to recover or what to do here
+        }
+    });
+
+    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&](auto& layer) {
+        static bool show_viewport = true;
+        if (show_viewport)
+        {
+            ImGui::Begin("Viewport", &show_viewport);
+            ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+            // ImVec2 viewportSize{window_width / 2.f, window_height / 2.f};
+            ImGui::Image((ImTextureID)frame_image_ds, viewportSize);
+            ImGui::End();
+        }
+    });
+
+    imgui.AddImmediateDrawFunction(10.0, "DockspaceRootEnd", [](auto& layer) {
+        ImGui::End();
+    });
 
     while (window_poll_events(window)) {
         window_render(window);
     }
-}
-
-std::string GenerateFrameVertexShader() {
-    std::string shader_string("#version 450\n");
-    shader_string += R"(
-layout(location = 0) out vec2 outUV;
-const vec3 positions[6] = vec3[6](
-    vec3(1.0, 1.0, 0),
-    vec3(-1.0, 1.0, 0),
-    vec3(-1.0, -1.0, 0),
-    vec3(-1.0, -1.0, 0),
-    vec3(1.0, -1.0, 0),
-    vec3(1.0, 1.0, 0)
-);
-const vec2 uvs[6] = vec2[6](
-    vec2(1, 1),
-    vec2(0, 1),
-    vec2(0, 0),
-    vec2(0, 0),
-    vec2(1, 0),
-    vec2(1, 1)
-);
-struct Frame {
-    int width;
-    int height;
-};
-layout(std430, binding = 0) buffer FramesBuffer {
-    Frame frames[];
-} Frames;
-void main() {
-    vec4 position = vec4(positions[gl_VertexIndex], 1.0);
-    vec2 uv = uvs[gl_VertexIndex];
-    gl_Position = position;
-    outUV = uv;
-}
-)";
-    return shader_string;
-}
-
-std::string GenerateFrameFragmentShader() {
-    std::string shader_string("#version 450\n");
-    shader_string += R"(
-layout(location = 0) in vec2 inUV;
-layout(location = 0) out vec4 FragColor;
-layout(binding = 1) uniform sampler2D frame_image;
-void main() {
-    FragColor = texture(frame_image, inUV);
-}
-)";
-    return shader_string;
 }
