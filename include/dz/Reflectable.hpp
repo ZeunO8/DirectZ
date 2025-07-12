@@ -38,11 +38,22 @@ struct Reflectable {
 };
 
 struct ReflectableGroup {
+    enum GroupType {
+        Generic,
+        Window,
+        Scene,
+        Entity,
+        Camera,
+        Light
+    };
     bool disabled = false;
-    size_t id = dz::GlobalUID::GetNew("ReflectableGroup");
+    size_t id;
     int index = -1;
     bool is_child = false;
     virtual ~ReflectableGroup() = default;
+    virtual GroupType GetGroupType() {
+        return Generic;
+    }
     virtual std::string& GetName() {
         static std::string dummy_name = "<unknown>";
         return dummy_name;

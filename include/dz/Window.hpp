@@ -45,6 +45,9 @@ namespace dz
     public:
         WindowReflectableGroup(WINDOW* window_ptr);
         ~WindowReflectableGroup();
+        GroupType GetGroupType() override {
+            return ReflectableGroup::Window;
+        }
         std::string& GetName() override;
         const std::vector<Reflectable*>& GetReflectables() override;
     };

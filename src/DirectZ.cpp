@@ -83,6 +83,7 @@ namespace dz
 #include "EventInterface.cpp"
 #include "D7Stream.cpp"
 #include "ImGuiLayer.cpp"
+#include "Camera.cpp"
 #include "runtime.cpp"
 
 template<typename T>

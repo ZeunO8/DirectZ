@@ -245,6 +245,7 @@ int SelectedReflectableID = 0;
 
 void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentEntry&);
 void DrawSceneEntry(ExampleECS&, int, ExampleECS::SceneEntry&);
+void DrawGenericEntry(int, ReflectableGroup& reflectable_group);
 void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_entry);
 bool ReflectableGroupFilterCheck(ImGuiTextFilter&, ReflectableGroup&);
 bool WindowGraphFilterCheck(ImGuiTextFilter& WindowGraphFilter, const std::string& window_name);
@@ -678,7 +679,7 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& 
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
-    ImGui::PushID(id);
+    ImGui::PushID(&entity_entry);
     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
@@ -754,7 +755,7 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& 
 void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene_entry) {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
-    ImGui::PushID(scene_id);
+    ImGui::PushID(&scene_entry);
     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
@@ -762,7 +763,8 @@ void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene
     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
     if (&scene_entry == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
-    if (scene_entry.GetChildren().empty())
+    auto& scene_entry_children = scene_entry.GetChildren();
+    if (scene_entry_children.empty())
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
     if (scene_entry.disabled)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
@@ -807,11 +809,11 @@ void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene
         {
             if (ImGui::MenuItem("Perspective"))
             {
-                // ecs.AddEntityToScene(scene_id, "Plane");
+                ecs.AddCameraToScene(scene_id, Camera::Perspective);
             }
             if (ImGui::MenuItem("Orthographic"))
             {
-                // ecs.AddEntityToScene(scene_id, "Cube");
+                ecs.AddCameraToScene(scene_id, Camera::Orthographic);
             }
             ImGui::EndMenu();
         }
@@ -838,9 +840,56 @@ void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene
 
     if (node_open)
     {
-        for (auto& [entity_id, entity_entry] : ecs.id_entity_entries)
-            if (scene_id == entity_entry.scene_id && !entity_entry.is_child && ReflectableGroupFilterCheck(SceneGraphFilter, entity_entry))
-                DrawEntityEntry(ecs, entity_id, entity_entry);
+        for (auto scene_entry_child_entry : scene_entry_children) {
+            auto& child_entry = *scene_entry_child_entry;
+            switch (child_entry.GetGroupType())
+            {
+            case ReflectableGroup::Window:
+                assert(false);
+                break;
+            case ReflectableGroup::Generic:
+            case ReflectableGroup::Camera:
+            case ReflectableGroup::Light:
+                DrawGenericEntry(child_entry.id, child_entry);
+                break;
+            case ReflectableGroup::Scene:
+                DrawSceneEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::SceneEntry&>(child_entry));
+                break;
+            case ReflectableGroup::Entity:
+                DrawEntityEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::EntityComponentEntry&>(child_entry));
+                break;
+            }
+        }
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
+void DrawGenericEntry(int generic_id, ReflectableGroup& reflectable_group) {
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::PushID(&reflectable_group);
+    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
+    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
+    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
+    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+    if (&reflectable_group == SelectedReflectableGroup)
+        tree_flags |= ImGuiTreeNodeFlags_Selected;
+    tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+    if (reflectable_group.disabled)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", reflectable_group.GetName().c_str());
+    if (reflectable_group.disabled)
+        ImGui::PopStyleColor();
+    if (ImGui::IsItemFocused()) {
+        SelectedReflectableGroup = &reflectable_group;
+        SelectedReflectableID = reflectable_group.id;
+        property_editor.is_open = true;
+    }
+
+    if (node_open)
+    {
         ImGui::TreePop();
     }
     ImGui::PopID();
@@ -850,7 +899,7 @@ void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& win
     auto id = window_reflectable_entry.id;
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
-    ImGui::PushID(id);
+    ImGui::PushID(&window_reflectable_entry);
     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support

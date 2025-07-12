@@ -7,6 +7,7 @@
 #include "DrawListManager.hpp"
 #include "Window.hpp"
 #include "Shader.hpp"
+#include "Camera.hpp"
 #include "Util.hpp"
 #include <string>
 #include <vector>
@@ -68,6 +69,8 @@ namespace dz {
     struct ComponentGLSLMain<TYPE> { \
         inline static std::string string = STRING; \
     }
+
+    inline static std::string cameras_buffer_name = "Cameras";
     
     template<typename EntityT, typename ComponentT, typename SystemT>
     struct ECS {
@@ -79,6 +82,9 @@ namespace dz {
             std::set<int> children;
             std::vector<Reflectable*> reflectables;
             std::vector<ReflectableGroup*> reflectable_children;
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Entity;
+            }
             std::string& GetName() override {
                 return name;
             }
@@ -109,10 +115,14 @@ namespace dz {
         struct SceneEntry : ReflectableGroup {
             std::string name;
             Framebuffer* framebuffer = 0;
-            Image* fb_image = 0;
+            Image* fb_color_image = 0;
+            Image* fb_depth_image = 0;
             std::vector<ReflectableGroup*> reflectable_children;
             ~SceneEntry() {
                 framebuffer_destroy(framebuffer);
+            }
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Scene;
             }
             std::string& GetName() override {
                 return name;
@@ -127,10 +137,18 @@ namespace dz {
                     if (entity_entry.scene_id == id)
                         count++;
                 }
+                for (auto& [camera_id, camera_entry] : ecs.id_camera_entries) {
+                    if (camera_entry.scene_id == id)
+                        count++;
+                }
                 reflectable_children.reserve(count);
                 for (auto& [entity_id, entity_entry] : ecs.id_entity_entries) {
                     if (entity_entry.scene_id == id)
                         reflectable_children.push_back(&entity_entry);
+                }
+                for (auto& [camera_id, camera_entry] : ecs.id_camera_entries) {
+                    if (camera_entry.scene_id == id)
+                        reflectable_children.push_back(&camera_entry);
                 }
             }
         };
@@ -145,10 +163,22 @@ namespace dz {
             int constructed_count = 0;
         };
 
+        struct CameraEntry : ReflectableGroup {
+            size_t scene_id = 0;
+            std::string name;
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Camera;
+            }
+            std::string& GetName() override {
+                return name;
+            }
+        };
+
         WINDOW* window_ptr = 0;
 
         std::map<int, EntityComponentEntry> id_entity_entries;
         std::map<size_t, SceneEntry> id_scene_entries;
+        std::map<size_t, CameraEntry> id_camera_entries;
         size_t add_scene_id;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
@@ -182,34 +212,45 @@ namespace dz {
         {
             EnableDrawInWindow(window_ptr);
             EnsureFirstScene();
+            AddCameraToScene(add_scene_id, Camera::Perspective);
         };
 
         void EnsureFirstScene() {
             auto scene_id = GlobalUID::GetNew("ECS:Scene");
             auto& scene_entry = id_scene_entries[scene_id];
 
+            scene_entry.id = scene_id;
             scene_entry.name = "Scene #" + std::to_string(scene_id);
+
             add_scene_id = scene_id;
 
             {
                 auto& width = *window_get_width_ref(window_ptr);
                 auto& height = *window_get_height_ref(window_ptr);
-                scene_entry.fb_image = image_create({
+                scene_entry.fb_color_image = image_create({
                     .width = uint32_t(width),
                     .height = uint32_t(height),
                     .is_framebuffer_attachment = true
                 });
-                Image* fb_images[1] = {
-                    scene_entry.fb_image
+                scene_entry.fb_depth_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .format = VK_FORMAT_D32_SFLOAT,
+                    .is_framebuffer_attachment = true
+                });
+                Image* fb_images[2] = {
+                    scene_entry.fb_color_image,
+                    scene_entry.fb_depth_image
                 };
-                AttachmentType fb_attachment_types[1] = {
-                    AttachmentType::Color
+                AttachmentType fb_attachment_types[2] = {
+                    AttachmentType::Color,
+                    AttachmentType::Depth
                 };
                 FramebufferInfo fb_info{
                     .pImages = fb_images,
-                    .imagesCount = 1,
+                    .imagesCount = 2,
                     .pAttachmentTypes = fb_attachment_types,
-                    .attachmentTypesCount = 1,
+                    .attachmentTypesCount = 2,
                     .own_images = true
                 };
                 scene_entry.framebuffer = framebuffer_create(fb_info);
@@ -239,6 +280,38 @@ namespace dz {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
             }
+        }
+
+        size_t AddCameraToScene(size_t scene_id, Camera::ProjectionType projectionType) {
+            auto camera_id = GlobalUID::GetNew("ECS:Camera");
+            auto index = id_camera_entries.size();
+            auto& entry = id_camera_entries[camera_id];
+            entry.index = index;
+            entry.id = camera_id;
+            entry.scene_id = scene_id;
+            entry.name = ("Camera #" + std::to_string(camera_id));
+            if (buffer_group) {
+                auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, cameras_buffer_name);
+                if ((index + 1) > camera_buffer_size) {
+                    buffer_group_set_buffer_element_count(buffer_group, cameras_buffer_name, (index + 1));
+                }
+            }
+            auto camera_ptr = GetCamera(camera_id);
+            assert(camera_ptr);
+            auto& camera = *camera_ptr;
+            auto& width = *window_get_width_ref(window_ptr);
+            auto& height = *window_get_height_ref(window_ptr);
+            switch(projectionType) {
+            case Camera::Perspective:
+                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width / height, 81.f);
+                break;
+            case Camera::Orthographic:
+                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
+                break;
+            }
+            auto& scene_entry = id_scene_entries[scene_id];
+            scene_entry.UpdateChildren(*this);
+            return camera_id;
         }
 
         int AddEntity(const EntityT& entity, bool is_child = false) {
@@ -338,12 +411,24 @@ namespace dz {
             static auto entity_size = sizeof(EntityT);
             auto it = id_entity_entries.find(id);
             if (it == id_entity_entries.end()) {
-                return 0;
+                return nullptr;
             }
             auto& entry = it->second;
             auto index = entry.index;
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, buffer_name);
             return (EntityT*)(buffer_ptr.get() + (entity_size * index));
+        }
+
+        Camera* GetCamera(int camera_id) {
+            static auto camera_size = sizeof(Camera);
+            auto it = id_camera_entries.find(camera_id);
+            if (it == id_camera_entries.end()) {
+                return nullptr;
+            }
+            auto& entry = it->second;
+            auto index = entry.index;
+            auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, cameras_buffer_name);
+            return (Camera*)(buffer_ptr.get() + (camera_size * index));
         }
 
         template<typename RComponentT>
@@ -433,7 +518,7 @@ namespace dz {
 
         BufferGroup* CreateBufferGroup() {
             auto buffer_group_ptr = buffer_group_create("EntitiesGroup");
-            std::vector<std::string> restricted_keys{"Entities", "Components"};
+            std::vector<std::string> restricted_keys{"Entities", "Components", "Cameras"};
             for (auto& component_pair : registered_component_map) {
                 auto& entry = component_pair.second;
                 restricted_keys.push_back(entry.struct_name + "s");
@@ -470,7 +555,13 @@ namespace dz {
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outPosition;
 )" +
-EntityT::GetGLSLStruct() +
+Camera::GetGLSLStruct() +
+R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer CamerasBuffer {
+    Camera cameras[];
+} Cameras;
+)";
+            shader_string += EntityT::GetGLSLStruct() +
 R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer EntitiesBuffer {
     Entity entities[];
@@ -517,6 +608,11 @@ void main() {
 )";
             }
             shader_string += R"(
+    if (Cameras.cameras.length() > 0) {
+        Camera camera = Cameras.cameras[0];
+        vec4 camera_position = camera.projection * camera.view * final_position;
+        final_position = camera_position;
+    }
     gl_Position = final_position;
     outColor = final_color;
     outPosition = final_position;
@@ -560,7 +656,7 @@ void main() {
             auto it = id_scene_entries.find(scene_id);
             if (it == id_scene_entries.end())
                 return nullptr;
-            return it->second.fb_image;
+            return it->second.fb_color_image;
         }
 
     };

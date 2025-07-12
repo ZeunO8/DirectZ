@@ -23,6 +23,7 @@
 #include <dz/ECS.hpp>
 #include <dz/ImGuiLayer.hpp>
 #include <dz/Reflectable.hpp>
+#include <dz/Camera.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)
