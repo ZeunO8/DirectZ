@@ -3,7 +3,6 @@ namespace dz {
 
     BufferGroup* buffer_group_create(const std::string& group_name)
     {
-        auto& dr = *get_direct_registry();
         auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
             new BufferGroup{
                 .group_name = group_name
@@ -255,7 +254,6 @@ namespace dz {
 
     void buffer_group_destroy(BufferGroup* buffer_group)
     {
-        auto& dr = *get_direct_registry();
         auto& device = dr.device;
         if (device == VK_NULL_HANDLE)
             return;
@@ -268,7 +266,6 @@ namespace dz {
 
     void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
     {
-        auto direct_registry = get_direct_registry();
         VkDeviceSize buffer_size = 0;
         if (buffer.is_dynamic_sized) {
             if (buffer.element_count == 0) {
@@ -295,25 +292,25 @@ namespace dz {
         buffer_info.usage = usage;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateBuffer(direct_registry->device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create buffer for " + name);
         }
 
         VkMemoryRequirements mem_reqs;
-        vkGetBufferMemoryRequirements(direct_registry->device, buffer.gpu_buffer.buffer, &mem_reqs);
+        vkGetBufferMemoryRequirements(dr.device, buffer.gpu_buffer.buffer, &mem_reqs);
         
         VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
         alloc_info.allocationSize = mem_reqs.size;
-        alloc_info.memoryTypeIndex = FindMemoryType(direct_registry->physicalDevice, mem_reqs.memoryTypeBits, 
+        alloc_info.memoryTypeIndex = FindMemoryType(dr.physicalDevice, mem_reqs.memoryTypeBits, 
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-        if (vkAllocateMemory(direct_registry->device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
             throw std::runtime_error("Failed to allocate memory for buffer " + name);
         }
-        vkBindBufferMemory(direct_registry->device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
+        vkBindBufferMemory(dr.device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
 
         // Persistently map the memory
-        vkMapMemory(direct_registry->device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
+        vkMapMemory(dr.device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
         buffer.gpu_buffer.size = buffer_size;
 
         // Copy from CPU staging pointer to mapped GPU pointer

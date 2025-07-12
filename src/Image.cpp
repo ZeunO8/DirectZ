@@ -70,10 +70,7 @@ namespace dz {
         return image_create_internal(internal_info);
     }
 
-    Image* image_create_internal(const ImageCreateInfoInternal& info)
-    {
-        auto direct_registry = get_direct_registry();
-
+    Image* image_create_internal(const ImageCreateInfoInternal& info) {
         Image* result = new Image{
             .width = info.width,
             .height = info.height,
@@ -98,19 +95,19 @@ namespace dz {
         imageInfo.samples = info.multisampling;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateImage(direct_registry->device, &imageInfo, nullptr, &result->image);
+        vkCreateImage(dr.device, &imageInfo, nullptr, &result->image);
 
         // Allocate memory
         VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(direct_registry->device, result->image, &memRequirements);
+        vkGetImageMemoryRequirements(dr.device, result->image, &memRequirements);
 
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = find_memory_type(memRequirements.memoryTypeBits, info.memory_properties);
 
-        vkAllocateMemory(direct_registry->device, &allocInfo, nullptr, &result->memory);
-        vkBindImageMemory(direct_registry->device, result->image, result->memory, 0);
+        vkAllocateMemory(dr.device, &allocInfo, nullptr, &result->memory);
+        vkBindImageMemory(dr.device, result->image, result->memory, 0);
 
         // Upload data if provided
         if (info.data)
@@ -130,7 +127,7 @@ namespace dz {
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
 
-        vkCreateImageView(direct_registry->device, &viewInfo, nullptr, &result->imageView);
+        vkCreateImageView(dr.device, &viewInfo, nullptr, &result->imageView);
 
         // Conditionally create sampler if image will be sampled
         if (info.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
@@ -153,7 +150,7 @@ namespace dz {
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = 0.0f;
 
-            vkCreateSampler(direct_registry->device, &samplerInfo, nullptr, &result->sampler);
+            vkCreateSampler(dr.device, &samplerInfo, nullptr, &result->sampler);
         }
 
         return result;
@@ -161,8 +158,6 @@ namespace dz {
 
     void upload_image_data(Image* image, const ImageCreateInfoInternal& info, void* src_data)
     {
-        auto direct_registry = get_direct_registry();
-
         VkDeviceSize image_size = info.width * info.height * info.depth * 4; // Assuming 4 bytes per texel (e.g., RGBA8)
 
         VkBuffer staging_buffer;
@@ -174,23 +169,23 @@ namespace dz {
         buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateBuffer(direct_registry->device, &buffer_info, nullptr, &staging_buffer);
+        vkCreateBuffer(dr.device, &buffer_info, nullptr, &staging_buffer);
 
         VkMemoryRequirements mem_requirements;
-        vkGetBufferMemoryRequirements(direct_registry->device, staging_buffer, &mem_requirements);
+        vkGetBufferMemoryRequirements(dr.device, staging_buffer, &mem_requirements);
 
         VkMemoryAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         alloc_info.allocationSize = mem_requirements.size;
         alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        vkAllocateMemory(direct_registry->device, &alloc_info, nullptr, &staging_buffer_memory);
-        vkBindBufferMemory(direct_registry->device, staging_buffer, staging_buffer_memory, 0);
+        vkAllocateMemory(dr.device, &alloc_info, nullptr, &staging_buffer_memory);
+        vkBindBufferMemory(dr.device, staging_buffer, staging_buffer_memory, 0);
 
         void* mapped_data;
-        vkMapMemory(direct_registry->device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
+        vkMapMemory(dr.device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
         memcpy(mapped_data, src_data, static_cast<size_t>(image_size));
-        vkUnmapMemory(direct_registry->device, staging_buffer_memory);
+        vkUnmapMemory(dr.device, staging_buffer_memory);
 
         VkCommandBuffer command_buffer = begin_single_time_commands();
 
@@ -262,16 +257,15 @@ namespace dz {
 
         end_single_time_commands(command_buffer);
 
-        vkDestroyBuffer(direct_registry->device, staging_buffer, nullptr);
-        vkFreeMemory(direct_registry->device, staging_buffer_memory, nullptr);
+        vkDestroyBuffer(dr.device, staging_buffer, nullptr);
+        vkFreeMemory(dr.device, staging_buffer_memory, nullptr);
     }
 
     void image_free(Image* image)
     {
         if (!image)
             return;
-        auto direct_registry = get_direct_registry();
-        auto& device = direct_registry->device;
+        auto& device = dr.device;
         if (device == VK_NULL_HANDLE)
             return;
         if (image->image != VK_NULL_HANDLE)

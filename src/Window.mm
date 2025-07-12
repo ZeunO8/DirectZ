@@ -15,7 +15,6 @@ namespace dz
 	void create_surface(Renderer* renderer)
 	{
 		auto& window = *renderer->window;
-		auto& dr = *window.registry;
 		auto& windowType = dr.windowType;
 
 		auto metalLayer = [(MetalView*)window.metalView metalLayer];

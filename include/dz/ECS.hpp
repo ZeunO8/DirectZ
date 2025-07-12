@@ -7,10 +7,12 @@
 #include "DrawListManager.hpp"
 #include "Window.hpp"
 #include "Shader.hpp"
+#include "Util.hpp"
 #include <string>
 #include <vector>
 #include <functional>
 #include <map>
+#include <set>
 #define ECS_MAX_COMPONENTS 8
 namespace dz {
     template <typename T>
@@ -21,6 +23,12 @@ namespace dz {
 
     template <typename T>
     struct ComponentStruct;
+
+    template <typename T>
+    struct ComponentGLSLMethods;
+
+    template <typename T>
+    struct ComponentGLSLMain;
 
     #define DEF_COMPONENT_ID(TYPE, ID) \
     template <> \
@@ -39,22 +47,40 @@ namespace dz {
     struct ComponentStruct<TYPE> { \
         inline static std::string string = STRING; \
     }
+
+    #define DEF_COMPONENT_GLSL_METHODS(TYPE, STRING) \
+    template <> \
+    struct ComponentGLSLMethods<TYPE> { \
+        inline static std::string string = STRING; \
+    }
+
+    #define DEF_COMPONENT_GLSL_MAIN(TYPE, STRING) \
+    template <> \
+    struct ComponentGLSLMain<TYPE> { \
+        inline static std::string string = STRING; \
+    }
     
     template<typename EntityT, typename ComponentT, typename SystemT>
     struct ECS {
 
         struct EntityComponentEntry {
             int index;
+            bool is_child;
+            std::string name;
             std::unordered_map<int, std::shared_ptr<ComponentT>> components;
+            std::set<int> children;
         };
 
         struct RegisteredComponentEntry {
+            int type_id;
             std::string struct_name;
             std::string component_struct;
+            std::string glsl_methods;
+            std::string glsl_main;
             int constructed_count = 0;
         };
 
-        std::unordered_map<int, EntityComponentEntry> id_entity_entries;
+        std::map<int, EntityComponentEntry> id_entity_entries;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
         bool components_registered = false;
@@ -65,7 +91,7 @@ namespace dz {
         Shader* shader = 0;
         std::string buffer_name;
         bool buffer_initialized = false;
-        int buffer_reserved = 0;
+        int buffer_size = 0;
 
         int constructed_component_count = 0;
 
@@ -86,7 +112,7 @@ namespace dz {
             return false;
         }
 
-        void Reserve(int n) {
+        void Resize(int n) {
             if (buffer_group) {
                 buffer_group_set_buffer_element_count(buffer_group, buffer_name, n);
                 buffer_group_set_buffer_element_count(buffer_group, "Components", n * ECS_MAX_COMPONENTS);
@@ -95,23 +121,25 @@ namespace dz {
                     buffer_group_set_buffer_element_count(buffer_group, entry.struct_name + "s", n * ECS_MAX_COMPONENTS);
                 }
             }
-            buffer_reserved = n;
+            buffer_size = n;
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
             }
         }
 
-        int AddEntity(const EntityT& entity) {
+        int AddEntity(const EntityT& entity, bool is_child = false) {
             auto id = GlobalUID::GetNew();
             ((EntityT&)entity).id = id;
             auto index = id_entity_entries.size();
             auto& entry = id_entity_entries[id];
             entry.index = index;
+            entry.name = ("Entity #" + std::to_string(id));
+            entry.is_child = is_child;
             if (buffer_group) {
-                buffer_reserved = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
-                if ((index + 1) > buffer_reserved) {
-                    Reserve(buffer_reserved * 2);
+                buffer_size = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+                if ((index + 1) > buffer_size) {
+                    Resize(buffer_size * 2);
                 }
                 auto entity_ptr = GetEntity(id);
                 if (!entity_ptr)
@@ -123,6 +151,11 @@ namespace dz {
 
         template <typename... Args>
         std::vector<int> AddEntities(const EntityT& first_entity, const Args&... rest_entities) {
+            return AddEntities(false, first_entity, rest_entities...);
+        }
+
+        template <typename... Args>
+        std::vector<int> AddEntities(bool is_child, const EntityT& first_entity, const Args&... rest_entities) {
             auto n = 1 + sizeof...(rest_entities);
             std::vector<int> ids(n, 0);
             auto ids_data = ids.data();
@@ -131,19 +164,13 @@ namespace dz {
                 auto id = GlobalUID::GetNew();
                 auto& entry = id_entity_entries[id];
                 entry.index = index;
+                entry.name = ("Entity #" + std::to_string(id));
+                entry.is_child = is_child;
                 index++;
                 ids_data[c - 1] = id;
             }
-            if (index > buffer_reserved) {
-                int new_n = 0;
-                if (!buffer_reserved)
-                    new_n = buffer_reserved = index;
-                else
-                    new_n = buffer_reserved * 2;
-                while (index > new_n)
-                    new_n *= 2;
-                Reserve(new_n);
-            }
+            if (index > buffer_size)
+                Resize(index);
             size_t id_index = 0;
             SetEntities(ids_data, id_index, first_entity, rest_entities...);
             return ids;
@@ -162,6 +189,30 @@ namespace dz {
 
         void SetEntities(int* ids_data, size_t& id_index) { }
 
+        int AddChildEntity(int entity_id, const EntityT& entity) {
+            auto it = id_entity_entries.find(entity_id);
+            if (it == id_entity_entries.end()) {
+                return 0;
+            }
+            auto& entry = it->second;
+            auto child_id = AddEntity(entity, true);
+            entry.children.insert(child_id);
+            return child_id;
+        }
+
+        template <typename... Args>
+        std::vector<int> AddChildEntities(int entity_id, const EntityT& first_entity, const Args&... rest_entities) {
+            auto it = id_entity_entries.find(entity_id);
+            if (it == id_entity_entries.end()) {
+                return {};
+            }
+            auto& entry = it->second;
+            auto child_ids = AddEntities(true, first_entity, rest_entities...);
+            for (auto& child_id : child_ids)
+                entry.children.insert(child_id);
+            return child_ids;
+        }
+
         EntityT* GetEntity(int id) {
             static auto entity_size = sizeof(EntityT);
             auto it = id_entity_entries.find(id);
@@ -178,8 +229,11 @@ namespace dz {
         bool RegisterComponent() {
             auto ID = ComponentTypeID<RComponentT>::id;
             registered_component_map[ID] = {
+                .type_id = ComponentTypeID<RComponentT>::id,
                 .struct_name = ComponentStructName<RComponentT>::string,
-                .component_struct = ComponentStruct<RComponentT>::string
+                .component_struct = ComponentStruct<RComponentT>::string,
+                .glsl_methods = ComponentGLSLMethods<RComponentT>::string,
+                .glsl_main = ComponentGLSLMain<RComponentT>::string
             };
             return true;
         }
@@ -209,12 +263,14 @@ namespace dz {
             ucom = std::shared_ptr<DComponentT>(new DComponentT{}, [](DComponentT* dp){ delete dp; });
             auto& aucom = *ucom;
             aucom.index = component_index;
+            aucom.id = component_id;
 
             auto& root_data = aucom.GetRootComponentData(*this);
 
-            root_data.id = component_id;
+            root_data.index = component_index;
             root_data.type = component_type_id;
             root_data.type_index = component_type_index;
+            root_data.data_size = sizeof(typename DComponentT::DataT);
 
             auto& entity = *entity_ptr;
             auto entity_component_index = entity.componentsCount++;
@@ -232,6 +288,10 @@ namespace dz {
 
         template<typename AComponentT>
         AComponentT::DataT& GetComponentData(int component_index) {
+            return *(typename AComponentT::DataT*)GetComponentDataVoid(component_index);
+        }
+
+        void* GetComponentDataVoid(int component_index) {
             auto& root_data = GetRootComponentData(component_index);
 
             auto& type_id = root_data.type;
@@ -244,7 +304,7 @@ namespace dz {
             auto& type_entry = type_it->second;
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, type_entry.struct_name + "s");
 
-            return *(typename AComponentT::DataT*)(buffer_ptr.get() + (sizeof(typename AComponentT::DataT) * type_index));
+            return (buffer_ptr.get() + (root_data.data_size * type_index));
         }
 
         BufferGroup* CreateBufferGroup() {
@@ -320,29 +380,48 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Enti
 )" +
 EntityT::GetGLSLEntityVertexFunction() +
 EntityT::GetGLSLEntityVertexColorFunction();
-                shader_string += ComponentT::GetGLSLStruct();
-                shader_string += R"(
+            shader_string += ComponentT::GetGLSLStruct();
+            shader_string += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
     Component data[];
 } Components;
 )";
-            for (auto& component_pair : registered_component_map) {
-                auto& id = component_pair.first;
-                auto& entry = component_pair.second;
+            shader_string += ComponentT::GetGLSLMethods();
+            for (auto& [id, entry] : registered_component_map) {
                 shader_string += entry.component_struct;
                 shader_string += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + entry.struct_name + R"(Buffer {
     )" + entry.struct_name + R"( data[];
 } )" + entry.struct_name + R"(s;
+
 )";
+                shader_string += entry.struct_name + " Get" + entry.struct_name + R"(Data(int t_component_index) {
+    return )" + entry.struct_name + R"(s.data[t_component_index];
+}
+)";
+                shader_string += entry.glsl_methods;
             }
             shader_string += R"(
 void main() {
-    vec4 position = vec4(GetEntityVertex(Entities.entities[gl_InstanceIndex]), 1.0);
-    vec4 color = GetEntityVertexColor(Entities.entities[gl_InstanceIndex]);
-    gl_Position = position;
-    outColor = color;
-    outPosition = position;
+    Entity entity = Entities.entities[gl_InstanceIndex];
+    vec4 vertex = vec4(GetEntityVertex(entity), 1.0);
+    vec4 final_color = GetEntityVertexColor(entity);
+    vec4 final_position = vertex;
+    int t_component_index = -1;
+)";
+            for (auto& [id, entry] : registered_component_map) {
+                auto struct_name_lower = to_lower(entry.struct_name);
+                shader_string += "    " + entry.struct_name + " " + struct_name_lower + ";\n";
+                shader_string += R"(    if (HasComponentWithType(entity, )" + std::to_string(entry.type_id) + R"(, t_component_index)) {
+        )" + struct_name_lower + " = Get" + entry.struct_name + R"(Data(t_component_index);
+)" + entry.glsl_main + R"(
+    }
+)";
+            }
+            shader_string += R"(
+    gl_Position = final_position;
+    outColor = final_color;
+    outPosition = final_position;
 }
 )";
             return shader_string;

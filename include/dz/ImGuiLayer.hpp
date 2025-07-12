@@ -1,8 +1,8 @@
 #pragma once
 #include "Window.hpp"
+#include "DirectRegistry.hpp"
 #include <map>
 #include <queue>
-struct DirectRegistry;
 namespace dz {
     struct ImGuiLayer {
         friend WINDOW;

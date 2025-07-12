@@ -4,16 +4,16 @@ namespace dz {
 	{
 		auto window = new WINDOW{info.title, info.x, info.y,  info.borderless, info.vsync};
 
-		window->registry = get_direct_registry();
+		dr.window_ptrs.push_back(window);
 
 		window->event_interface = new EventInterface(window);
 
 	#ifdef __ANDROID__
 		window->android_window = info.android_window;
-		if (!window->registry->android_asset_manager)
-			window->registry->android_asset_manager = info.android_asset_manager;
-		if (!window->registry->android_config)
-			AConfiguration_fromAssetManager(window->registry->android_config, info.android_asset_manager);
+		if (!dr.android_asset_manager)
+			dr.android_asset_manager = info.android_asset_manager;
+		if (!dr.android_config)
+			AConfiguration_fromAssetManager(dr.android_config, info.android_asset_manager);
 	#endif
 
 		window->width = std::shared_ptr<float>(zmalloc<float>(1, info.width), [](float* fp) { zfree(fp, 1); });
@@ -38,7 +38,7 @@ namespace dz {
 		scissor.offset = {0, 0};
 		scissor.extent = {uint32_t(info.width), uint32_t(info.height)};
 
-		window->registry->window_count++;
+		dr.window_count++;
 
 		window->create_platform();
 
@@ -66,6 +66,10 @@ namespace dz {
 	}
 	void window_free(WINDOW* window)
 	{
+		auto window_ptrs_end = dr.window_ptrs.end();
+		auto window_it = std::find(dr.window_ptrs.begin(), window_ptrs_end, window);
+		if (window_it != window_ptrs_end)
+			dr.window_ptrs.erase(window_it);
 		auto& event_interface = *window->event_interface; 
 		while (!event_interface.window_free_queue.empty()) {
 			auto callback = event_interface.window_free_queue.front();
@@ -92,8 +96,8 @@ namespace dz {
 		}
 		if (!poll_continue)
 		{
-			window->registry->window_count--;
-			auto f_d_r = (window->registry->window_count == 0);
+			dr.window_count--;
+			auto f_d_r = (dr.window_count == 0);
 			window_free(window);
 			if (f_d_r)
 			{
@@ -105,6 +109,12 @@ namespace dz {
 	void window_render(WINDOW* window)
 	{
 		renderer_render(window->renderer);
+	}
+    const std::string& window_get_title_ref(WINDOW* window) {
+		return window->title;
+	}
+	size_t window_get_id_ref(WINDOW* window) {
+		return window->id;
 	}
 	float& window_get_float_frametime_ref(WINDOW* window)
 	{

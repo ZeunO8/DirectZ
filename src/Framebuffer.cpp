@@ -66,8 +66,6 @@ namespace dz {
         };
         auto& framebuffer = *framebuffer_ptr;
 
-        auto& dr = *get_direct_registry();
-
         VkCommandBufferAllocateInfo allocInfo = {};
 
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -422,7 +420,6 @@ namespace dz {
 
         vec<float, 4> viewportData;
 
-        auto& dr = *get_direct_registry();
         auto renderer = dr.currentRenderer;
         assert(renderer);
 
@@ -488,7 +485,6 @@ namespace dz {
             framebuffer.submitInfo.pCommandBuffers = &framebuffer.commandBuffer;
         }
 
-        auto& dr = *get_direct_registry();
 	    vkQueueSubmit(dr.graphicsQueue, 1, &framebuffer.submitInfo, VK_NULL_HANDLE);	
         // currentFramebufferImpl = 0;
         vkQueueWaitIdle(dr.graphicsQueue);
@@ -510,7 +506,6 @@ namespace dz {
                 free(framebuffer.pImages);
             if (framebuffer.pAttachmentTypes)
                 free(framebuffer.pAttachmentTypes);
-            auto& dr = *get_direct_registry();
             vkDestroyRenderPass(dr.device, framebuffer.renderPass, 0);
             vkDestroyFramebuffer(dr.device, framebuffer.framebuffer, 0);
             vkDestroyEvent(dr.device, framebuffer.event, 0);
@@ -557,7 +552,6 @@ namespace dz {
         VkImageAspectFlags aspectMask, VkPipelineStageFlags& sourceStage,
         VkPipelineStageFlags& destinationStage, VkImageMemoryBarrier& barrier)
     {
-        auto& dr = *get_direct_registry();
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.oldLayout = oldLayout;
         barrier.newLayout = newLayout;

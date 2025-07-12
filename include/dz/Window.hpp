@@ -200,6 +200,16 @@ namespace dz
     ImGuiLayer& window_get_ImGuiLayer(WINDOW*);
 
     /**
+    * @brief Returns a reference to the title
+    */
+    const std::string& window_get_title_ref(WINDOW*);
+
+    /**
+    * @brief Returns a reference to the id
+    */
+    size_t window_get_id_ref(WINDOW*);
+
+    /**
     * @brief Returns a reference to the frametime value as a float.
     */
     float& window_get_float_frametime_ref(WINDOW*);

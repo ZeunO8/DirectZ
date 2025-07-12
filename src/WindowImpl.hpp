@@ -1,4 +1,4 @@
-
+#include <dz/GlobalUID.hpp>
 struct WINDOW
 {
     std::string title;
@@ -20,7 +20,6 @@ struct WINDOW
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;
-    DirectRegistry* registry;
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
 	ImGuiLayer imguiLayer;
@@ -58,6 +57,7 @@ struct WINDOW
 	void *nsImageView = 0;
 	void *metalView = 0;
 #endif
+	size_t id = GlobalUID::GetNew();
 	void create_platform();
 	void post_init_platform();
 	bool poll_events_platform();

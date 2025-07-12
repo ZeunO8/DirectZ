@@ -70,8 +70,6 @@ namespace dz {
         // E.g. window.OnKeyPress = [](Key key) { ImGui::GetIO().AddKeyEvent(...); };
 
         ImGui_ImplVulkan_InitInfo init_info {};
-
-        auto& dr = *get_direct_registry();
         
         init_info.Instance = dr.instance;
         init_info.PhysicalDevice = dr.physicalDevice;
@@ -144,7 +142,7 @@ namespace dz {
         }
 
         ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *(get_direct_registry()->commandBuffer));
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *(dr.commandBuffer));
 
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
@@ -180,8 +178,6 @@ namespace dz {
     }
 
     std::pair<VkDescriptorSetLayout, VkDescriptorSet> ImGuiLayer::CreateDescriptorSet(Image* image) {
-        auto& dr = *get_direct_registry();
-
         VkDescriptorSetLayoutBinding binding = {};
         binding.binding = 0;
         binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

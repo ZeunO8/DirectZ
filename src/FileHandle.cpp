@@ -13,7 +13,7 @@ namespace dz {
                     return cached_mem_stream;
                 }
                 cached_mem_stream = std::make_shared<memory_stream>(ios);
-                auto android_asset_manager = get_direct_registry()->android_asset_manager;
+                auto android_asset_manager = dr.android_asset_manager;
                 AAsset* asset = AAssetManager_open(android_asset_manager, final_path.c_str(), AASSET_MODE_BUFFER);
                 if (!asset)
                     throw std::runtime_error("Failed to open asset: " + final_path);
