@@ -265,7 +265,7 @@ namespace dz {
             aucom.index = component_index;
             aucom.id = component_id;
 
-            auto& root_data = aucom.GetRootData(*this);
+            auto& root_data = aucom.GetRootData();
 
             root_data.index = component_index;
             root_data.type = component_type_id;
@@ -276,7 +276,7 @@ namespace dz {
             auto entity_component_index = entity.componentsCount++;
             entity.components[entity_component_index] = component_index;
 
-            aucom.template GetData<DComponentT>(*this) = original_data;
+            aucom.template GetData<DComponentT>() = original_data;
 
             return *std::dynamic_pointer_cast<DComponentT>(ucom);
         }

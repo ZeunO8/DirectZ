@@ -10,6 +10,8 @@ struct Component;
 struct System;
 #define ExampleECS ECS<Entity, Component, System>
 
+std::shared_ptr<ExampleECS> ecs_ptr;
+
 struct Entity {
     int id = 0;
     int componentsCount = 0;
@@ -56,37 +58,6 @@ vec4 GetEntityVertexColor(in Entity entity) {
 
     uint32_t GetVertexCount() {
         return default_vertex_count;
-    }
-};
-
-enum class ComponentTypeHint {
-    FLOAT,
-    VEC4,
-    VEC4_RGBA,
-    MAT4,
-    STRUCT
-};
-
-struct Reflectable {
-    virtual ~Reflectable() = default;
-
-    virtual const std::string& GetName() = 0;
-    virtual ComponentTypeHint GetTypeHint() {
-        return ComponentTypeHint::STRUCT;
-    }
-
-    virtual int GetPropertyIndexByName(const std::string& prop_name) = 0;
-    virtual const std::vector<std::string>& GetPropertyNames() = 0;
-    virtual void* GetVoidPropertyByIndex(ExampleECS& ecs, int prop_index) = 0;
-    virtual void* GetVoidPropertyByName(ExampleECS& ecs, const std::string& prop_name) = 0;
-    virtual const std::vector<const std::type_info*>& GetPropertyTypeinfos() = 0;
-    template <typename T>
-    T& GetPropertyByIndex(ExampleECS& ecs, int prop_index) {
-        return *(T*)GetVoidPropertyByIndex(ecs, prop_index);
-    }
-    template <typename T>
-    T& GetPropertyByName(ExampleECS& ecs, const std::string& prop_name) {
-        return *(T*)GetVoidPropertyByName(ecs, prop_name);
     }
 };
 
@@ -138,13 +109,13 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
 )";
     }
 
-    DataT& GetRootData(ExampleECS& ecs) {
-        return ecs.GetRootData(index);
+    DataT& GetRootData() {
+        return ecs_ptr->GetRootData(index);
     }
     
     template<typename AComponentT>
-    AComponentT::DataT& GetData(ExampleECS& ecs) {
-        return ecs.GetData<AComponentT>(index);
+    AComponentT::DataT& GetData() {
+        return ecs_ptr->GetData<AComponentT>(index);
     }
 
     virtual ~Component() = default;
@@ -167,8 +138,8 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
     return NAMES; \
 }
 
-#define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(ExampleECS& ecs, int prop_index) override { \
-    auto& data = GetData<PositionComponent>(ecs); \
+#define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
+    auto& data = GetData<PositionComponent>(); \
     auto index_it = INDEX_NAMES.find(prop_index); \
     if (index_it == INDEX_NAMES.end()) \
         return nullptr; \
@@ -180,11 +151,11 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
     return ((char*)&data) + offset; \
 }
 
-#define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(ExampleECS& ecs, const std::string& prop_name) override { \
+#define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(const std::string& prop_name) override { \
     auto prop_index = GetPropertyIndexByName(prop_name); \
     if (prop_index == -1) \
         return 0; \
-    return GetVoidPropertyByIndex(ecs, prop_index); \
+    return GetVoidPropertyByIndex(prop_index); \
 }
 
 #define DEF_GET_PROPERTY_TYPEINFOS(TYPEINFOS) const std::vector<const std::type_info*>& GetPropertyTypeinfos() override { \
@@ -330,12 +301,14 @@ int main() {
         .vsync = false
     });
     
-    ExampleECS ecs([](auto& ecs){
+    ecs_ptr = std::make_shared<ExampleECS>([](auto& ecs){
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
         return true;
     });
     
+    auto& ecs = *ecs_ptr;
+
     ecs.EnableDrawInWindow(window);
 
     auto eids = ecs.AddEntities(Entity{}, Entity{});
@@ -673,19 +646,19 @@ int main() {
 
                                 if (*type_info == typeid(float))
                                 {
-                                    auto& value = component.GetPropertyByIndex<float>(ecs, prop_index);
+                                    auto& value = component.GetPropertyByIndex<float>(prop_index);
                                     ImGui::SetNextItemWidth(180);
                                     ImGui::DragFloat("##f", &value, 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                                 }
                                 else if (*type_info == typeid(int))
                                 {
-                                    auto& value = component.GetPropertyByIndex<int>(ecs, prop_index);
+                                    auto& value = component.GetPropertyByIndex<int>(prop_index);
                                     ImGui::SetNextItemWidth(180);
                                     ImGui::InputInt("##i", &value);
                                 }
                                 else if (*type_info == typeid(std::string))
                                 {
-                                    auto& value = component.GetPropertyByIndex<std::string>(ecs, prop_index);
+                                    auto& value = component.GetPropertyByIndex<std::string>(prop_index);
                                     if (value.capacity() < 128) value.reserve(128);
                                     ImGui::SetNextItemWidth(220);
                                     ImGui::InputText("##s", value.data(), value.capacity() + 1);
