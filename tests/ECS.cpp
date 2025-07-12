@@ -121,51 +121,11 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
     virtual ~Component() = default;
 };
 
-// Component Helper defines (for reflection)
-
-#define DEF_GET_COMPONENT_NAME(TYPE) const std::string& GetName() override { \
-    return ComponentStructName<TYPE>::string; \
-}
-
-#define DEF_GET_PROPERTY_INDEX_BY_NAME(INDEXES) int GetPropertyIndexByName(const std::string& prop_name) override { \
-    auto it = INDEXES.find(prop_name); \
-    if (it == INDEXES.end()) \
-        return -1; \
-    return it->second.first; \
-}
-
-#define DEF_GET_PROPERTY_NAMES(NAMES) const std::vector<std::string>& GetPropertyNames() override { \
-    return NAMES; \
-}
-
-#define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
-    auto& data = GetData<PositionComponent>(); \
-    auto index_it = INDEX_NAMES.find(prop_index); \
-    if (index_it == INDEX_NAMES.end()) \
-        return nullptr; \
-    auto& prop_name = index_it->second; \
-    auto it = NAME_INDEXES.find(prop_name); \
-    if (it == NAME_INDEXES.end()) \
-        return nullptr; \
-    auto offset = it->second.second; \
-    return ((char*)&data) + offset; \
-}
-
-#define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(const std::string& prop_name) override { \
-    auto prop_index = GetPropertyIndexByName(prop_name); \
-    if (prop_index == -1) \
-        return 0; \
-    return GetVoidPropertyByIndex(prop_index); \
-}
-
-#define DEF_GET_PROPERTY_TYPEINFOS(TYPEINFOS) const std::vector<const std::type_info*>& GetPropertyTypeinfos() override { \
-    return TYPEINFOS; \
-}
-
 /// Position Component
 
 struct PositionComponent;
 DEF_COMPONENT_ID(PositionComponent, 1);
+DEF_COMPONENT_COMPONENT_NAME(PositionComponent, "Position");
 DEF_COMPONENT_STRUCT_NAME(PositionComponent, "PositionComponent");
 DEF_COMPONENT_STRUCT(PositionComponent, R"(
 #define PositionComponent vec4
@@ -201,9 +161,10 @@ struct PositionComponent : Component {
         &typeid(float),
         &typeid(float)
     };
-    DEF_GET_COMPONENT_NAME(PositionComponent);
-    ComponentTypeHint GetTypeHint() override {
-        return ComponentTypeHint::VEC4;
+    DEF_GET_ID;
+    DEF_GET_NAME(PositionComponent);
+    ReflectableTypehint GetTypeHint() override {
+        return ReflectableTypehint::VEC4;
     }
     DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
     DEF_GET_PROPERTY_NAMES(prop_names);
@@ -216,6 +177,7 @@ struct PositionComponent : Component {
 
 struct ColorComponent;
 DEF_COMPONENT_ID(ColorComponent, 2);
+DEF_COMPONENT_COMPONENT_NAME(ColorComponent, "Color");
 DEF_COMPONENT_STRUCT_NAME(ColorComponent, "ColorComponent");
 DEF_COMPONENT_STRUCT(ColorComponent, R"(
 #define ColorComponent vec4
@@ -251,9 +213,10 @@ struct ColorComponent : Component {
         &typeid(float),
         &typeid(float)
     };
-    DEF_GET_COMPONENT_NAME(ColorComponent);
-    ComponentTypeHint GetTypeHint() override {
-        return ComponentTypeHint::VEC4_RGBA;
+    DEF_GET_ID;
+    DEF_GET_NAME(ColorComponent);
+    ReflectableTypehint GetTypeHint() override {
+        return ReflectableTypehint::VEC4_RGBA;
     }
     DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
     DEF_GET_PROPERTY_NAMES(prop_names);
@@ -277,18 +240,24 @@ struct System {
 float ORIGINAL_WINDOW_WIDTH = 1280.f;
 float ORIGINAL_WINDOW_HEIGHT = 768.f;
 
-ExampleECS::EntityComponentEntry* SelectedEntityEntry = 0;
-int SelectedEntityID = 0;
-WINDOW* SelectedWindow = 0;
-size_t SelectedWindowID = 0;
+ReflectableGroup* SelectedReflectableGroup = 0;
+int SelectedReflectableID = 0;
 
 void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentEntry&);
-void DrawWindowEntry(const std::string&, WINDOW*);
-bool EntityGraphFilterCheck(ExampleECS& ecs, ImGuiTextFilter& EntityGraphFilter, ExampleECS::EntityComponentEntry& entity_entry);
+void DrawSceneEntry(ExampleECS&, int, ExampleECS::SceneEntry&);
+void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_entry);
+bool ReflectableGroupFilterCheck(ImGuiTextFilter&, ReflectableGroup&);
 bool WindowGraphFilterCheck(ImGuiTextFilter& WindowGraphFilter, const std::string& window_name);
 
-ImGuiTextFilter EntityGraphFilter;
+ImGuiTextFilter SceneGraphFilter;
 ImGuiTextFilter WindowGraphFilter;
+
+struct PropertyEditor {
+    std::string name = "Property Editor";
+    bool is_open = false;
+};
+
+PropertyEditor property_editor;
 
 int main() {
     auto window = window_create({
@@ -301,7 +270,7 @@ int main() {
         .vsync = false
     });
     
-    ecs_ptr = std::make_shared<ExampleECS>([](auto& ecs){
+    ecs_ptr = std::make_shared<ExampleECS>(window, [](auto& ecs){
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
         return true;
@@ -309,31 +278,32 @@ int main() {
     
     auto& ecs = *ecs_ptr;
 
-    ecs.EnableDrawInWindow(window);
-
     auto eids = ecs.AddEntities(Entity{}, Entity{});
 
     auto e1_id = eids[0];
 
-    ecs.AddChildEntities(e1_id, Entity{}, Entity{}, Entity{});
+    // ecs.AddChildEntities(e1_id, Entity{}, Entity{}, Entity{});
 
     auto e1_ptr = ecs.GetEntity(e1_id);
     assert(e1_ptr);
     auto& e1 = *e1_ptr;
-    auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {1.f, 1.f, 1.f, 1.f});
+    auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
     auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
 
     auto e2_id = eids[1];
 
-    ecs.AddChildEntities(e2_id, Entity{}, Entity{});
+    // ecs.AddChildEntities(e2_id, Entity{}, Entity{});
 
     auto e2_ptr = ecs.GetEntity(e2_id);
 
     assert(e2_ptr);
     auto& e2 = *e2_ptr;
-    auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {2.f, 2.f, 2.f, 1.f});
+    auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
+    auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
 
-    auto frame_image = ecs.GetFramebufferImage();
+    auto ecs_scene_ids = ecs.GetSceneIDs();
+
+    auto frame_image = ecs.GetFramebufferImage(ecs_scene_ids[0]);
 
     auto& imgui = window_get_ImGuiLayer(window);
 
@@ -538,13 +508,18 @@ int main() {
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
             {
-                auto windows_begin = dr_get_windows_begin();
-                auto windows_end = dr_get_windows_end();
+                auto window_reflectable_entries_begin = dr_get_window_reflectable_entries_begin();
+                auto window_reflectable_entries_end = dr_get_window_reflectable_entries_end();
                 
-                for (auto it = windows_begin; it != windows_end; it++) {
-                    auto& window_name = window_get_title_ref(*it);
+                for (
+                    auto it = window_reflectable_entries_begin;
+                    it != window_reflectable_entries_end;
+                    it++
+                ) {
+                    auto& window_reflectable_entry = *it;
+                    auto& window_name = window_reflectable_entry.GetName();
                     if (WindowGraphFilterCheck(WindowGraphFilter, window_name))
-                        DrawWindowEntry(window_name, *it);
+                        DrawWindowEntry(window_name, window_reflectable_entry);
                 }
                 // for (auto& [id, entity_entry] : ecs.id_entity_entries)
                 ImGui::EndTable();
@@ -553,11 +528,11 @@ int main() {
         }
     });
 
-    imgui.AddImmediateDrawFunction(3.0f, "Entity Graph", [&](auto& layer) mutable {
-        static bool entity_graph_open = true;
-        if (entity_graph_open) {
+    imgui.AddImmediateDrawFunction(3.0f, "Scene Graph", [&](auto& layer) mutable {
+        static bool scene_graph_open = true;
+        if (scene_graph_open) {
             ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
-            if (!ImGui::Begin("Entity Graph", &entity_graph_open))
+            if (!ImGui::Begin("Scene Graph", &scene_graph_open))
             {
                 ImGui::End();
                 return;
@@ -565,100 +540,105 @@ int main() {
             ImGui::SetNextItemWidth(-FLT_MIN);
             ImGui::SetNextItemShortcut(ImGuiMod_Ctrl | ImGuiKey_F, ImGuiInputFlags_Tooltip);
             ImGui::PushItemFlag(ImGuiItemFlags_NoNavDefaultFocus, true);
-            if (ImGui::InputTextWithHint("##Filter", "incl,-excl", EntityGraphFilter.InputBuf, IM_ARRAYSIZE(EntityGraphFilter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
-                EntityGraphFilter.Build();
+            if (ImGui::InputTextWithHint("##Filter", "incl,-excl", SceneGraphFilter.InputBuf, IM_ARRAYSIZE(SceneGraphFilter.InputBuf), ImGuiInputTextFlags_EscapeClearsAll))
+                SceneGraphFilter.Build();
             ImGui::PopItemFlag();
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
             {
-                for (auto& [id, entity_entry] : ecs.id_entity_entries)
-                    if (!entity_entry.is_child && EntityGraphFilterCheck(ecs, EntityGraphFilter, entity_entry))
-                        DrawEntityEntry(ecs, id, entity_entry);
+                auto scenes_begin = ecs.GetScenesBegin();
+                auto scenes_end = ecs.GetScenesEnd();
+                for (auto scene_it = scenes_begin; scene_it != scenes_end; ++scene_it) {
+                    auto& [scene_id, scene_entry] = *scene_it;
+                    DrawSceneEntry(ecs, scene_id, scene_entry);
+                }
                 ImGui::EndTable();
             }
             ImGui::End();
         }
     });
 
-    imgui.AddImmediateDrawFunction(4.0f, "Entity Property Editor", [&](auto& layer) {
-        static bool entity_property_editor_open = true;
-        if (entity_property_editor_open)
+    imgui.AddImmediateDrawFunction(4.0f, "Property Editor", [&](auto& layer) {
+        if (property_editor.is_open)
         {
-            if (!ImGui::Begin("Entity Property Editor", &entity_property_editor_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
+            if (!ImGui::Begin(property_editor.name.c_str(), &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
             {
                 ImGui::End();
                 return;
             }
 
-            if (ExampleECS::EntityComponentEntry* entity_entry_ptr = SelectedEntityEntry)
+            if (ReflectableGroup* reflectable_entry_ptr = SelectedReflectableGroup)
             {
-                auto& entity_entry = *entity_entry_ptr;
-                if (entity_entry.name.size() < 28)
-                    entity_entry.name.resize(28);
+                auto& reflectable_entry = *reflectable_entry_ptr;
+                auto& reflectable_entry_name = reflectable_entry.GetName();
+                if (reflectable_entry_name.size() < 28)
+                    reflectable_entry_name.resize(28);
 
-                ImGui::PushID((int)SelectedEntityID);
+                ImGui::PushID(SelectedReflectableGroup);
 
-                ImGui::Text("Entity:");
-                ImGui::SameLine();
-                ImGui::InputText("##EntityName", entity_entry.name.data(), 28);
-                ImGui::TextDisabled("Entity ID: 0x%08X", SelectedEntityID);
+                // ImGui::Text("Entity:");
+                // ImGui::SameLine();
+                ImGui::InputText("Name", reflectable_entry_name.data(), reflectable_entry_name.size());
+                ImGui::TextDisabled("ID: 0x%08X", SelectedReflectableID);
                 ImGui::Spacing();
 
-                for (auto& [component_id, component_ptr] : entity_entry.components)
-                {
-                    auto& component = *component_ptr;
-                    const auto& component_name = component.GetName();
+                auto& reflectables = reflectable_entry.GetReflectables();
 
-                    if (ImGui::CollapsingHeader(component_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                for (auto& reflectable_ptr : reflectables)
+                {
+                    auto& reflectable = *reflectable_ptr;
+                    const auto& reflectable_name = reflectable.GetName();
+
+                    if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 4));
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
 
-                        auto component_type_hint = component.GetTypeHint();
+                        auto reflectable_type_hint = reflectable.GetTypeHint();
 
-                        switch (component_type_hint) {
-                        case ComponentTypeHint::VEC4:
+                        switch (reflectable_type_hint) {
+                        case ReflectableTypehint::VEC4:
                         {
-                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
+                            auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             ImGui::SetNextItemWidth(250);
                             ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                             break;
                         }
-                        case ComponentTypeHint::VEC4_RGBA:
+                        case ReflectableTypehint::VEC4_RGBA:
                         {
-                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
+                            auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             ImGui::SetNextItemWidth(250);
                             ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float);
                             break;
                         }
                         default:
-                        case ComponentTypeHint::STRUCT: {
-                            const auto& component_typeinfos = component.GetPropertyTypeinfos();
-                            const auto& component_prop_names = component.GetPropertyNames();
-                            for (auto& prop_name : component_prop_names)
+                        case ReflectableTypehint::STRUCT: {
+                            const auto& reflectable_typeinfos = reflectable.GetPropertyTypeinfos();
+                            const auto& reflectable_prop_names = reflectable.GetPropertyNames();
+                            for (auto& prop_name : reflectable_prop_names)
                             {
                                 ImGui::PushID(prop_name.c_str());
-                                auto prop_index = component.GetPropertyIndexByName(prop_name);
-                                auto type_info = component_typeinfos[prop_index];
+                                auto prop_index = reflectable.GetPropertyIndexByName(prop_name);
+                                auto type_info = reflectable_typeinfos[prop_index];
 
                                 ImGui::Text("%s", prop_name.c_str());
                                 ImGui::SameLine(150);
 
                                 if (*type_info == typeid(float))
                                 {
-                                    auto& value = component.GetPropertyByIndex<float>(prop_index);
+                                    auto& value = reflectable.GetPropertyByIndex<float>(prop_index);
                                     ImGui::SetNextItemWidth(180);
                                     ImGui::DragFloat("##f", &value, 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                                 }
                                 else if (*type_info == typeid(int))
                                 {
-                                    auto& value = component.GetPropertyByIndex<int>(prop_index);
+                                    auto& value = reflectable.GetPropertyByIndex<int>(prop_index);
                                     ImGui::SetNextItemWidth(180);
                                     ImGui::InputInt("##i", &value);
                                 }
                                 else if (*type_info == typeid(std::string))
                                 {
-                                    auto& value = component.GetPropertyByIndex<std::string>(prop_index);
+                                    auto& value = reflectable.GetPropertyByIndex<std::string>(prop_index);
                                     if (value.capacity() < 128) value.reserve(128);
                                     ImGui::SetNextItemWidth(220);
                                     ImGui::InputText("##s", value.data(), value.capacity() + 1);
@@ -704,24 +684,66 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& 
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-    if (&entity_entry == SelectedEntityEntry)
+    if (&entity_entry == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
     if (entity_entry.children.empty())
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-    // if (node->DataMyBool == false)
-    //     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    if (entity_entry.disabled)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", entity_entry.name.c_str());
-    // if (node->DataMyBool == false)
-    //     ImGui::PopStyleColor();
+    if (entity_entry.disabled)
+        ImGui::PopStyleColor();
     if (ImGui::IsItemFocused()) {
-        SelectedEntityEntry = &entity_entry;
-        SelectedEntityID = id;
+        SelectedReflectableGroup = &entity_entry;
+        SelectedReflectableID = id;
+        property_editor.is_open = true;
     }
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        ImGui::OpenPopup("EntityContextMenu");
+    }
+
+    if (ImGui::BeginPopup("EntityContextMenu"))
+    {
+        if (ImGui::BeginMenu("Add Child"))
+        {
+            if (ImGui::MenuItem("Plane"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Plane");
+            }
+            if (ImGui::MenuItem("Cube"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Cube");
+            }
+            if (ImGui::MenuItem("Monkey"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Monkey");
+            }
+            if (ImGui::MenuItem("Mesh"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Mesh");
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::MenuItem("Duplicate Entity"))
+        {
+            // ecs.DuplicateEntity(id);
+        }
+        if (ImGui::MenuItem("Delete Entity"))
+        {
+            // ecs.DeleteEntity(id);
+        }
+
+        ImGui::EndPopup();
+    }
+
     if (node_open)
     {
         for (auto& child_id : entity_entry.children) {
             auto& child_entry = ecs.id_entity_entries[child_id];
-            if (EntityGraphFilterCheck(ecs, EntityGraphFilter, child_entry))
+            if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry))
                 DrawEntityEntry(ecs, child_id, child_entry);
         }
         ImGui::TreePop();
@@ -729,8 +751,103 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& 
     ImGui::PopID();
 }
 
-void DrawWindowEntry(const std::string& window_name, WINDOW* window_ptr) {
-    auto id = window_get_id_ref(window_ptr);
+void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene_entry) {
+    ImGui::TableNextRow();
+    ImGui::TableNextColumn();
+    ImGui::PushID(scene_id);
+    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
+    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
+    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
+    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+    if (&scene_entry == SelectedReflectableGroup)
+        tree_flags |= ImGuiTreeNodeFlags_Selected;
+    if (scene_entry.GetChildren().empty())
+        tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+    if (scene_entry.disabled)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", scene_entry.name.c_str());
+    if (scene_entry.disabled)
+        ImGui::PopStyleColor();
+    if (ImGui::IsItemFocused()) {
+        SelectedReflectableGroup = &scene_entry;
+        SelectedReflectableID = scene_id;
+        property_editor.is_open = true;
+    }
+
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        ImGui::OpenPopup("SceneContextMenu");
+    }
+
+    if (ImGui::BeginPopup("SceneContextMenu"))
+    {
+        if (ImGui::BeginMenu("Add Entity"))
+        {
+            if (ImGui::MenuItem("Plane"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Plane");
+            }
+            if (ImGui::MenuItem("Cube"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Cube");
+            }
+            if (ImGui::MenuItem("Monkey"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Monkey");
+            }
+            if (ImGui::MenuItem("Mesh"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Mesh");
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Add Camera"))
+        {
+            if (ImGui::MenuItem("Perspective"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Plane");
+            }
+            if (ImGui::MenuItem("Orthographic"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Cube");
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Add Light"))
+        {
+            if (ImGui::MenuItem("Directional"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Plane");
+            }
+            if (ImGui::MenuItem("Spot"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Plane");
+            }
+            if (ImGui::MenuItem("Point"))
+            {
+                // ecs.AddEntityToScene(scene_id, "Cube");
+            }
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    if (node_open)
+    {
+        for (auto& [entity_id, entity_entry] : ecs.id_entity_entries)
+            if (scene_id == entity_entry.scene_id && !entity_entry.is_child && ReflectableGroupFilterCheck(SceneGraphFilter, entity_entry))
+                DrawEntityEntry(ecs, entity_id, entity_entry);
+        ImGui::TreePop();
+    }
+    ImGui::PopID();
+}
+
+void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& window_reflectable_entry) {
+    auto id = window_reflectable_entry.id;
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::PushID(id);
@@ -739,24 +856,26 @@ void DrawWindowEntry(const std::string& window_name, WINDOW* window_ptr) {
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-    if (window_ptr == SelectedWindow)
+    if (&window_reflectable_entry == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
     // if (entity_entry.children.empty())
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-    // if (node->DataMyBool == false)
-    //     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    if (window_reflectable_entry.disabled)
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", window_name.c_str());
-    // if (node->DataMyBool == false)
-    //     ImGui::PopStyleColor();
+    if (window_reflectable_entry.disabled)
+        ImGui::PopStyleColor();
     if (ImGui::IsItemFocused()) {
-        SelectedWindow = window_ptr;
-        SelectedWindowID = id;
+        SelectedReflectableGroup = &window_reflectable_entry;
+        SelectedReflectableID = window_reflectable_entry.id;
+        property_editor.is_open = true;
     }
+
     if (node_open)
     {
         // for (auto& child_id : entity_entry.children) {
         //     auto& child_entry = ecs.id_entity_entries[child_id];
-        //     if (EntityGraphFilterCheck(ecs, EntityGraphFilter, child_entry))
+        //     if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry))
         //         DrawEntityEntry(ecs, child_id, child_entry);
         // }
         ImGui::TreePop();
@@ -764,13 +883,12 @@ void DrawWindowEntry(const std::string& window_name, WINDOW* window_ptr) {
     ImGui::PopID();
 }
 
-bool EntityGraphFilterCheck(ExampleECS& ecs, ImGuiTextFilter& EntityGraphFilter, ExampleECS::EntityComponentEntry& entity_entry) {
-    auto initial = EntityGraphFilter.PassFilter(entity_entry.name.c_str());
+bool ReflectableGroupFilterCheck(ImGuiTextFilter& SceneGraphFilter, ReflectableGroup& reflectable_entry) {
+    auto initial = SceneGraphFilter.PassFilter(reflectable_entry.GetName().c_str());
     if (initial)
         return true;
-    for (auto& child_id : entity_entry.children) {
-        auto& child_entry = ecs.id_entity_entries[child_id];
-        auto child = EntityGraphFilterCheck(ecs, EntityGraphFilter, child_entry);
+    for (auto child_entry_ptr : reflectable_entry.GetChildren()) {
+        auto child = ReflectableGroupFilterCheck(SceneGraphFilter, *child_entry_ptr);
         if (child)
             return true;
     }
@@ -783,7 +901,7 @@ bool WindowGraphFilterCheck(ImGuiTextFilter& WindowGraphFilter, const std::strin
         return true;
     // for (auto& child_id : entity_entry.children) {
     //     auto& child_entry = ecs.id_entity_entries[child_id];
-    //     auto child = EntityGraphFilterCheck(ecs, EntityGraphFilter, child_entry);
+    //     auto child = ReflectableGroupFilterCheck(SceneGraphFilter, child_entry);
     //     if (child)
     //         return true;
     // }

@@ -68,6 +68,7 @@ struct DirectRegistry
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<WINDOW*> window_ptrs;
+    std::vector<WindowReflectableGroup> window_reflectable_entries;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;

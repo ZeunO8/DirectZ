@@ -57,7 +57,7 @@ struct WINDOW
 	void *nsImageView = 0;
 	void *metalView = 0;
 #endif
-	size_t id = GlobalUID::GetNew();
+	size_t id = GlobalUID::GetNew("Window");
 	void create_platform();
 	void post_init_platform();
 	bool poll_events_platform();
@@ -100,3 +100,75 @@ static const KEYCODES WIN_MAP_KEYCODES[] = {
 	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,					 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,
 	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,	KEYCODES::NUL,					 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::UP, KEYCODES::NUL,	 KEYCODES::NUL,	 KEYCODES::LEFT, KEYCODES::NUL,	 KEYCODES::RIGHT, KEYCODES::NUL, KEYCODES::NUL,
 	KEYCODES::DOWN, KEYCODES::NUL,	KEYCODES::CTRL, KEYCODES::Delete};
+
+struct WindowMetaReflectable : Reflectable {
+
+private:
+	WINDOW* window_ptr;
+	int uid;
+	std::string name;
+	inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
+		{"title", {0, 0}}
+	};
+	inline static std::unordered_map<int, std::string> prop_index_names = {
+		{0, "title"}
+	};
+	inline static std::vector<std::string> prop_names = {
+		"title"
+	};
+	inline static const std::vector<const std::type_info*> typeinfos = {
+		&typeid(std::string)
+	};
+
+public:
+	WindowMetaReflectable(WINDOW* window_ptr);
+	int GetID() override;
+	std::string& GetName() override;
+	DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
+	DEF_GET_PROPERTY_NAMES(prop_names);
+	void* GetVoidPropertyByIndex(int prop_index) override;
+	DEF_GET_VOID_PROPERTY_BY_NAME;
+	DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
+};
+
+struct WindowViewportReflectable : Reflectable {
+
+private:
+	WINDOW* window_ptr;
+	int uid;
+	std::string name;
+	inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
+		{"x", {0, 0}},
+		{"y", {1, 0}},
+		{"width", {2, 0}},
+		{"height", {3, 0}}
+	};
+	inline static std::unordered_map<int, std::string> prop_index_names = {
+		{0, "x"},
+		{1, "y"},
+		{2, "width"},
+		{3, "height"}
+	};
+	inline static std::vector<std::string> prop_names = {
+		"x",
+		"y",
+		"width",
+		"height"
+	};
+	inline static const std::vector<const std::type_info*> typeinfos = {
+		&typeid(float),
+		&typeid(float),
+		&typeid(float),
+		&typeid(float)
+	};
+
+public:
+	WindowViewportReflectable(WINDOW* window_ptr);
+	int GetID() override;
+	std::string& GetName() override;
+	DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
+	DEF_GET_PROPERTY_NAMES(prop_names);
+	void* GetVoidPropertyByIndex(int prop_index) override;
+	DEF_GET_VOID_PROPERTY_BY_NAME;
+	DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
+};

@@ -1,10 +1,77 @@
 namespace dz {
 	#include "WindowImpl.hpp"
+	
+    WindowReflectableGroup::WindowReflectableGroup(WINDOW* window_ptr):
+		window_ptr(window_ptr)
+	{
+		reflectables.push_back(new WindowMetaReflectable(window_ptr));
+		reflectables.push_back(new WindowViewportReflectable(window_ptr));
+	}
+
+	WindowReflectableGroup::~WindowReflectableGroup() {
+		for (auto reflectable : reflectables)
+			delete reflectable;
+	}
+	
+	std::string& WindowReflectableGroup::GetName() {
+		return window_ptr->title;
+	}
+	
+	const std::vector<Reflectable*>& WindowReflectableGroup::GetReflectables() {
+		return reflectables;
+	}
+
+	WindowMetaReflectable::WindowMetaReflectable(WINDOW* window_ptr):
+		window_ptr(window_ptr),
+		uid(GlobalUID::GetNew("Reflectable")),
+		name("Window Meta")
+	{}
+
+	int WindowMetaReflectable::GetID() {
+		return uid;
+	}
+
+	std::string& WindowMetaReflectable::GetName() {
+		return name;
+	}
+
+	void* WindowMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
+		switch (prop_index) {
+		case 0: return &window_ptr->title;
+		default: return nullptr;
+		}
+	}
+	
+	WindowViewportReflectable::WindowViewportReflectable(WINDOW* window_ptr):
+		window_ptr(window_ptr),
+		uid(GlobalUID::GetNew("Reflectable")),
+		name("Window Viewport")
+	{}
+
+	int WindowViewportReflectable::GetID() {
+		return uid;
+	}
+
+	std::string& WindowViewportReflectable::GetName() {
+		return name;
+	}
+	
+	void* WindowViewportReflectable::GetVoidPropertyByIndex(int prop_index) {
+		switch (prop_index) {
+		case 0: return &window_ptr->x;
+		case 1: return &window_ptr->y;
+		case 2: return window_ptr->width.get();
+		case 3: return window_ptr->height.get();
+		default: return nullptr;
+		}
+	}
+
 	WINDOW* window_create(const WindowCreateInfo& info)
 	{
 		auto window = new WINDOW{info.title, info.x, info.y,  info.borderless, info.vsync};
 
 		dr.window_ptrs.push_back(window);
+		dr.window_reflectable_entries.emplace_back(window);
 
 		window->event_interface = new EventInterface(window);
 
@@ -67,9 +134,13 @@ namespace dz {
 	void window_free(WINDOW* window)
 	{
 		auto window_ptrs_end = dr.window_ptrs.end();
-		auto window_it = std::find(dr.window_ptrs.begin(), window_ptrs_end, window);
-		if (window_it != window_ptrs_end)
+		auto window_ptrs_begin = dr.window_ptrs.begin();
+		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
+		if (window_it != window_ptrs_end) {
+			auto index = std::distance(window_ptrs_begin, window_it);
 			dr.window_ptrs.erase(window_it);
+			dr.window_reflectable_entries.erase(dr.window_reflectable_entries.begin() + index);
+		}
 		auto& event_interface = *window->event_interface; 
 		while (!event_interface.window_free_queue.empty()) {
 			auto callback = event_interface.window_free_queue.front();

@@ -295,7 +295,7 @@ namespace dz {
             .topology = topology,
             .renderPass = dr.surfaceRenderPass
         };
-        dr.uid_shader_map[GlobalUID::GetNew()] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
+        dr.uid_shader_map[GlobalUID::GetNew("Shader")] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
             shader_destroy(shader);
             delete shader;
         });

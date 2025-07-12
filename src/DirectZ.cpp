@@ -62,6 +62,12 @@ namespace dz
     std::vector<WINDOW*>::iterator dr_get_windows_end() {
         return dr.window_ptrs.end();
     }
+    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_begin() {
+        return dr.window_reflectable_entries.begin();
+    }
+    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_end() {
+        return dr.window_reflectable_entries.end();
+    }
 }
 
 #include "env.cpp"

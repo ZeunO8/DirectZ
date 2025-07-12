@@ -19,6 +19,9 @@ namespace dz {
     struct ComponentTypeID;
 
     template <typename T>
+    struct ComponentComponentName;
+
+    template <typename T>
     struct ComponentStructName;
 
     template <typename T>
@@ -34,6 +37,12 @@ namespace dz {
     template <> \
     struct ComponentTypeID<TYPE> { \
         static constexpr size_t id = ID; \
+    }
+
+    #define DEF_COMPONENT_COMPONENT_NAME(TYPE, STRING) \
+    template <> \
+    struct ComponentComponentName<TYPE> { \
+        inline static std::string string = STRING; \
     }
 
     #define DEF_COMPONENT_STRUCT_NAME(TYPE, STRING) \
@@ -63,16 +72,72 @@ namespace dz {
     template<typename EntityT, typename ComponentT, typename SystemT>
     struct ECS {
 
-        struct EntityComponentEntry {
-            int index;
-            bool is_child;
+        struct EntityComponentEntry : ReflectableGroup {
+            size_t scene_id = 0;
             std::string name;
             std::unordered_map<int, std::shared_ptr<ComponentT>> components;
             std::set<int> children;
+            std::vector<Reflectable*> reflectables;
+            std::vector<ReflectableGroup*> reflectable_children;
+            std::string& GetName() override {
+                return name;
+            }
+            const std::vector<Reflectable*>& GetReflectables() override {
+                return reflectables;
+            }
+            const std::vector<ReflectableGroup*>& GetChildren() override {
+                return reflectable_children;
+            }
+            void UpdateReflectables() {
+                reflectables.clear();
+                reflectables.reserve(components.size());
+                for (auto& [id, component_ptr] : components)
+                    reflectables.push_back(component_ptr.get());
+            }
+            void UpdateChildren(ECS& ecs) {
+                reflectable_children.clear();
+                reflectable_children.reserve(children.size());
+                for (auto& id : children) {
+                    auto id_it = ecs.id_entity_entries.find(id);
+                    assert(id_it != ecs.id_entity_entries.end());
+                    auto& child_entry = id_it->second;
+                    reflectable_children.push_back(&child_entry);
+                }
+            }
+        };
+
+        struct SceneEntry : ReflectableGroup {
+            std::string name;
+            Framebuffer* framebuffer = 0;
+            Image* fb_image = 0;
+            std::vector<ReflectableGroup*> reflectable_children;
+            ~SceneEntry() {
+                framebuffer_destroy(framebuffer);
+            }
+            std::string& GetName() override {
+                return name;
+            }
+            const std::vector<ReflectableGroup*>& GetChildren() override {
+                return reflectable_children;
+            }
+            void UpdateChildren(ECS& ecs) {
+                reflectable_children.clear();
+                size_t count = 0;
+                for (auto& [entity_id, entity_entry] : ecs.id_entity_entries) {
+                    if (entity_entry.scene_id == id)
+                        count++;
+                }
+                reflectable_children.reserve(count);
+                for (auto& [entity_id, entity_entry] : ecs.id_entity_entries) {
+                    if (entity_entry.scene_id == id)
+                        reflectable_children.push_back(&entity_entry);
+                }
+            }
         };
 
         struct RegisteredComponentEntry {
             int type_id;
+            std::string component_name;
             std::string struct_name;
             std::string component_struct;
             std::string glsl_methods;
@@ -80,30 +145,78 @@ namespace dz {
             int constructed_count = 0;
         };
 
+        WINDOW* window_ptr = 0;
+
         std::map<int, EntityComponentEntry> id_entity_entries;
+        std::map<size_t, SceneEntry> id_scene_entries;
+        size_t add_scene_id;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
         bool components_registered = false;
+
         DrawListManager<EntityT> draw_mg;
-        Framebuffer* framebuffer = 0;
-        Image* fb_image = 0;
+
         BufferGroup* buffer_group = 0;
-        Shader* shader = 0;
-        std::string buffer_name;
         bool buffer_initialized = false;
         int buffer_size = 0;
+        
+        Shader* shader = 0;
+
+        std::string buffer_name;
 
         int constructed_component_count = 0;
 
-        ECS(const std::function<bool(ECS&)>& register_all_components_fn = {}):
+        ECS(WINDOW* initial_window_ptr, const std::function<bool(ECS&)>& register_all_components_fn = {}):
+            window_ptr(initial_window_ptr),
             components_registered(RegisterComponents(register_all_components_fn)),
             draw_mg("Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
-                return {framebuffer, shader, entity.GetVertexCount()};
+                auto entity_it = id_entity_entries.find(entity.id);
+                assert(entity_it != id_entity_entries.end());
+                auto scene_it = id_scene_entries.find(entity_it->second.scene_id);
+                assert(scene_it != id_scene_entries.end());
+                return {scene_it->second.framebuffer, shader, entity.GetVertexCount()};
             }),
             buffer_group(CreateBufferGroup()),
             shader(GenerateShader()),
             buffer_name("Entities")
-        {};
+        {
+            EnableDrawInWindow(window_ptr);
+            EnsureFirstScene();
+        };
+
+        void EnsureFirstScene() {
+            auto scene_id = GlobalUID::GetNew("ECS:Scene");
+            auto& scene_entry = id_scene_entries[scene_id];
+
+            scene_entry.name = "Scene #" + std::to_string(scene_id);
+            add_scene_id = scene_id;
+
+            {
+                auto& width = *window_get_width_ref(window_ptr);
+                auto& height = *window_get_height_ref(window_ptr);
+                scene_entry.fb_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .is_framebuffer_attachment = true
+                });
+                Image* fb_images[1] = {
+                    scene_entry.fb_image
+                };
+                AttachmentType fb_attachment_types[1] = {
+                    AttachmentType::Color
+                };
+                FramebufferInfo fb_info{
+                    .pImages = fb_images,
+                    .imagesCount = 1,
+                    .pAttachmentTypes = fb_attachment_types,
+                    .attachmentTypesCount = 1,
+                    .own_images = true
+                };
+                scene_entry.framebuffer = framebuffer_create(fb_info);
+
+                shader_set_render_pass(shader, scene_entry.framebuffer);
+            }
+        }
 
         bool RegisterComponents(const std::function<bool(ECS&)>& register_all_components_fn) {
             if (register_all_components_fn) {
@@ -129,11 +242,12 @@ namespace dz {
         }
 
         int AddEntity(const EntityT& entity, bool is_child = false) {
-            auto id = GlobalUID::GetNew();
+            auto id = GlobalUID::GetNew("ECS:Entity");
             ((EntityT&)entity).id = id;
             auto index = id_entity_entries.size();
             auto& entry = id_entity_entries[id];
             entry.index = index;
+            entry.scene_id = add_scene_id;
             entry.name = ("Entity #" + std::to_string(id));
             entry.is_child = is_child;
             if (buffer_group) {
@@ -146,6 +260,8 @@ namespace dz {
                     assert(false);
                 *entity_ptr = entity;
             }
+            auto& scene_entry = id_scene_entries[add_scene_id];
+            scene_entry.UpdateChildren(*this);
             return id;
         }
 
@@ -161,9 +277,10 @@ namespace dz {
             auto ids_data = ids.data();
             auto index = id_entity_entries.size();
             for (int c = 1; c <= n; c++) {
-                auto id = GlobalUID::GetNew();
+                auto id = GlobalUID::GetNew("ECS:Entity");
                 auto& entry = id_entity_entries[id];
                 entry.index = index;
+                entry.scene_id = add_scene_id;
                 entry.name = ("Entity #" + std::to_string(id));
                 entry.is_child = is_child;
                 index++;
@@ -173,6 +290,8 @@ namespace dz {
                 Resize(index);
             size_t id_index = 0;
             SetEntities(ids_data, id_index, first_entity, rest_entities...);
+            auto& scene_entry = id_scene_entries[add_scene_id];
+            scene_entry.UpdateChildren(*this);
             return ids;
         }
 
@@ -197,6 +316,7 @@ namespace dz {
             auto& entry = it->second;
             auto child_id = AddEntity(entity, true);
             entry.children.insert(child_id);
+            entry.UpdateChildren(*this);
             return child_id;
         }
 
@@ -210,6 +330,7 @@ namespace dz {
             auto child_ids = AddEntities(true, first_entity, rest_entities...);
             for (auto& child_id : child_ids)
                 entry.children.insert(child_id);
+            entry.UpdateChildren(*this);
             return child_ids;
         }
 
@@ -230,6 +351,7 @@ namespace dz {
             auto ID = ComponentTypeID<RComponentT>::id;
             registered_component_map[ID] = {
                 .type_id = ComponentTypeID<RComponentT>::id,
+                .component_name = ComponentComponentName<RComponentT>::string,
                 .struct_name = ComponentStructName<RComponentT>::string,
                 .component_struct = ComponentStruct<RComponentT>::string,
                 .glsl_methods = ComponentGLSLMethods<RComponentT>::string,
@@ -250,7 +372,7 @@ namespace dz {
 
             auto& entry = it->second;
 
-            auto component_id = GlobalUID::GetNew();
+            auto component_id = GlobalUID::GetNew("ECS:Component");
             auto component_type_id = ComponentTypeID<DComponentT>::id;
 
             auto& component_entry = registered_component_map[component_type_id];
@@ -261,6 +383,8 @@ namespace dz {
             auto component_index = constructed_component_count++;
             
             ucom = std::shared_ptr<DComponentT>(new DComponentT{}, [](DComponentT* dp){ delete dp; });
+            entry.UpdateReflectables();
+
             auto& aucom = *ucom;
             aucom.index = component_index;
             aucom.id = component_id;
@@ -334,34 +458,8 @@ namespace dz {
         void EnableDrawInWindow(WINDOW* window_ptr) {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
 
-            if (!framebuffer) {
-                auto& width = *window_get_width_ref(window_ptr);
-                auto& height = *window_get_height_ref(window_ptr);
-                fb_image = image_create({
-                    .width = uint32_t(width),
-                    .height = uint32_t(height),
-                    .is_framebuffer_attachment = true
-                });
-                Image* fb_images[1] = {
-                    fb_image
-                };
-                AttachmentType fb_attachment_types[1] = {
-                    AttachmentType::Color
-                };
-                FramebufferInfo fb_info{
-                    .pImages = fb_images,
-                    .imagesCount = 1,
-                    .pAttachmentTypes = fb_attachment_types,
-                    .attachmentTypesCount = 1,
-                    .own_images = true
-                };
-                framebuffer = framebuffer_create(fb_info);
-
-                shader_set_render_pass(shader, framebuffer);
-            }
-
             window_register_free_callback(window_ptr, [&]() mutable {
-                framebuffer_destroy(framebuffer);
+                id_scene_entries.clear();
             });
         }
 
@@ -442,8 +540,27 @@ void main() {
             return shader_string;
         }
 
-        Image* GetFramebufferImage() {
-            return fb_image;
+        std::vector<size_t> GetSceneIDs() {
+            std::vector<size_t> ids(id_scene_entries.size(), 0);
+            size_t i = 0;
+            for (auto& [id, entry] : id_scene_entries)
+                ids[i++] = id;
+            return ids;
+        }
+
+        std::map<size_t, SceneEntry>::iterator GetScenesBegin() {
+            return id_scene_entries.begin();
+        }
+
+        std::map<size_t, SceneEntry>::iterator GetScenesEnd() {
+            return id_scene_entries.end();
+        }
+
+        Image* GetFramebufferImage(size_t scene_id) {
+            auto it = id_scene_entries.find(scene_id);
+            if (it == id_scene_entries.end())
+                return nullptr;
+            return it->second.fb_image;
         }
 
     };

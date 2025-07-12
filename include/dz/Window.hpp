@@ -7,6 +7,7 @@
 #include <functional>
 #include "math.hpp"
 #include "DrawListManager.hpp"
+#include "Reflectable.hpp"
 #ifdef __ANDROID__
 #include <android/native_window_jni.h>
 #include <android/log.h>
@@ -34,6 +35,18 @@ namespace dz
         ANativeWindow* android_window = 0;
         AAssetManager* android_asset_manager = 0;
 #endif
+    };
+
+    struct WindowReflectableGroup : ReflectableGroup {
+
+    private:
+        WINDOW* window_ptr;
+        std::vector<Reflectable*> reflectables;
+    public:
+        WindowReflectableGroup(WINDOW* window_ptr);
+        ~WindowReflectableGroup();
+        std::string& GetName() override;
+        const std::vector<Reflectable*>& GetReflectables() override;
     };
 
     /**

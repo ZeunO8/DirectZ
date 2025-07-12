@@ -153,7 +153,7 @@ namespace dz {
 
     size_t ImGuiLayer::AddImmediateDrawFunction(float priority, const std::string& key, const ImmediateDrawFunction& fn)
     {
-        auto id = GlobalUID::GetNew();
+        auto id = GlobalUID::GetNew("ImGuiLayer:AddImmediateDrawFunction");
         auto& map = priority_immediate_draw_fn_map[priority];
         ImmediateDrawPair pair{key, fn};
         map[id] = pair;
