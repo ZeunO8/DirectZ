@@ -96,8 +96,8 @@ int main()
     auto render_shader = shader_create();
     auto diffuse_density_shader = shader_create();
     
-    DrawListManager<Quad> quad_draw_list_mg("Quads", [&](auto buffer_group, auto& quad) -> std::pair<Shader*, uint32_t> {
-        return {render_shader, 6};
+    DrawListManager<Quad> quad_draw_list_mg("Quads", [&](auto buffer_group, auto& quad) -> DrawTuple {
+        return {nullptr, render_shader, 6};
     });
 
     window_add_drawn_buffer_group(window, &quad_draw_list_mg, quad_group);

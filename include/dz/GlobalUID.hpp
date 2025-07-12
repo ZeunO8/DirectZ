@@ -4,6 +4,8 @@
  */
 #pragma once
 #include <mutex>
+#include <unordered_map>
+#include <string>
 
 namespace dz
 {
@@ -13,6 +15,7 @@ namespace dz
     struct GlobalUID
     {
     private:
+        static inline std::unordered_map<std::string, size_t> KeyedCounts = {};
         static inline size_t Count = 0;     /**< Global counter shared across threads. */
         static inline std::mutex Mutex = {};/**< Mutex used for thread-safety. */
 
@@ -26,6 +29,17 @@ namespace dz
         {
             std::lock_guard lock(Mutex);
             return ++Count;
+        }
+
+        /**
+         * @brief Returns a new unique identifier incrementing the given Keys count
+         * 
+         * @return A size_t representing a new unique ID.
+         */
+        inline static size_t GetNew(const std::string& key)
+        {
+            std::lock_guard lock(Mutex);
+            return ++KeyedCounts[key];
         }
     };
 } // namespace dz

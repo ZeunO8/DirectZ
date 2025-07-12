@@ -26,7 +26,7 @@ You can download a Release installer from the releases page or, if building from
 ```bash
 git clone https://github.com/Zeucor/DirectZ.git --recurse-submodules
 cd DirectZ
-cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++
+cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 
 # Unix

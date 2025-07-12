@@ -1,11 +1,12 @@
 #include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
-extern "C" DirectRegistry* dz_registry_global;
+extern "C" DirectRegistry* dr_ptr;
+extern "C" DirectRegistry& dr;
 namespace dz
 {
-    inline DirectRegistry*& get_direct_registry()
+    DirectRegistry*& get_direct_registry()
     {
-        return dz_registry_global;
+        return dr_ptr;
     }
     inline void set_direct_registry(DirectRegistry* ptr)
     {
@@ -13,6 +14,7 @@ namespace dz
     }
     uint8_t get_window_type_platform();
     void direct_registry_ensure_instance(DirectRegistry* direct_registry);
+    void direct_registry_ensure_imgui(DirectRegistry* direct_registry);
     DirectRegistry* make_direct_registry()
     {
         auto dr = new DirectRegistry;
@@ -25,18 +27,19 @@ namespace dz
     
     void free_direct_registry()
     {
-        auto direct_registry = get_direct_registry();
+        ImGuiLayer::Shutdown(dr);
 #ifdef __ANDROID__
-        AConfiguration_delete(direct_registry->android_config);
+        AConfiguration_delete(dr.android_config);
 #endif
-        direct_registry->buffer_groups.clear();
-        direct_registry->uid_shader_map.clear();
-        if (direct_registry->device)
+        dr.buffer_groups.clear();
+        dr.uid_shader_map.clear();
+        if (dr.device)
         {
-            vkDestroyCommandPool(direct_registry->device, direct_registry->commandPool, 0);
-            vkDestroyRenderPass(direct_registry->device, direct_registry->surfaceRenderPass, 0);
-            vkDestroyDevice(direct_registry->device, 0);
+            vkDestroyCommandPool(dr.device, dr.commandPool, 0);
+            vkDestroyRenderPass(dr.device, dr.surfaceRenderPass, 0);
+            vkDestroyDevice(dr.device, 0);
         }
+        auto direct_registry = get_direct_registry();
         delete direct_registry;
     }
     struct Renderer;
@@ -53,18 +56,35 @@ namespace dz
     void end_single_time_commands(VkCommandBuffer command_buffer);
     struct ShaderBuffer;
     void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
-    #include "env.cpp"
-    #include "path.cpp"
-    #include "FileHandle.cpp"
-    #include "AssetPack.cpp"
-    #include "Window.cpp"
-    #include "Renderer.cpp"
-    #include "Image.cpp"
-    #include "Shader.cpp"
-    #include "BufferGroup.cpp"
-    #include "EventInterface.cpp"
+    std::vector<WINDOW*>::iterator dr_get_windows_begin() {
+        return dr.window_ptrs.begin();
+    }
+    std::vector<WINDOW*>::iterator dr_get_windows_end() {
+        return dr.window_ptrs.end();
+    }
+    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_begin() {
+        return dr.window_reflectable_entries.begin();
+    }
+    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_end() {
+        return dr.window_reflectable_entries.end();
+    }
 }
+
+#include "env.cpp"
+#include "path.cpp"
+#include "FileHandle.cpp"
+#include "AssetPack.cpp"
+#include "Window.cpp"
+#include "Renderer.cpp"
+#include "Image.cpp"
+#include "Framebuffer.cpp"
+#include "Shader.cpp"
+#include "BufferGroup.cpp"
+#include "EventInterface.cpp"
+#include "D7Stream.cpp"
+#include "ImGuiLayer.cpp"
 #include "runtime.cpp"
+
 template<typename T>
 mat<T, 4, 4> window_mvp_T(WINDOW* window, const mat<T, 4, 4>& mvp)
 {

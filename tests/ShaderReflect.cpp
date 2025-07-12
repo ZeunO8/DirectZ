@@ -259,7 +259,7 @@ void main() {
     auto green_entity_shader = shader_create();
     set_shader_defines(green_entity_shader);
 
-    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> std::pair<Shader*, uint32_t> {
+    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
         auto mesh_index = entity.index_meta[0];
         auto material_index = entity.index_meta[1];
         auto mesh_view = buffer_group_get_buffer_element_view(buffer_group, "Meshes", mesh_index);
@@ -285,7 +285,7 @@ void main() {
             vert_count = 6;
             break;
         }
-        return {chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
+        return {nullptr, chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
     });
 
     window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
@@ -470,11 +470,11 @@ void main()
 
     bool entity_right = true;
 
-    auto& right_pressed = window_get_keypress_ref(main_window, KEYCODE_RIGHT);
-    auto& left_pressed = window_get_keypress_ref(main_window, KEYCODE_LEFT);
-    auto& up_pressed = window_get_keypress_ref(main_window, KEYCODE_UP);
-    auto& down_pressed = window_get_keypress_ref(main_window, KEYCODE_DOWN);
-    auto& esc_pressed = window_get_keypress_ref(main_window, KEYCODE_ESCAPE);
+    auto& right_pressed = window_get_keypress_ref(main_window, KEYCODES::RIGHT);
+    auto& left_pressed = window_get_keypress_ref(main_window, KEYCODES::LEFT);
+    auto& up_pressed = window_get_keypress_ref(main_window, KEYCODES::UP);
+    auto& down_pressed = window_get_keypress_ref(main_window, KEYCODES::DOWN);
+    auto& esc_pressed = window_get_keypress_ref(main_window, KEYCODES::ESCAPE);
     auto& u_pressed = window_get_keypress_ref(main_window, 'u');
     auto& o_pressed = window_get_keypress_ref(main_window, 'o');
     auto& r_pressed = window_get_keypress_ref(main_window, 'r');
