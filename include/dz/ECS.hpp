@@ -265,7 +265,7 @@ namespace dz {
             aucom.index = component_index;
             aucom.id = component_id;
 
-            auto& root_data = aucom.GetRootComponentData(*this);
+            auto& root_data = aucom.GetRootData(*this);
 
             root_data.index = component_index;
             root_data.type = component_type_id;
@@ -276,23 +276,23 @@ namespace dz {
             auto entity_component_index = entity.componentsCount++;
             entity.components[entity_component_index] = component_index;
 
-            aucom.template GetComponentData<DComponentT>(*this) = original_data;
+            aucom.template GetData<DComponentT>(*this) = original_data;
 
             return *std::dynamic_pointer_cast<DComponentT>(ucom);
         }
 
-        ComponentT::DataT& GetRootComponentData(int component_index) {
+        ComponentT::DataT& GetRootData(int component_index) {
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Components");
             return *(typename ComponentT::DataT*)(buffer_ptr.get() + (sizeof(typename ComponentT::DataT) * component_index));
         }
 
         template<typename AComponentT>
-        AComponentT::DataT& GetComponentData(int component_index) {
-            return *(typename AComponentT::DataT*)GetComponentDataVoid(component_index);
+        AComponentT::DataT& GetData(int component_index) {
+            return *(typename AComponentT::DataT*)GetDataVoid(component_index);
         }
 
-        void* GetComponentDataVoid(int component_index) {
-            auto& root_data = GetRootComponentData(component_index);
+        void* GetDataVoid(int component_index) {
+            auto& root_data = GetRootData(component_index);
 
             auto& type_id = root_data.type;
             auto& type_index = root_data.type_index;

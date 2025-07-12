@@ -67,7 +67,30 @@ enum class ComponentTypeHint {
     STRUCT
 };
 
-struct Component {
+struct Reflectable {
+    virtual ~Reflectable() = default;
+
+    virtual const std::string& GetName() = 0;
+    virtual ComponentTypeHint GetTypeHint() {
+        return ComponentTypeHint::STRUCT;
+    }
+
+    virtual int GetPropertyIndexByName(const std::string& prop_name) = 0;
+    virtual const std::vector<std::string>& GetPropertyNames() = 0;
+    virtual void* GetVoidPropertyByIndex(ExampleECS& ecs, int prop_index) = 0;
+    virtual void* GetVoidPropertyByName(ExampleECS& ecs, const std::string& prop_name) = 0;
+    virtual const std::vector<const std::type_info*>& GetPropertyTypeinfos() = 0;
+    template <typename T>
+    T& GetPropertyByIndex(ExampleECS& ecs, int prop_index) {
+        return *(T*)GetVoidPropertyByIndex(ecs, prop_index);
+    }
+    template <typename T>
+    T& GetPropertyByName(ExampleECS& ecs, const std::string& prop_name) {
+        return *(T*)GetVoidPropertyByName(ecs, prop_name);
+    }
+};
+
+struct Component : Reflectable {
     struct ComponentData {
         int index;
         int type;
@@ -115,39 +138,21 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
 )";
     }
 
-    DataT& GetRootComponentData(ExampleECS& ecs) {
-        return ecs.GetRootComponentData(index);
+    DataT& GetRootData(ExampleECS& ecs) {
+        return ecs.GetRootData(index);
     }
     
     template<typename AComponentT>
-    AComponentT::DataT& GetComponentData(ExampleECS& ecs) {
-        return ecs.GetComponentData<AComponentT>(index);
+    AComponentT::DataT& GetData(ExampleECS& ecs) {
+        return ecs.GetData<AComponentT>(index);
     }
 
-    virtual const std::string& GetComponentName() = 0;
-    virtual ComponentTypeHint GetComponentTypeHint() {
-        return ComponentTypeHint::STRUCT;
-    }
-
-    virtual int GetPropertyIndexByName(const std::string& prop_name) = 0;
-    virtual const std::vector<std::string>& GetPropertyNames() = 0;
-    virtual void* GetVoidPropertyByIndex(ExampleECS& ecs, int prop_index) = 0;
-    virtual void* GetVoidPropertyByName(ExampleECS& ecs, const std::string& prop_name) = 0;
-    virtual const std::vector<const std::type_info*>& GetPropertyTypeinfos() = 0;
-    template <typename T>
-    T& GetPropertyByIndex(ExampleECS& ecs, int prop_index) {
-        return *(T*)GetVoidPropertyByIndex(ecs, prop_index);
-    }
-    template <typename T>
-    T& GetPropertyByName(ExampleECS& ecs, const std::string& prop_name) {
-        return *(T*)GetVoidPropertyByName(ecs, prop_name);
-    }
     virtual ~Component() = default;
 };
 
 // Component Helper defines (for reflection)
 
-#define DEF_GET_COMPONENT_NAME(TYPE) const std::string& GetComponentName() override { \
+#define DEF_GET_COMPONENT_NAME(TYPE) const std::string& GetName() override { \
     return ComponentStructName<TYPE>::string; \
 }
 
@@ -163,7 +168,7 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
 }
 
 #define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(ExampleECS& ecs, int prop_index) override { \
-    auto& data = GetComponentData<PositionComponent>(ecs); \
+    auto& data = GetData<PositionComponent>(ecs); \
     auto index_it = INDEX_NAMES.find(prop_index); \
     if (index_it == INDEX_NAMES.end()) \
         return nullptr; \
@@ -226,7 +231,7 @@ struct PositionComponent : Component {
         &typeid(float)
     };
     DEF_GET_COMPONENT_NAME(PositionComponent);
-    ComponentTypeHint GetComponentTypeHint() override {
+    ComponentTypeHint GetTypeHint() override {
         return ComponentTypeHint::VEC4;
     }
     DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -276,7 +281,7 @@ struct ColorComponent : Component {
         &typeid(float)
     };
     DEF_GET_COMPONENT_NAME(ColorComponent);
-    ComponentTypeHint GetComponentTypeHint() override {
+    ComponentTypeHint GetTypeHint() override {
         return ComponentTypeHint::VEC4_RGBA;
     }
     DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -629,26 +634,26 @@ int main() {
                 for (auto& [component_id, component_ptr] : entity_entry.components)
                 {
                     auto& component = *component_ptr;
-                    const auto& component_name = component.GetComponentName();
+                    const auto& component_name = component.GetName();
 
                     if (ImGui::CollapsingHeader(component_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
                     {
                         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 4));
                         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
 
-                        auto component_type_hint = component.GetComponentTypeHint();
+                        auto component_type_hint = component.GetTypeHint();
 
                         switch (component_type_hint) {
                         case ComponentTypeHint::VEC4:
                         {
-                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
+                            auto data_ptr = ecs.GetDataVoid(component.index);
                             ImGui::SetNextItemWidth(250);
                             ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                             break;
                         }
                         case ComponentTypeHint::VEC4_RGBA:
                         {
-                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
+                            auto data_ptr = ecs.GetDataVoid(component.index);
                             ImGui::SetNextItemWidth(250);
                             ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float);
                             break;
