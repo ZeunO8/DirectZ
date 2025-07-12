@@ -31,6 +31,10 @@
 
 using namespace dz;
 
+namespace dz {
+    DirectRegistry*& get_direct_registry();
+}
+
 inline static std::string DZ_GLSL_VERSION = "#version 450\n";
 
 /**

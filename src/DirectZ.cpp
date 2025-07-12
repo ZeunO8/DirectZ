@@ -4,7 +4,7 @@ extern "C" DirectRegistry* dr_ptr;
 extern "C" DirectRegistry& dr;
 namespace dz
 {
-    inline DirectRegistry*& get_direct_registry()
+    DirectRegistry*& get_direct_registry()
     {
         return dr_ptr;
     }
