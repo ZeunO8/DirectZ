@@ -110,12 +110,12 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
     }
 
     DataT& GetRootData() {
-        return ecs_ptr->GetRootData(index);
+        return ecs_ptr->GetComponentRootData(index);
     }
     
     template<typename AComponentT>
     AComponentT::DataT& GetData() {
-        return ecs_ptr->GetData<AComponentT>(index);
+        return ecs_ptr->GetComponentData<AComponentT>(index);
     }
 
     virtual ~Component() = default;
@@ -619,14 +619,14 @@ int main() {
                         switch (component_type_hint) {
                         case ComponentTypeHint::VEC4:
                         {
-                            auto data_ptr = ecs.GetDataVoid(component.index);
+                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
                             ImGui::SetNextItemWidth(250);
                             ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
                             break;
                         }
                         case ComponentTypeHint::VEC4_RGBA:
                         {
-                            auto data_ptr = ecs.GetDataVoid(component.index);
+                            auto data_ptr = ecs.GetComponentDataVoid(component.index);
                             ImGui::SetNextItemWidth(250);
                             ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float);
                             break;
