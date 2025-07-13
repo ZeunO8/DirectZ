@@ -193,19 +193,19 @@ namespace dz {
     const std::string& window_get_title_ref(WINDOW* window) {
 		return window->title;
 	}
-#if defined(_WIN32) || defined(__linux__)
-    void window_set_title(WINDOW* window, const std::string& new_title) {
+#if defined(_WIN32) || (defined(__linux__) && !defined(ANDROID))
+    void window_set_title(WINDOW* window_ptr, const std::string& new_title) {
 #if defined(_WIN32)
-		SetWindowTextA(window->hwnd, new_title.c_str());
-#elif defined(__linux__)
-		auto connection = window->connection;
+		SetWindowTextA(window_ptr->hwnd, new_title.c_str());
+#elif (defined(__linux__) && !defined(ANDROID))
+		auto connection = window_ptr->connection;
 
 		if (connection == nullptr || window_ptr == nullptr)
 		{
 			return;
 		}
 
-		auto window = window->window;
+		auto window = window_ptr->window;
 
 		xcb_change_property(
 			connection,
@@ -240,6 +240,9 @@ namespace dz {
 		xcb_flush(connection);
 #endif
 	}
+#endif
+#ifdef ANDROID
+    void window_set_title(WINDOW* window_ptr, const std::string& new_title) { }
 #endif
 	size_t window_get_id_ref(WINDOW* window) {
 		return window->id;
