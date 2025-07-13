@@ -1128,7 +1128,7 @@ namespace dz {
 		return (void*)window_ptr->window;
 #elif defined(ANDROID)
 		return (void*)window_ptr->android_window;
-#elif defined(__APPLE__
+#elif defined(__APPLE__)
 		return (void*)window_ptr->nsWindow;
 #endif
 	}
