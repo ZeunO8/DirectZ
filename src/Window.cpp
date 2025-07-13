@@ -229,7 +229,7 @@ namespace dz {
 				XCB_PROP_MODE_REPLACE,
 				window,
 				reply->atom,
-				XCB_ATOM_UTF8_STRING,
+				XCB_ATOM_STRING,
 				8,
 				new_title.size(),
 				new_title.c_str()
