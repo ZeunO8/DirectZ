@@ -1125,7 +1125,7 @@ namespace dz {
 #if defined(_WIN32)
 		return (void*)window_ptr->hwnd;
 #elif defined(__linux__) && !defined(ANDROID)
-		return (void*)window_ptr->window;
+		return (void*)(uintptr_t)(window_ptr->window);
 #elif defined(ANDROID)
 		return (void*)window_ptr->android_window;
 #elif defined(__APPLE__)
