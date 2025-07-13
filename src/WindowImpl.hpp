@@ -129,6 +129,7 @@ public:
 	void* GetVoidPropertyByIndex(int prop_index) override;
 	DEF_GET_VOID_PROPERTY_BY_NAME;
 	DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
+	void NotifyChange(int prop_index) override;
 };
 
 struct WindowViewportReflectable : Reflectable {

@@ -183,4 +183,12 @@ namespace dz
 		}
 		return true;
 	}
+
+	void window_set_title(WINDOW* window, const std::string& new_title) {
+		@autoreleasepool
+		{
+			NSString* title_str = [NSString stringWithUTF8String:new_title.c_str()];
+			[(NSWindow*)window->nsWindow setTitle:title_str];
+		}
+	}
 }

@@ -41,6 +41,15 @@ namespace dz {
 		default: return nullptr;
 		}
 	}
+
+	void WindowMetaReflectable::NotifyChange(int prop_index) {
+		switch (prop_index) {
+		case 0:
+			window_set_title(window_ptr, window_ptr->title);
+			break;
+		default: break;
+		}
+	}
 	
 	WindowViewportReflectable::WindowViewportReflectable(WINDOW* window_ptr):
 		window_ptr(window_ptr),
@@ -184,6 +193,54 @@ namespace dz {
     const std::string& window_get_title_ref(WINDOW* window) {
 		return window->title;
 	}
+#if defined(_WIN32) || defined(__linux__)
+    void window_set_title(WINDOW* window, const std::string& new_title) {
+#if defined(_WIN32)
+		SetWindowTextA(window->hwnd, new_title.c_str());
+#elif defined(__linux__)
+		auto connection = window->connection;
+
+		if (connection == nullptr || window_ptr == nullptr)
+		{
+			return;
+		}
+
+		auto window = window->window;
+
+		xcb_change_property(
+			connection,
+			XCB_PROP_MODE_REPLACE,
+			window,
+			XCB_ATOM_WM_NAME,
+			XCB_ATOM_STRING,
+			8,
+			new_title.size(),
+			new_title.c_str()
+		);
+
+		// Set _NET_WM_NAME for modern desktops
+		xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, 0, 12, "_NET_WM_NAME");
+		xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(connection, cookie, nullptr);
+
+		if (reply)
+		{
+			xcb_change_property(
+				connection,
+				XCB_PROP_MODE_REPLACE,
+				window,
+				reply->atom,
+				XCB_ATOM_UTF8_STRING,
+				8,
+				new_title.size(),
+				new_title.c_str()
+			);
+			free(reply);
+		}
+
+		xcb_flush(connection);
+#endif
+	}
+#endif
 	size_t window_get_id_ref(WINDOW* window) {
 		return window->id;
 	}

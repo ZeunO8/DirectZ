@@ -32,12 +32,12 @@ struct Entity {
 vec3 GetEntityVertex(in Entity entity) {
     switch (gl_VertexIndex)
     {
-    case 0: return vec3(0.5, 0.5, 0);
+    case 0: return vec3(-0.5, -0.5, 0);
     case 1: return vec3(-0.5, 0.5, 0);
-    case 2: return vec3(-0.5, -0.5, 0);
-    case 3: return vec3(-0.5, -0.5, 0);
+    case 2: return vec3(0.5, 0.5, 0);
+    case 3: return vec3(0.5, 0.5, 0);
     case 4: return vec3(0.5, -0.5, 0);
-    case 5: return vec3(0.5, 0.5, 0);
+    case 5: return vec3(-0.5, -0.5, 0);
     }
     return vec3(0);
 }
@@ -243,8 +243,8 @@ float ORIGINAL_WINDOW_HEIGHT = 768.f;
 ReflectableGroup* SelectedReflectableGroup = 0;
 int SelectedReflectableID = 0;
 
-void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentEntry&);
-void DrawSceneEntry(ExampleECS&, int, ExampleECS::SceneEntry&);
+void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentReflectableGroup&);
+void DrawSceneReflectableGroup(ExampleECS&, int, ExampleECS::SceneReflectableGroup&);
 void DrawGenericEntry(int, ReflectableGroup& reflectable_group);
 void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_entry);
 bool ReflectableGroupFilterCheck(ImGuiTextFilter&, ReflectableGroup&);
@@ -268,7 +268,7 @@ int main() {
         .width = ORIGINAL_WINDOW_WIDTH,
         .height = ORIGINAL_WINDOW_HEIGHT,
         .borderless = false,
-        .vsync = false
+        .vsync = true
     });
     
     ecs_ptr = std::make_shared<ExampleECS>(window, [](auto& ecs){
@@ -489,6 +489,7 @@ int main() {
             ecs.ResizeFramebuffer(1, viewportSize.x, viewportSize.y);
             ImGui::Image((ImTextureID)frame_image_ds, viewportSize);
             if (ecs.FramebufferChanged(1)) {
+                ecs.SetCameraAspect(1, viewportSize.x, viewportSize.y);
                 frame_image = ecs.GetFramebufferImage(1);
                 auto frame_ds_pair = imgui.CreateDescriptorSet(frame_image);
                 frame_image_ds = frame_ds_pair.second;
@@ -557,7 +558,7 @@ int main() {
                 auto scenes_end = ecs.GetScenesEnd();
                 for (auto scene_it = scenes_begin; scene_it != scenes_end; ++scene_it) {
                     auto& [scene_id, scene_entry] = *scene_it;
-                    DrawSceneEntry(ecs, scene_id, scene_entry);
+                    DrawSceneReflectableGroup(ecs, scene_id, scene_entry);
                 }
                 ImGui::EndTable();
             }
@@ -608,14 +609,18 @@ int main() {
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             ImGui::SetNextItemWidth(250);
-                            ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                            if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                reflectable.NotifyChange(0);
+                            }
                             break;
                         }
                         case ReflectableTypehint::VEC4_RGBA:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             ImGui::SetNextItemWidth(250);
-                            ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float);
+                            if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                                reflectable.NotifyChange(0);
+                            }
                             break;
                         }
                         default:
@@ -629,29 +634,37 @@ int main() {
                                 auto type_info = reflectable_typeinfos[prop_index];
 
                                 ImGui::Text("%s", prop_name.c_str());
-                                ImGui::SameLine(150);
+                                ImGui::SameLine(75);
 
-                                if (*type_info == typeid(float))
-                                {
+                                if (*type_info == typeid(float)) {
                                     auto& value = reflectable.GetPropertyByIndex<float>(prop_index);
-                                    ImGui::SetNextItemWidth(180);
-                                    ImGui::DragFloat("##f", &value, 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+                                    // ImGui::SetNextItemWidth(180);
+                                    if (ImGui::DragFloat("##f", &value, 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                        reflectable.NotifyChange(prop_index);
+                                    }
                                 }
-                                else if (*type_info == typeid(int))
-                                {
+                                else if (*type_info == typeid(int)) {
                                     auto& value = reflectable.GetPropertyByIndex<int>(prop_index);
-                                    ImGui::SetNextItemWidth(180);
-                                    ImGui::InputInt("##i", &value);
+                                    // ImGui::SetNextItemWidth(180);
+                                    if (ImGui::InputInt("##i", &value)) {
+                                        reflectable.NotifyChange(prop_index);
+                                    }
                                 }
-                                else if (*type_info == typeid(std::string))
-                                {
+                                else if (*type_info == typeid(std::string)) {
                                     auto& value = reflectable.GetPropertyByIndex<std::string>(prop_index);
                                     if (value.capacity() < 128) value.reserve(128);
-                                    ImGui::SetNextItemWidth(220);
-                                    ImGui::InputText("##s", value.data(), value.capacity() + 1);
+                                    // ImGui::SetNextItemWidth(220);
+                                    if (ImGui::InputText("##s", value.data(), value.capacity() + 1)) {
+                                        reflectable.NotifyChange(prop_index);
+                                    }
                                 }
-                                else
-                                {
+                                else if (*type_info == typeid(vec<float, 3>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<vec<float, 3>>(prop_index);
+                                    if (ImGui::DragFloat3("##vec3", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                        reflectable.NotifyChange(prop_index);
+                                    }
+                                }
+                                else {
                                     ImGui::TextDisabled("<Unsupported type>");
                                 }
 
@@ -681,7 +694,7 @@ int main() {
     }
 }
 
-void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& entity_entry)
+void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentReflectableGroup& entity_entry)
 {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -758,7 +771,7 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentEntry& 
     ImGui::PopID();
 }
 
-void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene_entry) {
+void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneReflectableGroup& scene_entry) {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
     ImGui::PushID(&scene_entry);
@@ -859,10 +872,10 @@ void DrawSceneEntry(ExampleECS& ecs, int scene_id, ExampleECS::SceneEntry& scene
                 DrawGenericEntry(child_entry.id, child_entry);
                 break;
             case ReflectableGroup::Scene:
-                DrawSceneEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::SceneEntry&>(child_entry));
+                DrawSceneReflectableGroup(ecs, child_entry.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_entry));
                 break;
             case ReflectableGroup::Entity:
-                DrawEntityEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::EntityComponentEntry&>(child_entry));
+                DrawEntityEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_entry));
                 break;
             }
         }

@@ -75,7 +75,7 @@ namespace dz {
     template<typename EntityT, typename ComponentT, typename SystemT>
     struct ECS {
 
-        struct EntityComponentEntry : ReflectableGroup {
+        struct EntityComponentReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
             std::string name;
             std::unordered_map<int, std::shared_ptr<ComponentT>> components;
@@ -112,13 +112,13 @@ namespace dz {
             }
         };
 
-        struct SceneEntry : ReflectableGroup {
+        struct SceneReflectableGroup : ReflectableGroup {
             std::string name;
             Framebuffer* framebuffer = 0;
             Image* fb_color_image = 0;
             Image* fb_depth_image = 0;
             std::vector<ReflectableGroup*> reflectable_children;
-            ~SceneEntry() {
+            ~SceneReflectableGroup() {
                 framebuffer_destroy(framebuffer);
             }
             GroupType GetGroupType() override {
@@ -163,22 +163,61 @@ namespace dz {
             int constructed_count = 0;
         };
 
-        struct CameraEntry : ReflectableGroup {
+        struct CameraReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
             std::string name;
+            std::vector<Reflectable*> reflectables;
+            ~CameraReflectableGroup() {
+                ClearChildren();
+            }
             GroupType GetGroupType() override {
                 return ReflectableGroup::Camera;
             }
             std::string& GetName() override {
                 return name;
             }
+            const std::vector<Reflectable*>& GetReflectables() override {
+                return reflectables;
+            }
+            void UpdateChildren(ECS& ecs) {
+                reflectables.clear();
+                auto ecs_ptr = &ecs;
+                auto camera_id = id;
+                reflectables.push_back(new CameraTypeReflectable([ecs_ptr, camera_id]() mutable {
+                    return ecs_ptr->GetCamera(camera_id);
+                }));
+                reflectables.push_back(new CameraViewReflectable([ecs_ptr, camera_id]() mutable {
+                    return ecs_ptr->GetCamera(camera_id);
+                }));
+                auto camera_ptr = ecs.GetCamera(id);
+                assert(camera_ptr);
+                auto& camera = *camera_ptr;
+                switch (Camera::ProjectionType(camera.type)) {
+                case Camera::Perspective:
+                    reflectables.push_back(new CameraPerspectiveReflectable([ecs_ptr, camera_id]() mutable {
+                        return ecs_ptr->GetCamera(camera_id);
+                    }));
+                    break;
+                case Camera::Orthographic:
+                    reflectables.push_back(new CameraOrthographicReflectable([ecs_ptr, camera_id]() mutable {
+                        return ecs_ptr->GetCamera(camera_id);
+                    }));
+                    break;
+                default: break;
+                }
+            }
+            void ClearChildren() {
+                for (auto reflectable_child : reflectables)
+                    delete reflectable_child;
+                reflectables.clear();
+            }
         };
 
         WINDOW* window_ptr = 0;
 
-        std::map<int, EntityComponentEntry> id_entity_entries;
-        std::map<size_t, SceneEntry> id_scene_entries;
-        std::map<size_t, CameraEntry> id_camera_entries;
+        std::map<int, EntityComponentReflectableGroup> id_entity_entries;
+        std::map<size_t, SceneReflectableGroup> id_scene_entries;
+        std::map<size_t, CameraReflectableGroup> id_camera_entries;
         size_t add_scene_id;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
@@ -285,11 +324,11 @@ namespace dz {
         size_t AddCameraToScene(size_t scene_id, Camera::ProjectionType projectionType) {
             auto camera_id = GlobalUID::GetNew("ECS:Camera");
             auto index = id_camera_entries.size();
-            auto& entry = id_camera_entries[camera_id];
-            entry.index = index;
-            entry.id = camera_id;
-            entry.scene_id = scene_id;
-            entry.name = ("Camera #" + std::to_string(camera_id));
+            auto& camera_entry = id_camera_entries[camera_id];
+            camera_entry.index = index;
+            camera_entry.id = camera_id;
+            camera_entry.scene_id = scene_id;
+            camera_entry.name = ("Camera #" + std::to_string(camera_id));
             if (buffer_group) {
                 auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, cameras_buffer_name);
                 if ((index + 1) > camera_buffer_size) {
@@ -303,7 +342,7 @@ namespace dz {
             auto& height = *window_get_height_ref(window_ptr);
             switch(projectionType) {
             case Camera::Perspective:
-                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width / height, 81.f);
+                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width / height, radians(81.f));
                 break;
             case Camera::Orthographic:
                 CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
@@ -311,6 +350,7 @@ namespace dz {
             }
             auto& scene_entry = id_scene_entries[scene_id];
             scene_entry.UpdateChildren(*this);
+            camera_entry.UpdateChildren(*this);
             return camera_id;
         }
 
@@ -609,6 +649,7 @@ void main() {
             }
             shader_string += R"(
     if (Cameras.cameras.length() > 0) {
+        final_position.y *= -1.0;
         Camera camera = Cameras.cameras[0];
         vec4 camera_position = camera.projection * camera.view * final_position;
         final_position = camera_position;
@@ -644,11 +685,11 @@ void main() {
             return ids;
         }
 
-        std::map<size_t, SceneEntry>::iterator GetScenesBegin() {
+        std::map<size_t, SceneReflectableGroup>::iterator GetScenesBegin() {
             return id_scene_entries.begin();
         }
 
-        std::map<size_t, SceneEntry>::iterator GetScenesEnd() {
+        std::map<size_t, SceneReflectableGroup>::iterator GetScenesEnd() {
             return id_scene_entries.end();
         }
 
@@ -680,7 +721,19 @@ void main() {
             return framebuffer_changed(scene_entry.framebuffer);
         }
 
-        bool SetCameraAspect(size_t camera_id, uint32_t width, uint32_t height) {
+        bool SetCameraAspect(size_t camera_id, float width, float height) {
+            auto camera_ptr = GetCamera(camera_id);
+            if (!camera_ptr)
+                return false;
+            auto& camera = *camera_ptr;
+            if (camera.type == 1) {
+                camera.aspect = width / height;
+            }
+            else if (camera.type == 2) {
+                camera.orthoWidth = width;
+                camera.orthoHeight = height;
+            }
+            CameraInit(camera);
             return true;
         }
 

@@ -35,6 +35,7 @@ struct Reflectable {
     T& GetPropertyByName(const std::string& prop_name) {
         return *(T*)GetVoidPropertyByName(prop_name);
     }
+    virtual void NotifyChange(int prop_index) { }
 };
 
 struct ReflectableGroup {

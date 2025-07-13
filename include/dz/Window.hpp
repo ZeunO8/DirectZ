@@ -221,6 +221,11 @@ namespace dz
     const std::string& window_get_title_ref(WINDOW*);
 
     /**
+    * @brief sets the title of a given WINDOW
+    */
+    void window_set_title(WINDOW*, const std::string&);
+
+    /**
     * @brief Returns a reference to the id
     */
     size_t window_get_id_ref(WINDOW*);
