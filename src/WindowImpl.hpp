@@ -24,6 +24,7 @@ struct WINDOW
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
 	bool capture = false;
+	bool drag_in_progress = false;
 	ImGuiViewport* imguiViewport = 0;
 #ifdef _WIN32
     HINSTANCE hInstance;

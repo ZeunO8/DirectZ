@@ -432,27 +432,7 @@ namespace dz {
 
 	#ifdef _WIN32
 	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	// void SetupPixelFormat(HDC hDeviceContext)
-	// {
-	// 	int pixelFormat;
-	// 	PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1};
-	// 	pfd.nVersion = 1;
-	// 	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-	// 	pfd.iPixelType = PFD_TYPE_RGBA;
-	// 	pfd.cColorBits = 32;
-	// 	pfd.cDepthBits = 32;
-	// 	pfd.iLayerType = PFD_MAIN_PLANE;
-	// 	pixelFormat = ChoosePixelFormat(hDeviceContext, &pfd);
-	// 	if (pixelFormat == 0)
-	// 	{
-	// 		throw std::runtime_error("pixelFormat is null!");
-	// 	}
-	// 	BOOL result = SetPixelFormat(hDeviceContext, pixelFormat, &pfd);
-	// 	if (!result)
-	// 	{
-	// 		throw std::runtime_error("failed to setPixelFormat!");
-	// 	}
-	// }
+
 	uint8_t get_window_type_platform()
 	{
 		return WINDOW_TYPE_WIN32;
@@ -840,6 +820,19 @@ namespace dz {
 				PostQuitMessage(0);
 			else
 				return 0;
+			break;
+		case WM_MOVE:
+			{
+				window.x = (float)(short)LOWORD(lParam);
+				window.y = (float)(short)HIWORD(lParam);
+				break;
+			}
+		case WM_ENTERSIZEMOVE:
+    		window.drag_in_progress = true;
+    		break;
+		case WM_EXITSIZEMOVE:
+    		window.drag_in_progress = false;
+			window.event_interface->cursor_press(0, false);
 			break;
 		case WM_SIZE:
 			{

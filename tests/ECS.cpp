@@ -321,17 +321,20 @@ int main() {
             ImVec2 menu_pos = ImGui::GetWindowPos();
             ImVec2 menu_size = ImGui::GetWindowSize();
             ImVec2 mouse_pos = ImGui::GetMousePos();
+            ImGuiViewport* main_viewport = ImGui::GetMainViewport();
 
             bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
-            bool held = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+            bool held = ImGui::IsMouseDown(ImGuiMouseButton_Left) && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
 
-            if (hovered && held)
+            static bool dragging = false;
+
+            if (main_viewport && main_viewport->PlatformHandle && !dragging && (hovered && held))
             {
-                ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-                if (main_viewport && main_viewport->PlatformHandle)
-                {
-                    window_request_drag((WINDOW*)main_viewport->PlatformHandle);
-                }
+                dragging = true;
+                window_request_drag((WINDOW*)main_viewport->PlatformHandle);
+            }
+            else if (dragging && !(hovered && held)) {
+                dragging = false;
             }
 
             if (ImGui::BeginMenu("File"))
