@@ -15,60 +15,62 @@
 #include <map>
 #include <set>
 #define ECS_MAX_COMPONENTS 8
+
+template <typename T>
+struct ComponentTypeID;
+
+template <typename T>
+struct ComponentComponentName;
+
+template <typename T>
+struct ComponentStructName;
+
+template <typename T>
+struct ComponentStruct;
+
+template <typename T>
+struct ComponentGLSLMethods;
+
+template <typename T>
+struct ComponentGLSLMain;
+
+#define DEF_COMPONENT_ID(TYPE, ID) \
+template <> \
+struct ComponentTypeID<TYPE> { \
+    static constexpr size_t id = ID; \
+}
+
+#define DEF_COMPONENT_COMPONENT_NAME(TYPE, STRING) \
+template <> \
+struct ComponentComponentName<TYPE> { \
+    inline static std::string string = STRING; \
+}
+
+#define DEF_COMPONENT_STRUCT_NAME(TYPE, STRING) \
+template <> \
+struct ComponentStructName<TYPE> { \
+    inline static std::string string = STRING; \
+}
+
+#define DEF_COMPONENT_STRUCT(TYPE, STRING) \
+template <> \
+struct ComponentStruct<TYPE> { \
+    inline static std::string string = STRING; \
+}
+
+#define DEF_COMPONENT_GLSL_METHODS(TYPE, STRING) \
+template <> \
+struct ComponentGLSLMethods<TYPE> { \
+    inline static std::string string = STRING; \
+}
+
+#define DEF_COMPONENT_GLSL_MAIN(TYPE, STRING) \
+template <> \
+struct ComponentGLSLMain<TYPE> { \
+    inline static std::string string = STRING; \
+}
+
 namespace dz {
-    template <typename T>
-    struct ComponentTypeID;
-
-    template <typename T>
-    struct ComponentComponentName;
-
-    template <typename T>
-    struct ComponentStructName;
-
-    template <typename T>
-    struct ComponentStruct;
-
-    template <typename T>
-    struct ComponentGLSLMethods;
-
-    template <typename T>
-    struct ComponentGLSLMain;
-
-    #define DEF_COMPONENT_ID(TYPE, ID) \
-    template <> \
-    struct ComponentTypeID<TYPE> { \
-        static constexpr size_t id = ID; \
-    }
-
-    #define DEF_COMPONENT_COMPONENT_NAME(TYPE, STRING) \
-    template <> \
-    struct ComponentComponentName<TYPE> { \
-        inline static std::string string = STRING; \
-    }
-
-    #define DEF_COMPONENT_STRUCT_NAME(TYPE, STRING) \
-    template <> \
-    struct ComponentStructName<TYPE> { \
-        inline static std::string string = STRING; \
-    }
-
-    #define DEF_COMPONENT_STRUCT(TYPE, STRING) \
-    template <> \
-    struct ComponentStruct<TYPE> { \
-        inline static std::string string = STRING; \
-    }
-
-    #define DEF_COMPONENT_GLSL_METHODS(TYPE, STRING) \
-    template <> \
-    struct ComponentGLSLMethods<TYPE> { \
-        inline static std::string string = STRING; \
-    }
-
-    #define DEF_COMPONENT_GLSL_MAIN(TYPE, STRING) \
-    template <> \
-    struct ComponentGLSLMain<TYPE> { \
-        inline static std::string string = STRING; \
-    }
 
     inline static std::string cameras_buffer_name = "Cameras";
     

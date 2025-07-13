@@ -115,9 +115,7 @@ struct ReflectableGroup {
 }
 
 #define DEF_GET_PROPERTY_TYPEINFOS(TYPEINFOS) const std::vector<const std::type_info*>& GetPropertyTypeinfos() override { \
-    return TYPEINFOS; \
-}
+    return TYPEINFOS; }
 
 #define DEF_GET_DISABLED_PROPERTIES(DISABLED_PROPERTIES) const std::vector<bool>& GetDisabledProperties() override { \
-    return DISABLED_PROPERTIES; \
-}
+    return DISABLED_PROPERTIES; }
