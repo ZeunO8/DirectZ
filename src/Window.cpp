@@ -1190,19 +1190,32 @@ namespace dz {
 #if defined(_WIN32)
 		return IsIconic(window_ptr->hwnd);
 #elif defined(__linux) && !defined(ANDROID)
-		auto connection = window_ptr->connection;
-		xcb_window_t window = window_ptr->window;
-		if (!connection || !window)
+		Atom wm_state_atom = XInternAtom(window->display, "WM_STATE", True);
+		if (wm_state_atom == None)
 			return false;
 
-		xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_state_unchecked(connection, window);
-		xcb_icccm_get_wm_state_reply_t reply;
+		xcb_get_property_cookie_t cookie = xcb_get_property(
+			window->connection,
+			false,
+			window->window,
+			wm_state_atom,
+			XCB_GET_PROPERTY_TYPE_ANY,
+			0,
+			2
+		);
 
-		if (xcb_icccm_get_wm_state_reply(connection, cookie, &reply, nullptr))
-		{
-			return reply.state == XCB_ICCCM_WM_STATE_ICONIC;
+		xcb_get_property_reply_t* reply = xcb_get_property_reply(window->connection, cookie, nullptr);
+		if (!reply)
+			return false;
+
+		bool minimized = false;
+		if (xcb_get_property_value_length(reply) >= 8) {
+			uint32_t* value = (uint32_t*)xcb_get_property_value(reply);
+			minimized = (value[0] == IconicState); // 3 is IconicState in Xlib
 		}
-		return false;
+
+		free(reply);
+		return minimized;
 #elif defined(ANDROID)
 		return false;
 #endif

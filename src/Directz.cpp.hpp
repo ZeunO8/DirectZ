@@ -33,7 +33,6 @@ using namespace dz;
 #include <X11/keysymdef.h>
 #include <xcb/xfixes.h>
 #include <xkbcommon/xkbcommon.h>
-#include <xcb/xcb_icccm.h>
 #include <dlfcn.h>
 #elif defined(MACOS)
 #include <dlfcn.h>
