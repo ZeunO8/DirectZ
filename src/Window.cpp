@@ -1069,6 +1069,8 @@ namespace dz {
 				auto button = buttonRelease->detail - 1;
 				if (button == 3 || button == 4)
 					break;
+				if (button == 0)
+					window.drag_in_progress = false
 				window.event_interface->cursor_press(button, false);
 				break;
 			}
@@ -1367,6 +1369,8 @@ namespace dz {
 					XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
 					(const char*)&ev);
 		xcb_flush(connection);
+
+		window_ptr->drag_in_progress = true;
 #elif defined(ANDROID)
 
 #endif

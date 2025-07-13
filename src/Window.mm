@@ -36,6 +36,7 @@ namespace dz
 	}
 }
 #include "WINDOWDelegateImpl.mm"
+#include "DZWindow.mm"
 namespace dz
 {
 	#include "path.mm"
@@ -53,23 +54,24 @@ namespace dz
 			int32_t windowX = x == -1 ? 128 : x,
 					windowY = y == -1 ? 128 : y;
 			NSRect rect = NSMakeRect(windowX, windowY, *width, *height);
-			nsWindow = [[NSWindow alloc] initWithContentRect:rect
+			nsWindow = [[DZWindow alloc] initWithContentRect:rect
 								styleMask:(NSWindowStyleMaskTitled |
 											NSWindowStyleMaskClosable |
 											NSWindowStyleMaskResizable |
 											NSWindowStyleMaskMiniaturizable)
 								backing:NSBackingStoreBuffered
 								defer:NO];
+			((DZWindow*)nsWindow)->window_ptr = this;
 			NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
-			[(NSWindow*)nsWindow setTitle:nsTitle];
-			[(NSWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
-			[(NSWindow*)nsWindow makeKeyAndOrderFront:nil];
+			[(DZWindow*)nsWindow setTitle:nsTitle];
+			[(DZWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
+			[(DZWindow*)nsWindow makeKeyAndOrderFront:nil];
 
 			NSRect frame = NSMakeRect(0, 0, *width, *height);
 			metalView = [[MetalView alloc] initWithFrame:frame];
-			[(NSWindow*)nsWindow setContentView:(MetalView*)metalView];
+			[(DZWindow*)nsWindow setContentView:(MetalView*)metalView];
 
-			// nsView = [(NSWindow*)nsWindow contentView];
+			// nsView = [(DZWindow*)nsWindow contentView];
 			// NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
 			// [NSApp setMainMenu:mainMenu];
 			// CAMetalLayer* metalLayer = [CAMetalLayer layer];
@@ -111,7 +113,7 @@ namespace dz
 #if defined(MACOS)
 		if (nsWindow)
 		{
-			NSWindow* window = (__bridge_transfer NSWindow*)nsWindow;
+			DZWindow* window = (DZWindow*)nsWindow;
 			[window close];
 		}
 #endif
@@ -191,7 +193,7 @@ namespace dz
 		@autoreleasepool
 		{
 			NSString* title_str = [NSString stringWithUTF8String:new_title.c_str()];
-			[(NSWindow*)window_ptr->nsWindow setTitle:title_str];
+			[(DZWindow*)window_ptr->nsWindow setTitle:title_str];
 		}
 		window_ptr->title = new_title;
 	}
@@ -201,7 +203,7 @@ namespace dz
 			return;
 		if (should_capture)
 		{
-			NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+			DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
 			[NSApp preventWindowOrdering];
 			[(nsWindow) setIgnoresMouseEvents:NO];
 			[[(nsWindow) contentView] addTrackingArea:
@@ -220,7 +222,7 @@ namespace dz
 
 	bool window_get_minimized(WINDOW* window_ptr) {
 #if defined(MACOS)
-		NSWindow* nsWindow = (__bridge NSWindow*)window_ptr;
+		DZWindow* nsWindow = (DZWindow*)window_ptr;
 		return [nsWindow isMiniaturized];
 #elif defined(IOS)
 		return false;
@@ -231,7 +233,7 @@ namespace dz
 #if defined(MACOS)
 		if (!window_ptr || !window_ptr->nsWindow)
 			return;
-		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
 		[nsWindow makeKeyAndOrderFront:nil];
 		[nsWindow makeMainWindow];
 		[nsWindow makeKeyWindow];
@@ -245,7 +247,7 @@ namespace dz
 #if defined(MACOS)
 		if (!window_ptr || !window_ptr->nsWindow)
 			return;
-		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
 		NSRect frame = [nsWindow frame];
 		frame.size = NSMakeSize(width, height);
 		[nsWindow setFrame:frame display:YES animate:NO];
@@ -262,7 +264,7 @@ namespace dz
 		if (!window_ptr || !window_ptr->nsWindow)
 			return ImVec2(window_ptr->x, window_ptr->y);
 
-		NSWindow* nsWindow = (__bridge NSWindow*)window_ptr->nsWindow;
+		DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
 		NSRect frame = [nsWindow frame];
 		window_ptr->x = frame.origin.x;
 		window_ptr->y = frame.origin.y;
@@ -278,7 +280,7 @@ namespace dz
 		if (!window_ptr || !window_ptr->nsWindow)
 			return;
 
-		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
 		NSRect frame = [nsWindow frame];
 		NSRect newFrame = NSMakeRect(x, y, frame.size.width, frame.size.height);
 		[nsWindow setFrame:newFrame display:YES animate:NO];
