@@ -1070,7 +1070,7 @@ namespace dz {
 				if (button == 3 || button == 4)
 					break;
 				if (button == 0)
-					window.drag_in_progress = false
+					window.drag_in_progress = false;
 				window.event_interface->cursor_press(button, false);
 				break;
 			}
