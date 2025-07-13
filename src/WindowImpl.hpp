@@ -162,6 +162,12 @@ private:
 		&typeid(float),
 		&typeid(float)
 	};
+	inline static const std::vector<bool>& disabled_properties = {
+		true,
+		true,
+		true,
+		true
+	};
 
 public:
 	WindowViewportReflectable(WINDOW* window_ptr);
@@ -172,4 +178,5 @@ public:
 	void* GetVoidPropertyByIndex(int prop_index) override;
 	DEF_GET_VOID_PROPERTY_BY_NAME;
 	DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
+	DEF_GET_DISABLED_PROPERTIES(disabled_properties);
 };

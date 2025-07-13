@@ -6,7 +6,8 @@ void dz::CameraInit(
     vec<float, 3> up,
     float nearPlane,
     float farPlane,
-    float aspect,
+    float width,
+    float height,
     float fov,
     Camera::ProjectionType projectionType
 ) {
@@ -17,8 +18,10 @@ void dz::CameraInit(
     camera.center = center;
     camera.up = up;
     camera.type = int(projectionType);
-    camera.aspect = aspect;
+    camera.aspect = width / height;
     camera.fov = fov;
+    camera.orthoWidth = width;
+    camera.orthoHeight = height;
     CameraInit(camera);
 }
 void dz::CameraInit(
@@ -40,6 +43,7 @@ void dz::CameraInit(
     camera.type = int(projectionType);
     camera.orthoWidth = viewport[3];
     camera.orthoHeight = viewport[4];
+    camera.aspect = camera.orthoWidth / camera.orthoHeight;
     CameraInit(camera);
 }
 
@@ -53,15 +57,19 @@ void dz::CameraInit(Camera& camera) {
         camera.view = lookAt(adj_position, camera.center, camera.up);
         break;
     case Camera::Orthographic:
-        camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.nearPlane, camera.farPlane);
+        camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.farPlane, camera.nearPlane);
         camera.view = lookAt(adj_position, camera.center, camera.up);
         break;
     default: break;
     }
 }
 
-CameraTypeReflectable::CameraTypeReflectable(const std::function<Camera*()>& get_camera_function):
+CameraTypeReflectable::CameraTypeReflectable(
+    const std::function<Camera*()>& get_camera_function,
+    const std::function<void()>& reset_reflectables_function
+):
     get_camera_function(get_camera_function),
+    reset_reflectables_function(reset_reflectables_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Camera Type")
 {}
@@ -83,6 +91,19 @@ void* CameraTypeReflectable::GetVoidPropertyByIndex(int prop_index) {
     case 0:
         return &camera.type;
     default: return nullptr;
+    }
+}
+
+void CameraTypeReflectable::NotifyChange(int prop_index) {
+    auto camera_ptr = get_camera_function();
+    if (!camera_ptr)
+        return;
+    auto& camera = *camera_ptr;
+    switch (prop_index) {
+    default:
+        CameraInit(camera);
+        reset_reflectables_function();
+        break;
     }
 }
 

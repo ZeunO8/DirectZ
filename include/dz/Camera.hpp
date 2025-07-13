@@ -5,8 +5,8 @@
 namespace dz {
     struct Camera {
         enum ProjectionType : int32_t {
-            Perspective = 1,
-            Orthographic = 2
+            Perspective,
+            Orthographic
         };
         mat<float, 4, 4> view;
         mat<float, 4, 4> projection;
@@ -15,7 +15,7 @@ namespace dz {
         int type;
         float aspect = 0;
         vec<float, 3> position;
-        float fov = 0;
+        float fov = 80.f;
         vec<float, 3> center;
         float orthoWidth;
         vec<float, 3> up;
@@ -47,7 +47,8 @@ struct Camera {
         vec<float, 3> up,
         float nearPlane,
         float farPlane,
-        float aspect,
+        float width,
+        float height,
         float fov,
         Camera::ProjectionType projectionType = Camera::Perspective
     );
@@ -69,6 +70,7 @@ struct Camera {
         
     private:
         std::function<Camera*()> get_camera_function;
+        std::function<void()> reset_reflectables_function;
         int uid;
         std::string name;
         inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -81,11 +83,14 @@ struct Camera {
             "type"
         };
         inline static const std::vector<const std::type_info*> typeinfos = {
-            &typeid(int)
+            &typeid(Camera::ProjectionType)
         };
 
     public:
-        CameraTypeReflectable(const std::function<Camera*()>& get_camera_function);
+        CameraTypeReflectable(
+            const std::function<Camera*()>& get_camera_function,
+            const std::function<void()>& reset_reflectables_function
+        );
         int GetID() override;
         std::string& GetName() override;
         DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -93,6 +98,7 @@ struct Camera {
         void* GetVoidPropertyByIndex(int prop_index) override;
         DEF_GET_VOID_PROPERTY_BY_NAME;
         DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
+        void NotifyChange(int prop_index) override;
     };
         
     struct CameraViewReflectable : Reflectable {

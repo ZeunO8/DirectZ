@@ -592,9 +592,21 @@ int main() {
 
                 auto& reflectables = reflectable_entry.GetReflectables();
 
-                for (auto& reflectable_ptr : reflectables)
+                auto reflect_begin = reflectables.begin();
+                auto reflect_it = reflect_begin;
+                auto reflect_end = reflectables.end();
+                size_t reflect_dist = 0;
+
+                auto update_iterators = [&]() {
+                    reflect_begin = reflectables.begin();
+                    reflect_it = reflect_begin + reflect_dist;
+                    reflect_end = reflectables.end();
+                };
+
+                for (; reflect_it != reflect_end; reflect_it++)
                 {
-                    auto& reflectable = *reflectable_ptr;
+                    reflect_dist = std::distance(reflect_begin, reflect_it);
+                    auto& reflectable = **reflect_it;
                     const auto& reflectable_name = reflectable.GetName();
 
                     if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -608,18 +620,20 @@ int main() {
                         case ReflectableTypehint::VEC4:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            ImGui::SetNextItemWidth(250);
+                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
+                                update_iterators();
                             }
                             break;
                         }
                         case ReflectableTypehint::VEC4_RGBA:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            ImGui::SetNextItemWidth(250);
+                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
                                 reflectable.NotifyChange(0);
+                                update_iterators();
                             }
                             break;
                         }
@@ -627,47 +641,84 @@ int main() {
                         case ReflectableTypehint::STRUCT: {
                             const auto& reflectable_typeinfos = reflectable.GetPropertyTypeinfos();
                             const auto& reflectable_prop_names = reflectable.GetPropertyNames();
+                            const auto& disabled_properties = reflectable.GetDisabledProperties();
+                            size_t index = 0;
                             for (auto& prop_name : reflectable_prop_names)
                             {
                                 ImGui::PushID(prop_name.c_str());
                                 auto prop_index = reflectable.GetPropertyIndexByName(prop_name);
                                 auto type_info = reflectable_typeinfos[prop_index];
+                                bool is_disabled = (prop_index < disabled_properties.size()) ? disabled_properties[prop_index] : false;
 
+                                ImGui::BeginDisabled(is_disabled);
                                 ImGui::Text("%s", prop_name.c_str());
-                                ImGui::SameLine(75);
+                                ImGui::SameLine();
 
-                                if (*type_info == typeid(float)) {
+                                if (*type_info == typeid(float))
+                                {
                                     auto& value = reflectable.GetPropertyByIndex<float>(prop_index);
-                                    // ImGui::SetNextItemWidth(180);
-                                    if (ImGui::DragFloat("##f", &value, 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                    ImGui::PushID(prop_index);
+                                    if (ImGui::InputFloat("##input", &value, 0.1f, 1.0f, "%.3f")) {
                                         reflectable.NotifyChange(prop_index);
+                                        update_iterators();
                                     }
+                                    ImGui::PopID();
                                 }
                                 else if (*type_info == typeid(int)) {
                                     auto& value = reflectable.GetPropertyByIndex<int>(prop_index);
-                                    // ImGui::SetNextItemWidth(180);
-                                    if (ImGui::InputInt("##i", &value)) {
+                                    ImGui::PushID(prop_index);
+                                    if (ImGui::InputInt("##input", &value)) {
                                         reflectable.NotifyChange(prop_index);
+                                        update_iterators();
+                                    }
+                                    ImGui::PopID();
+                                }
+                                else if (*type_info == typeid(Camera::ProjectionType)) {
+                                    auto& value = reflectable.GetPropertyByIndex<Camera::ProjectionType>(prop_index);
+                                    static const char* projection_types[] = { "Perspective", "Orthographic" };
+                                    int current_index = static_cast<int>(value);
+                                    if (ImGui::Combo("##proj", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
+                                        value = static_cast<Camera::ProjectionType>(current_index);
+                                        reflectable.NotifyChange(prop_index);
+                                        update_iterators();
                                     }
                                 }
                                 else if (*type_info == typeid(std::string)) {
                                     auto& value = reflectable.GetPropertyByIndex<std::string>(prop_index);
                                     if (value.capacity() < 128) value.reserve(128);
-                                    // ImGui::SetNextItemWidth(220);
+                                    ImGui::PushID(prop_index);
                                     if (ImGui::InputText("##s", value.data(), value.capacity() + 1)) {
                                         reflectable.NotifyChange(prop_index);
+                                        update_iterators();
+                                    }
+                                    ImGui::PopID();
+                                }
+                                else if (*type_info == typeid(vec<float, 2>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<vec<float, 2>>(prop_index);
+                                    if (ImGui::DragFloat2("##vec2", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                        reflectable.NotifyChange(prop_index);
+                                        update_iterators();
                                     }
                                 }
                                 else if (*type_info == typeid(vec<float, 3>)) {
                                     auto& value = reflectable.GetPropertyByIndex<vec<float, 3>>(prop_index);
                                     if (ImGui::DragFloat3("##vec3", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                         reflectable.NotifyChange(prop_index);
+                                        update_iterators();
+                                    }
+                                }
+                                else if (*type_info == typeid(vec<float, 4>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<vec<float, 4>>(prop_index);
+                                    if (ImGui::DragFloat4("##vec4", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                        reflectable.NotifyChange(prop_index);
+                                        update_iterators();
                                     }
                                 }
                                 else {
                                     ImGui::TextDisabled("<Unsupported type>");
                                 }
 
+                                ImGui::EndDisabled();
                                 ImGui::PopID();
                             }
                             break;
@@ -861,22 +912,24 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
     {
         for (auto scene_entry_child_entry : scene_entry_children) {
             auto& child_entry = *scene_entry_child_entry;
-            switch (child_entry.GetGroupType())
-            {
-            case ReflectableGroup::Window:
-                assert(false);
-                break;
-            case ReflectableGroup::Generic:
-            case ReflectableGroup::Camera:
-            case ReflectableGroup::Light:
-                DrawGenericEntry(child_entry.id, child_entry);
-                break;
-            case ReflectableGroup::Scene:
-                DrawSceneReflectableGroup(ecs, child_entry.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_entry));
-                break;
-            case ReflectableGroup::Entity:
-                DrawEntityEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_entry));
-                break;
+            if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry)) {
+                switch (child_entry.GetGroupType())
+                {
+                case ReflectableGroup::Window:
+                    assert(false);
+                    break;
+                case ReflectableGroup::Generic:
+                case ReflectableGroup::Camera:
+                case ReflectableGroup::Light:
+                    DrawGenericEntry(child_entry.id, child_entry);
+                    break;
+                case ReflectableGroup::Scene:
+                    DrawSceneReflectableGroup(ecs, child_entry.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_entry));
+                    break;
+                case ReflectableGroup::Entity:
+                    DrawEntityEntry(ecs, child_entry.id, dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_entry));
+                    break;
+                }
             }
         }
         ImGui::TreePop();

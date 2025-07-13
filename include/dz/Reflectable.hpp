@@ -36,6 +36,10 @@ struct Reflectable {
         return *(T*)GetVoidPropertyByName(prop_name);
     }
     virtual void NotifyChange(int prop_index) { }
+    virtual const std::vector<bool>& GetDisabledProperties() {
+        static std::vector<bool> dummy_disables = {};
+        return dummy_disables;
+    }
 };
 
 struct ReflectableGroup {
@@ -112,4 +116,8 @@ struct ReflectableGroup {
 
 #define DEF_GET_PROPERTY_TYPEINFOS(TYPEINFOS) const std::vector<const std::type_info*>& GetPropertyTypeinfos() override { \
     return TYPEINFOS; \
+}
+
+#define DEF_GET_DISABLED_PROPERTIES(DISABLED_PROPERTIES) const std::vector<bool>& GetDisabledProperties() override { \
+    return DISABLED_PROPERTIES; \
 }

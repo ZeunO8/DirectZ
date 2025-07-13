@@ -539,7 +539,8 @@ namespace dz {
 
         auto& framebuffer = *framebuffer_ptr;
 
-        if (framebuffer.width == width && framebuffer.height == height)
+        if ((framebuffer.width == width && framebuffer.height == height) ||
+            (width > 16384 || height > 16384))
             return false;
 
         auto sizeof_pImages = framebuffer.imagesCount * sizeof(Image*);

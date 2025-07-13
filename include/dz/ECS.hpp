@@ -180,18 +180,31 @@ namespace dz {
                 return reflectables;
             }
             void UpdateChildren(ECS& ecs) {
-                reflectables.clear();
                 auto ecs_ptr = &ecs;
                 auto camera_id = id;
-                reflectables.push_back(new CameraTypeReflectable([ecs_ptr, camera_id]() mutable {
-                    return ecs_ptr->GetCamera(camera_id);
-                }));
-                reflectables.push_back(new CameraViewReflectable([ecs_ptr, camera_id]() mutable {
-                    return ecs_ptr->GetCamera(camera_id);
-                }));
+                if (reflectables.size() == 0) {
+                    reflectables.push_back(new CameraTypeReflectable([ecs_ptr, camera_id]() mutable {
+                        return ecs_ptr->GetCamera(camera_id);
+                    }, [&, ecs_ptr]() mutable {
+                        UpdateChildren(*ecs_ptr);
+                    }));
+                    reflectables.push_back(new CameraViewReflectable([ecs_ptr, camera_id]() mutable {
+                        return ecs_ptr->GetCamera(camera_id);
+                    }));
+                }
                 auto camera_ptr = ecs.GetCamera(id);
                 assert(camera_ptr);
                 auto& camera = *camera_ptr;
+                // clear type reflectables
+                for (size_t index = 0; index < reflectables.size(); index++) {
+                    auto& reflectable = reflectables[index];
+                    if (dynamic_cast<CameraPerspectiveReflectable*>(reflectable) ||
+                        dynamic_cast<CameraOrthographicReflectable*>(reflectable)) {
+                        delete reflectable;
+                        reflectables.erase(reflectables.begin() + index);
+                        index--;
+                    }
+                }
                 switch (Camera::ProjectionType(camera.type)) {
                 case Camera::Perspective:
                     reflectables.push_back(new CameraPerspectiveReflectable([ecs_ptr, camera_id]() mutable {
@@ -342,7 +355,7 @@ namespace dz {
             auto& height = *window_get_height_ref(window_ptr);
             switch(projectionType) {
             case Camera::Perspective:
-                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width / height, radians(81.f));
+                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width, height, radians(81.f));
                 break;
             case Camera::Orthographic:
                 CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
@@ -722,16 +735,19 @@ void main() {
         }
 
         bool SetCameraAspect(size_t camera_id, float width, float height) {
+            if (!width || !height)
+                return false;
             auto camera_ptr = GetCamera(camera_id);
             if (!camera_ptr)
                 return false;
             auto& camera = *camera_ptr;
-            if (camera.type == 1) {
-                camera.aspect = width / height;
-            }
-            else if (camera.type == 2) {
-                camera.orthoWidth = width;
-                camera.orthoHeight = height;
+            camera.orthoWidth = width;
+            camera.orthoHeight = height;
+            switch (Camera::ProjectionType(camera.type)) {
+            case Camera::Perspective:
+                camera.aspect = camera.orthoWidth / camera.orthoHeight;
+                break;
+            default: break;
             }
             CameraInit(camera);
             return true;
