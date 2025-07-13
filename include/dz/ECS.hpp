@@ -659,5 +659,30 @@ void main() {
             return it->second.fb_color_image;
         }
 
+        bool ResizeFramebuffer(size_t scene_id, uint32_t width, uint32_t height) {
+            auto it = id_scene_entries.find(scene_id);
+            if (it == id_scene_entries.end())
+                return false;
+            auto& scene_entry = it->second;
+            auto fb_resized = framebuffer_resize(scene_entry.framebuffer, width, height);
+            if (!fb_resized)
+                return false;
+            scene_entry.fb_color_image = framebuffer_get_image(scene_entry.framebuffer, AttachmentType::Color, true);
+            scene_entry.fb_depth_image = framebuffer_get_image(scene_entry.framebuffer, AttachmentType::Depth, true);
+            return true;
+        }
+
+        bool FramebufferChanged(size_t scene_id) {
+            auto it = id_scene_entries.find(scene_id);
+            if (it == id_scene_entries.end())
+                return false;
+            auto& scene_entry = it->second;
+            return framebuffer_changed(scene_entry.framebuffer);
+        }
+
+        bool SetCameraAspect(size_t camera_id, uint32_t width, uint32_t height) {
+            return true;
+        }
+
     };
 }

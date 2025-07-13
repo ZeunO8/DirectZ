@@ -1442,66 +1442,87 @@ namespace dz {
     * @param shader The shader object.
     */
     void shader_update_descriptor_sets(Shader* shader) {
-        // std::vector<VkWriteDescriptorSet> writes;
-        // std::vector<VkDescriptorBufferInfo> buffer_infos; // Store these so pointers remain valid
+        std::vector<VkWriteDescriptorSet> descriptor_writes;
+        std::vector<VkDescriptorBufferInfo> buffer_infos; 
+        std::vector<VkDescriptorImageInfo> image_infos;
 
-        // // Reserve space to avoid reallocations
-        // writes.reserve(shader->current_buffer_group->buffers.size());
-        // buffer_infos.reserve(shader->current_buffer_group->buffers.size());
+        for (auto& [buffer_group, bound] : shader->buffer_groups) {
+            if (!bound)
+                continue;
+            for (auto& [name, buffer] : buffer_group->buffers) {
+                if (buffer.gpu_buffer.mapped_memory)
+                    continue;
 
-        // for (const auto& pair : shader->current_buffer_group->buffers) {
-        //     const auto& buffer = pair.second;
+                buffer_group_make_gpu_buffer(name, buffer);
+            }
+            for (auto& [name, buffer] : buffer_group->buffers) {
+                // Prepare the descriptor set write
+                buffer_infos.emplace_back();
+                buffer_infos.back().buffer = buffer.gpu_buffer.buffer;
+                buffer_infos.back().offset = 0;
+                buffer_infos.back().range = buffer.gpu_buffer.size;
+            }
+        
+            size_t i = 0;
+            for (auto& [name, buffer] : buffer_group->buffers) {
 
-        //     // Ensure the descriptor set exists for this binding's set
-        //     auto dst_set_it = shader->descriptor_sets.find(buffer.set);
-        //     if (dst_set_it == shader->descriptor_sets.end()) {
-        //         std::cerr << "Warning: No descriptor set found for set " << buffer.set
-        //                   << " for buffer '" << buffer.name << "'. Skipping update." << std::endl;
-        //         continue;
-        //     }
-        //     VkDescriptorSet dst_set = dst_set_it->second;
+                auto dstSet = shader_get_descriptor_set(shader, name);
 
-        //     // Calculate the range for the descriptor info
-        //     VkDeviceSize range = buffer.is_dynamic_sized ?
-        //                          (buffer.element_count * buffer.element_stride) :
-        //                          buffer.static_size;
+                VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                write_set.dstSet = dstSet;
+                write_set.dstBinding = buffer.binding;
+                write_set.dstArrayElement = 0;
+                write_set.descriptorType = buffer.descriptor_type;
+                write_set.descriptorCount = 1;
+                write_set.pBufferInfo = &buffer_infos[i];
+                descriptor_writes.push_back(write_set);
+                
+                i++;
+            }
 
-        //     // Ensure a non-zero range, especially for mock buffers that might start with 0 size
-        //     if (range == 0) {
-        //          std::cerr << "Warning: Buffer '" << buffer.name << "' has a range of 0. Skipping descriptor update." << std::endl;
-        //          continue;
-        //     }
+            for (auto& [name, image_ref] : buffer_group->images) {
+                Image* img = 0;
+                auto override_it = shader->sampler_key_image_override_map.find(name);
+                if (override_it != shader->sampler_key_image_override_map.end()) {
+                    img = override_it->second;
+                }
+                else {
+                    auto image_it = buffer_group->runtime_images.find(name);
+                    if (image_it == buffer_group->runtime_images.end())
+                    {
+                        std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
+                        continue;
+                    }
+                    img = image_it->second.get();
+                }
 
-        //     // Create VkDescriptorBufferInfo
-        //     VkDescriptorBufferInfo buffer_info{};
-        //     buffer_info.buffer = buffer.gpu_buffer.buffer;
-        //     buffer_info.offset = 0; // Assuming the entire buffer is described by this descriptor
-        //     buffer_info.range = range;
-        //     buffer_infos.push_back(buffer_info); // Add to vector to keep it alive
+                image_infos.emplace_back();
+                image_infos.back().imageView = img->imageView;
+                image_infos.back().imageLayout = infer_image_layout(shader, image_ref.descriptor_types);
+                image_infos.back().sampler = img->sampler;
+            }
 
-        //     // Create VkWriteDescriptorSet
-        //     VkWriteDescriptorSet write{};
-        //     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        //     write.dstSet = dst_set;
-        //     write.dstBinding = buffer.binding;
-        //     write.dstArrayElement = 0; // Not using array of descriptors here
-        //     write.descriptorCount = 1;
-        //     write.descriptorType = buffer.descriptor_type;
-        //     write.pBufferInfo = &buffer_infos.back(); // Point to the last added buffer_info
+            size_t j = 0;
+            for (auto& [name, image_ref] : buffer_group->images) {
+                auto dstSet = shader_get_descriptor_set(shader, name);
+                
+                VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+                write_set.dstSet = dstSet;
+                write_set.dstBinding = image_ref.binding;
+                write_set.dstArrayElement = 0;
+                auto type = image_ref.descriptor_types[shader];
+                write_set.descriptorType = type;
+                write_set.descriptorCount = 1;
+                write_set.pImageInfo = &image_infos[j];
+                descriptor_writes.push_back(write_set);
 
-        //     writes.push_back(write);
-        // }
-
-        // if (!writes.empty()) {
-        //     // Call the Vulkan API function (mocked here)
-        //     vkUpdateDescriptorSets(dr.device,
-        //                            static_cast<uint32_t>(writes.size()),
-        //                            writes.data(),
-        //                            0, nullptr); // No descriptor copies in this case
-        //     std::cout << "Successfully updated " << writes.size() << " descriptor sets." << std::endl;
-        // } else {
-        //     std::cout << "No shader buffers found to update descriptor sets for." << std::endl;
-        // }
+                j++;
+            }
+        }
+        
+        if (!descriptor_writes.empty()) {
+            vkUpdateDescriptorSets(dr.device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+        }
     }
 
     void shader_initialize(Shader* shader) {

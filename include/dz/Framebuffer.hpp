@@ -41,6 +41,18 @@ namespace dz {
     */
     bool framebuffer_destroy(Framebuffer*&);
 
+    /**
+    * @brief Resizes a framebuffer and associated Image*
+    *
+    * @returns bool value indicating resize success
+    */
+    bool framebuffer_resize(Framebuffer*, uint32_t width, uint32_t height);
+
+    /**
+    * @returns bool indicating whether the Framebuffer is about to change
+    */
+    bool framebuffer_changed(Framebuffer*);
+
     enum class AttachmentType {
         Color,
         Depth,
@@ -49,6 +61,13 @@ namespace dz {
         ColorResolve,
         DepthResolve
     };
+
+    /**
+    * @brief attempts to return an underlying Image based on AttachmentType
+    *
+    * @returns nullptr if not found
+    */
+    Image* framebuffer_get_image(Framebuffer*, AttachmentType, bool new_image = false);
 
 	enum class BlendFactor
 	{

@@ -480,13 +480,19 @@ int main() {
         }
     });
 
-    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&, frame_image_ds](auto& layer) {
+    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&, frame_image_ds](auto& layer) mutable {
         static bool show_viewport = true;
         if (show_viewport)
         {
             ImGui::Begin("Viewport", &show_viewport);
             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+            ecs.ResizeFramebuffer(1, viewportSize.x, viewportSize.y);
             ImGui::Image((ImTextureID)frame_image_ds, viewportSize);
+            if (ecs.FramebufferChanged(1)) {
+                frame_image = ecs.GetFramebufferImage(1);
+                auto frame_ds_pair = imgui.CreateDescriptorSet(frame_image);
+                frame_image_ds = frame_ds_pair.second;
+            }
             ImGui::End();
         }
     });

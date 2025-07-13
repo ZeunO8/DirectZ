@@ -31,6 +31,9 @@ namespace dz {
 
 	    VkSubmitInfo submitInfo = {};
         bool submit_info_changed = true;
+
+        Image** new_pImages = 0;
+        VkFramebuffer new_framebuffer = VK_NULL_HANDLE;
     };
 
     void transitionDepthLayoutForWriting(Framebuffer&);
@@ -354,6 +357,19 @@ namespace dz {
         }
 
         auto& framebuffer = *framebuffer_ptr;
+
+        if (framebuffer.new_pImages) {
+            assert(framebuffer.new_framebuffer);
+            vkDestroyFramebuffer(dr.device, framebuffer.framebuffer, 0);
+            framebuffer.framebuffer = framebuffer.new_framebuffer;
+            framebuffer.new_framebuffer = VK_NULL_HANDLE;
+            for (auto image_index = 0; image_index < framebuffer.imagesCount; image_index++)
+                image_free(framebuffer.pImages[image_index]);
+            free(framebuffer.pImages);
+            framebuffer.pImages = framebuffer.new_pImages;
+            framebuffer.new_pImages = nullptr;
+            framebuffer.render_pass_info_changed = true;
+        }
         
         if (framebuffer.render_pass_info_changed) {
             framebuffer.renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -515,6 +531,92 @@ namespace dz {
         delete framebuffer_ptr;
         framebuffer_ptr = nullptr;
         return true;
+    }
+
+    bool framebuffer_resize(Framebuffer* framebuffer_ptr, uint32_t width, uint32_t height) {
+        if (!framebuffer_ptr)
+            return false;
+
+        auto& framebuffer = *framebuffer_ptr;
+
+        if (framebuffer.width == width && framebuffer.height == height)
+            return false;
+
+        auto sizeof_pImages = framebuffer.imagesCount * sizeof(Image*);
+        framebuffer.new_pImages = (Image**)malloc(sizeof_pImages);
+        memcpy(framebuffer.new_pImages, framebuffer.pImages, sizeof_pImages);
+
+        // resize images
+        for (auto image_index = 0; image_index < framebuffer.imagesCount; image_index++) {
+            image_resize_2D(framebuffer.new_pImages[image_index], width, height, nullptr, true);
+        }
+        
+        // init fb create info
+        std::vector<VkImageView> vkImageViews;
+        vkImageViews.reserve(framebuffer.attachmentTypesCount);
+
+        for (
+            auto attachment_index = 0;
+            attachment_index < framebuffer.imagesCount &&
+            attachment_index < framebuffer.attachmentTypesCount;
+            attachment_index++
+        ) {
+            auto& image = *framebuffer.new_pImages[attachment_index];
+
+            if (image.imageView == VK_NULL_HANDLE)
+            {
+                throw std::runtime_error("Framebuffer attachment texture image view is null!");
+            }
+
+            vkImageViews.push_back(image.imageView);
+
+            if (framebuffer.width != image.width || framebuffer.height != image.height)
+            {
+                framebuffer.width = image.width;
+                framebuffer.height = image.height;
+            }
+        }
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = framebuffer.renderPass;
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(vkImageViews.size());
+        framebufferInfo.pAttachments = vkImageViews.data();
+        framebufferInfo.width = framebuffer.width;
+        framebufferInfo.height = framebuffer.height;
+        framebufferInfo.layers = 1;
+
+        // create fb
+        vk_check("vkCreateFramebuffer",
+            vkCreateFramebuffer(dr.device, &framebufferInfo, nullptr, &framebuffer.new_framebuffer));
+
+        return true;
+    }
+    
+    bool framebuffer_changed(Framebuffer* framebuffer) {
+        return framebuffer->new_pImages;
+    }
+    
+    Image* framebuffer_get_image(Framebuffer* framebuffer_ptr, AttachmentType attachmentType, bool new_image) {
+        if (!framebuffer_ptr)
+            return nullptr;
+        auto& framebuffer = *framebuffer_ptr;
+        for (
+            auto attachment_index = 0;
+            attachment_index < framebuffer.attachmentTypesCount &&
+            attachment_index < framebuffer.imagesCount;
+            attachment_index++
+        ) {
+            if (framebuffer.pAttachmentTypes[attachment_index] == attachmentType) {
+                if (new_image && framebuffer.new_pImages) {
+                    return framebuffer.new_pImages[attachment_index];
+                }
+                else {
+                    return framebuffer.pImages[attachment_index];
+                }
+            }
+        }
+        return nullptr;
     }
 
     BlendState BlendState::MainFramebuffer = {

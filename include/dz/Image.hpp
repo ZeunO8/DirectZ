@@ -38,7 +38,7 @@ namespace dz
      * @param image_width Width of the image in pixels.
      * @param image_height Height of the image in pixels.
      */
-    void image_resize_2D(Image* image, uint32_t image_width, uint32_t image_height);
+    void image_resize_2D(Image*& image, uint32_t image_width, uint32_t image_height, void* data = nullptr, bool create_new = false);
 
     /**
      * @brief Resizes a 3D image to the specified dimensions.
@@ -48,7 +48,7 @@ namespace dz
      * @param image_height Height of the image in pixels.
      * @param image_depth Depth of the image in pixels.
      */
-    void image_resize_3D(Image* image, uint32_t image_width, uint32_t image_height, uint32_t image_depth);
+    void image_resize_3D(Image*& image, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data = nullptr, bool create_new = false);
 
     /**
     * @brief Frees an image, should only be called for self owned Images. Images created by BufferGroups should not be passed to this function
