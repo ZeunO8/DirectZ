@@ -229,17 +229,12 @@ namespace dz {
 
 	void window_render(WINDOW* window, bool multi_window_render) {
 		renderer_render(window->renderer);
-		if (!multi_window_render)
-			if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-				ImGui::UpdatePlatformWindows();
 	}
 
 	void windows_render() {
 		
 		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
 			window_render(dr.window_ptrs[index], true);
-        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-			ImGui::UpdatePlatformWindows();
 	}
 
     const std::string& window_get_title_ref(WINDOW* window) {

@@ -274,6 +274,9 @@ namespace dz {
             }
     
             ImGui::Render();
+
+            if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+                ImGui::UpdatePlatformWindows();
         }
 
         auto DrawData = GetDrawData(window);
