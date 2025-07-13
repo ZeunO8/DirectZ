@@ -1190,21 +1190,21 @@ namespace dz {
 #if defined(_WIN32)
 		return IsIconic(window_ptr->hwnd);
 #elif defined(__linux) && !defined(ANDROID)
-		Atom wm_state_atom = XInternAtom(window->display, "WM_STATE", True);
+		Atom wm_state_atom = XInternAtom(window_ptr->display, "WM_STATE", True);
 		if (wm_state_atom == None)
 			return false;
 
 		xcb_get_property_cookie_t cookie = xcb_get_property(
-			window->connection,
+			window_ptr->connection,
 			false,
-			window->window,
+			window_ptr->window,
 			wm_state_atom,
 			XCB_GET_PROPERTY_TYPE_ANY,
 			0,
 			2
 		);
 
-		xcb_get_property_reply_t* reply = xcb_get_property_reply(window->connection, cookie, nullptr);
+		xcb_get_property_reply_t* reply = xcb_get_property_reply(window_ptr->connection, cookie, nullptr);
 		if (!reply)
 			return false;
 
