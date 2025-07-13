@@ -281,10 +281,13 @@ namespace dz {
 
 		xcb_flush(connection);
 #endif
+		window_ptr->title = new_title;
 	}
 #endif
 #ifdef ANDROID
-    void window_set_title(WINDOW* window_ptr, const std::string& new_title) { }
+    void window_set_title(WINDOW* window_ptr, const std::string& new_title) {
+		window_ptr->title = new_title;
+	}
 #endif
 	size_t window_get_id_ref(WINDOW* window) {
 		return window->id;

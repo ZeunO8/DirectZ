@@ -187,12 +187,13 @@ namespace dz
 		return true;
 	}
 
-	void window_set_title(WINDOW* window, const std::string& new_title) {
+	void window_set_title(WINDOW* window_ptr, const std::string& new_title) {
 		@autoreleasepool
 		{
 			NSString* title_str = [NSString stringWithUTF8String:new_title.c_str()];
-			[(NSWindow*)window->nsWindow setTitle:title_str];
+			[(NSWindow*)window_ptr->nsWindow setTitle:title_str];
 		}
+		window_ptr->title = new_title;
 	}
 
     void window_set_capture(WINDOW* window_ptr, bool should_capture) {
