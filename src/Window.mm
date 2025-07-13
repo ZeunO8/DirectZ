@@ -287,5 +287,33 @@ namespace dz
 		window_ptr->x = x;
 		window_ptr->y = y;
 	}
+}
 
+int dz::displays_get_count()
+{
+	return (int)[[NSScreen screens] count];
+}
+
+dz::DisplayDescription dz::displays_describe(int display_index)
+{
+	dz::DisplayDescription desc = {};
+	NSArray<NSScreen*>* screens = [NSScreen screens];
+	if (display_index < 0 || display_index >= [screens count]) return desc;
+
+	NSScreen* screen = [screens objectAtIndex:display_index];
+	NSRect frame = [screen frame];
+	NSRect visible = [screen visibleFrame];
+	CGFloat scale = [screen backingScaleFactor];
+
+	desc.x = (int)frame.origin.x;
+	desc.y = (int)frame.origin.y;
+	desc.width = (int)frame.size.width;
+	desc.height = (int)frame.size.height;
+	desc.work_x = (int)visible.origin.x;
+	desc.work_y = (int)visible.origin.y;
+	desc.work_width = (int)visible.size.width;
+	desc.work_height = (int)visible.size.height;
+	desc.dpi_scale = (float)scale;
+
+	return desc;
 }
