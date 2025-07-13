@@ -1,10 +1,13 @@
+#define MAX_FRAMES_IN_FLIGHT 4
 struct Renderer
 {
     WINDOW* window = 0;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
     VkSwapchainKHR swapChain;
     VkSwapchainKHR swapChains[1];
+    int imageCount = MAX_FRAMES_IN_FLIGHT;
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;

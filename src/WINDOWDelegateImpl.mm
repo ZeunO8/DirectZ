@@ -19,13 +19,13 @@
 - (void)windowDidBecomeKey:(NSNotification *)notification
 {
 	auto& window = *window_ptr;
-	*window.focused = true;
+	window_set_focused(&window, true);
 	CGAssociateMouseAndMouseCursorPosition(YES);
 }
 - (void)windowDidResignKey:(NSNotification *)notification
 {
 	auto& window = *window_ptr;
-	*window.focused = false;
+	window_set_focused(&window, false);
 	CGAssociateMouseAndMouseCursorPosition(NO);
 }
 - (BOOL)windowShouldClose:(id)sender

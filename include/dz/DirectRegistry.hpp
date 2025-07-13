@@ -16,10 +16,10 @@ namespace dz {
     /**
     * @brief returns the beginning of DirectRegistry window_reflectable_entries
     */
-    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_begin();
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_begin();
 
     /**
     * @brief returns the end of DirectRegistry window_reflectable_entries
     */
-    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_end();
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_end();
 }

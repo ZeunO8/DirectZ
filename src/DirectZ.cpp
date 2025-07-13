@@ -62,10 +62,10 @@ namespace dz
     std::vector<WINDOW*>::iterator dr_get_windows_end() {
         return dr.window_ptrs.end();
     }
-    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_begin() {
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_begin() {
         return dr.window_reflectable_entries.begin();
     }
-    std::vector<WindowReflectableGroup>::iterator dr_get_window_reflectable_entries_end() {
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_end() {
         return dr.window_reflectable_entries.end();
     }
 }
@@ -74,8 +74,8 @@ namespace dz
 #include "path.cpp"
 #include "FileHandle.cpp"
 #include "AssetPack.cpp"
-#include "Window.cpp"
 #include "Renderer.cpp"
+#include "Window.cpp"
 #include "Image.cpp"
 #include "Framebuffer.cpp"
 #include "Shader.cpp"
@@ -84,6 +84,7 @@ namespace dz
 #include "D7Stream.cpp"
 #include "ImGuiLayer.cpp"
 #include "Camera.cpp"
+#include "Displays.cpp"
 #include "runtime.cpp"
 
 template<typename T>

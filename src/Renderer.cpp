@@ -1,6 +1,6 @@
 namespace dz {
+	#include "WindowImpl.hpp"
 	#include "RendererImpl.hpp"
-	constexpr int MAX_FRAMES_IN_FLIGHT = 4;
 	struct QueueFamilyIndices
 	{
 		int32_t graphicsAndComputeFamily = -1;
@@ -66,13 +66,16 @@ namespace dz {
 		create_surface(renderer);
 		direct_registry_ensure_physical_device(dr_ptr, renderer);
 		direct_registry_ensure_logical_device(dr_ptr, renderer);
-		create_swap_chain(renderer);
+		if (!window->defer_swapchain)
+			create_swap_chain(renderer);
 		ensure_command_pool(renderer);
 		ensure_command_buffers(renderer);
-		create_image_views(renderer);
-		ensure_render_pass(renderer);
-		// createDepthResources();
-		create_framebuffers(renderer);
+		if (!window->defer_swapchain) {
+			create_image_views(renderer);
+			ensure_render_pass(renderer);
+			create_framebuffers(renderer);
+			renderer->renderPass = dr.surfaceRenderPass;
+		}
 		create_sync_objects(renderer);
 		direct_registry_ensure_imgui(dr_ptr);
 		return renderer;
@@ -859,10 +862,10 @@ namespace dz {
 	#endif
 		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 		dependency.dstSubpass = 0;
-		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		dependency.srcAccessMask = 0;
-		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	#if defined(__ANDROID__)
 		std::array<VkAttachmentDescription, 1> attachments = {colorAttachment};
 		VkRenderPassCreateInfo renderPassInfo{};
@@ -928,7 +931,7 @@ namespace dz {
 
 	void pre_begin_render_pass(Renderer* renderer)
 	{
-		renderer->currentFrame = (renderer->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		renderer->currentFrame = (renderer->currentFrame + 1) % renderer->imageCount;
 
 		vk_check("vkWaitForFences", vkWaitForFences(dr.device, 1,
 			&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
@@ -949,6 +952,7 @@ namespace dz {
 		}
 
 		vk_check("vkResetFences", vkResetFences(dr.device, 1, &renderer->inFlightFences[renderer->currentFrame]));
+
 		dr.commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
 
 		vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*dr.commandBuffer, 0));
@@ -960,7 +964,7 @@ namespace dz {
 	{
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassInfo.renderPass = dr.surfaceRenderPass;
+		renderPassInfo.renderPass = renderer->renderPass;
 		renderPassInfo.framebuffer = renderer->swapChainFramebuffers[renderer->imageIndex];
 		renderPassInfo.renderArea.offset = {0, 0};
 		renderPassInfo.renderArea.extent = renderer->swapChainExtent;
@@ -1001,11 +1005,13 @@ namespace dz {
 
 	void recreate_swap_chain(Renderer* renderer)
 	{
-		destroy_swap_chain(renderer);
-		create_swap_chain(renderer);
-		create_image_views(renderer);
-		create_framebuffers(renderer);
-		std::cout << "Recreated Swap Chain" << std::endl;
+		if (!renderer->window->defer_swapchain) {
+			destroy_swap_chain(renderer);
+			create_swap_chain(renderer);
+			create_image_views(renderer);
+			create_framebuffers(renderer);
+			std::cout << "Recreated Swap Chain" << std::endl;
+		}
 	}
 
 	bool swap_buffers(Renderer* renderer)
@@ -1040,7 +1046,8 @@ namespace dz {
 			vkDestroyBuffer(device, countPair.second.first, 0);
 			vkFreeMemory(device, countPair.second.second, 0);
 		}
-		destroy_swap_chain(renderer);
+		if (!window.defer_swapchain)
+			destroy_swap_chain(renderer);
 		for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
 		{
 			vkDestroySemaphore(device, imageAvailableSemaphore, 0);

@@ -2170,7 +2170,7 @@ namespace dz {
             draw_shader_draw_list(renderer, *screen_draw_list);
         }
 
-        window.imguiLayer.Render(window);
+        dr.imguiLayer.Render(window);
 
         post_render_pass(renderer);
         swap_buffers(renderer);

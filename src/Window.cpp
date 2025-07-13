@@ -77,10 +77,17 @@ namespace dz {
 
 	WINDOW* window_create(const WindowCreateInfo& info)
 	{
-		auto window = new WINDOW{info.title, info.x, info.y,  info.borderless, info.vsync};
+		auto window = new WINDOW{
+			.title = info.title,
+			.x = info.x,
+			.y = info.y,
+			.borderless = info.borderless,
+			.vsync = info.vsync,
+			.defer_swapchain = info.defer_swapchain
+		};
 
 		dr.window_ptrs.push_back(window);
-		dr.window_reflectable_entries.emplace_back(window);
+		dr.window_reflectable_entries.push_back(new WindowReflectableGroup(window));
 
 		window->event_interface = new EventInterface(window);
 
@@ -122,11 +129,24 @@ namespace dz {
 
 		window->post_init_platform();
 
+		if (dr.window_ptrs.size() == 1) {
+			ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+			main_viewport->PlatformUserData = main_viewport->PlatformHandleRaw = window_get_native_handle(window);
+			main_viewport->PlatformHandle = window;
+			main_viewport->Pos.x = window->x;
+			main_viewport->Pos.y = window->y;
+			main_viewport->Size.x = *window->width;
+			main_viewport->Size.y = *window->height;
+#ifdef _WIN32
+			dr.hwnd_root = window->hwnd;
+#endif
+		}
+
 		return window;
 	}
 	
 	ImGuiLayer& window_get_ImGuiLayer(WINDOW* window) {
-		return window->imguiLayer;
+		return dr.imguiLayer;
 	}
 
 	void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group)
@@ -142,6 +162,7 @@ namespace dz {
 	}
 	void window_free(WINDOW* window)
 	{
+		window->destroy_platform();
 		auto window_ptrs_end = dr.window_ptrs.end();
 		auto window_ptrs_begin = dr.window_ptrs.begin();
 		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
@@ -186,10 +207,31 @@ namespace dz {
 		}
 		return poll_continue;
 	}
-	void window_render(WINDOW* window)
-	{
-		renderer_render(window->renderer);
+
+    bool windows_poll_events() {
+		size_t stop_poll_count = 0;
+		auto original_size = dr.window_ptrs.size();
+		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
+			if (!window_poll_events(dr.window_ptrs[index]))
+				stop_poll_count++;
+		return stop_poll_count != original_size;
 	}
+
+	void window_render(WINDOW* window, bool multi_window_render) {
+		renderer_render(window->renderer);
+		if (!multi_window_render)
+			if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+				ImGui::UpdatePlatformWindows();
+	}
+
+	void windows_render() {
+		
+		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
+			window_render(dr.window_ptrs[index], true);
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			ImGui::UpdatePlatformWindows();
+	}
+
     const std::string& window_get_title_ref(WINDOW* window) {
 		return window->title;
 	}
@@ -377,27 +419,27 @@ namespace dz {
 
 	#ifdef _WIN32
 	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	void SetupPixelFormat(HDC hDeviceContext)
-	{
-		int pixelFormat;
-		PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1};
-		pfd.nVersion = 1;
-		pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
-		pfd.iPixelType = PFD_TYPE_RGBA;
-		pfd.cColorBits = 32;
-		pfd.cDepthBits = 32;
-		pfd.iLayerType = PFD_MAIN_PLANE;
-		pixelFormat = ChoosePixelFormat(hDeviceContext, &pfd);
-		if (pixelFormat == 0)
-		{
-			throw std::runtime_error("pixelFormat is null!");
-		}
-		BOOL result = SetPixelFormat(hDeviceContext, pixelFormat, &pfd);
-		if (!result)
-		{
-			throw std::runtime_error("failed to setPixelFormat!");
-		}
-	}
+	// void SetupPixelFormat(HDC hDeviceContext)
+	// {
+	// 	int pixelFormat;
+	// 	PIXELFORMATDESCRIPTOR pfd = {sizeof(PIXELFORMATDESCRIPTOR), 1};
+	// 	pfd.nVersion = 1;
+	// 	pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+	// 	pfd.iPixelType = PFD_TYPE_RGBA;
+	// 	pfd.cColorBits = 32;
+	// 	pfd.cDepthBits = 32;
+	// 	pfd.iLayerType = PFD_MAIN_PLANE;
+	// 	pixelFormat = ChoosePixelFormat(hDeviceContext, &pfd);
+	// 	if (pixelFormat == 0)
+	// 	{
+	// 		throw std::runtime_error("pixelFormat is null!");
+	// 	}
+	// 	BOOL result = SetPixelFormat(hDeviceContext, pixelFormat, &pfd);
+	// 	if (!result)
+	// 	{
+	// 		throw std::runtime_error("failed to setPixelFormat!");
+	// 	}
+	// }
 	uint8_t get_window_type_platform()
 	{
 		return WINDOW_TYPE_WIN32;
@@ -474,8 +516,8 @@ namespace dz {
 				flags
 			);
 		}
-		hDeviceContext = GetDC(hwnd);
-		SetupPixelFormat(hDeviceContext);
+		// hDeviceContext = GetDC(hwnd);
+		// SetupPixelFormat(hDeviceContext);
 	}
 	bool WINDOW::poll_events_platform()
 	{
@@ -491,7 +533,11 @@ namespace dz {
 	}
 	void WINDOW::destroy_platform()
 	{
-
+		if (hwnd)
+		{
+			DestroyWindow(hwnd);
+			hwnd = nullptr;
+		}
 	}
 	void WINDOW::post_init_platform()
 	{
@@ -651,6 +697,7 @@ namespace dz {
 	}
 	void WINDOW::destroy_platform()
 	{
+    	android_window = nullptr;
 	}
 	#endif
 
@@ -776,7 +823,10 @@ namespace dz {
 			}
 			break;
 		case WM_DESTROY:
-			PostQuitMessage(0);
+			if (hwnd == dr.hwnd_root)
+				PostQuitMessage(0);
+			else
+				return 0;
 			break;
 		case WM_SIZE:
 			{
@@ -790,12 +840,12 @@ namespace dz {
 			};
 		case WM_SETFOCUS:
 			{
-				*window.focused = true;
+				window_set_focused(&window, true);
 				break;
 			};
 		case WM_KILLFOCUS:
 			{
-				*window.focused = false;
+				window_set_focused(&window, false);
 				break;
 			};
 		default:
@@ -1017,11 +1067,11 @@ namespace dz {
 				break;
 			}
 		case XCB_FOCUS_IN:
-			*window.focused = true;
+			window_set_focused(&window, true);
 			break;
 
 		case XCB_FOCUS_OUT:
-			*window.focused = false;
+			window_set_focused(&window, false);
 			break;
 		case XCB_DESTROY_NOTIFY:
 			// free(event);
@@ -1070,6 +1120,229 @@ namespace dz {
 		window_ptr->capture = should_capture;
 	}
 #endif
+
+    void* window_get_native_handle(WINDOW* window_ptr) {
+#if defined(_WIN32)
+		return (void*)window_ptr->hwnd;
+#elif defined(__linux__) && !defined(ANDROID)
+		return (void*)window_ptr->window;
+#elif defined(ANDROID)
+		return (void*)window_ptr->android_window;
+#elif defined(__APPLE__
+		return (void*)window_ptr->nsWindow;
+#endif
+	}
+
+	struct ImGui_ImplVulkan_FrameRenderBuffers
+	{
+		VkDeviceMemory      VertexBufferMemory;
+		VkDeviceMemory      IndexBufferMemory;
+		VkDeviceSize        VertexBufferSize;
+		VkDeviceSize        IndexBufferSize;
+		VkBuffer            VertexBuffer;
+		VkBuffer            IndexBuffer;
+	};
+
+	struct ImGui_ImplVulkan_WindowRenderBuffers
+	{
+		uint32_t            Index;
+		uint32_t            Count;
+		ImVector<ImGui_ImplVulkan_FrameRenderBuffers> FrameRenderBuffers;
+	};
+
+	struct ImGui_ImplVulkan_ViewportData
+	{
+		ImGui_ImplVulkanH_Window                Window;
+		ImGui_ImplVulkan_WindowRenderBuffers    RenderBuffers;
+		bool                                    WindowOwned;
+		bool                                    SwapChainNeedRebuild;
+		bool                                    SwapChainSuboptimal;
+	};
+
+	void window_infer_swapchain(WINDOW* window_ptr, ImGuiViewport* viewport) {
+		if (!window_ptr)
+			return;
+		auto& window = *window_ptr;
+		if (!window.defer_swapchain)
+			return;
+		ImGui_ImplVulkan_ViewportData* vd = (ImGui_ImplVulkan_ViewportData*)viewport->RendererUserData;
+		ImGui_ImplVulkanH_Window* wd = &vd->Window;
+		auto& renderer = *window_ptr->renderer;
+		renderer.swapChain = wd->Swapchain;
+		renderer.swapChainImages.clear();
+		renderer.swapChainImageViews.clear();
+		renderer.swapChainFramebuffers.clear();
+		for (auto i = 0; i < wd->ImageCount; i++) {
+			renderer.swapChainImages.push_back(wd->Frames.Data[i].Backbuffer);
+			renderer.swapChainImageViews.push_back(wd->Frames.Data[i].BackbufferView);
+			renderer.swapChainFramebuffers.push_back(wd->Frames.Data[i].Framebuffer);
+		}
+		renderer.renderPass = wd->RenderPass;
+		renderer.imageCount = renderer.swapChainImages.size();
+		renderer.swapChainExtent.width = wd->Width;
+		renderer.swapChainExtent.height = wd->Height;
+		if (window_ptr->rerun_infer)
+			window_ptr->rerun_infer = false;
+	}
+
+#if defined(_WIN32) || defined(__linux__)
+	bool window_get_minimized(WINDOW* window_ptr) {
+#if defined(_WIN32)
+		return IsIconic(window_ptr->hwnd);
+#elif defined(__linux) && !defined(ANDROID)
+		auto connection = window_ptr->connection;
+		xcb_window_t window = window_ptr->window;
+		if (!connection || !window)
+			return false;
+
+		xcb_get_property_cookie_t cookie = xcb_icccm_get_wm_state_unchecked(connection, window);
+		xcb_icccm_get_wm_state_reply_t reply;
+
+		if (xcb_icccm_get_wm_state_reply(connection, cookie, &reply, nullptr))
+		{
+			return reply.state == XCB_ICCCM_WM_STATE_ICONIC;
+		}
+		return false;
+#elif defined(ANDROID)
+		return false;
+#endif
+	}
+	
+	void window_set_focused(WINDOW* window_ptr) {
+#if defined(_WIN32)
+		if (!window_ptr || !window_ptr->hwnd)
+			return;
+		SetForegroundWindow(window_ptr->hwnd);
+		SetFocus(window_ptr->hwnd);
+
+#elif defined(__linux) && !defined(ANDROID)
+		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+			return;
+		uint32_t values[] = { XCB_STACK_MODE_ABOVE };
+		xcb_configure_window(window_ptr->connection, window_ptr->window, XCB_CONFIG_WINDOW_STACK_MODE, values);
+		xcb_set_input_focus(window_ptr->connection, XCB_INPUT_FOCUS_POINTER_ROOT, window_ptr->window, XCB_CURRENT_TIME);
+		xcb_flush(window_ptr->connection);
+#elif defined(ANDROID)
+#endif
+		*window_ptr->focused = true;
+	}
+
+	void window_set_size(WINDOW* window_ptr, float width, float height) {
+		if (*window_ptr->width == width && *window_ptr->height == height)
+			return;
+#if defined(_WIN32)
+		if (!window_ptr || !window_ptr->hwnd)
+			return;
+
+		RECT rect;
+		GetWindowRect(window_ptr->hwnd, &rect);
+		int x = rect.left;
+		int y = rect.top;
+		int w = static_cast<int>(width);
+		int h = static_cast<int>(height);
+
+		MoveWindow(window_ptr->hwnd, x, y, w, h, TRUE);
+
+#elif defined(__linux) && !defined(ANDROID)
+		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+			return;
+
+		uint32_t values[2] = {
+			static_cast<uint32_t>(width),
+			static_cast<uint32_t>(height)
+		};
+
+		xcb_configure_window(
+			window_ptr->connection,
+			window_ptr->window,
+			XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
+			values
+		);
+		xcb_flush(window_ptr->connection);
+
+#elif defined(ANDROID)
+		// Android window sizing not controlled this way
+#endif
+		*window_ptr->width = width;
+		*window_ptr->height = height;
+		recreate_swap_chain(window_ptr->renderer);
+	}
+
+	ImVec2 window_get_position(WINDOW* window_ptr) {
+#if defined(_WIN32)
+		if (!window_ptr || !window_ptr->hwnd)
+			return ImVec2(window_ptr->x, window_ptr->y);
+
+		RECT rect;
+		GetWindowRect(window_ptr->hwnd, &rect);
+		window_ptr->x = rect.left;
+		window_ptr->y = rect.top;
+		return ImVec2(window_ptr->x, window_ptr->y);
+
+#elif defined(__linux) && !defined(ANDROID)
+		if (!window_ptr || !window_ptr->display || !window_ptr->window)
+			return ImVec2(window_ptr->x, window_ptr->y);
+
+		Window root_return;
+		int x = 0, y = 0;
+		unsigned int width, height, border_width, depth;
+
+		XGetGeometry(window_ptr->display, window_ptr->window, &root_return, &x, &y, &width, &height, &border_width, &depth);
+		Window child;
+		XTranslateCoordinates(window_ptr->display, window_ptr->window, root_return, 0, 0, &x, &y, &child);
+
+		window_ptr->x = x;
+		window_ptr->y = y;
+	
+		return ImVec2(window_ptr->x, window_ptr->y);
+
+#elif defined(ANDROID)
+		return ImVec2(window_ptr->x, window_ptr->y);
+#endif
+	}
+
+	void window_set_position(WINDOW* window_ptr, float x, float y) {
+#if defined(_WIN32)
+		if (!window_ptr || !window_ptr->hwnd)
+			return;
+
+		RECT rect;
+		GetWindowRect(window_ptr->hwnd, &rect);
+		int w = rect.right - rect.left;
+		int h = rect.bottom - rect.top;
+
+		MoveWindow(window_ptr->hwnd, static_cast<int>(x), static_cast<int>(y), w, h, TRUE);
+
+#elif defined(__linux) && !defined(ANDROID)
+		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+			return;
+
+		uint32_t values[2] = {
+			static_cast<uint32_t>(x),
+			static_cast<uint32_t>(y)
+		};
+
+		xcb_configure_window(
+			window_ptr->connection,
+			window_ptr->window,
+			XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y,
+			values
+		);
+		xcb_flush(window_ptr->connection);
+
+#elif defined(ANDROID)
+#endif
+		window_ptr->x = x;
+		window_ptr->y = y;
+	}
+
+
+#endif
+
+    void window_set_focused(WINDOW* window_ptr, bool focused) {
+		*window_ptr->focused = focused;
+		ImGuiLayer::FocusWindow(window_ptr, focused);
+	}
 
 	#ifdef __ANDROID__
 	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height)

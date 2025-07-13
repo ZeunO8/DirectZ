@@ -1,3 +1,4 @@
+#pragma once
 #include <dz/GlobalUID.hpp>
 struct WINDOW
 {
@@ -6,6 +7,7 @@ struct WINDOW
     float y;
     bool borderless;
     bool vsync;
+	bool defer_swapchain;
     std::shared_ptr<float> width;
     std::shared_ptr<float> height;
 	std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
@@ -22,12 +24,12 @@ struct WINDOW
     Renderer* renderer = 0;
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
-	ImGuiLayer imguiLayer;
 	bool capture = false;
+	bool rerun_infer = false;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;
-    HDC hDeviceContext;
+    // HDC hDeviceContext;
     HGLRC hRenderingContext;
     bool setDPIAware = false;
     float dpiScale;

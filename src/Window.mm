@@ -1,6 +1,8 @@
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <TargetConditionals.h>
+#import <UIKit/UIKit.h>
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
@@ -12,8 +14,7 @@ namespace dz
 	#include "WindowImpl.hpp"
 	#include "RendererImpl.hpp"
 
-	void create_surface(Renderer* renderer)
-	{
+	void create_surface(Renderer* renderer) {
 		auto& window = *renderer->window;
 		auto& dr = *get_direct_registry();
 		auto& windowType = dr.windowType;
@@ -39,12 +40,10 @@ namespace dz
 namespace dz
 {
 	#include "path.mm"
-	uint8_t get_window_type_platform()
-	{
+	uint8_t get_window_type_platform() {
 		return WINDOW_TYPE_MACOS;
 	}
-	void WINDOW::create_platform()
-	{
+	void WINDOW::create_platform() {
 		@autoreleasepool
 		{
 			if (NSApp == nil)
@@ -89,8 +88,7 @@ namespace dz
 		// [(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
-	bool WINDOW::poll_events_platform()
-	{
+	bool WINDOW::poll_events_platform() {
 		if (closed)
 			return false;
 		@autoreleasepool
@@ -108,18 +106,24 @@ namespace dz
 		}
 		return true;
 	}
-	void WINDOW::post_init_platform()
-	{
+	void WINDOW::post_init_platform() {
 	}
-	void WINDOW::destroy_platform()
-	{
-		// [(NSView*)nsView setLayer:nil];
+	void WINDOW::destroy_platform() {
+#if defined(MACOS)
 		if (nsWindow)
-			[(NSWindow*)nsWindow release];
+		{
+			NSWindow* window = (__bridge_transfer NSWindow*)nsWindow;
+			[window close];
+		}
+#endif
+		nsWindow = nullptr;
+		nsView = nullptr;
+		nsImage = nullptr;
+		nsImageView = nullptr;
+		metalView = nullptr;
 	}
 
-	bool handle_macos_event(WINDOW& window, NSEvent* event)
-	{
+	bool handle_macos_event(WINDOW& window, NSEvent* event) {
 		switch ([event type])
 		{
 			case NSEventTypeKeyDown:
@@ -213,4 +217,76 @@ namespace dz
 		}
 		window_ptr->capture = should_capture;
 	}
+
+	bool window_get_minimized(WINDOW* window_ptr) {
+#if defined(MACOS)
+		NSWindow* nsWindow = (__bridge NSWindow*)window_ptr;
+		return [nsWindow isMiniaturized];
+#elif defined(IOS)
+		return false;
+#endif
+	}
+
+	void window_set_focused(WINDOW* window_ptr) {
+#if defined(MACOS)
+		if (!window_ptr || !window_ptr->nsWindow)
+			return;
+		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		[nsWindow makeKeyAndOrderFront:nil];
+		[nsWindow makeMainWindow];
+		[nsWindow makeKeyWindow];
+
+#elif defined(IOS)
+#endif
+		*window_ptr->focused = true;
+	}
+
+	void window_set_size(WINDOW* window_ptr, float width, float height) {
+#if defined(MACOS)
+		if (!window_ptr || !window_ptr->nsWindow)
+			return;
+		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		NSRect frame = [nsWindow frame];
+		frame.size = NSMakeSize(width, height);
+		[nsWindow setFrame:frame display:YES animate:NO];
+
+#elif defined(IOS)
+		// iOS does not allow resizing the main window manually
+#endif
+		*window_ptr->width = width;
+		*window_ptr->height = height;
+	}
+
+	ImVec2 window_get_position(WINDOW* window_ptr) {
+#if defined(MACOS)
+		if (!window_ptr || !window_ptr->nsWindow)
+			return ImVec2(window_ptr->x, window_ptr->y);
+
+		NSWindow* nsWindow = (__bridge NSWindow*)window_ptr->nsWindow;
+		NSRect frame = [nsWindow frame];
+		window_ptr->x = frame.origin.x;
+		window_ptr->y = frame.origin.y;
+		return ImVec2(window_ptr->x, window_ptr->y);
+
+#elif defined(IOS)
+		return ImVec2(window_ptr->x, window_ptr->y);
+#endif
+	}
+
+	void window_set_position(WINDOW* window_ptr, float x, float y) {
+#if defined(MACOS)
+		if (!window_ptr || !window_ptr->nsWindow)
+			return;
+
+		NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+		NSRect frame = [nsWindow frame];
+		NSRect newFrame = NSMakeRect(x, y, frame.size.width, frame.size.height);
+		[nsWindow setFrame:newFrame display:YES animate:NO];
+
+#elif defined(IOS)
+#endif
+		window_ptr->x = x;
+		window_ptr->y = y;
+	}
+
 }

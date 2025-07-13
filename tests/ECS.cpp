@@ -524,7 +524,7 @@ int main() {
                     it != window_reflectable_entries_end;
                     it++
                 ) {
-                    auto& window_reflectable_entry = *it;
+                    auto& window_reflectable_entry = **it;
                     auto& window_name = window_reflectable_entry.GetName();
                     if (WindowGraphFilterCheck(WindowGraphFilter, window_name))
                         DrawWindowEntry(window_name, window_reflectable_entry);
@@ -569,8 +569,9 @@ int main() {
     imgui.AddImmediateDrawFunction(4.0f, "Property Editor", [&](auto& layer) {
         if (property_editor.is_open)
         {
-            if (!ImGui::Begin(property_editor.name.c_str(), &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
+            if (!ImGui::Begin("Property Editor", &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
             {
+                property_editor.is_open = false;
                 ImGui::End();
                 return;
             }
@@ -740,8 +741,8 @@ int main() {
         ImGui::End();
     });
 
-    while (window_poll_events(window)) {
-        window_render(window);
+    while (windows_poll_events()) {
+        windows_render();
     }
 }
 

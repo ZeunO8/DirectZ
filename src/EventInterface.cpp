@@ -251,8 +251,9 @@ namespace dz {
         cursor[1] = y;
 
         ImGuiIO& io = ImGui::GetIO();
+		ImGuiLayer::FocusWindow(window, true);
         
-        io.AddMousePosEvent(x, y);
+        io.AddMousePosEvent(window->x + x, window->y + y);
         ImGui_ImplDZ_UpdateKeyModifiers(io, window);
 
         if (
@@ -272,6 +273,7 @@ namespace dz {
         auto ctrl = ((*window->mod) & 1) != 0;
 
         ImGuiIO& io = ImGui::GetIO();
+		ImGuiLayer::FocusWindow(window, true);
         io.AddKeyEvent(MapToImGuiKey(key), pressed);
         if (pressed && !ctrl && std::isprint((uint8_t)key)) {
             io.AddInputCharacter((uint32_t)key);
@@ -282,6 +284,7 @@ namespace dz {
         window->buttons.get()[button] = pressed;
 
         ImGuiIO& io = ImGui::GetIO();
+		ImGuiLayer::FocusWindow(window, true);
         io.AddMouseButtonEvent(button, pressed);
         ImGui_ImplDZ_UpdateKeyModifiers(io, window);
     }

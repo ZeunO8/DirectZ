@@ -13,8 +13,11 @@ namespace dz {
         inline static VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;
         inline static std::queue<VkDescriptorSetLayout> layout_queue;
         std::unordered_map<size_t, float> id_priority_map;
-        std::map<float, std::map<size_t, ImmediateDrawPair>> priority_immediate_draw_fn_map;\
+        std::map<float, std::map<size_t, ImmediateDrawPair>> priority_immediate_draw_fn_map;
+        ImDrawData* GetDrawData(WINDOW&);
+        ImGuiViewport* GetViewport(WINDOW*);
     public:
+        static void FocusWindow(WINDOW*, bool);
         static bool Init();
         static bool Shutdown(DirectRegistry&);
         void Render(WINDOW& window);

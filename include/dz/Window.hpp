@@ -35,6 +35,7 @@ namespace dz
         ANativeWindow* android_window = 0;
         AAssetManager* android_asset_manager = 0;
 #endif
+        bool defer_swapchain = false;
     };
 
     struct WindowReflectableGroup : ReflectableGroup {
@@ -206,9 +207,23 @@ namespace dz
     bool window_poll_events(WINDOW*);
 
     /**
+    * @brief Polls all open windows for events.
+    *
+    * @note this should be used over the former due to compatibility with multi-viewports
+    *
+    * @returns bool value indicating whether to continue polling
+    */
+    bool windows_poll_events();
+
+    /**
     * @brief Renders the specified window based on its context configuration.
     */
-    void window_render(WINDOW*);
+    void window_render(WINDOW*, bool multi_window_render = false);
+
+    /**
+    * @brief Renders all open windows
+    */
+    void windows_render();
 
     /**
     * @brief Gets the ImGuiLayer of a window
@@ -411,4 +426,55 @@ namespace dz
     * @brief sets Window mouse capture (for mouse capture outside window)
     */
     void window_set_capture(WINDOW* window_ptr, bool should_capture);
+
+    /**
+    * @brief gets the native handle for a given WINDOW*
+    *
+    * @note HWND (WIN32), xcb_window_t (Linux), NSWindow (Apple), ANativeWindow (Android)
+    */
+    void* window_get_native_handle(WINDOW* window_ptr);
+
+    /**
+    * @brief when a window has defer_swapchain set to true (e.g. ImGui windows) we must call this function to get the underlying Swapchain information
+    */
+    void window_infer_swapchain(WINDOW* window_ptr, ImGuiViewport* viewport);
+
+    /**
+    * @returns bool value indicating WINDOW minimized
+    */
+    bool window_get_minimized(WINDOW* window_ptr);
+
+    /**
+    * @brief Attemps to bring a window to the front
+    */
+    void window_set_focused(WINDOW* window_ptr);
+
+    /**
+    * @brief Attempts to set a windows size
+    */
+    void window_set_size(WINDOW* window_ptr, float width, float height);
+
+    /**
+    * @brief Returns a windows screen position
+    */
+    ImVec2 window_get_position(WINDOW* window_ptr);
+
+    /**
+    * @brief Attempts to set a windows position
+    */
+    void window_set_position(WINDOW* window_ptr, float x, float y);
+
+    /**
+    * @brief Directly sets focused override and notifies ImGui
+    *
+    * @note does not call any OS related calls
+    */
+    void window_set_focused(WINDOW* window_ptr, bool focused);
+
+    /**
+    * @brief internal close for a window
+    *
+    * @note should only be called internally
+    */
+    void window_close_platform(WINDOW*);
 }

@@ -44,6 +44,137 @@ namespace dz {
         }
     }
 
+    int Platform_CreateVkSurface(
+        ImGuiViewport* vp,
+        ImU64 vk_inst,
+        const void* vk_allocators,
+        ImU64* out_vk_surface
+    ) {
+        auto& window = *(WINDOW*)vp->PlatformHandle;
+        *out_vk_surface = (ImU64)window.renderer->surface;
+        return 0;
+    }
+
+    void ImGui_ImplCustomPlatform_Init()
+    {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+
+        platform_io.Monitors.clear();
+
+        auto displays_count = displays_get_count();
+        for (int i = 0; i < displays_count; ++i)
+        {
+            auto desc = displays_describe(i);
+
+            ImGuiPlatformMonitor monitor;
+            monitor.MainPos = ImVec2(desc.x, desc.y);
+            monitor.MainSize = ImVec2(desc.width, desc.height);
+            monitor.WorkPos = ImVec2(desc.work_x, desc.work_y);
+            monitor.WorkSize = ImVec2(desc.work_width, desc.work_height);
+            monitor.DpiScale = desc.dpi_scale;
+
+            platform_io.Monitors.push_back(monitor);
+        }
+    
+        platform_io.Platform_CreateWindow = [](ImGuiViewport* vp)
+        {
+            auto window_title = "Window #" + std::to_string(dr.window_ptrs.size() + 1);
+            auto new_window = window_create({
+                .title = window_title,
+                .x = vp->Pos.x,
+                .y = vp->Pos.y,
+                .width = vp->Size.x,
+                .height = vp->Size.y,
+                .borderless = true,
+                .vsync = true
+            });
+            vp->PlatformUserData = vp->PlatformHandleRaw = window_get_native_handle(new_window);
+			vp->PlatformHandle = new_window;
+            ImGui_ImplVulkan_ViewportData* vd = IM_NEW(ImGui_ImplVulkan_ViewportData)();
+            vp->RendererUserData = vd;
+            vd->WindowOwned = true;
+            // vp->Hidden = false;
+            // vp->Active = false;
+            return;
+        };
+
+        platform_io.Platform_CreateVkSurface = Platform_CreateVkSurface;
+
+        platform_io.Renderer_CreateWindow = nullptr;
+        platform_io.Renderer_DestroyWindow = nullptr;
+        platform_io.Renderer_SetWindowSize = nullptr;
+        platform_io.Renderer_RenderWindow = nullptr;
+        platform_io.Renderer_SwapBuffers = nullptr;
+
+        platform_io.Platform_DestroyWindow = [](ImGuiViewport* vp)
+        {
+            window_free((WINDOW*)vp->PlatformHandle);
+            vp->PlatformHandle = nullptr;
+            vp->PlatformHandleRaw = nullptr;
+            vp->RendererUserData = nullptr;
+            vp->PlatformUserData = nullptr;
+        };
+
+        platform_io.Platform_ShowWindow = [](ImGuiViewport* vp) {
+            // ShowNativeWindow(vp->PlatformHandle);
+        };
+
+        platform_io.Platform_SetWindowPos = [](ImGuiViewport* vp, ImVec2 pos) {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            return window_set_position(window, pos.x, pos.y);
+        };
+
+        platform_io.Platform_GetWindowPos = [](ImGuiViewport* vp) -> ImVec2 {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            return window_get_position(window);
+        };
+
+        platform_io.Platform_SetWindowSize = [](ImGuiViewport* vp, ImVec2 size) {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            window_set_size(window, size.x, size.y);
+            window->rerun_infer = true;
+        };
+
+        platform_io.Platform_GetWindowSize = [](ImGuiViewport* vp) -> ImVec2 {
+            auto& window = *(WINDOW*)vp->PlatformHandle;
+            return ImVec2{*window.width, *window.height};
+        };
+
+        platform_io.Platform_SetWindowFocus = [](ImGuiViewport* vp) {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            window_set_focused(window);
+        };
+
+        platform_io.Platform_GetWindowFocus = [](ImGuiViewport* vp) -> bool {
+            auto& window = *(WINDOW*)vp->PlatformHandle;
+            return *window.focused;
+        };
+
+        platform_io.Platform_GetWindowMinimized = [](ImGuiViewport* vp) -> bool {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            return window_get_minimized(window);
+        };
+
+        platform_io.Platform_SetWindowTitle = [](ImGuiViewport* vp, const char* title) {
+            auto window = (WINDOW*)vp->PlatformHandle;
+            window_set_title(window, title);
+        };
+
+        platform_io.Platform_GetWindowDpiScale = [](ImGuiViewport* vp) -> float {
+            // return GetWindowDpiScale(vp);
+            return 1.f;
+        };
+
+        platform_io.Platform_OnChangedViewport = [](ImGuiViewport* vp) {
+            // Optional
+        };
+
+        // platform_io.Platform_SetImeInputPos = [](ImGuiViewport* vp, ImVec2 pos) {
+        //     // SetImePosition(vp->PlatformHandle, pos);
+        // };
+
+        ImGui::GetIO().BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;
+    }
     
     bool ImGuiLayer::Init() {
         if (ensured) {
@@ -56,7 +187,7 @@ namespace dz {
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         ImGui::StyleColorsDark();
 
@@ -66,8 +197,6 @@ namespace dz {
             style.WindowRounding = 0.0f;
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
-
-        // E.g. window.OnKeyPress = [](Key key) { ImGui::GetIO().AddKeyEvent(...); };
 
         ImGui_ImplVulkan_InitInfo init_info {};
         
@@ -99,6 +228,8 @@ namespace dz {
         {
             return false;
         }
+        
+        ImGui_ImplCustomPlatform_Init();
 
         ensured = true;
 
@@ -121,6 +252,7 @@ namespace dz {
     }
 
     void ImGuiLayer::Render(WINDOW& window) {
+        auto root_window = &window == dr.window_ptrs[0];
         auto& io = ImGui::GetIO();
 
         io.DisplaySize = ImVec2(*window.width, *window.height);
@@ -130,24 +262,75 @@ namespace dz {
             return;
         }
 
-        ImGui_ImplVulkan_NewFrame();
-        ImGui::NewFrame();
+        if (root_window) {
 
-        for (auto& [priority, fn_map] : priority_immediate_draw_fn_map)
-        {
-            for (auto& [id, pair] : fn_map)
+            ImGui_ImplVulkan_NewFrame();
+            ImGui::NewFrame();
+    
+            for (auto& [priority, fn_map] : priority_immediate_draw_fn_map)
             {
-                pair.second(*this);
+                for (auto& [id, pair] : fn_map)
+                {
+                    pair.second(*this);
+                }
             }
+    
+            ImGui::Render();
         }
 
-        ImGui::Render();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *(dr.commandBuffer));
+        auto DrawData = GetDrawData(window);
 
-        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        if (DrawData)
+            ImGui_ImplVulkan_RenderDrawData(DrawData, *(dr.commandBuffer));
+    }
+
+    ImDrawData* ImGuiLayer::GetDrawData(WINDOW& window) {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+        for (int i = 0; i < platform_io.Viewports.Size; ++i)
         {
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
+            ImGuiViewport* viewport = platform_io.Viewports[i];
+            if (viewport->PlatformHandle == &window) {
+                if (i == 0) {
+                    return ImGui::GetDrawData();
+                }
+                else {
+                    return viewport->DrawData;
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    ImGuiViewport* ImGuiLayer::GetViewport(WINDOW* window) {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+        for (int i = 0; i < platform_io.Viewports.Size; ++i)
+        {
+            ImGuiViewport* viewport = platform_io.Viewports[i];
+            if (viewport->PlatformHandle == window)
+                return viewport;
+        }
+        return nullptr;
+    }
+
+    void ImGuiLayer::FocusWindow(WINDOW* window, bool focused) {
+        ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+        for (int i = 0; i < platform_io.Viewports.Size; ++i)
+        {
+            ImGuiViewport* viewport = platform_io.Viewports[i];
+            if (viewport->PlatformHandle && viewport->PlatformHandle == window)
+            {
+                if (focused)
+                    viewport->Flags |= ImGuiViewportFlags_IsFocused;
+                else
+                    viewport->Flags &= ~ImGuiViewportFlags_IsFocused;
+            }
+            else if (focused) {
+                viewport->Flags &= ~ImGuiViewportFlags_IsFocused;
+                if (viewport->PlatformHandle) {
+                    auto& other_window = *(WINDOW*)viewport->PlatformHandle;
+                    *other_window.focused = false;
+                }
+            }
         }
     }
 

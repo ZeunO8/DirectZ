@@ -33,6 +33,7 @@ using namespace dz;
 #include <X11/keysymdef.h>
 #include <xcb/xfixes.h>
 #include <xkbcommon/xkbcommon.h>
+#include <xcb/xcb_icccm.h>
 #include <dlfcn.h>
 #elif defined(MACOS)
 #include <dlfcn.h>
@@ -68,11 +69,15 @@ struct DirectRegistry
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<WINDOW*> window_ptrs;
-    std::vector<WindowReflectableGroup> window_reflectable_entries;
+    std::vector<WindowReflectableGroup*> window_reflectable_entries;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;
     std::atomic<uint32_t> window_count = 0;
+	ImGuiLayer imguiLayer;
+#ifdef _WIN32
+    HWND hwnd_root;
+#endif
 #ifdef __ANDROID__
     AAssetManager* android_asset_manager = 0;
     AConfiguration* android_config = 0;
