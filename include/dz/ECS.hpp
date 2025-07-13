@@ -661,8 +661,9 @@ void main() {
 )";
             }
             shader_string += R"(
+    // Vulkan Y Fix
+    final_position.y *= -1.0;
     if (Cameras.cameras.length() > 0) {
-        final_position.y *= -1.0;
         Camera camera = Cameras.cameras[0];
         vec4 camera_position = camera.projection * camera.view * final_position;
         final_position = camera_position;
