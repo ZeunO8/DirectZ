@@ -23,6 +23,7 @@ struct WINDOW
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
 	ImGuiLayer imguiLayer;
+	bool capture = false;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;

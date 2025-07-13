@@ -1041,6 +1041,36 @@ namespace dz {
 		window->event_interface->window_free_queue.push(callback);
 	}
 
+#if defined(_WIN32) || defined(__linux__)
+    void window_set_capture(WINDOW* window_ptr, bool should_capture) {
+		if (window_ptr->capture == should_capture)
+			return;
+#if defined(_WIN32)
+		if (should_capture)
+		{
+			SetCapture(window_ptr->hwnd);
+		}
+		else
+		{
+			ReleaseCapture();
+		}
+#elif defined(__linux__) && !defined(ANDROID)
+		if (should_capture)
+		{
+			XGrabPointer(window_ptr->display, window_ptr->window, True,
+						ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+						GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+		}
+		else
+		{
+			XUngrabPointer(window_ptr->display, CurrentTime);
+		}
+		XFlush(window_ptr->display);
+#endif
+		window_ptr->capture = should_capture;
+	}
+#endif
+
 	#ifdef __ANDROID__
 	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height)
 	{

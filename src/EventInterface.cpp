@@ -254,6 +254,16 @@ namespace dz {
         
         io.AddMousePosEvent(x, y);
         ImGui_ImplDZ_UpdateKeyModifiers(io, window);
+
+        if (
+            ImGui::IsMouseDragging(ImGuiMouseButton_Left) ||
+            ImGui::IsMouseDragging(ImGuiMouseButton_Right)
+        ) {
+            window_set_capture(window, true);
+        }
+        else {
+            window_set_capture(window, false);
+        }
     }
 
     void EventInterface::key_press(KEYCODES key, int pressed) {

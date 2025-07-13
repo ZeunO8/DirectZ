@@ -191,4 +191,26 @@ namespace dz
 			[(NSWindow*)window->nsWindow setTitle:title_str];
 		}
 	}
+
+    void window_set_capture(WINDOW* window_ptr, bool should_capture) {
+		if (window_ptr->capture == should_capture)
+			return;
+		if (should_capture)
+		{
+			NSWindow* nsWindow = (NSWindow*)window_ptr->nsWindow;
+			[NSApp preventWindowOrdering];
+			[(nsWindow) setIgnoresMouseEvents:NO];
+			[[(nsWindow) contentView] addTrackingArea:
+				[[NSTrackingArea alloc] initWithRect:[[(nsWindow) contentView] bounds]
+											options:NSTrackingMouseEnteredAndExited | NSTrackingMouseMoved | NSTrackingActiveAlways
+												owner:(nsWindow)
+											userInfo:nil]];
+			CGAssociateMouseAndMouseCursorPosition(false);
+		}
+		else
+		{
+			CGAssociateMouseAndMouseCursorPosition(true);
+		}
+		window_ptr->capture = should_capture;
+	}
 }

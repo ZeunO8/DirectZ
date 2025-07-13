@@ -406,4 +406,9 @@ namespace dz
     * @brief Adds a destroy event callback function
     */
     void window_register_free_callback(WINDOW*, const std::function<void()>&);
+
+    /**
+    * @brief sets Window mouse capture (for mouse capture outside window)
+    */
+    void window_set_capture(WINDOW* window_ptr, bool should_capture);
 }
