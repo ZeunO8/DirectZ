@@ -14,7 +14,6 @@ namespace dz
     }
     uint8_t get_window_type_platform();
     void direct_registry_ensure_instance(DirectRegistry* direct_registry);
-    void direct_registry_ensure_imgui(DirectRegistry* direct_registry);
     DirectRegistry* make_direct_registry()
     {
         auto dr = new DirectRegistry;

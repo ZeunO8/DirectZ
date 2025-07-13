@@ -267,7 +267,7 @@ int main() {
         .y = 240,
         .width = ORIGINAL_WINDOW_WIDTH,
         .height = ORIGINAL_WINDOW_HEIGHT,
-        .borderless = false,
+        .borderless = true,
         .vsync = true
     });
     
@@ -317,6 +317,23 @@ int main() {
     {
         if (ImGui::BeginMainMenuBar())
         {
+            // Handle drag zone for moving the window
+            ImVec2 menu_pos = ImGui::GetWindowPos();
+            ImVec2 menu_size = ImGui::GetWindowSize();
+            ImVec2 mouse_pos = ImGui::GetMousePos();
+
+            bool hovered = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+            bool held = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+
+            if (hovered && held)
+            {
+                ImGuiViewport* main_viewport = ImGui::GetMainViewport();
+                if (main_viewport && main_viewport->PlatformHandle)
+                {
+                    window_request_drag((WINDOW*)main_viewport->PlatformHandle);
+                }
+            }
+
             if (ImGui::BeginMenu("File"))
             {
                 if (ImGui::MenuItem("New", "Ctrl+N"))

@@ -35,7 +35,6 @@ namespace dz
         ANativeWindow* android_window = 0;
         AAssetManager* android_asset_manager = 0;
 #endif
-        bool defer_swapchain = false;
     };
 
     struct WindowReflectableGroup : ReflectableGroup {
@@ -435,11 +434,6 @@ namespace dz
     void* window_get_native_handle(WINDOW* window_ptr);
 
     /**
-    * @brief when a window has defer_swapchain set to true (e.g. ImGui windows) we must call this function to get the underlying Swapchain information
-    */
-    void window_infer_swapchain(WINDOW* window_ptr, ImGuiViewport* viewport);
-
-    /**
     * @returns bool value indicating WINDOW minimized
     */
     bool window_get_minimized(WINDOW* window_ptr);
@@ -472,9 +466,9 @@ namespace dz
     void window_set_focused(WINDOW* window_ptr, bool focused);
 
     /**
-    * @brief internal close for a window
+    * @brief Requests a window to be dragged
     *
-    * @note should only be called internally
+    * @note call this whenever you want to drag a window with the mouse (see ECS Test "Menu" example)
     */
-    void window_close_platform(WINDOW*);
+    void window_request_drag(WINDOW*);
 }

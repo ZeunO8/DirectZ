@@ -7,7 +7,6 @@ struct WINDOW
     float y;
     bool borderless;
     bool vsync;
-	bool defer_swapchain;
     std::shared_ptr<float> width;
     std::shared_ptr<float> height;
 	std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
@@ -25,7 +24,7 @@ struct WINDOW
 	std::map<IDrawListManager*, std::set<BufferGroup*>> draw_list_managers;
 	EventInterface* event_interface = 0;
 	bool capture = false;
-	bool rerun_infer = false;
+	ImGuiViewport* imguiViewport = 0;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;

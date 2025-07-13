@@ -9,7 +9,8 @@ namespace dz {
         using ImmediateDrawFunction = std::function<void(ImGuiLayer&)>;
         using ImmediateDrawPair = std::pair<std::string, ImmediateDrawFunction>;
     private:
-        inline static bool ensured = false;
+        inline static bool initialized = false;
+        inline static bool vulkan_initialized = false;
         inline static VkDescriptorPool DescriptorPool = VK_NULL_HANDLE;
         inline static std::queue<VkDescriptorSetLayout> layout_queue;
         std::unordered_map<size_t, float> id_priority_map;
@@ -19,6 +20,7 @@ namespace dz {
     public:
         static void FocusWindow(WINDOW*, bool);
         static bool Init();
+        static bool VulkanInit();
         static bool Shutdown(DirectRegistry&);
         void Render(WINDOW& window);
         size_t AddImmediateDrawFunction(float priority, const std::string& key, const ImmediateDrawFunction& fn);

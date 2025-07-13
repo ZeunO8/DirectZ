@@ -288,6 +288,13 @@ namespace dz
 		window_ptr->x = x;
 		window_ptr->y = y;
 	}
+	
+    void window_request_drag(WINDOW* window_ptr) {
+#if defined(MACOS)
+    	[window performWindowDragWithEvent:[NSApp currentEvent]];
+#elif defined(IOS)
+#endif
+	}
 }
 
 int dz::displays_get_count()

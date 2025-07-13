@@ -27,8 +27,7 @@ namespace dz {
 
         VkResult result = vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptorPool);
 
-        if (result != VK_SUCCESS)
-        {
+        if (result != VK_SUCCESS) {
             fprintf(stderr, "[ImGui] Failed to create descriptor pool: VkResult = %d\n", static_cast<int>(result));
             return VK_NULL_HANDLE;
         }
@@ -38,8 +37,7 @@ namespace dz {
 
     void DestroyImGuiDescriptorPool(VkDevice device, VkDescriptorPool descriptorPool)
     {
-        if (descriptorPool != VK_NULL_HANDLE)
-        {
+        if (descriptorPool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         }
     }
@@ -62,8 +60,7 @@ namespace dz {
         platform_io.Monitors.clear();
 
         auto displays_count = displays_get_count();
-        for (int i = 0; i < displays_count; ++i)
-        {
+        for (int i = 0; i < displays_count; ++i) {
             auto desc = displays_describe(i);
 
             ImGuiPlatformMonitor monitor;
@@ -76,8 +73,7 @@ namespace dz {
             platform_io.Monitors.push_back(monitor);
         }
     
-        platform_io.Platform_CreateWindow = [](ImGuiViewport* vp)
-        {
+        platform_io.Platform_CreateWindow = [](ImGuiViewport* vp) {
             auto window_title = "Window #" + std::to_string(dr.window_ptrs.size() + 1);
             auto new_window = window_create({
                 .title = window_title,
@@ -93,6 +89,7 @@ namespace dz {
             ImGui_ImplVulkan_ViewportData* vd = IM_NEW(ImGui_ImplVulkan_ViewportData)();
             vp->RendererUserData = vd;
             vd->WindowOwned = true;
+            new_window->imguiViewport = vp;
             // vp->Hidden = false;
             // vp->Active = false;
             return;
@@ -106,13 +103,8 @@ namespace dz {
         platform_io.Renderer_RenderWindow = nullptr;
         platform_io.Renderer_SwapBuffers = nullptr;
 
-        platform_io.Platform_DestroyWindow = [](ImGuiViewport* vp)
-        {
+        platform_io.Platform_DestroyWindow = [](ImGuiViewport* vp) {
             window_free((WINDOW*)vp->PlatformHandle);
-            vp->PlatformHandle = nullptr;
-            vp->PlatformHandleRaw = nullptr;
-            vp->RendererUserData = nullptr;
-            vp->PlatformUserData = nullptr;
         };
 
         platform_io.Platform_ShowWindow = [](ImGuiViewport* vp) {
@@ -132,7 +124,6 @@ namespace dz {
         platform_io.Platform_SetWindowSize = [](ImGuiViewport* vp, ImVec2 size) {
             auto window = (WINDOW*)vp->PlatformHandle;
             window_set_size(window, size.x, size.y);
-            window->rerun_infer = true;
         };
 
         platform_io.Platform_GetWindowSize = [](ImGuiViewport* vp) -> ImVec2 {
@@ -177,7 +168,7 @@ namespace dz {
     }
     
     bool ImGuiLayer::Init() {
-        if (ensured) {
+        if (initialized) {
             return false;
         }
 
@@ -191,13 +182,22 @@ namespace dz {
 
         ImGui::StyleColorsDark();
 
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-        {
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
             ImGuiStyle& style = ImGui::GetStyle();
             style.WindowRounding = 0.0f;
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
 
+        initialized = true;
+
+        return true;
+    }
+
+    bool ImGuiLayer::VulkanInit() {
+        if (vulkan_initialized) {
+            return false;
+        }
+    
         ImGui_ImplVulkan_InitInfo init_info {};
         
         init_info.Instance = dr.instance;
@@ -216,28 +216,26 @@ namespace dz {
 
         // 
         // 
-        init_info.CheckVkResultFn = [](VkResult err)
-        {
+        init_info.CheckVkResultFn = [](VkResult err) {
             if (err != VK_SUCCESS)
             {
                 fprintf(stderr, "ImGui Vulkan error: VkResult = %d\n", static_cast<int>(err));
             }
         };
 
-        if (!ImGui_ImplVulkan_Init(&init_info))
-        {
+        if (!ImGui_ImplVulkan_Init(&init_info)) {
             return false;
         }
         
         ImGui_ImplCustomPlatform_Init();
 
-        ensured = true;
+        vulkan_initialized = true;
 
         return true;
     }
 
     bool ImGuiLayer::Shutdown(DirectRegistry& direct_registry) {
-        if (!ensured) {
+        if (!initialized || !vulkan_initialized) {
             return false;
         }
         while (!layout_queue.empty()) {
@@ -247,7 +245,8 @@ namespace dz {
         }
 		ImGui_ImplVulkan_Shutdown();
         DestroyImGuiDescriptorPool(direct_registry.device, DescriptorPool);
-        ensured = false;
+        initialized = false;
+        vulkan_initialized = false;
         return true;
     }
 
@@ -257,8 +256,7 @@ namespace dz {
 
         io.DisplaySize = ImVec2(*window.width, *window.height);
 
-        if (io.DisplaySize.x <= 0.0f || io.DisplaySize.y <= 0.0f)
-        {
+        if (io.DisplaySize.x <= 0.0f || io.DisplaySize.y <= 0.0f) {
             return;
         }
 
@@ -286,8 +284,7 @@ namespace dz {
 
     ImDrawData* ImGuiLayer::GetDrawData(WINDOW& window) {
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-        for (int i = 0; i < platform_io.Viewports.Size; ++i)
-        {
+        for (int i = 0; i < platform_io.Viewports.Size; ++i) {
             ImGuiViewport* viewport = platform_io.Viewports[i];
             if (viewport->PlatformHandle == &window) {
                 if (i == 0) {
@@ -303,8 +300,7 @@ namespace dz {
 
     ImGuiViewport* ImGuiLayer::GetViewport(WINDOW* window) {
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-        for (int i = 0; i < platform_io.Viewports.Size; ++i)
-        {
+        for (int i = 0; i < platform_io.Viewports.Size; ++i) {
             ImGuiViewport* viewport = platform_io.Viewports[i];
             if (viewport->PlatformHandle == window)
                 return viewport;
@@ -314,8 +310,7 @@ namespace dz {
 
     void ImGuiLayer::FocusWindow(WINDOW* window, bool focused) {
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
-        for (int i = 0; i < platform_io.Viewports.Size; ++i)
-        {
+        for (int i = 0; i < platform_io.Viewports.Size; ++i) {
             ImGuiViewport* viewport = platform_io.Viewports[i];
             if (viewport->PlatformHandle && viewport->PlatformHandle == window)
             {

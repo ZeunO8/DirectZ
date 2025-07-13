@@ -82,8 +82,7 @@ namespace dz {
 			.x = info.x,
 			.y = info.y,
 			.borderless = info.borderless,
-			.vsync = info.vsync,
-			.defer_swapchain = info.defer_swapchain
+			.vsync = info.vsync
 		};
 
 		dr.window_ptrs.push_back(window);
@@ -123,6 +122,8 @@ namespace dz {
 
 		dr.window_count++;
 
+		ImGuiLayer::Init();
+
 		window->create_platform();
 
 		window->renderer = renderer_init(window);
@@ -137,6 +138,8 @@ namespace dz {
 			main_viewport->Pos.y = window->y;
 			main_viewport->Size.x = *window->width;
 			main_viewport->Size.y = *window->height;
+			main_viewport->PlatformWindowCreated = false;
+			window->imguiViewport = main_viewport;
 #ifdef _WIN32
 			dr.hwnd_root = window->hwnd;
 #endif
@@ -162,6 +165,13 @@ namespace dz {
 	}
 	void window_free(WINDOW* window)
 	{
+		if (window->imguiViewport) {
+			auto& vp = *window->imguiViewport;
+            vp.PlatformHandle = nullptr;
+            vp.PlatformHandleRaw = nullptr;
+            vp.RendererUserData = nullptr;
+            vp.PlatformUserData = nullptr;
+		}
 		window->destroy_platform();
 		auto window_ptrs_end = dr.window_ptrs.end();
 		auto window_ptrs_begin = dr.window_ptrs.begin();
@@ -1162,32 +1172,6 @@ namespace dz {
 		bool                                    SwapChainSuboptimal;
 	};
 
-	void window_infer_swapchain(WINDOW* window_ptr, ImGuiViewport* viewport) {
-		if (!window_ptr)
-			return;
-		auto& window = *window_ptr;
-		if (!window.defer_swapchain)
-			return;
-		ImGui_ImplVulkan_ViewportData* vd = (ImGui_ImplVulkan_ViewportData*)viewport->RendererUserData;
-		ImGui_ImplVulkanH_Window* wd = &vd->Window;
-		auto& renderer = *window_ptr->renderer;
-		renderer.swapChain = wd->Swapchain;
-		renderer.swapChainImages.clear();
-		renderer.swapChainImageViews.clear();
-		renderer.swapChainFramebuffers.clear();
-		for (auto i = 0; i < wd->ImageCount; i++) {
-			renderer.swapChainImages.push_back(wd->Frames.Data[i].Backbuffer);
-			renderer.swapChainImageViews.push_back(wd->Frames.Data[i].BackbufferView);
-			renderer.swapChainFramebuffers.push_back(wd->Frames.Data[i].Framebuffer);
-		}
-		renderer.renderPass = wd->RenderPass;
-		renderer.imageCount = renderer.swapChainImages.size();
-		renderer.swapChainExtent.width = wd->Width;
-		renderer.swapChainExtent.height = wd->Height;
-		if (window_ptr->rerun_infer)
-			window_ptr->rerun_infer = false;
-	}
-
 #if defined(_WIN32) || defined(__linux__)
 	bool window_get_minimized(WINDOW* window_ptr) {
 #if defined(_WIN32)
@@ -1359,6 +1343,42 @@ namespace dz {
 		*window_ptr->focused = focused;
 		ImGuiLayer::FocusWindow(window_ptr, focused);
 	}
+	
+#if defined(_WIN32) || defined(__linux__)
+    void window_request_drag(WINDOW* window_ptr) {
+#if defined(_WIN32)
+		ReleaseCapture();
+		SendMessage(window_ptr->hwnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
+#elif defined(__linux__) && !defined(ANDROID)
+		auto connection = window_ptr->connection;
+		auto root = window_ptr->root;
+		auto win = window_ptr->window;
+		ImVec2 pos = ImGui::GetMousePos();
+
+		const uint32_t data[] = {
+			static_cast<uint32_t>(pos.x),
+			static_cast<uint32_t>(pos.y),
+			8,    // _NET_WM_MOVERESIZE_MOVE
+			1,    // left mouse button
+			0
+		};
+
+		xcb_client_message_event_t ev = {};
+		ev.response_type = XCB_CLIENT_MESSAGE;
+		ev.window = win;
+		ev.format = 32;
+		ev.type = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 0, strlen("_NET_WM_MOVERESIZE"), "_NET_WM_MOVERESIZE"), NULL)->atom;
+		memcpy(ev.data.data32, data, sizeof(data));
+
+		xcb_send_event(connection, 0, root,
+					XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
+					(const char*)&ev);
+		xcb_flush(connection);
+#elif defined(ANDROID)
+
+#endif
+	}
+#endif
 
 	#ifdef __ANDROID__
 	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height)

@@ -66,18 +66,15 @@ namespace dz {
 		create_surface(renderer);
 		direct_registry_ensure_physical_device(dr_ptr, renderer);
 		direct_registry_ensure_logical_device(dr_ptr, renderer);
-		if (!window->defer_swapchain)
-			create_swap_chain(renderer);
+		create_swap_chain(renderer);
 		ensure_command_pool(renderer);
 		ensure_command_buffers(renderer);
-		if (!window->defer_swapchain) {
-			create_image_views(renderer);
-			ensure_render_pass(renderer);
-			create_framebuffers(renderer);
-			renderer->renderPass = dr.surfaceRenderPass;
-		}
+		create_image_views(renderer);
+		ensure_render_pass(renderer);
+		create_framebuffers(renderer);
+		renderer->renderPass = dr.surfaceRenderPass;
 		create_sync_objects(renderer);
-		direct_registry_ensure_imgui(dr_ptr);
+		ImGuiLayer::VulkanInit();
 		return renderer;
 	}
 
@@ -308,13 +305,6 @@ namespace dz {
 			std::cerr << "Failed to create Vulkan instance even with SwiftShader fallback." << std::endl;
 			assert(false);
 		}
-	}
-
-
-
-	void direct_registry_ensure_imgui(DirectRegistry* direct_registry)
-	{
-		ImGuiLayer::Init();
 	}
 
 	#ifndef MACOS
@@ -1005,13 +995,10 @@ namespace dz {
 
 	void recreate_swap_chain(Renderer* renderer)
 	{
-		if (!renderer->window->defer_swapchain) {
-			destroy_swap_chain(renderer);
-			create_swap_chain(renderer);
-			create_image_views(renderer);
-			create_framebuffers(renderer);
-			std::cout << "Recreated Swap Chain" << std::endl;
-		}
+		destroy_swap_chain(renderer);
+		create_swap_chain(renderer);
+		create_image_views(renderer);
+		create_framebuffers(renderer);
 	}
 
 	bool swap_buffers(Renderer* renderer)
@@ -1046,8 +1033,7 @@ namespace dz {
 			vkDestroyBuffer(device, countPair.second.first, 0);
 			vkFreeMemory(device, countPair.second.second, 0);
 		}
-		if (!window.defer_swapchain)
-			destroy_swap_chain(renderer);
+		destroy_swap_chain(renderer);
 		for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
 		{
 			vkDestroySemaphore(device, imageAvailableSemaphore, 0);
