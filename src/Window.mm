@@ -2,7 +2,6 @@
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <TargetConditionals.h>
-#import <UIKit/UIKit.h>
 #include <Metal/Metal.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
