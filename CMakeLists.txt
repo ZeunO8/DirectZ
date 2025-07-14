@@ -110,8 +110,6 @@ elseif(MACOS)
 	target_link_libraries(DirectZ PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif()
 
-file(COPY fonts/fa-solid-900.ttf DESTINATION ${CMAKE_BINARY_DIR}/fonts)
-
 include(./Tests.cmake)
 
 include(./cmake/Install.cmake)
