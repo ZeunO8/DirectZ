@@ -1261,12 +1261,13 @@ namespace dz {
 	}
 	void window_cancel_drag(WINDOW* window_ptr) {
 		window_ptr->drag_in_progress = false;
+		ImVec2 pos = ImGui::GetMousePos();
+#if defined(_WIN32) || (defined(__linux__) && !defined(ANDROID))
 		window_ptr->event_interface->cursor_press(0, false);
+#endif
 #if defined(__linux__) && !defined(ANDROID)
 		if (!window_ptr || !window_ptr->display || !window_ptr->window || !window_ptr->root)
 			return;
-
-		ImVec2 pos = ImGui::GetMousePos();
 
 		Atom moveresize_atom = XInternAtom(window_ptr->display, "_NET_WM_MOVERESIZE", False);
 		if (moveresize_atom == None)
@@ -1290,6 +1291,14 @@ namespace dz {
 				reinterpret_cast<XEvent*>(&ev));
 
 		XFlush(window_ptr->display);
+#elif defined(ANDROID)
+		window_ptr->event_interface->touch_event(
+			AMOTION_EVENT_ACTION_POINTER_UP,
+			0,
+			0,
+			pos.x, pos.y,
+			1.0f,
+			1.0f);
 #endif
 	}
 #endif
