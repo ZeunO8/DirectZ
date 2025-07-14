@@ -169,10 +169,12 @@ namespace dz {
 		auto window_ptrs_end = dr.window_ptrs.end();
 		auto window_ptrs_begin = dr.window_ptrs.begin();
 		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
+		bool destroy_remaining = false;
 		if (window_it != window_ptrs_end) {
 			auto index = std::distance(window_ptrs_begin, window_it);
 			dr.window_ptrs.erase(window_it);
 			dr.window_reflectable_entries.erase(dr.window_reflectable_entries.begin() + index);
+			destroy_remaining = index == 0;
 		}
 		auto& event_interface = *window->event_interface; 
 		while (!event_interface.window_free_queue.empty()) {
@@ -182,6 +184,12 @@ namespace dz {
 		}
 		renderer_free(window->renderer);
 		delete window;
+
+		if (destroy_remaining) {
+			for (size_t index = 0; index < dr.window_ptrs.size();) {
+				window_free(dr.window_ptrs[index]);
+			}
+		}
 	}
 	bool window_poll_events(WINDOW* window) {
 		auto poll_continue = window->poll_events_platform();
