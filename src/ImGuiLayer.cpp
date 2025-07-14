@@ -266,12 +266,8 @@ namespace dz {
             ImGui::NewFrame();
     
             for (auto& [priority, fn_map] : priority_immediate_draw_fn_map)
-            {
                 for (auto& [id, pair] : fn_map)
-                {
                     pair.second(*this);
-                }
-            }
     
             ImGui::Render();
 

@@ -313,7 +313,7 @@ int main() {
     auto& window_width = *window_get_width_ref(window);
     auto& window_height = *window_get_height_ref(window);
     
-    imgui.AddImmediateDrawFunction(0.5, "Menu", [](auto& layer)
+    imgui.AddImmediateDrawFunction(0.5, "Menu", [&](auto& layer)
     {
         if (ImGui::BeginMainMenuBar())
         {
@@ -363,7 +363,7 @@ int main() {
 
                 if (ImGui::MenuItem("Exit", "Alt+F4"))
                 {
-                    // Handle exit logic here
+                    window_request_close(window);
                 }
 
                 ImGui::EndMenu();

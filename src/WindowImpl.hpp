@@ -18,6 +18,7 @@ struct WINDOW
 	std::shared_ptr<int32_t> mod;
 	std::shared_ptr<int32_t> focused;
 	bool closed = false;
+	bool close_requested = false;
 	VkViewport viewport = {};
 	VkRect2D scissor = {};
     Renderer* renderer = 0;

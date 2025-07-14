@@ -478,4 +478,9 @@ namespace dz
     * @note this is called internally on some platforms
     */
     void window_cancel_drag(WINDOW* window_ptr);
+
+    /**
+    * @brief explicitly closes a window
+    */
+    void window_request_close(WINDOW* window_ptr);
 }

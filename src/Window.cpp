@@ -191,8 +191,13 @@ namespace dz {
 			}
 		}
 	}
+    void window_request_close(WINDOW* window_ptr) {
+		window_ptr->close_requested = true;
+	}
 	bool window_poll_events(WINDOW* window) {
-		auto poll_continue = window->poll_events_platform();
+		auto poll_continue =
+			!window->close_requested &&
+			window->poll_events_platform();
 		auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
 			std::chrono::system_clock::now()
 		);
@@ -498,24 +503,8 @@ namespace dz {
 	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
 	uint8_t get_window_type_platform() {
-		return WINDOW_TYPE_XCB;
+		return WINDOW_TYPE_X11;
 	}
-
-	#define DZ_XCB_EVENT_MASK XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_FOCUS_CHANGE
-
-	// void reset_event_mask(WINDOW* window_ptr) {
-	// 	if (!window_ptr || !window_ptr->connection || !window_ptr->window)
-	// 		return;
-
-	// 	uint32_t mask = DZ_XCB_EVENT_MASK;
-
-	// 	xcb_change_window_attributes(
-	// 		window_ptr->connection,
-	// 		window_ptr->window,
-	// 		XCB_CW_EVENT_MASK,
-	// 		&mask
-	// 	);
-	// }
 
 	void WINDOW::create_platform() {
 		display = XOpenDisplay(nullptr);
