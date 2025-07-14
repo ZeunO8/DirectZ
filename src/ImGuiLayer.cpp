@@ -188,6 +188,14 @@ namespace dz {
             style.Colors[ImGuiCol_WindowBg].w = 1.0f;
         }
 
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+        auto fa_path = (getProgramDirectoryPath() / "fonts" / FONT_ICON_FILE_NAME_FAS).string();
+        io.Fonts->AddFontDefault();
+        io.Fonts->AddFontFromFileTTF(fa_path.c_str(), 12.0f, &icons_config, icon_ranges);
+
         initialized = true;
 
         return true;

@@ -30,8 +30,7 @@ struct Entity {
     inline static std::string GetGLSLEntityVertexFunction() {
         return R"(
 vec3 GetEntityVertex(in Entity entity) {
-    switch (gl_VertexIndex)
-    {
+    switch (gl_VertexIndex) {
     case 0: return vec3(-0.5, -0.5, 0);
     case 1: return vec3(-0.5, 0.5, 0);
     case 2: return vec3(0.5, 0.5, 0);
@@ -313,11 +312,8 @@ int main() {
     auto& window_width = *window_get_width_ref(window);
     auto& window_height = *window_get_height_ref(window);
     
-    imgui.AddImmediateDrawFunction(0.5, "Menu", [&](auto& layer)
-    {
-        if (ImGui::BeginMainMenuBar())
-        {
-            // Handle drag zone for moving the window
+    imgui.AddImmediateDrawFunction(0.5, "Menu", [&](auto& layer) {
+        if (ImGui::BeginMainMenuBar()) {
             ImVec2 menu_pos = ImGui::GetWindowPos();
             ImVec2 menu_size = ImGui::GetWindowSize();
             ImVec2 mouse_pos = ImGui::GetMousePos();
@@ -339,30 +335,21 @@ int main() {
 
             if (ImGui::BeginMenu("File"))
             {
-                if (ImGui::MenuItem("New", "Ctrl+N"))
-                {
-                    // Handle new file creation logic here
+                if (ImGui::MenuItem("New", "Ctrl+N")) {
                 }
 
-                if (ImGui::MenuItem("Open", "Ctrl+O"))
-                {
-                    // Handle file open logic here
+                if (ImGui::MenuItem("Open", "Ctrl+O")) {
                 }
 
-                if (ImGui::MenuItem("Save", "Ctrl+S"))
-                {
-                    // Handle file save logic here
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
                 }
 
-                if (ImGui::MenuItem("Save As..", "Ctrl+Shift+S"))
-                {
-                    // Handle save as logic here
+                if (ImGui::MenuItem("Save As..", "Ctrl+Shift+S")) {
                 }
 
                 ImGui::Separator();
 
-                if (ImGui::MenuItem("Exit", "Alt+F4"))
-                {
+                if (ImGui::MenuItem("Exit", "Alt+F4")) {
                     window_request_close(window);
                 }
 
@@ -371,31 +358,21 @@ int main() {
 
             if (ImGui::BeginMenu("Edit"))
             {
-                if (ImGui::MenuItem("Undo", "Ctrl+Z"))
-                {
-                    // Undo logic here
+                if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
                 }
 
-                if (ImGui::MenuItem("Redo", "Ctrl+Y"))
-                {
-                    // Redo logic here
+                if (ImGui::MenuItem("Redo", "Ctrl+Y")) {
                 }
 
                 ImGui::Separator();
 
-                if (ImGui::MenuItem("Cut", "Ctrl+X"))
-                {
-                    // Cut logic here
+                if (ImGui::MenuItem("Cut", "Ctrl+X")) {
                 }
 
-                if (ImGui::MenuItem("Copy", "Ctrl+C"))
-                {
-                    // Copy logic here
+                if (ImGui::MenuItem("Copy", "Ctrl+C")) {
                 }
 
-                if (ImGui::MenuItem("Paste", "Ctrl+V"))
-                {
-                    // Paste logic here
+                if (ImGui::MenuItem("Paste", "Ctrl+V")) {
                 }
 
                 ImGui::EndMenu();
@@ -414,47 +391,51 @@ int main() {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Window"))
-            {
-                if (ImGui::MenuItem("Minimize", "Ctrl+M"))
-                {
-                    // Minimize window logic
-                }
-
-                if (ImGui::MenuItem("Maximize", "Ctrl+Shift+M"))
-                {
-                    // Maximize window logic
-                }
-
-                if (ImGui::MenuItem("Restore", "Ctrl+R"))
-                {
-                    // Restore window size
-                }
-
-                ImGui::EndMenu();
-            }
-
             if (ImGui::BeginMenu("Help"))
             {
-                if (ImGui::MenuItem("Documentation", "F1"))
-                {
-                    // Open documentation link or popup
+                if (ImGui::MenuItem("Documentation", "F1")) {
                 }
 
-                if (ImGui::MenuItem("About"))
-                {
-                    // Show about dialog
+                if (ImGui::MenuItem("About")) {
                 }
 
                 ImGui::EndMenu();
             }
+
+            float button_w = ImGui::GetFontSize() * 1.5f;
+            float button_h = ImGui::GetFontSize() * 1.2f;
+            float spacing = ImGui::GetStyle().ItemSpacing.x / 2.f;
+            float total_width = (button_w + spacing) * 3;
+
+            ImGui::SetCursorPosX(ImGui::GetWindowSize().x - total_width);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 3));
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
+
+            if (ImGui::Button(ICON_MAX, ImVec2(button_w, button_h)))
+            {
+                // window_request_maximize(window);
+            }
+
+            ImGui::SameLine(0.0f, spacing);
+            if (ImGui::Button(ICON_MIN, ImVec2(button_w, button_h)))
+            {
+                // window_request_minimize(window);
+            }
+
+            ImGui::SameLine(0.0f, spacing);
+            if (ImGui::Button(ICON_CLOSE, ImVec2(button_w, button_h)))
+            {
+                window_request_close(window);
+            }
+
+            ImGui::PopStyleVar(2);
 
             ImGui::EndMainMenuBar();
         }
     });
 
-    imgui.AddImmediateDrawFunction(1.0f, "DockspaceRoot", [](dz::ImGuiLayer& layer)
-    {
+    imgui.AddImmediateDrawFunction(1.0f, "DockspaceRoot", [](dz::ImGuiLayer& layer) {
         static bool opt_fullscreen = true;
         static bool opt_is_open = true;
         static bool opt_padding = false;
@@ -502,8 +483,7 @@ int main() {
 
     imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&, frame_image_ds](auto& layer) mutable {
         static bool show_viewport = true;
-        if (show_viewport)
-        {
+        if (show_viewport) {
             ImGui::Begin("Viewport", &show_viewport);
             ImVec2 viewportSize = ImGui::GetContentRegionAvail();
             ecs.ResizeFramebuffer(1, viewportSize.x, viewportSize.y);
@@ -587,8 +567,7 @@ int main() {
     });
 
     imgui.AddImmediateDrawFunction(4.0f, "Property Editor", [&](auto& layer) {
-        if (property_editor.is_open)
-        {
+        if (property_editor.is_open) {
             if (!ImGui::Begin("Property Editor", &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
             {
                 property_editor.is_open = false;
@@ -626,8 +605,7 @@ int main() {
                     reflect_end = reflectables.end();
                 };
 
-                for (; reflect_it != reflect_end; reflect_it++)
-                {
+                for (; reflect_it != reflect_end; reflect_it++) {
                     reflect_dist = std::distance(reflect_begin, reflect_it);
                     auto& reflectable = **reflect_it;
                     const auto& reflectable_name = reflectable.GetName();
@@ -793,15 +771,12 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentReflect
         property_editor.is_open = true;
     }
 
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
         ImGui::OpenPopup("EntityContextMenu");
     }
 
-    if (ImGui::BeginPopup("EntityContextMenu"))
-    {
-        if (ImGui::BeginMenu("Add Child"))
-        {
+    if (ImGui::BeginPopup("EntityContextMenu")) {
+        if (ImGui::BeginMenu("Add Child")) {
             if (ImGui::MenuItem("Plane"))
             {
                 // ecs.AddEntityToScene(scene_id, "Plane");
@@ -821,20 +796,17 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentReflect
             ImGui::EndMenu();
         }
 
-        if (ImGui::MenuItem("Duplicate Entity"))
-        {
+        if (ImGui::MenuItem("Duplicate Entity")) {
             // ecs.DuplicateEntity(id);
         }
-        if (ImGui::MenuItem("Delete Entity"))
-        {
+        if (ImGui::MenuItem("Delete Entity")) {
             // ecs.DeleteEntity(id);
         }
 
         ImGui::EndPopup();
     }
 
-    if (node_open)
-    {
+    if (node_open) {
         for (auto& child_id : entity_entry.children) {
             auto& child_entry = ecs.id_entity_entries[child_id];
             if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry))
@@ -870,15 +842,12 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
         property_editor.is_open = true;
     }
 
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-    {
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
         ImGui::OpenPopup("SceneContextMenu");
     }
 
-    if (ImGui::BeginPopup("SceneContextMenu"))
-    {
-        if (ImGui::BeginMenu("Add Entity"))
-        {
+    if (ImGui::BeginPopup("SceneContextMenu")) {
+        if (ImGui::BeginMenu("Add Entity")) {
             if (ImGui::MenuItem("Plane"))
             {
                 // ecs.AddEntityToScene(scene_id, "Plane");
@@ -898,8 +867,7 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Add Camera"))
-        {
+        if (ImGui::BeginMenu("Add Camera")) {
             if (ImGui::MenuItem("Perspective"))
             {
                 ecs.AddCameraToScene(scene_id, Camera::Perspective);
@@ -911,8 +879,7 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu("Add Light"))
-        {
+        if (ImGui::BeginMenu("Add Light")) {
             if (ImGui::MenuItem("Directional"))
             {
                 // ecs.AddEntityToScene(scene_id, "Plane");
@@ -931,13 +898,11 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
         ImGui::EndPopup();
     }
 
-    if (node_open)
-    {
+    if (node_open) {
         for (auto scene_entry_child_entry : scene_entry_children) {
             auto& child_entry = *scene_entry_child_entry;
             if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry)) {
-                switch (child_entry.GetGroupType())
-                {
+                switch (child_entry.GetGroupType()) {
                 case ReflectableGroup::Window:
                     assert(false);
                     break;
@@ -983,8 +948,7 @@ void DrawGenericEntry(int generic_id, ReflectableGroup& reflectable_group) {
         property_editor.is_open = true;
     }
 
-    if (node_open)
-    {
+    if (node_open) {
         ImGui::TreePop();
     }
     ImGui::PopID();
@@ -1015,8 +979,7 @@ void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& win
         property_editor.is_open = true;
     }
 
-    if (node_open)
-    {
+    if (node_open) {
         // for (auto& child_id : entity_entry.children) {
         //     auto& child_entry = ecs.id_entity_entries[child_id];
         //     if (ReflectableGroupFilterCheck(SceneGraphFilter, child_entry))

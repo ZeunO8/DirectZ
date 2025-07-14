@@ -3,6 +3,9 @@
 #include "DirectRegistry.hpp"
 #include <map>
 #include <queue>
+#define ICON_CLOSE   ICON_FA_XMARK
+#define ICON_MIN     ICON_FA_WINDOW_MINIMIZE
+#define ICON_MAX     ICON_FA_WINDOW_MAXIMIZE
 namespace dz {
     struct ImGuiLayer {
         friend WINDOW;

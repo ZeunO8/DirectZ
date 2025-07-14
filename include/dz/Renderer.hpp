@@ -21,3 +21,4 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <backends/imgui_impl_vulkan.h>
+#include <dz/internal/IconsFontAwesome6.h>
