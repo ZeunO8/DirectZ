@@ -2,8 +2,7 @@ namespace dz {
 	#include "WindowImpl.hpp"
 	
     WindowReflectableGroup::WindowReflectableGroup(WINDOW* window_ptr):
-		window_ptr(window_ptr)
-	{
+		window_ptr(window_ptr) {
 		reflectables.push_back(new WindowMetaReflectable(window_ptr));
 		reflectables.push_back(new WindowViewportReflectable(window_ptr));
 	}
@@ -24,8 +23,7 @@ namespace dz {
 	WindowMetaReflectable::WindowMetaReflectable(WINDOW* window_ptr):
 		window_ptr(window_ptr),
 		uid(GlobalUID::GetNew("Reflectable")),
-		name("Window Meta")
-	{}
+		name("Window Meta") {}
 
 	int WindowMetaReflectable::GetID() {
 		return uid;
@@ -54,8 +52,7 @@ namespace dz {
 	WindowViewportReflectable::WindowViewportReflectable(WINDOW* window_ptr):
 		window_ptr(window_ptr),
 		uid(GlobalUID::GetNew("Reflectable")),
-		name("Window Viewport")
-	{}
+		name("Window Viewport") {}
 
 	int WindowViewportReflectable::GetID() {
 		return uid;
@@ -75,8 +72,7 @@ namespace dz {
 		}
 	}
 
-	WINDOW* window_create(const WindowCreateInfo& info)
-	{
+	WINDOW* window_create(const WindowCreateInfo& info) {
 		auto window = new WINDOW{
 			.title = info.title,
 			.x = info.x,
@@ -152,19 +148,16 @@ namespace dz {
 		return dr.imguiLayer;
 	}
 
-	void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group)
-	{
+	void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group) {
 		window->draw_list_managers[mgr].insert(buffer_group);
 	}
-	void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group)
-	{
+	void window_remove_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group) {
 		auto& vect = window->draw_list_managers[mgr];
 		vect.erase(buffer_group);
 		if (vect.empty())
 			window->draw_list_managers.erase(mgr);
 	}
-	void window_free(WINDOW* window)
-	{
+	void window_free(WINDOW* window) {
 		if (window->imguiViewport) {
 			auto& vp = *window->imguiViewport;
             vp.PlatformHandle = nullptr;
@@ -190,8 +183,7 @@ namespace dz {
 		renderer_free(window->renderer);
 		delete window;
 	}
-	bool window_poll_events(WINDOW* window)
-	{
+	bool window_poll_events(WINDOW* window) {
 		auto poll_continue = window->poll_events_platform();
 		auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
 			std::chrono::system_clock::now()
@@ -297,100 +289,80 @@ namespace dz {
 	size_t window_get_id_ref(WINDOW* window) {
 		return window->id;
 	}
-	float& window_get_float_frametime_ref(WINDOW* window)
-	{
+	float& window_get_float_frametime_ref(WINDOW* window) {
 		return *window->float_frametime;
 	}
-	double& window_get_double_frametime_ref(WINDOW* window)
-	{
+	double& window_get_double_frametime_ref(WINDOW* window) {
 		return *window->double_frametime;
 	}
-	void window_set_float_frametime_pointer(WINDOW* window, float* pointer)
-	{
+	void window_set_float_frametime_pointer(WINDOW* window, float* pointer) {
 		window_set_float_frametime_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 	}
-	void window_set_double_frametime_pointer(WINDOW* window, double* pointer)
-	{
+	void window_set_double_frametime_pointer(WINDOW* window, double* pointer) {
 		window_set_double_frametime_pointer(window, std::shared_ptr<double>(pointer, [](auto p){}));
 	}
-	void window_set_keys_pointer(WINDOW* window, int32_t* pointer)
-	{
+	void window_set_keys_pointer(WINDOW* window, int32_t* pointer) {
 		window_set_keys_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 	}
-	void window_set_buttons_pointer(WINDOW* window, int32_t* pointer)
-	{
+	void window_set_buttons_pointer(WINDOW* window, int32_t* pointer) {
 		window_set_buttons_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 	}
-	void window_set_cursor_pointer(WINDOW* window, float* pointer)
-	{
+	void window_set_cursor_pointer(WINDOW* window, float* pointer) {
 		window_set_cursor_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 	}
-	void window_set_mod_pointer(WINDOW* window, int32_t* pointer)
-	{
+	void window_set_mod_pointer(WINDOW* window, int32_t* pointer) {
 		window_set_mod_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 	}
-	void window_set_focused_pointer(WINDOW* window, int32_t* pointer)
-	{
+	void window_set_focused_pointer(WINDOW* window, int32_t* pointer) {
 		window_set_focused_pointer(window, std::shared_ptr<int32_t>(pointer, [](auto p){}));
 	}
-	void window_set_width_pointer(WINDOW* window, float* pointer)
-	{
+	void window_set_width_pointer(WINDOW* window, float* pointer) {
 		window_set_width_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 	}
-	void window_set_height_pointer(WINDOW* window, float* pointer)
-	{
+	void window_set_height_pointer(WINDOW* window, float* pointer) {
 		window_set_height_pointer(window, std::shared_ptr<float>(pointer, [](auto p){}));
 	}
-	void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
-	{
+	void window_set_float_frametime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_float_frametime = *window->float_frametime;
 		window->float_frametime = pointer;
 		*window->float_frametime = old_float_frametime;
 	}
-	void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer)
-	{
+	void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer) {
 		auto old_double_frametime = *window->double_frametime;
 		window->double_frametime = pointer;
 		*window->double_frametime = old_double_frametime;
 	}
-	void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
-	{
+	void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_keys = window->keys;
 		window->keys = pointer;
 		memcpy(window->keys.get(), old_keys.get(), 256 * sizeof(int32_t));
 	}
-	void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
-	{
+	void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_buttons = window->buttons;
 		window->buttons = pointer;
 		memcpy(window->buttons.get(), old_buttons.get(), 8 * sizeof(int32_t));
 	}
-	void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
-	{
+	void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_cursor = window->cursor;
 		window->cursor = pointer;
 		memcpy(window->cursor.get(), old_cursor.get(), 2 * sizeof(float));
 	}
-	void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
-	{
+	void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_mod = *window->mod;
 		window->mod = pointer;
 		*window->mod = old_mod;
 	}
-	void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer)
-	{
+	void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_focused = *window->focused;
 		window->focused = pointer;
 		*window->focused = old_focused;
 	}
-	void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
-	{
+	void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_width = *window->width;
 		window->width = pointer;
 		*window->width = old_width;
 	}
-	void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer)
-	{
+	void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_height = *window->height;
 		window->height = pointer;
 		*window->height = old_height;
@@ -404,36 +376,29 @@ namespace dz {
 		return window_get_keypress_ref(window, (uint8_t)keycode);
 	}
 
-	std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode)
-	{
+	std::shared_ptr<int32_t>& window_get_all_keypress_ref(WINDOW* window, uint8_t keycode) {
 		return window->keys;
 	}
-	int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button)
-	{
+	int32_t& window_get_buttonpress_ref(WINDOW* window, uint8_t button) {
 		return window->buttons.get()[button];
 	}
-	std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t button)
-	{
+	std::shared_ptr<int32_t>& window_get_all_buttonpress_ref(WINDOW* window, uint8_t button) {
 		return window->buttons;
 	}
-	std::shared_ptr<float>& window_get_width_ref(WINDOW* window)
-	{
+	std::shared_ptr<float>& window_get_width_ref(WINDOW* window) {
 		return window->width;
 	}
-	std::shared_ptr<float>& window_get_height_ref(WINDOW* window)
-	{
+	std::shared_ptr<float>& window_get_height_ref(WINDOW* window) {
 		return window->height;
 	}
 
 	#ifdef _WIN32
 	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	uint8_t get_window_type_platform()
-	{
+	uint8_t get_window_type_platform() {
 		return WINDOW_TYPE_WIN32;
 	}
-	void WINDOW::create_platform()
-	{
+	void WINDOW::create_platform() {
 		if (!setDPIAware)
 		{
 			HRESULT hr = SetProcessDPIAware();
@@ -507,8 +472,7 @@ namespace dz {
 		// hDeviceContext = GetDC(hwnd);
 		// SetupPixelFormat(hDeviceContext);
 	}
-	bool WINDOW::poll_events_platform()
-	{
+	bool WINDOW::poll_events_platform() {
 		MSG msg;
 		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
@@ -519,16 +483,14 @@ namespace dz {
 		}
 		return true;
 	}
-	void WINDOW::destroy_platform()
-	{
+	void WINDOW::destroy_platform() {
 		if (hwnd)
 		{
 			DestroyWindow(hwnd);
 			hwnd = nullptr;
 		}
 	}
-	void WINDOW::post_init_platform()
-	{
+	void WINDOW::post_init_platform() {
 		ShowWindow(hwnd, SW_NORMAL);
 		UpdateWindow(hwnd);
 		RECT rect;
@@ -539,12 +501,27 @@ namespace dz {
 		}
 	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
-	uint8_t get_window_type_platform()
-	{
+	uint8_t get_window_type_platform() {
 		return WINDOW_TYPE_XCB;
 	}
-	void WINDOW::create_platform()
-	{
+
+	#define DZ_XCB_EVENT_MASK XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_FOCUS_CHANGE
+
+	void reset_event_mask(WINDOW* window_ptr) {
+		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+			return;
+
+		uint32_t mask = DZ_XCB_EVENT_MASK;
+
+		xcb_change_window_attributes(
+			window_ptr->connection,
+			window_ptr->window,
+			XCB_CW_EVENT_MASK,
+			&mask
+		);
+	}
+
+	void WINDOW::create_platform() {
 		connection = xcb_connect(nullptr, nullptr);
 		if (xcb_connection_has_error(connection))
 		{
@@ -557,9 +534,7 @@ namespace dz {
 		window = xcb_generate_id(connection);
 		uint32_t value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 		uint32_t value_list[] = {screen->white_pixel,
-														XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE |
-															XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_PRESS |
-															XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_FOCUS_CHANGE};
+			DZ_XCB_EVENT_MASK};
 		xcb_create_window(connection,
 											XCB_COPY_FROM_PARENT, // depth
 											window,
@@ -601,8 +576,7 @@ namespace dz {
 		screenNumber = DefaultScreen(display);
 		initAtoms();
 	}
-	void WINDOW::initAtoms()
-	{
+	void WINDOW::initAtoms() {
 		const char* atomNames[] =
 		{
 			"WM_PROTOCOLS",
@@ -639,8 +613,7 @@ namespace dz {
 		}
 	}
 	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event);
-	bool WINDOW::poll_events_platform()
-	{
+	bool WINDOW::poll_events_platform() {
 		bool return_ = true;
 		xcb_generic_event_t* event;
 		while ((event = xcb_poll_for_event(connection)))
@@ -658,33 +631,26 @@ namespace dz {
 		}
 		return return_;
 	}
-	void WINDOW::post_init_platform()
-	{
+	void WINDOW::post_init_platform() {
 	}
-	void WINDOW::destroy_platform()
-	{
+	void WINDOW::destroy_platform() {
 		XCloseDisplay(display);
 		xcb_destroy_window(connection, window);
 		xcb_disconnect(connection);
 	}
 	#elif defined(__ANDROID__)
-	uint8_t get_window_type_platform()
-	{
+	uint8_t get_window_type_platform() {
 		return WINDOW_TYPE_ANDROID;
 	}
-	void WINDOW::create_platform()
-	{
+	void WINDOW::create_platform() {
 	}
 	bool handle_android_event(WINDOW& window);
-	bool WINDOW::poll_events_platform()
-	{
+	bool WINDOW::poll_events_platform() {
 		return true;
 	}
-	void WINDOW::post_init_platform()
-	{
+	void WINDOW::post_init_platform() {
 	}
-	void WINDOW::destroy_platform()
-	{
+	void WINDOW::destroy_platform() {
     	android_window = nullptr;
 	}
 	#endif
@@ -692,8 +658,7 @@ namespace dz {
 
 	#ifdef _WIN32
 	KEYCODES GetCorrectedKeycode(KEYCODES keycode, bool shift);
-	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-	{
+	LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 		struct WINDOW* window_ptr = (WINDOW*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		auto& window = *window_ptr;
 		switch (msg)
@@ -965,8 +930,7 @@ namespace dz {
         }
 	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
-	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
-	{
+	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event) {
 		std::cout << "received event: " << eventType << std::endl;
 		switch (eventType)
 		{
@@ -1068,6 +1032,7 @@ namespace dz {
 				window.event_interface->cursor_press(button, false);
 				if (window.drag_in_progress && button == 0) {
 					window.drag_in_progress = false;
+					reset_event_mask(&window);
 					xcb_ungrab_pointer(window.connection, XCB_CURRENT_TIME);
 					xcb_flush(window.connection);
 				}
@@ -1089,8 +1054,7 @@ namespace dz {
 	}
 	#endif
 
-	EventInterface* window_get_event_interface(WINDOW* window)
-	{
+	EventInterface* window_get_event_interface(WINDOW* window) {
 		return window->event_interface;
 	}
 
@@ -1379,8 +1343,7 @@ namespace dz {
 #endif
 
 	#ifdef __ANDROID__
-	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height)
-	{
+	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height) {
 		this->android_window = android_window;
 		*this->width = width;
 		*this->height = height;
