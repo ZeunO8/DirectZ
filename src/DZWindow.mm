@@ -1,4 +1,4 @@
-@interface DZWindow : 
+@interface DZWindow : NSWindow
 {
     dz::WINDOW* window_ptr;
 }
