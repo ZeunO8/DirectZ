@@ -44,10 +44,8 @@ namespace dz
 		return WINDOW_TYPE_MACOS;
 	}
 	void WINDOW::create_platform() {
-		@autoreleasepool
-		{
-			if (NSApp == nil)
-			{
+		@autoreleasepool {
+			if (NSApp == nil) {
 				[NSApplication sharedApplication];
 				[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 			}
@@ -56,13 +54,20 @@ namespace dz
 			int32_t windowY = y == -1 ? 128 : y;
 			NSRect rect = NSMakeRect(windowX, windowY, *width, *height);
 
-			nsWindow = [[DZWindow alloc] initWithContentRect:rect
-													styleMask:(NSWindowStyleMaskTitled |
-															NSWindowStyleMaskClosable |
-															NSWindowStyleMaskResizable |
-															NSWindowStyleMaskMiniaturizable)
-													backing:NSBackingStoreBuffered
-														defer:NO];
+			NSUInteger styleMask =
+				NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
+				NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable;
+
+			if (borderless) {
+				styleMask = NSWindowStyleMaskBorderless;
+			}
+
+			nsWindow = [
+				[DZWindow alloc] initWithContentRect:rect
+				styleMask:styleMask
+				backing:NSBackingStoreBuffered
+				defer:NO
+			];
 
 			DZWindow* dzWindow = (DZWindow*)nsWindow;
 			dzWindow->window_ptr = this;
@@ -87,8 +92,7 @@ namespace dz
 			while ((event = [NSApp nextEventMatchingMask:NSEventMaskAny
 									untilDate:nil
 									inMode:NSDefaultRunLoopMode
-									dequeue:YES]))
-			{
+									dequeue:YES])) {
 				handle_macos_event(*this, event);
 				[NSApp sendEvent:event];
 				[NSApp updateWindows];
