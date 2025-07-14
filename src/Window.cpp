@@ -791,8 +791,7 @@ namespace dz {
     		window.drag_in_progress = true;
     		break;
 		case WM_EXITSIZEMOVE:
-    		window.drag_in_progress = false;
-			window.event_interface->cursor_press(0, false);
+			window_cancel_drag(&window);
 			break;
 		case WM_SIZE:
 			{
@@ -1031,7 +1030,7 @@ namespace dz {
 					break;
 				window.event_interface->cursor_press(button, false);
 				if (window.drag_in_progress && button == 0) {
-					window.drag_in_progress = false;
+					window_cancel_drag(&window);
 					reset_event_mask(&window);
 					xcb_ungrab_pointer(window.connection, XCB_CURRENT_TIME);
 					xcb_flush(window.connection);
@@ -1338,6 +1337,51 @@ namespace dz {
 		std::cout << "drag in progress" << std::endl;
 #elif defined(ANDROID)
 
+#endif
+	}
+	void window_cancel_drag(WINDOW* window_ptr) {
+		window_ptr->drag_in_progress = false;
+		window_ptr->event_interface->cursor_press(0, false);
+#if defined(__linux__) && !defined(ANDROID)
+		if (!window_ptr || !window_ptr->connection || !window_ptr->window || !window_ptr->root)
+			return;
+
+		// Cancel move/resize operation
+		ImVec2 pos = ImGui::GetMousePos();
+
+		const uint32_t data[] = {
+			static_cast<uint32_t>(pos.x),
+			static_cast<uint32_t>(pos.y),
+			11,   // _NET_WM_MOVERESIZE_CANCEL
+			1,    // left mouse button
+			0
+		};
+
+		xcb_intern_atom_cookie_t cookie = xcb_intern_atom(window_ptr->connection, 0, strlen("_NET_WM_MOVERESIZE"), "_NET_WM_MOVERESIZE");
+		xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(window_ptr->connection, cookie, nullptr);
+		if (!reply)
+			return;
+
+		xcb_atom_t moveresize_atom = reply->atom;
+		free(reply);
+
+		xcb_client_message_event_t ev = {};
+		ev.response_type = XCB_CLIENT_MESSAGE;
+		ev.format = 32;
+		ev.sequence = 0;
+		ev.window = window_ptr->window;
+		ev.type = moveresize_atom;
+		memcpy(ev.data.data32, data, sizeof(data));
+
+		xcb_send_event(
+			window_ptr->connection,
+			false,
+			window_ptr->root,
+			XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
+			reinterpret_cast<const char*>(&ev)
+		);
+
+		xcb_flush(window_ptr->connection);
 #endif
 	}
 #endif

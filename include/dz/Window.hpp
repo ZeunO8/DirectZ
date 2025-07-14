@@ -471,4 +471,11 @@ namespace dz
     * @note call this whenever you want to drag a window with the mouse (see ECS Test "Menu" example)
     */
     void window_request_drag(WINDOW*);
+
+    /**
+    * @brief explicitly cancels a window drag
+    *
+    * @note this is called internally on some platforms
+    */
+    void window_cancel_drag(WINDOW* window_ptr);
 }

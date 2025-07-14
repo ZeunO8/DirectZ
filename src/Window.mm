@@ -293,9 +293,13 @@ namespace dz
 	
     void window_request_drag(WINDOW* window_ptr) {
 #if defined(MACOS)
-    	[window performWindowDragWithEvent:[NSApp currentEvent]];
+    	[(DZWindow*)window_ptr->nsWindow performWindowDragWithEvent:[NSApp currentEvent]];
 #elif defined(IOS)
 #endif
+	}
+	void window_cancel_drag(WINDOW* window_ptr) {
+		window_ptr->drag_in_progress = false;
+		window_ptr->event_interface->cursor_press(0, false);
 	}
 }
 
