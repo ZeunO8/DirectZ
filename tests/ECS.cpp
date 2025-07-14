@@ -592,6 +592,8 @@ int main() {
             if (!ImGui::Begin("Property Editor", &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
             {
                 property_editor.is_open = false;
+                SelectedReflectableGroup = nullptr;
+                SelectedReflectableID = 0;
                 ImGui::End();
                 return;
             }
