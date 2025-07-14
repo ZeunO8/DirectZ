@@ -7,7 +7,7 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #elif defined(__linux__) && !defined(__ANDROID__)
 #define USING_VULKAN_1_2 true
-#define VK_USE_PLATFORM_XCB_KHR
+#define VK_USE_PLATFORM_XLIB_KHR
 #elif defined(MACOS)
 #define USING_VULKAN_1_2 true
 #define VK_USE_PLATFORM_METAL_EXT

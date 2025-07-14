@@ -209,6 +209,8 @@ namespace dz {
 		possible_extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 	#elif defined(VK_USE_PLATFORM_XCB_KHR)
 		possible_extensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);
+	#elif defined(VK_USE_PLATFORM_XLIB_KHR)
+		possible_extensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 	#elif defined(VK_USE_PLATFORM_METAL_EXT)
 		possible_extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
 	#elif defined(VK_USE_PLATFORM_MACOS_MVK)
@@ -313,12 +315,12 @@ namespace dz {
 		auto& window = *renderer->window;
 		auto& windowType = dr.windowType;
 	#if defined(__linux__) && !defined(__ANDROID__)
-		VkXcbSurfaceCreateInfoKHR surfaceCreateInfo{};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-		surfaceCreateInfo.connection = window.connection;
+		VkXlibSurfaceCreateInfoKHR surfaceCreateInfo{};
+		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+		surfaceCreateInfo.dpy = window.display;
 		surfaceCreateInfo.window = window.window;
-		vk_check("vkCreateXcbSurfaceKHR",
-			vkCreateXcbSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+		vk_check("vkCreateXlibSurfaceKHR",
+			vkCreateXlibSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 	#elif defined(ANDROID)
 		VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
