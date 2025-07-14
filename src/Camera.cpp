@@ -57,7 +57,7 @@ void dz::CameraInit(Camera& camera) {
         camera.view = lookAt(adj_position, camera.center, camera.up);
         break;
     case Camera::Orthographic:
-        camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.farPlane, camera.nearPlane);
+        camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.nearPlane, camera.farPlane);
         camera.view = lookAt(adj_position, camera.center, camera.up);
         break;
     default: break;
