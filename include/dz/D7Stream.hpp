@@ -12,7 +12,7 @@
 namespace dz {
     enum class D7Type : std::uint8_t
     {
-        None = 0,
+        Unset = 0,
         X = 1 << 0,
         Y = 1 << 1,
         Z = 1 << 2,
@@ -128,7 +128,7 @@ namespace dz {
             StreamIdentifier Uid = 0
         );
 
-        void printStreamPoints(D7Type filter = D7Type::None, const StreamString& a_buff = "", StreamInteger uid = 0, StreamIdentifier Uid = 0);
+        void printStreamPoints(D7Type filter = D7Type::Unset, const StreamString& a_buff = "", StreamInteger uid = 0, StreamIdentifier Uid = 0);
 
         D7Stream& operator << (const StreamPoint& point);
 
