@@ -1065,9 +1065,12 @@ namespace dz {
 				auto button = buttonRelease->detail - 1;
 				if (button == 3 || button == 4)
 					break;
-				if (button == 0)
-					window.drag_in_progress = false;
 				window.event_interface->cursor_press(button, false);
+				if (window.drag_in_progress && button == 0) {
+					window.drag_in_progress = false;
+					xcb_ungrab_pointer(window.connection, XCB_CURRENT_TIME);
+					xcb_flush(window.connection);
+				}
 				break;
 			}
 		case XCB_FOCUS_IN:
