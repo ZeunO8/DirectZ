@@ -51,42 +51,32 @@ namespace dz
 				[NSApplication sharedApplication];
 				[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 			}
-			int32_t windowX = x == -1 ? 128 : x,
-					windowY = y == -1 ? 128 : y;
+
+			int32_t windowX = x == -1 ? 128 : x;
+			int32_t windowY = y == -1 ? 128 : y;
 			NSRect rect = NSMakeRect(windowX, windowY, *width, *height);
+
 			nsWindow = [[DZWindow alloc] initWithContentRect:rect
-								styleMask:(NSWindowStyleMaskTitled |
-											NSWindowStyleMaskClosable |
-											NSWindowStyleMaskResizable |
-											NSWindowStyleMaskMiniaturizable)
-								backing:NSBackingStoreBuffered
-								defer:NO];
-			((DZWindow*)nsWindow)->window_ptr = this;
+													styleMask:(NSWindowStyleMaskTitled |
+															NSWindowStyleMaskClosable |
+															NSWindowStyleMaskResizable |
+															NSWindowStyleMaskMiniaturizable)
+													backing:NSBackingStoreBuffered
+														defer:NO];
+
+			DZWindow* dzWindow = (DZWindow*)nsWindow;
+			dzWindow->window_ptr = this;
+			dzWindow.eventInterface = (__bridge id)event_interface; // Set Objective-C side delegate, if needed
+
 			NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
-			[(DZWindow*)nsWindow setTitle:nsTitle];
-			[(DZWindow*)nsWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
-			[(DZWindow*)nsWindow makeKeyAndOrderFront:nil];
+			[dzWindow setTitle:nsTitle];
+			[dzWindow setDelegate:[[WINDOWDelegate alloc] initWithWindow:this]];
+			[dzWindow makeKeyAndOrderFront:nil];
 
 			NSRect frame = NSMakeRect(0, 0, *width, *height);
 			metalView = [[MetalView alloc] initWithFrame:frame];
-			[(DZWindow*)nsWindow setContentView:(MetalView*)metalView];
-
-			// nsView = [(DZWindow*)nsWindow contentView];
-			// NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:nsTitle];
-			// [NSApp setMainMenu:mainMenu];
-			// CAMetalLayer* metalLayer = [CAMetalLayer layer];
-			// metalLayer.device = MTLCreateSystemDefaultDevice();
-			// metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-			// metalLayer.framebufferOnly = YES;
-			// metalLayer.contentsScale = [(NSView*)nsView window].backingScaleFactor;
-			// metalLayer.frame = NSMakeRect(0, 0, *width, *height);
-			// [(NSView*)nsView setWantsLayer:YES];
-			// [(NSView*)nsView setLayer:metalLayer];
+			[dzWindow setContentView:(MetalView*)metalView];
 		}
-		// nsImage = [[NSImage alloc] initWithSize:NSMakeSize(*width, *height)];
-		// 
-		// nsImageView = [[NSImageView alloc] initWithFrame:rect];
-		// [(NSView*)nsView addSubview:(NSImageView*)nsImageView];
 	}
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
 	bool WINDOW::poll_events_platform() {
