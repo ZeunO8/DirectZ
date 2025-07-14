@@ -883,9 +883,7 @@ namespace dz {
         }
 	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
-	bool handle_x11_event(WINDOW& window, XEvent& event)
-	{
-		std::cout << "received event: " << event.type << std::endl;
+	bool handle_x11_event(WINDOW& window, XEvent& event) {
 		switch (event.type)
 		{
 			case Expose:
@@ -1257,8 +1255,6 @@ namespace dz {
 		XFlush(window_ptr->display);
 
 		window_ptr->drag_in_progress = true;
-
-		std::cout << "drag in progress" << std::endl;
 #elif defined(ANDROID)
 
 #endif
