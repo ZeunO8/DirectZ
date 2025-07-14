@@ -66,7 +66,6 @@ namespace dz
 
 			DZWindow* dzWindow = (DZWindow*)nsWindow;
 			dzWindow->window_ptr = this;
-			dzWindow.eventInterface = (__bridge id)event_interface; // Set Objective-C side delegate, if needed
 
 			NSString *nsTitle = [NSString stringWithUTF8String:title.c_str()];
 			[dzWindow setTitle:nsTitle];

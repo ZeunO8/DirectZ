@@ -4,7 +4,6 @@
     dz::WINDOW* window_ptr;
 }
 @property (nonatomic, assign) BOOL dragInProgress;
-@property (nonatomic, weak) id eventInterface;
 @end
 
 @implementation DZWindow
@@ -22,11 +21,6 @@
         {
             window_ptr->event_interface->cursor_press(0, false);
         }
-    }
-
-    if (self.eventInterface)
-    {
-        [self.eventInterface cursor_press:0 pressed:NO];
     }
 }
 
