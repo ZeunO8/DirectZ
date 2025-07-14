@@ -967,6 +967,7 @@ namespace dz {
 	#elif defined(__linux__) && !defined(__ANDROID__)
 	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event)
 	{
+		std::cout << "received event: " << eventType << std::endl;
 		switch (eventType)
 		{
 		case XCB_EXPOSE:
@@ -1366,6 +1367,8 @@ namespace dz {
 		xcb_flush(connection);
 
 		window_ptr->drag_in_progress = true;
+
+		std::cout << "drag in progress" << std::endl;
 #elif defined(ANDROID)
 
 #endif
