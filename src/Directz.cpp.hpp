@@ -24,14 +24,11 @@ using namespace dz;
 #pragma comment(lib, "Shcore.lib")
 #include <windows.h>
 #elif defined(__linux__) && !defined(__ANDROID__)
-#include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
-#include <X11/extensions/Xfixes.h>
 #include <X11/keysymdef.h>
-#include <xcb/xfixes.h>
+#include <X11/extensions/Xfixes.h>
 #include <xkbcommon/xkbcommon.h>
 #include <dlfcn.h>
 #elif defined(MACOS)

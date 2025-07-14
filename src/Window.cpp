@@ -237,46 +237,34 @@ namespace dz {
 #if defined(_WIN32)
 		SetWindowTextA(window_ptr->hwnd, new_title.c_str());
 #elif (defined(__linux__) && !defined(ANDROID))
-		auto connection = window_ptr->connection;
-
-		if (connection == nullptr || window_ptr == nullptr)
-		{
+		if (!window_ptr || !window_ptr->display || !window_ptr->window)
 			return;
-		}
 
-		auto window = window_ptr->window;
+		Window win = window_ptr->window;
+		Display* display = window_ptr->display;
 
-		xcb_change_property(
-			connection,
-			XCB_PROP_MODE_REPLACE,
-			window,
-			XCB_ATOM_WM_NAME,
-			XCB_ATOM_STRING,
-			8,
-			new_title.size(),
-			new_title.c_str()
-		);
+		// Set WM_NAME property (legacy)
+		XStoreName(display, win, new_title.c_str());
 
-		// Set _NET_WM_NAME for modern desktops
-		xcb_intern_atom_cookie_t cookie = xcb_intern_atom(connection, 0, 12, "_NET_WM_NAME");
-		xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(connection, cookie, nullptr);
+		// Set _NET_WM_NAME for modern desktop environments (UTF-8)
+		Atom net_wm_name = XInternAtom(display, "_NET_WM_NAME", False);
+		Atom utf8_string = XInternAtom(display, "UTF8_STRING", False);
 
-		if (reply)
+		if (net_wm_name != None && utf8_string != None)
 		{
-			xcb_change_property(
-				connection,
-				XCB_PROP_MODE_REPLACE,
-				window,
-				reply->atom,
-				XCB_ATOM_STRING,
-				8,
-				new_title.size(),
-				new_title.c_str()
+			XChangeProperty(
+				display,
+				win,
+				net_wm_name,
+				utf8_string,
+				8,                          // format: 8-bit
+				PropModeReplace,
+				reinterpret_cast<const unsigned char*>(new_title.c_str()),
+				static_cast<int>(new_title.size())
 			);
-			free(reply);
 		}
 
-		xcb_flush(connection);
+		XFlush(display);
 #endif
 		window_ptr->title = new_title;
 	}
@@ -507,136 +495,94 @@ namespace dz {
 
 	#define DZ_XCB_EVENT_MASK XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE | XCB_EVENT_MASK_POINTER_MOTION | XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE | XCB_EVENT_MASK_FOCUS_CHANGE
 
-	void reset_event_mask(WINDOW* window_ptr) {
-		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
-			return;
+	// void reset_event_mask(WINDOW* window_ptr) {
+	// 	if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+	// 		return;
 
-		uint32_t mask = DZ_XCB_EVENT_MASK;
+	// 	uint32_t mask = DZ_XCB_EVENT_MASK;
 
-		xcb_change_window_attributes(
-			window_ptr->connection,
-			window_ptr->window,
-			XCB_CW_EVENT_MASK,
-			&mask
-		);
-	}
+	// 	xcb_change_window_attributes(
+	// 		window_ptr->connection,
+	// 		window_ptr->window,
+	// 		XCB_CW_EVENT_MASK,
+	// 		&mask
+	// 	);
+	// }
 
 	void WINDOW::create_platform() {
-		connection = xcb_connect(nullptr, nullptr);
-		if (xcb_connection_has_error(connection))
-		{
-			throw std::runtime_error("Failed to connect to X server!");
-		}
-		setup = xcb_get_setup(connection);
-		xcb_screen_iterator_t iter = xcb_setup_roots_iterator(setup);
-		screen = iter.data;
-		root = screen->root;
-		window = xcb_generate_id(connection);
-		uint32_t value_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
-		uint32_t value_list[] = {screen->white_pixel,
-			DZ_XCB_EVENT_MASK};
-		xcb_create_window(connection,
-											XCB_COPY_FROM_PARENT, // depth
-											window,
-											screen->root, // parent
-											x, y, // X, Y position
-											*width, *height, // Width, Height
-											1, // Border width
-											XCB_WINDOW_CLASS_INPUT_OUTPUT, screen->root_visual, value_mask, value_list);
-		auto titleLength = title.size();
-		xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING,
-												8, // Format (8-bit string)
-												titleLength, // Length of the title
-												title.c_str());
-		xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(connection, 1, 12, "WM_PROTOCOLS");
-		xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(connection, 0, 16, "WM_DELETE_WINDOW");
-		xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(connection, wm_protocols_cookie, nullptr);
-		xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(connection, wm_delete_cookie, nullptr);
-		if (wm_protocols_reply && wm_delete_reply)
-		{
-			wm_delete_window = wm_delete_reply->atom;
-			xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, wm_protocols_reply->atom, XCB_ATOM_ATOM, 32, 1,
-													&wm_delete_window);
-		}
-		free(wm_protocols_reply);
-		free(wm_delete_reply);
-		xcb_map_window(connection, window);
-		xcb_flush(connection);
-		keysyms = xcb_key_symbols_alloc(connection);
-		if (!keysyms)
-		{
-			throw std::runtime_error("Failed to allocate key symbols!");
-		}
-		display = XOpenDisplay(0);
+		display = XOpenDisplay(nullptr);
 		if (!display)
 		{
-			throw std::runtime_error("Failed to openXlib display!");
+			throw std::runtime_error("Failed to open Xlib display!");
 		}
-		XSync(display, False);
+
 		screenNumber = DefaultScreen(display);
+		Screen* scr = ScreenOfDisplay(display, screenNumber);
+		root = RootWindow(display, screenNumber);
+		int black = BlackPixel(display, screenNumber);
+		int white = WhitePixel(display, screenNumber);
+
+		window = XCreateSimpleWindow(display, root,
+									x, y,
+									static_cast<unsigned int>(*width),
+									static_cast<unsigned int>(*height),
+									1,
+									black,
+									white);
+
+		XStoreName(display, window, title.c_str());
+
+		Atom wmDelete = XInternAtom(display, "WM_DELETE_WINDOW", False);
+		wm_delete_window = wmDelete;
+		XSetWMProtocols(display, window, &wmDelete, 1);
+
+		XSelectInput(display, window,
+					ExposureMask |
+					KeyPressMask | KeyReleaseMask |
+					ButtonPressMask | ButtonReleaseMask |
+					PointerMotionMask |
+					StructureNotifyMask |
+					FocusChangeMask |
+					EnterWindowMask | LeaveWindowMask);
+
+		XMapWindow(display, window);
+		XFlush(display);
+
 		initAtoms();
 	}
 	void WINDOW::initAtoms() {
-		const char* atomNames[] =
-		{
-			"WM_PROTOCOLS",
-			"WM_DELETE_WINDOW",
-			"_NET_WM_STATE",
-			"_NET_WM_STATE_HIDDEN",
-			"_NET_WM_STATE_MAXIMIZED_HORZ",
-			"_NET_WM_STATE_MAXIMIZED_VERT"
-		};
-
-		xcb_intern_atom_cookie_t cookies[6];
-		xcb_intern_atom_reply_t* replies[6];
-
-		for (int i = 0; i < 6; i++)
-		{
-			cookies[i] = xcb_intern_atom(connection, 0, strlen(atomNames[i]), atomNames[i]);
-		}
-
-		for (int i = 0; i < 6; i++)
-		{
-			replies[i] = xcb_intern_atom_reply(connection, cookies[i], nullptr);
-		}
-
-		wm_protocols = replies[0] ? replies[0]->atom : XCB_ATOM_NONE;
-		wm_delete_window = replies[1] ? replies[1]->atom : XCB_ATOM_NONE;
-		atom_net_wm_state = replies[2] ? replies[2]->atom : XCB_ATOM_NONE;
-		atom_net_wm_state_hidden = replies[3] ? replies[3]->atom : XCB_ATOM_NONE;
-		atom_net_wm_state_maximized_horz = replies[4] ? replies[4]->atom : XCB_ATOM_NONE;
-		atom_net_wm_state_maximized_vert = replies[5] ? replies[5]->atom : XCB_ATOM_NONE;
-
-		for (int i = 0; i < 6; i++)
-		{
-			free(replies[i]);
-		}
+		wm_protocols = XInternAtom(display, "WM_PROTOCOLS", False);
+		wm_delete_window = XInternAtom(display, "WM_DELETE_WINDOW", False);
+		atom_net_wm_state = XInternAtom(display, "_NET_WM_STATE", False);
+		atom_net_wm_state_hidden = XInternAtom(display, "_NET_WM_STATE_HIDDEN", False);
+		atom_net_wm_state_maximized_horz = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+		atom_net_wm_state_maximized_vert = XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
 	}
-	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event);
-	bool WINDOW::poll_events_platform() {
+	bool handle_x11_event(WINDOW& window, XEvent& event);
+	bool WINDOW::poll_events_platform()
+	{
 		bool return_ = true;
-		xcb_generic_event_t* event;
-		while ((event = xcb_poll_for_event(connection)))
+		while (XPending(display))
 		{
-			auto eventType = event->response_type & ~0x80;
-			if (!handle_xcb_event(*this, eventType, event))
+			XEvent event;
+			XNextEvent(display, &event);
+			if (!handle_x11_event(*this, event))
 			{
 				return_ = false;
-				goto _free;
-			}
-	_free:
-			free(event);
-			if (!return_)
 				break;
+			}
 		}
 		return return_;
 	}
 	void WINDOW::post_init_platform() {
 	}
 	void WINDOW::destroy_platform() {
-		XCloseDisplay(display);
-		xcb_destroy_window(connection, window);
-		xcb_disconnect(connection);
+		if (display && window) {
+			XDestroyWindow(display, window);
+			XCloseDisplay(display);
+			display = nullptr;
+			window = 0;
+		}
 	}
 	#elif defined(__ANDROID__)
 	uint8_t get_window_type_platform() {
@@ -929,125 +875,102 @@ namespace dz {
         }
 	}
 	#elif defined(__linux__) && !defined(__ANDROID__)
-	bool handle_xcb_event(WINDOW& window, int eventType, xcb_generic_event_t* event) {
-		std::cout << "received event: " << eventType << std::endl;
-		switch (eventType)
+	bool handle_x11_event(WINDOW& window, XEvent& event)
+	{
+		std::cout << "received event: " << event.type << std::endl;
+		switch (event.type)
 		{
-		case XCB_EXPOSE:
-			break;
-		case XCB_KEY_PRESS:
-		case XCB_KEY_RELEASE:
+			case Expose:
 			{
-				auto pressed = eventType == XCB_KEY_PRESS;
-				xcb_key_press_event_t* keyEvent = (xcb_key_press_event_t*)event;
-				bool shiftPressed = keyEvent->state & (XCB_MOD_MASK_SHIFT);
-				xcb_keysym_t keysym = xcb_key_symbols_get_keysym(window.keysyms, keyEvent->detail, shiftPressed ? 1 : 0);
+				break;
+			}
+			case KeyPress:
+			case KeyRelease:
+			{
+				bool pressed = event.type == KeyPress;
+				XKeyEvent& keyEvent = event.xkey;
+
+				KeySym keysym = XkbKeycodeToKeysym(window.display, keyEvent.keycode, 0, (keyEvent.state & ShiftMask) ? 1 : 0);
 				uint32_t keycode_utf = xkb_keysym_to_utf32(keysym);
 				KEYCODES keycode = (KEYCODES)keycode_utf;
+
 				int32_t mod = 0;
 				if (keycode == KEYCODES::NUL)
 				{
 					switch (keysym)
 					{
-					case XK_Up:
-						keycode = KEYCODES::UP;
-						break;
-					case XK_Down:
-						keycode = KEYCODES::DOWN;
-						break;
-					case XK_Left:
-						keycode = KEYCODES::LEFT;
-						break;
-					case XK_Right:
-						keycode = KEYCODES::RIGHT;
-						break;
-					case XK_Home:
-						keycode = KEYCODES::HOME;
-						break;
-					case XK_End:
-						keycode = KEYCODES::END;
-						break;
-					case XK_Page_Up:
-						keycode = KEYCODES::PGUP;
-						break;
-					case XK_Page_Down:
-						keycode = KEYCODES::PGDOWN;
-						break;
-					case XK_Insert:
-						keycode = KEYCODES::INSERT;
-						break;
-					case XK_Num_Lock:
-						keycode = KEYCODES::NUMLOCK;
-						break;
-					case XK_Caps_Lock:
-						keycode = KEYCODES::CAPSLOCK;
-						break;
-					case XK_Pause:
-						keycode = KEYCODES::PAUSE;
-						break;
-					case XK_Super_L:
-						keycode = KEYCODES::SUPER;
-						break;
-					case XK_Super_R:
-						keycode = KEYCODES::SUPER;
-						break;
-					default:
-						keycode = KEYCODES::NUL;
-						break;
+						case XK_Up: keycode = KEYCODES::UP; break;
+						case XK_Down: keycode = KEYCODES::DOWN; break;
+						case XK_Left: keycode = KEYCODES::LEFT; break;
+						case XK_Right: keycode = KEYCODES::RIGHT; break;
+						case XK_Home: keycode = KEYCODES::HOME; break;
+						case XK_End: keycode = KEYCODES::END; break;
+						case XK_Page_Up: keycode = KEYCODES::PGUP; break;
+						case XK_Page_Down: keycode = KEYCODES::PGDOWN; break;
+						case XK_Insert: keycode = KEYCODES::INSERT; break;
+						case XK_Num_Lock: keycode = KEYCODES::NUMLOCK; break;
+						case XK_Caps_Lock: keycode = KEYCODES::CAPSLOCK; break;
+						case XK_Pause: keycode = KEYCODES::PAUSE; break;
+						case XK_Super_L:
+						case XK_Super_R: keycode = KEYCODES::SUPER; break;
+						default: keycode = KEYCODES::NUL; break;
 					}
 				}
 				*window.mod = mod;
 				window.event_interface->key_press(keycode, pressed);
 				break;
 			}
-		case XCB_CLIENT_MESSAGE:
+			case ClientMessage:
 			{
-				xcb_client_message_event_t* cm = (xcb_client_message_event_t*)event;
-				if (cm->data.data32[0] == window.wm_delete_window)
+				if ((Atom)event.xclient.data.l[0] == window.wm_delete_window)
 				{
 					return false;
 				}
 				break;
 			}
-		case XCB_MOTION_NOTIFY:
+			case MotionNotify:
 			{
-				xcb_motion_notify_event_t* motion = (xcb_motion_notify_event_t*)event;
-				window.event_interface->cursor_move(motion->event_x, motion->event_y);
+				window.event_interface->cursor_move(event.xmotion.x, event.xmotion.y);
 				break;
 			}
-		case XCB_BUTTON_PRESS:
+			case ButtonPress:
 			{
-				xcb_button_press_event_t* buttonPress = (xcb_button_press_event_t*)event;
-				auto button = buttonPress->detail - 1;
+				int button = event.xbutton.button - 1;
 				window.event_interface->cursor_press(button, true);
 				break;
 			}
-		case XCB_BUTTON_RELEASE:
+			case ButtonRelease:
 			{
-				xcb_button_release_event_t* buttonRelease = (xcb_button_release_event_t*)event;
-				auto button = buttonRelease->detail - 1;
-				if (button == 3 || button == 4)
-					break;
+				int button = event.xbutton.button - 1;
+				if (button == 3 || button == 4) break;
 				window.event_interface->cursor_press(button, false);
-				if (window.drag_in_progress && button == 0) {
+				if (window.drag_in_progress && button == 0)
+				{
 					window_cancel_drag(&window);
-					reset_event_mask(&window);
-					xcb_ungrab_pointer(window.connection, XCB_CURRENT_TIME);
-					xcb_flush(window.connection);
+					// reset_event_mask(&window);
+					XUngrabPointer(window.display, CurrentTime);
+					XFlush(window.display);
 				}
 				break;
 			}
-		case XCB_FOCUS_IN:
-			window_set_focused(&window, true);
-			break;
-
-		case XCB_FOCUS_OUT:
-			window_set_focused(&window, false);
-			break;
-		case XCB_DESTROY_NOTIFY:
-			// free(event);
-			return false;
-		default: break;
+			case FocusIn:
+			{
+				window_set_focused(&window, true);
+				break;
+			}
+			case FocusOut:
+			{
+				window_set_focused(&window, false);
+				break;
+			}
+			case DestroyNotify:
+			{
+				return false;
+			}
+			default:
+			{
+				break;
+			}
 		}
 		return true;
 	}
@@ -1138,27 +1061,37 @@ namespace dz {
 		if (wm_state_atom == None)
 			return false;
 
-		xcb_get_property_cookie_t cookie = xcb_get_property(
-			window_ptr->connection,
-			false,
+		Atom actual_type;
+		int actual_format;
+		unsigned long nitems;
+		unsigned long bytes_after;
+		unsigned char* prop = nullptr;
+
+		int status = XGetWindowProperty(
+			window_ptr->display,
 			window_ptr->window,
 			wm_state_atom,
-			XCB_GET_PROPERTY_TYPE_ANY,
 			0,
-			2
+			2,
+			False,
+			AnyPropertyType,
+			&actual_type,
+			&actual_format,
+			&nitems,
+			&bytes_after,
+			&prop
 		);
 
-		xcb_get_property_reply_t* reply = xcb_get_property_reply(window_ptr->connection, cookie, nullptr);
-		if (!reply)
-			return false;
-
 		bool minimized = false;
-		if (xcb_get_property_value_length(reply) >= 8) {
-			uint32_t* value = (uint32_t*)xcb_get_property_value(reply);
-			minimized = (value[0] == IconicState); // 3 is IconicState in Xlib
+		if (status == Success && prop != nullptr && nitems >= 2)
+		{
+			long state = ((long*)prop)[0];
+			minimized = (state == IconicState); // 3 is IconicState
 		}
 
-		free(reply);
+		if (prop)
+			XFree(prop);
+
 		return minimized;
 #elif defined(ANDROID)
 		return false;
@@ -1173,12 +1106,12 @@ namespace dz {
 		SetFocus(window_ptr->hwnd);
 
 #elif defined(__linux) && !defined(ANDROID)
-		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+		if (!window_ptr || !window_ptr->display || !window_ptr->window)
 			return;
-		uint32_t values[] = { XCB_STACK_MODE_ABOVE };
-		xcb_configure_window(window_ptr->connection, window_ptr->window, XCB_CONFIG_WINDOW_STACK_MODE, values);
-		xcb_set_input_focus(window_ptr->connection, XCB_INPUT_FOCUS_POINTER_ROOT, window_ptr->window, XCB_CURRENT_TIME);
-		xcb_flush(window_ptr->connection);
+
+		XRaiseWindow(window_ptr->display, window_ptr->window);
+		XSetInputFocus(window_ptr->display, window_ptr->window, RevertToParent, CurrentTime);
+		XFlush(window_ptr->display);
 #elif defined(ANDROID)
 #endif
 		*window_ptr->focused = true;
@@ -1201,21 +1134,11 @@ namespace dz {
 		MoveWindow(window_ptr->hwnd, x, y, w, h, TRUE);
 
 #elif defined(__linux) && !defined(ANDROID)
-		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+		if (!window_ptr || !window_ptr->display || !window_ptr->window)
 			return;
 
-		uint32_t values[2] = {
-			static_cast<uint32_t>(width),
-			static_cast<uint32_t>(height)
-		};
-
-		xcb_configure_window(
-			window_ptr->connection,
-			window_ptr->window,
-			XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
-			values
-		);
-		xcb_flush(window_ptr->connection);
+		XResizeWindow(window_ptr->display, window_ptr->window, static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+		XFlush(window_ptr->display);
 
 #elif defined(ANDROID)
 		// Android window sizing not controlled this way
@@ -1250,7 +1173,7 @@ namespace dz {
 
 		window_ptr->x = x;
 		window_ptr->y = y;
-	
+
 		return ImVec2(window_ptr->x, window_ptr->y);
 
 #elif defined(ANDROID)
@@ -1271,21 +1194,11 @@ namespace dz {
 		MoveWindow(window_ptr->hwnd, static_cast<int>(x), static_cast<int>(y), w, h, TRUE);
 
 #elif defined(__linux) && !defined(ANDROID)
-		if (!window_ptr || !window_ptr->connection || !window_ptr->window)
+		if (!window_ptr || !window_ptr->display || !window_ptr->window)
 			return;
 
-		uint32_t values[2] = {
-			static_cast<uint32_t>(x),
-			static_cast<uint32_t>(y)
-		};
-
-		xcb_configure_window(
-			window_ptr->connection,
-			window_ptr->window,
-			XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y,
-			values
-		);
-		xcb_flush(window_ptr->connection);
+		XMoveWindow(window_ptr->display, window_ptr->window, static_cast<int>(x), static_cast<int>(y));
+		XFlush(window_ptr->display);
 
 #elif defined(ANDROID)
 #endif
@@ -1307,30 +1220,33 @@ namespace dz {
 		ReleaseCapture();
 		SendMessage(window_ptr->hwnd, WM_SYSCOMMAND, SC_MOVE | HTCAPTION, 0);
 #elif defined(__linux__) && !defined(ANDROID)
-		auto connection = window_ptr->connection;
-		auto root = window_ptr->root;
-		auto win = window_ptr->window;
+		if (!window_ptr || !window_ptr->display || !window_ptr->window || !window_ptr->root)
+			return;
+
 		ImVec2 pos = ImGui::GetMousePos();
 
-		const uint32_t data[] = {
-			static_cast<uint32_t>(pos.x),
-			static_cast<uint32_t>(pos.y),
-			8,    // _NET_WM_MOVERESIZE_MOVE
-			1,    // left mouse button
-			0
-		};
+		Atom moveresize_atom = XInternAtom(window_ptr->display, "_NET_WM_MOVERESIZE", False);
+		if (moveresize_atom == None)
+			return;
 
-		xcb_client_message_event_t ev = {};
-		ev.response_type = XCB_CLIENT_MESSAGE;
-		ev.window = win;
+		XClientMessageEvent ev{};
+		ev.type = ClientMessage;
+		ev.window = window_ptr->window;
+		ev.message_type = moveresize_atom;
 		ev.format = 32;
-		ev.type = xcb_intern_atom_reply(connection, xcb_intern_atom(connection, 0, strlen("_NET_WM_MOVERESIZE"), "_NET_WM_MOVERESIZE"), NULL)->atom;
-		memcpy(ev.data.data32, data, sizeof(data));
+		ev.data.l[0] = static_cast<long>(pos.x);
+		ev.data.l[1] = static_cast<long>(pos.y);
+		ev.data.l[2] = 8;  // _NET_WM_MOVERESIZE_MOVE
+		ev.data.l[3] = 1;  // left mouse button
+		ev.data.l[4] = 0;
 
-		xcb_send_event(connection, 0, root,
-					XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
-					(const char*)&ev);
-		xcb_flush(connection);
+		XSendEvent(window_ptr->display,
+				window_ptr->root,
+				False,
+				SubstructureNotifyMask | SubstructureRedirectMask,
+				reinterpret_cast<XEvent*>(&ev));
+
+		XFlush(window_ptr->display);
 
 		window_ptr->drag_in_progress = true;
 
@@ -1343,45 +1259,33 @@ namespace dz {
 		window_ptr->drag_in_progress = false;
 		window_ptr->event_interface->cursor_press(0, false);
 #if defined(__linux__) && !defined(ANDROID)
-		if (!window_ptr || !window_ptr->connection || !window_ptr->window || !window_ptr->root)
+		if (!window_ptr || !window_ptr->display || !window_ptr->window || !window_ptr->root)
 			return;
 
-		// Cancel move/resize operation
 		ImVec2 pos = ImGui::GetMousePos();
 
-		const uint32_t data[] = {
-			static_cast<uint32_t>(pos.x),
-			static_cast<uint32_t>(pos.y),
-			11,   // _NET_WM_MOVERESIZE_CANCEL
-			1,    // left mouse button
-			0
-		};
-
-		xcb_intern_atom_cookie_t cookie = xcb_intern_atom(window_ptr->connection, 0, strlen("_NET_WM_MOVERESIZE"), "_NET_WM_MOVERESIZE");
-		xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(window_ptr->connection, cookie, nullptr);
-		if (!reply)
+		Atom moveresize_atom = XInternAtom(window_ptr->display, "_NET_WM_MOVERESIZE", False);
+		if (moveresize_atom == None)
 			return;
 
-		xcb_atom_t moveresize_atom = reply->atom;
-		free(reply);
-
-		xcb_client_message_event_t ev = {};
-		ev.response_type = XCB_CLIENT_MESSAGE;
-		ev.format = 32;
-		ev.sequence = 0;
+		XClientMessageEvent ev{};
+		ev.type = ClientMessage;
 		ev.window = window_ptr->window;
-		ev.type = moveresize_atom;
-		memcpy(ev.data.data32, data, sizeof(data));
+		ev.message_type = moveresize_atom;
+		ev.format = 32;
+		ev.data.l[0] = static_cast<long>(pos.x);
+		ev.data.l[1] = static_cast<long>(pos.y);
+		ev.data.l[2] = 11;  // _NET_WM_MOVERESIZE_CANCEL
+		ev.data.l[3] = 1;   // left mouse button
+		ev.data.l[4] = 0;
 
-		xcb_send_event(
-			window_ptr->connection,
-			false,
-			window_ptr->root,
-			XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT,
-			reinterpret_cast<const char*>(&ev)
-		);
+		XSendEvent(window_ptr->display,
+				window_ptr->root,
+				False,
+				SubstructureNotifyMask | SubstructureRedirectMask,
+				reinterpret_cast<XEvent*>(&ev));
 
-		xcb_flush(window_ptr->connection);
+		XFlush(window_ptr->display);
 #endif
 	}
 #endif
