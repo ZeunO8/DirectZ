@@ -537,6 +537,29 @@ namespace dz {
 									1,
 									black,
 									white);
+		if (borderless) {
+			Atom mwmHintsProperty = XInternAtom(display, "_MOTIF_WM_HINTS", False);
+			struct MotifWmHints
+			{
+				unsigned long flags;
+				unsigned long functions;
+				unsigned long decorations;
+				long inputMode;
+				unsigned long status;
+			} hints = { 0 };
+
+			hints.flags = 2;            // MWM_HINTS_DECORATIONS
+			hints.decorations = 0;     // 0 = no decorations (borderless)
+
+			XChangeProperty(display,
+							window,
+							mwmHintsProperty,
+							mwmHintsProperty,
+							32,
+							PropModeReplace,
+							reinterpret_cast<unsigned char*>(&hints),
+							5);
+		}
 
 		XStoreName(display, window, title.c_str());
 
