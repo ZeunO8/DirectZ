@@ -27,7 +27,7 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
 	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
-    std::vector<FramebufferDrawList*> total_fb_draw_lists;
+    std::vector<DrawInformation*> vec_draw_information;
     std::vector<ShaderDrawList*> screen_draw_lists;
     std::vector<std::pair<Framebuffer*, ShaderDrawList*>> fb_draw_lists;
 #ifdef __ANDROID__

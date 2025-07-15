@@ -27,6 +27,11 @@ namespace dz
     void free_direct_registry()
     {
         ImGuiLayer::Shutdown(dr);
+        while (!dr.layout_queue.empty()) {
+            auto layout = dr.layout_queue.front();
+            dr.layout_queue.pop();
+            vkDestroyDescriptorSetLayout(dr.device, layout, 0);
+        }
 #ifdef __ANDROID__
         AConfiguration_delete(dr.android_config);
 #endif

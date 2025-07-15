@@ -109,6 +109,7 @@ namespace dz {
         };
 
         platform_io.Platform_ShowWindow = [](ImGuiViewport* vp) {
+            return;
             // ShowNativeWindow(vp->PlatformHandle);
         };
 
@@ -158,6 +159,7 @@ namespace dz {
         };
 
         platform_io.Platform_OnChangedViewport = [](ImGuiViewport* vp) {
+            return;
             // Optional
         };
 
@@ -253,11 +255,6 @@ namespace dz {
         if (!initialized || !vulkan_initialized) {
             return false;
         }
-        while (!layout_queue.empty()) {
-            auto layout = layout_queue.front();
-            layout_queue.pop();
-            vkDestroyDescriptorSetLayout(direct_registry.device, layout, 0);
-        }
 		ImGui_ImplVulkan_Shutdown();
         DestroyImGuiDescriptorPool(direct_registry.device, DescriptorPool);
         initialized = false;
@@ -328,13 +325,18 @@ namespace dz {
             ImGuiViewport* viewport = platform_io.Viewports[i];
             if (viewport->PlatformHandle && viewport->PlatformHandle == window)
             {
-                if (focused)
+                if (focused) {
                     viewport->Flags |= ImGuiViewportFlags_IsFocused;
-                else
+                    viewport->Flags &= ~ImGuiViewportFlags_NoInputs;
+                }
+                else {
                     viewport->Flags &= ~ImGuiViewportFlags_IsFocused;
+                    viewport->Flags |= ImGuiViewportFlags_NoInputs;
+                }
             }
             else if (focused) {
                 viewport->Flags &= ~ImGuiViewportFlags_IsFocused;
+                viewport->Flags |= ImGuiViewportFlags_NoInputs;
                 if (viewport->PlatformHandle) {
                     auto& other_window = *(WINDOW*)viewport->PlatformHandle;
                     *other_window.focused = false;
@@ -367,49 +369,5 @@ namespace dz {
         }
         map.erase(id_it);
         return true;
-    }
-
-    std::pair<VkDescriptorSetLayout, VkDescriptorSet> ImGuiLayer::CreateDescriptorSet(Image* image) {
-        VkDescriptorSetLayoutBinding binding = {};
-        binding.binding = 0;
-        binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        binding.descriptorCount = 1;
-        binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = 1;
-        layoutInfo.pBindings = &binding;
-
-        VkDescriptorSetLayout layout;
-        vkCreateDescriptorSetLayout(dr.device, &layoutInfo, nullptr, &layout);
-
-        VkDescriptorSetAllocateInfo allocInfo = {};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = DescriptorPool;
-        allocInfo.descriptorSetCount = 1;
-        allocInfo.pSetLayouts = &layout;
-
-        VkDescriptorSet descriptorSet;
-        vkAllocateDescriptorSets(dr.device, &allocInfo, &descriptorSet);
-
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageView = image->imageView;
-        imageInfo.sampler = image->sampler;
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        VkWriteDescriptorSet descriptorWrite = {};
-        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrite.dstSet = descriptorSet;
-        descriptorWrite.dstBinding = 0;
-        descriptorWrite.descriptorCount = 1;
-        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrite.pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(dr.device, 1, &descriptorWrite, 0, nullptr);
-
-        layout_queue.push(layout);
-
-        return {layout, descriptorSet};
     }
 }

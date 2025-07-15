@@ -2050,26 +2050,25 @@ namespace dz {
         }
 
         bool total_fb_list_changed = false;
-        if (total_fb_draw_list != renderer->total_fb_draw_lists.size()) {
-            renderer->total_fb_draw_lists.resize(total_fb_draw_list);
+        if (total_fb_draw_list != renderer->vec_draw_information.size()) {
+            renderer->vec_draw_information.resize(total_fb_draw_list);
             total_fb_list_changed = true;
         }
 
-        size_t total_fb_list_index = 0;
+        size_t total_draw_information_index = 0;
         for (auto& draw_mgr_group_vec_pair : window.draw_list_managers) {
             auto& draw_mgr = *draw_mgr_group_vec_pair.first;
             auto& group_vec = draw_mgr_group_vec_pair.second;
             for (auto& buffer_group : group_vec)
             {
-                renderer->total_fb_draw_lists[total_fb_list_index++] = &draw_mgr.ensureDrawList(buffer_group);
+                renderer->vec_draw_information[total_draw_information_index++] = &draw_mgr.ensureDrawInformation(buffer_group);
             }
         }
 
-        for (auto& framebufferDrawList_ptr : renderer->total_fb_draw_lists) {
-            auto& framebufferDrawList = *framebufferDrawList_ptr;
-            for (auto& framebuffer_pair : framebufferDrawList) {
-                auto framebuffer_ptr = framebuffer_pair.first;
-                auto& shaderDrawList = framebuffer_pair.second;
+        for (auto& drawInformation_ptr : renderer->vec_draw_information) {
+            auto& drawInformation = *drawInformation_ptr;
+            for (auto& camera_pair : drawInformation.cameras) {
+                auto framebuffer_ptr = camera_pair.second;
                 if (!framebuffer_ptr) {
                     screen_draw_list_count++;
                 }
@@ -2092,11 +2091,11 @@ namespace dz {
         size_t screen_draw_list_index = 0;
         size_t fb_draw_list_index = 0;
 
-        for (auto& framebufferDrawList_ptr : renderer->total_fb_draw_lists) {
-            auto& framebufferDrawList = *framebufferDrawList_ptr;
-            for (auto& framebuffer_pair : framebufferDrawList) {
-                auto framebuffer_ptr = framebuffer_pair.first;
-                auto& shaderDrawList = framebuffer_pair.second;
+        for (auto& drawInformation_ptr : renderer->vec_draw_information) {
+            auto& drawInformation = *drawInformation_ptr;
+            auto& shaderDrawList = drawInformation.shaderDrawList;
+            for (auto& camera_pair : drawInformation.cameras) {
+                auto framebuffer_ptr = camera_pair.second;
                 if (!framebuffer_ptr) {
                     if (screen_list_changed) {
                         renderer->screen_draw_lists[screen_draw_list_index] = &shaderDrawList;

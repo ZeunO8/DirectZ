@@ -63,6 +63,7 @@ struct ReflectableGroup {
         static std::string dummy_name = "<unknown>";
         return dummy_name;
     }
+    virtual void NotifyNameChanged() { }
     virtual const std::vector<Reflectable*>& GetReflectables() {
         static std::vector<Reflectable*> dummy_reflectables = {};
         return dummy_reflectables;

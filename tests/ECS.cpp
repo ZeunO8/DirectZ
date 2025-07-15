@@ -245,7 +245,7 @@ int SelectedReflectableID = 0;
 void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentReflectableGroup&);
 void DrawSceneReflectableGroup(ExampleECS&, int, ExampleECS::SceneReflectableGroup&);
 void DrawGenericEntry(int, ReflectableGroup& reflectable_group);
-void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_entry);
+void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_group);
 bool ReflectableGroupFilterCheck(ImGuiTextFilter&, ReflectableGroup&);
 bool WindowGraphFilterCheck(ImGuiTextFilter& WindowGraphFilter, const std::string& window_name);
 
@@ -303,11 +303,9 @@ int main() {
 
     auto ecs_scene_ids = ecs.GetSceneIDs();
 
-    auto frame_image = ecs.GetFramebufferImage(ecs_scene_ids[0]);
+    auto frame_image = ecs.GetFramebufferImage(0);
 
     auto& imgui = window_get_ImGuiLayer(window);
-
-    auto [frame_image_ds_layout, frame_image_ds] = imgui.CreateDescriptorSet(frame_image);
     
     auto& window_width = *window_get_width_ref(window);
     auto& window_height = *window_get_height_ref(window);
@@ -481,20 +479,22 @@ int main() {
         }
     });
 
-    imgui.AddImmediateDrawFunction(2.0f, "Viewport", [&, frame_image_ds](auto& layer) mutable {
-        static bool show_viewport = true;
-        if (show_viewport) {
-            ImGui::Begin("Viewport", &show_viewport);
-            ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-            ecs.ResizeFramebuffer(1, viewportSize.x, viewportSize.y);
-            ImGui::Image((ImTextureID)frame_image_ds, viewportSize);
-            if (ecs.FramebufferChanged(1)) {
-                ecs.SetCameraAspect(1, viewportSize.x, viewportSize.y);
-                frame_image = ecs.GetFramebufferImage(1);
-                auto frame_ds_pair = imgui.CreateDescriptorSet(frame_image);
-                frame_image_ds = frame_ds_pair.second;
+    imgui.AddImmediateDrawFunction(2.0f, "Cameras", [&](auto& layer) mutable {
+        auto cameras_begin = ecs.GetCamerasBegin();
+        auto cameras_end = ecs.GetCamerasEnd();
+        for (auto camera_it = cameras_begin; camera_it != cameras_end; camera_it++) {
+            auto camera_index = camera_it->first;
+            auto& camera_entry = camera_it->second;
+            if (camera_entry.open_in_editor) {
+                if (!ImGui::Begin(camera_entry.imgui_name.c_str(), &camera_entry.open_in_editor)) {
+                    ImGui::End();
+                    continue;
+                }
+                ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+                ImGui::Image((ImTextureID)camera_entry.frame_image_ds, viewportSize);
+                ecs.ResizeFramebuffer(camera_index, viewportSize.x, viewportSize.y);
+                ImGui::End();
             }
-            ImGui::End();
         }
     });
 
@@ -524,10 +524,10 @@ int main() {
                     it != window_reflectable_entries_end;
                     it++
                 ) {
-                    auto& window_reflectable_entry = **it;
-                    auto& window_name = window_reflectable_entry.GetName();
+                    auto& window_reflectable_group = **it;
+                    auto& window_name = window_reflectable_group.GetName();
                     if (WindowGraphFilterCheck(WindowGraphFilter, window_name))
-                        DrawWindowEntry(window_name, window_reflectable_entry);
+                        DrawWindowEntry(window_name, window_reflectable_group);
                 }
                 // for (auto& [id, entity_entry] : ecs.id_entity_entries)
                 ImGui::EndTable();
@@ -577,22 +577,22 @@ int main() {
                 return;
             }
 
-            if (ReflectableGroup* reflectable_entry_ptr = SelectedReflectableGroup)
+            if (ReflectableGroup* reflectable_group_ptr = SelectedReflectableGroup)
             {
-                auto& reflectable_entry = *reflectable_entry_ptr;
-                auto& reflectable_entry_name = reflectable_entry.GetName();
-                if (reflectable_entry_name.size() < 28)
-                    reflectable_entry_name.resize(28);
+                auto& reflectable_group = *reflectable_group_ptr;
+                auto& reflectable_group_name = reflectable_group.GetName();
+                if (reflectable_group_name.size() < 28)
+                    reflectable_group_name.resize(28);
 
                 ImGui::PushID(SelectedReflectableGroup);
 
-                // ImGui::Text("Entity:");
-                // ImGui::SameLine();
-                ImGui::InputText("Name", reflectable_entry_name.data(), reflectable_entry_name.size());
+                if (ImGui::InputText("Name", reflectable_group_name.data(), reflectable_group_name.size())) {
+                    reflectable_group.NotifyNameChanged();
+                }
                 ImGui::TextDisabled("ID: 0x%08X", SelectedReflectableID);
                 ImGui::Spacing();
 
-                auto& reflectables = reflectable_entry.GetReflectables();
+                auto& reflectables = reflectable_group.GetReflectables();
 
                 auto reflect_begin = reflectables.begin();
                 auto reflect_it = reflect_begin;
@@ -954,28 +954,28 @@ void DrawGenericEntry(int generic_id, ReflectableGroup& reflectable_group) {
     ImGui::PopID();
 }
 
-void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& window_reflectable_entry) {
-    auto id = window_reflectable_entry.id;
+void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {
+    auto id = window_reflectable_group.id;
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
-    ImGui::PushID(&window_reflectable_entry);
+    ImGui::PushID(&window_reflectable_group);
     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-    if (&window_reflectable_entry == SelectedReflectableGroup)
+    if (&window_reflectable_group == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
     // if (entity_entry.children.empty())
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-    if (window_reflectable_entry.disabled)
+    if (window_reflectable_group.disabled)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", window_name.c_str());
-    if (window_reflectable_entry.disabled)
+    if (window_reflectable_group.disabled)
         ImGui::PopStyleColor();
     if (ImGui::IsItemFocused()) {
-        SelectedReflectableGroup = &window_reflectable_entry;
-        SelectedReflectableID = window_reflectable_entry.id;
+        SelectedReflectableGroup = &window_reflectable_group;
+        SelectedReflectableID = window_reflectable_group.id;
         property_editor.is_open = true;
     }
 
@@ -990,11 +990,11 @@ void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& win
     ImGui::PopID();
 }
 
-bool ReflectableGroupFilterCheck(ImGuiTextFilter& SceneGraphFilter, ReflectableGroup& reflectable_entry) {
-    auto initial = SceneGraphFilter.PassFilter(reflectable_entry.GetName().c_str());
+bool ReflectableGroupFilterCheck(ImGuiTextFilter& SceneGraphFilter, ReflectableGroup& reflectable_group) {
+    auto initial = SceneGraphFilter.PassFilter(reflectable_group.GetName().c_str());
     if (initial)
         return true;
-    for (auto child_entry_ptr : reflectable_entry.GetChildren()) {
+    for (auto child_entry_ptr : reflectable_group.GetChildren()) {
         auto child = ReflectableGroupFilterCheck(SceneGraphFilter, *child_entry_ptr);
         if (child)
             return true;

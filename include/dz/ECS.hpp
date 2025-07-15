@@ -116,13 +116,7 @@ namespace dz {
 
         struct SceneReflectableGroup : ReflectableGroup {
             std::string name;
-            Framebuffer* framebuffer = 0;
-            Image* fb_color_image = 0;
-            Image* fb_depth_image = 0;
             std::vector<ReflectableGroup*> reflectable_children;
-            ~SceneReflectableGroup() {
-                framebuffer_destroy(framebuffer);
-            }
             GroupType GetGroupType() override {
                 return ReflectableGroup::Scene;
             }
@@ -139,7 +133,7 @@ namespace dz {
                     if (entity_entry.scene_id == id)
                         count++;
                 }
-                for (auto& [camera_id, camera_entry] : ecs.id_camera_entries) {
+                for (auto& [camera_id, camera_entry] : ecs.indexed_camera_entries) {
                     if (camera_entry.scene_id == id)
                         count++;
                 }
@@ -148,7 +142,7 @@ namespace dz {
                     if (entity_entry.scene_id == id)
                         reflectable_children.push_back(&entity_entry);
                 }
-                for (auto& [camera_id, camera_entry] : ecs.id_camera_entries) {
+                for (auto& [camera_id, camera_entry] : ecs.indexed_camera_entries) {
                     if (camera_entry.scene_id == id)
                         reflectable_children.push_back(&camera_entry);
                 }
@@ -167,9 +161,17 @@ namespace dz {
 
         struct CameraReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
-            std::string name;
+            std::string name;            
+            std::string imgui_name;
+
+            Framebuffer* framebuffer = 0;
+            Image* fb_color_image = 0;
+            Image* fb_depth_image = 0;
             std::vector<Reflectable*> reflectables;
+            bool open_in_editor = true;
+            VkDescriptorSet frame_image_ds = VK_NULL_HANDLE;
             ~CameraReflectableGroup() {
+                framebuffer_destroy(framebuffer);
                 ClearChildren();
             }
             GroupType GetGroupType() override {
@@ -178,23 +180,30 @@ namespace dz {
             std::string& GetName() override {
                 return name;
             }
+            void NotifyNameChanged() override {
+                imgui_name.clear();
+                auto name_len = strlen(name.c_str());
+                imgui_name.insert(imgui_name.end(), name.begin(), name.begin() + name_len);
+                imgui_name += "###Camera" + std::to_string(index);
+                return;
+            }
             const std::vector<Reflectable*>& GetReflectables() override {
                 return reflectables;
             }
             void UpdateChildren(ECS& ecs) {
                 auto ecs_ptr = &ecs;
-                auto camera_id = id;
+                auto camera_index = index;
                 if (reflectables.size() == 0) {
-                    reflectables.push_back(new CameraTypeReflectable([ecs_ptr, camera_id]() mutable {
-                        return ecs_ptr->GetCamera(camera_id);
+                    reflectables.push_back(new CameraTypeReflectable([ecs_ptr, camera_index]() mutable {
+                        return ecs_ptr->GetCamera(camera_index);
                     }, [&, ecs_ptr]() mutable {
                         UpdateChildren(*ecs_ptr);
                     }));
-                    reflectables.push_back(new CameraViewReflectable([ecs_ptr, camera_id]() mutable {
-                        return ecs_ptr->GetCamera(camera_id);
+                    reflectables.push_back(new CameraViewReflectable([ecs_ptr, camera_index]() mutable {
+                        return ecs_ptr->GetCamera(camera_index);
                     }));
                 }
-                auto camera_ptr = ecs.GetCamera(id);
+                auto camera_ptr = ecs.GetCamera(index);
                 assert(camera_ptr);
                 auto& camera = *camera_ptr;
                 // clear type reflectables
@@ -209,13 +218,13 @@ namespace dz {
                 }
                 switch (Camera::ProjectionType(camera.type)) {
                 case Camera::Perspective:
-                    reflectables.push_back(new CameraPerspectiveReflectable([ecs_ptr, camera_id]() mutable {
-                        return ecs_ptr->GetCamera(camera_id);
+                    reflectables.push_back(new CameraPerspectiveReflectable([ecs_ptr, camera_index]() mutable {
+                        return ecs_ptr->GetCamera(camera_index);
                     }));
                     break;
                 case Camera::Orthographic:
-                    reflectables.push_back(new CameraOrthographicReflectable([ecs_ptr, camera_id]() mutable {
-                        return ecs_ptr->GetCamera(camera_id);
+                    reflectables.push_back(new CameraOrthographicReflectable([ecs_ptr, camera_index]() mutable {
+                        return ecs_ptr->GetCamera(camera_index);
                     }));
                     break;
                 default: break;
@@ -232,7 +241,7 @@ namespace dz {
 
         std::map<int, EntityComponentReflectableGroup> id_entity_entries;
         std::map<size_t, SceneReflectableGroup> id_scene_entries;
-        std::map<size_t, CameraReflectableGroup> id_camera_entries;
+        std::map<int, CameraReflectableGroup> indexed_camera_entries;
         size_t add_scene_id;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
@@ -253,13 +262,16 @@ namespace dz {
         ECS(WINDOW* initial_window_ptr, const std::function<bool(ECS&)>& register_all_components_fn = {}):
             window_ptr(initial_window_ptr),
             components_registered(RegisterComponents(register_all_components_fn)),
-            draw_mg("Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
-                auto entity_it = id_entity_entries.find(entity.id);
-                assert(entity_it != id_entity_entries.end());
-                auto scene_it = id_scene_entries.find(entity_it->second.scene_id);
-                assert(scene_it != id_scene_entries.end());
-                return {scene_it->second.framebuffer, shader, entity.GetVertexCount()};
-            }),
+            draw_mg(
+                "Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
+                    return {shader, entity.GetVertexCount()};
+                },
+                "Cameras", [&](auto buffer_group, auto camera_index) -> CameraPair {
+                    auto camera_it = indexed_camera_entries.find(camera_index);
+                    assert(camera_it != indexed_camera_entries.end());
+                    return {camera_index, camera_it->second.framebuffer};
+                }
+            ),
             buffer_group(CreateBufferGroup()),
             shader(GenerateShader()),
             buffer_name("Entities")
@@ -277,40 +289,6 @@ namespace dz {
             scene_entry.name = "Scene #" + std::to_string(scene_id);
 
             add_scene_id = scene_id;
-
-            {
-                auto& width = *window_get_width_ref(window_ptr);
-                auto& height = *window_get_height_ref(window_ptr);
-                scene_entry.fb_color_image = image_create({
-                    .width = uint32_t(width),
-                    .height = uint32_t(height),
-                    .is_framebuffer_attachment = true
-                });
-                scene_entry.fb_depth_image = image_create({
-                    .width = uint32_t(width),
-                    .height = uint32_t(height),
-                    .format = VK_FORMAT_D32_SFLOAT,
-                    .is_framebuffer_attachment = true
-                });
-                Image* fb_images[2] = {
-                    scene_entry.fb_color_image,
-                    scene_entry.fb_depth_image
-                };
-                AttachmentType fb_attachment_types[2] = {
-                    AttachmentType::Color,
-                    AttachmentType::Depth
-                };
-                FramebufferInfo fb_info{
-                    .pImages = fb_images,
-                    .imagesCount = 2,
-                    .pAttachmentTypes = fb_attachment_types,
-                    .attachmentTypesCount = 2,
-                    .own_images = true
-                };
-                scene_entry.framebuffer = framebuffer_create(fb_info);
-
-                shader_set_render_pass(shader, scene_entry.framebuffer);
-            }
         }
 
         bool RegisterComponents(const std::function<bool(ECS&)>& register_all_components_fn) {
@@ -338,34 +316,76 @@ namespace dz {
 
         size_t AddCameraToScene(size_t scene_id, Camera::ProjectionType projectionType) {
             auto camera_id = GlobalUID::GetNew("ECS:Camera");
-            auto index = id_camera_entries.size();
-            auto& camera_entry = id_camera_entries[camera_id];
+            auto index = indexed_camera_entries.size();
+            auto& camera_entry = indexed_camera_entries[index];
             camera_entry.index = index;
             camera_entry.id = camera_id;
             camera_entry.scene_id = scene_id;
             camera_entry.name = ("Camera #" + std::to_string(camera_id));
+            camera_entry.NotifyNameChanged();
             if (buffer_group) {
                 auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, cameras_buffer_name);
                 if ((index + 1) > camera_buffer_size) {
                     buffer_group_set_buffer_element_count(buffer_group, cameras_buffer_name, (index + 1));
                 }
             }
-            auto camera_ptr = GetCamera(camera_id);
+            auto camera_ptr = GetCamera(index);
             assert(camera_ptr);
             auto& camera = *camera_ptr;
             auto& width = *window_get_width_ref(window_ptr);
             auto& height = *window_get_height_ref(window_ptr);
-            switch(projectionType) {
-            case Camera::Perspective:
-                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width, height, radians(81.f));
-                break;
-            case Camera::Orthographic:
-                CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
-                break;
+            // Initialize camera matrices
+            {
+                switch(projectionType) {
+                case Camera::Perspective:
+                    CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width, height, radians(81.f));
+                    break;
+                case Camera::Orthographic:
+                    CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
+                    break;
+                }
             }
-            auto& scene_entry = id_scene_entries[scene_id];
-            scene_entry.UpdateChildren(*this);
-            camera_entry.UpdateChildren(*this);
+            // Initialize camera framebuffer
+            {
+                camera_entry.fb_color_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .is_framebuffer_attachment = true
+                });
+                camera_entry.fb_depth_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .format = VK_FORMAT_D32_SFLOAT,
+                    .is_framebuffer_attachment = true
+                });
+                Image* fb_images[2] = {
+                    camera_entry.fb_color_image,
+                    camera_entry.fb_depth_image
+                };
+                AttachmentType fb_attachment_types[2] = {
+                    AttachmentType::Color,
+                    AttachmentType::Depth
+                };
+                FramebufferInfo fb_info{
+                    .pImages = fb_images,
+                    .imagesCount = 2,
+                    .pAttachmentTypes = fb_attachment_types,
+                    .attachmentTypesCount = 2,
+                    .own_images = true
+                };
+                camera_entry.framebuffer = framebuffer_create(fb_info);
+
+                auto frame_ds_pair = image_create_descriptor_set(camera_entry.fb_color_image);
+                camera_entry.frame_image_ds = frame_ds_pair.second;
+
+                shader_set_render_pass(shader, camera_entry.framebuffer);
+            }
+            // Setup Reflection
+            {
+                auto& scene_entry = id_scene_entries[scene_id];
+                scene_entry.UpdateChildren(*this);
+                camera_entry.UpdateChildren(*this);
+            }
             return camera_id;
         }
 
@@ -474,10 +494,10 @@ namespace dz {
             return (EntityT*)(buffer_ptr.get() + (entity_size * index));
         }
 
-        Camera* GetCamera(int camera_id) {
+        Camera* GetCamera(int camera_index) {
             static auto camera_size = sizeof(Camera);
-            auto it = id_camera_entries.find(camera_id);
-            if (it == id_camera_entries.end()) {
+            auto it = indexed_camera_entries.find(camera_index);
+            if (it == indexed_camera_entries.end()) {
                 return nullptr;
             }
             auto& entry = it->second;
@@ -599,6 +619,7 @@ namespace dz {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
 
             window_register_free_callback(window_ptr, [&]() mutable {
+                indexed_camera_entries.clear();
                 id_scene_entries.clear();
             });
         }
@@ -709,38 +730,51 @@ void main() {
             return id_scene_entries.end();
         }
 
-        Image* GetFramebufferImage(size_t scene_id) {
-            auto it = id_scene_entries.find(scene_id);
-            if (it == id_scene_entries.end())
+        std::map<int, CameraReflectableGroup>::iterator GetCamerasBegin() {
+            return indexed_camera_entries.begin();
+        }
+
+        std::map<int, CameraReflectableGroup>::iterator GetCamerasEnd() {
+            return indexed_camera_entries.end();
+        }
+
+        Image* GetFramebufferImage(size_t camera_index) {
+            auto it = indexed_camera_entries.find(camera_index);
+            if (it == indexed_camera_entries.end())
                 return nullptr;
             return it->second.fb_color_image;
         }
 
-        bool ResizeFramebuffer(size_t scene_id, uint32_t width, uint32_t height) {
-            auto it = id_scene_entries.find(scene_id);
-            if (it == id_scene_entries.end())
+        bool ResizeFramebuffer(size_t camera_index, uint32_t width, uint32_t height) {
+            auto it = indexed_camera_entries.find(camera_index);
+            if (it == indexed_camera_entries.end())
                 return false;
-            auto& scene_entry = it->second;
-            auto fb_resized = framebuffer_resize(scene_entry.framebuffer, width, height);
+            auto& camera_entry = it->second;
+            auto fb_resized = framebuffer_resize(camera_entry.framebuffer, width, height);
             if (!fb_resized)
                 return false;
-            scene_entry.fb_color_image = framebuffer_get_image(scene_entry.framebuffer, AttachmentType::Color, true);
-            scene_entry.fb_depth_image = framebuffer_get_image(scene_entry.framebuffer, AttachmentType::Depth, true);
+            if (FramebufferChanged(camera_index)) {
+                camera_entry.fb_color_image = framebuffer_get_image(camera_entry.framebuffer, AttachmentType::Color, true);
+                camera_entry.fb_depth_image = framebuffer_get_image(camera_entry.framebuffer, AttachmentType::Depth, true);
+                SetCameraAspect(camera_index, width, height);
+                auto frame_ds_pair = image_create_descriptor_set(camera_entry.fb_color_image);
+                camera_entry.frame_image_ds = frame_ds_pair.second;
+            }
             return true;
         }
 
-        bool FramebufferChanged(size_t scene_id) {
-            auto it = id_scene_entries.find(scene_id);
-            if (it == id_scene_entries.end())
+        bool FramebufferChanged(size_t camera_index) {
+            auto it = indexed_camera_entries.find(camera_index);
+            if (it == indexed_camera_entries.end())
                 return false;
-            auto& scene_entry = it->second;
-            return framebuffer_changed(scene_entry.framebuffer);
+            auto& camera_entry = it->second;
+            return framebuffer_changed(camera_entry.framebuffer);
         }
 
-        bool SetCameraAspect(size_t camera_id, float width, float height) {
+        bool SetCameraAspect(size_t camera_index, float width, float height) {
             if (!width || !height)
                 return false;
-            auto camera_ptr = GetCamera(camera_id);
+            auto camera_ptr = GetCamera(camera_index);
             if (!camera_ptr)
                 return false;
             auto& camera = *camera_ptr;

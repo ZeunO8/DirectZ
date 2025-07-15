@@ -54,4 +54,13 @@ namespace dz
     * @brief Frees an image, should only be called for self owned Images. Images created by BufferGroups should not be passed to this function
     */
     void image_free(Image* image);
+    
+    /**
+    * @brief Creates a single descriptor set for a given Image*
+    *
+    * @note no need to free the descriptor as this is done by the DirectRegistry
+    *
+    * @returns a pair containing the SetLayout and Set for usage
+    */
+    std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image);
 }

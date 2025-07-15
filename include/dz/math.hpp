@@ -1040,10 +1040,10 @@ namespace dz
         mat<T, 4, 4> result((T)1);
         result[0][0] = (T)2 / (right - left);
         result[1][1] = (T)2 / (top - bottom);
-        result[2][2] = -(T)2 / (zfar - znear);
+        result[2][2] = -(T)1 / (zfar - znear);
         result[3][0] = -(right + left) / (right - left);
         result[3][1] = -(top + bottom) / (top - bottom);
-        result[3][2] = -(zfar + znear) / (zfar - znear);
+        result[3][2] = -(znear) / (zfar - znear);
         // result[1][1] *= -1.0f;
         return result;
     }

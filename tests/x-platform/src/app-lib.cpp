@@ -72,7 +72,7 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
     quad_draw_list_mg_ptr = std::make_shared<DrawListManager<Quad>>("Quads", [&](auto buffer_group, auto& quad) -> DrawTuple {
         auto chosen_shader = raster_shader;
         uint32_t vert_count = 6;
-        return {nullptr, chosen_shader, vert_count};
+        return {chosen_shader, vert_count};
     });
 
     auto& quad_draw_list_mg = *quad_draw_list_mg_ptr;

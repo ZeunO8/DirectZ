@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <tuple>
 
 namespace dz
 {
@@ -40,13 +42,31 @@ namespace dz
      */
     using ShaderDrawList = std::unordered_map<Shader*, DrawList>;
 
-    /**
-     * @brief Maps each Framebuffer pointer to the ShaderDrawList
-     */
-    using FramebufferDrawList = std::unordered_map<Framebuffer*, ShaderDrawList>;
+    // /**
+    //  * @brief Maps each Framebuffer pointer to the ShaderDrawList
+    //  */
+    // using FramebufferDrawList = std::unordered_map<Framebuffer*, ShaderDrawList>;
 
     /**
     * @brief A DrawTuple is the information required to produce a DrawList in a DrawListManager
     */
-    using DrawTuple = std::tuple<Framebuffer*, Shader*, uint32_t>;
+    using DrawTuple = std::tuple<Shader*, uint32_t>;
+
+    /**
+    * @brief A CameraPair is the information required to draw from a cameras perspective
+    */
+    using CameraPair = std::tuple<int, Framebuffer*>;
+
+    /**
+    * @brief Map of camera index to Framebuffer*
+    */
+    using CameraDrawList = std::map<int, Framebuffer*>;
+
+    /**
+    * @brief struct containing required information to draw
+    */
+    struct DrawInformation {
+        CameraDrawList cameras;
+        ShaderDrawList shaderDrawList;
+    };
 } // namespace dz

@@ -285,7 +285,7 @@ void main() {
             vert_count = 6;
             break;
         }
-        return {nullptr, chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
+        return {chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
     });
 
     window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);

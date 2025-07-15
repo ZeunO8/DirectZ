@@ -71,6 +71,7 @@ struct DirectRegistry
     bool swiftshader_fallback = false;
     std::atomic<uint32_t> window_count = 0;
 	ImGuiLayer imguiLayer;
+    std::queue<VkDescriptorSetLayout> layout_queue;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif
