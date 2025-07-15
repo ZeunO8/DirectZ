@@ -402,14 +402,22 @@ namespace dz {
         auto& device = dr.device;
         if (device == VK_NULL_HANDLE)
             return;
-        if (image->image != VK_NULL_HANDLE)
+        if (image->image != VK_NULL_HANDLE) {
             vkDestroyImage(device, image->image, 0);
-        if (image->imageView != VK_NULL_HANDLE)
+            image->image = nullptr;
+        }
+        if (image->imageView != VK_NULL_HANDLE) {
             vkDestroyImageView(device, image->imageView, 0);
-        if (image->memory != VK_NULL_HANDLE)
+            image->imageView = nullptr;
+        }
+        if (image->memory != VK_NULL_HANDLE) {
             vkFreeMemory(device, image->memory, 0);
-        if(image->sampler != VK_NULL_HANDLE)
+            image->memory = nullptr;
+        }
+        if(image->sampler != VK_NULL_HANDLE) {
             vkDestroySampler(device, image->sampler, 0);
+            image->sampler = nullptr;
+        }
         delete image;
         return;
     }

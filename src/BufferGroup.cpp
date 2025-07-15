@@ -101,6 +101,8 @@ namespace dz {
             buffer_group->restricted_to_keys[key] = true;
     }
 
+    bool buffer_group_resize_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
+
     /**
     * @brief For dynamic SSBOs, sets the number of elements the buffer should hold.
     * This MUST be called before shader_create_resources().
@@ -148,8 +150,9 @@ namespace dz {
         }
         else
         {
-            // we need to recreate GPU buffer
-            std::cerr << "Do this?" << std::endl;
+            buffer_group_resize_gpu_buffer(buffer_name, buffer);
+            for (auto& [shader, _] : buffer_group->shaders)
+                shader_update_descriptor_sets(shader);
         }
     }
 
@@ -264,18 +267,21 @@ namespace dz {
         }
     }
 
-    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
-    {
-        VkDeviceSize buffer_size = 0;
+    VkDeviceSize ensure_buffer_size(const std::string& name, ShaderBuffer& buffer) {
         if (buffer.is_dynamic_sized) {
             if (buffer.element_count == 0) {
                     std::cout << "Skipping dynamic buffer '" << name << "' as its element count was not set by the application." << std::endl;
-                    return;
+                    return 0;
             }
-            buffer_size = buffer.element_count * buffer.element_stride;
+            return buffer.element_count * buffer.element_stride;
         } else {
-            buffer_size = buffer.static_size;
+            return buffer.static_size;
         }
+    }
+
+    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
+    {
+        VkDeviceSize buffer_size = ensure_buffer_size(name, buffer);
 
         if (buffer_size == 0) {
             std::cerr << "Warning: Skipping buffer '" << name << "' with zero size." << std::endl;
@@ -318,11 +324,96 @@ namespace dz {
             memcpy(buffer.gpu_buffer.mapped_memory, buffer.data_ptr.get(), buffer_size);
             std::cout << "Copied initial data to GPU for buffer '" << name << "'." << std::endl;
         }
-        
-        // ** THE MAGIC **
-        // Reset the shared_ptr to point to the GPU mapped memory.
-        // The custom empty deleter prevents the shared_ptr from trying to free Vulkan's memory.
+
         buffer.data_ptr.reset(static_cast<uint8_t*>(buffer.gpu_buffer.mapped_memory), [](uint8_t*){ /* Do nothing */ });
         std::cout << "Remapped data_ptr for '" << name << "' to point directly to GPU memory." << std::endl;
     }
+
+    bool buffer_group_resize_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
+    {
+        VkDeviceSize old_size = buffer.gpu_buffer.size;
+        VkDeviceSize new_size = ensure_buffer_size(name, buffer);
+
+        if (new_size == 0)
+        {
+            std::cerr << "Warning: Skipping resize of buffer '" << name << "' with zero size." << std::endl;
+            return false;
+        }
+
+        if (new_size <= old_size)
+        {
+            std::cout << "No resize needed for buffer '" << name << "'." << std::endl;
+            return false;
+        }
+
+        VkBufferUsageFlags usage = (buffer.descriptor_type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            ? VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
+            : VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        VkBufferCreateInfo buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+        buffer_info.size = new_size;
+        buffer_info.usage = usage;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VkBuffer new_buffer;
+        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &new_buffer) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to create new buffer for resize: " << name << std::endl;
+            return false;
+        }
+
+        VkMemoryRequirements mem_reqs;
+        vkGetBufferMemoryRequirements(dr.device, new_buffer, &mem_reqs);
+
+        VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+        alloc_info.allocationSize = mem_reqs.size;
+        alloc_info.memoryTypeIndex = FindMemoryType(dr.physicalDevice, mem_reqs.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+
+        VkDeviceMemory new_memory;
+        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &new_memory) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to allocate memory for new buffer: " << name << std::endl;
+            vkDestroyBuffer(dr.device, new_buffer, nullptr);
+            return false;
+        }
+
+        if (vkBindBufferMemory(dr.device, new_buffer, new_memory, 0) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to bind new buffer memory: " << name << std::endl;
+            vkDestroyBuffer(dr.device, new_buffer, nullptr);
+            vkFreeMemory(dr.device, new_memory, nullptr);
+            return false;
+        }
+
+        void* new_mapped_memory;
+        if (vkMapMemory(dr.device, new_memory, 0, new_size, 0, &new_mapped_memory) != VK_SUCCESS)
+        {
+            std::cerr << "Failed to map new memory for buffer: " << name << std::endl;
+            vkDestroyBuffer(dr.device, new_buffer, nullptr);
+            vkFreeMemory(dr.device, new_memory, nullptr);
+            return false;
+        }
+
+        if (buffer.gpu_buffer.mapped_memory && old_size > 0)
+        {
+            memcpy(new_mapped_memory, buffer.gpu_buffer.mapped_memory, old_size);
+            std::cout << "Copied " << old_size << " bytes from old to new buffer for '" << name << "'." << std::endl;
+        }
+
+        vkUnmapMemory(dr.device, buffer.gpu_buffer.memory);
+        vkDestroyBuffer(dr.device, buffer.gpu_buffer.buffer, nullptr);
+        vkFreeMemory(dr.device, buffer.gpu_buffer.memory, nullptr);
+
+        buffer.gpu_buffer.buffer = new_buffer;
+        buffer.gpu_buffer.memory = new_memory;
+        buffer.gpu_buffer.mapped_memory = new_mapped_memory;
+        buffer.gpu_buffer.size = new_size;
+
+        buffer.data_ptr.reset(static_cast<uint8_t*>(new_mapped_memory), [](uint8_t*){ /* Do nothing */ });
+        std::cout << "Successfully resized GPU buffer for '" << name << "' to size " << new_size << "." << std::endl;
+
+        return true;
+    }
+
 }

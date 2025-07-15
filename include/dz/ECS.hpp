@@ -266,10 +266,12 @@ namespace dz {
                 "Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
                     return {shader, entity.GetVertexCount()};
                 },
-                "Cameras", [&](auto buffer_group, auto camera_index) -> CameraPair {
+                "Cameras", [&](auto buffer_group, auto camera_index) -> CameraTuple {
                     auto camera_it = indexed_camera_entries.find(camera_index);
                     assert(camera_it != indexed_camera_entries.end());
-                    return {camera_index, camera_it->second.framebuffer};
+                    return {camera_index, camera_it->second.framebuffer, [&, camera_index]() {
+                        shader_update_push_constant(shader, 0, (void*)&camera_index, sizeof(uint32_t));
+                    }};
                 }
             ),
             buffer_group(CreateBufferGroup()),
@@ -386,6 +388,7 @@ namespace dz {
                 scene_entry.UpdateChildren(*this);
                 camera_entry.UpdateChildren(*this);
             }
+            draw_mg.SetDirty();
             return camera_id;
         }
 
@@ -630,6 +633,10 @@ namespace dz {
 #version 450
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outPosition;
+
+layout(push_constant) uniform PushConstants {
+    int camera_index;
+} pc;
 )" +
 Camera::GetGLSLStruct() +
 R"(
@@ -686,11 +693,9 @@ void main() {
             shader_string += R"(
     // Vulkan Y Fix
     final_position.y *= -1.0;
-    if (Cameras.cameras.length() > 0) {
-        Camera camera = Cameras.cameras[0];
-        vec4 camera_position = camera.projection * camera.view * final_position;
-        final_position = camera_position;
-    }
+    Camera camera = Cameras.cameras[pc.camera_index];
+    vec4 camera_position = camera.projection * camera.view * final_position;
+    final_position = camera_position;
     gl_Position = final_position;
     outColor = final_color;
     outPosition = final_position;

@@ -147,4 +147,14 @@ namespace dz
     * @brief Returns a VkDescriptorSet given a key
     */
     VkDescriptorSet shader_get_descriptor_set(Shader*, const std::string&);
+
+    /**
+    * @brief gets a push constant index given the layout(push_constant) member name
+    */
+    int32_t shader_get_push_constant_index(Shader*, const std::string& pc_member_name);
+
+    /**
+    * @brief Updates a push_constant by index given data and size
+    */
+    void shader_update_push_constant(Shader*, uint32_t pc_index, void* data, uint32_t size);
 } // namespace dz

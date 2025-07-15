@@ -158,14 +158,6 @@ namespace dz {
 			window->draw_list_managers.erase(mgr);
 	}
 	void window_free(WINDOW* window) {
-		if (window->imguiViewport) {
-			auto& vp = *window->imguiViewport;
-            vp.PlatformHandle = nullptr;
-            vp.PlatformHandleRaw = nullptr;
-            vp.RendererUserData = nullptr;
-            vp.PlatformUserData = nullptr;
-		}
-		window->destroy_platform();
 		auto window_ptrs_end = dr.window_ptrs.end();
 		auto window_ptrs_begin = dr.window_ptrs.begin();
 		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
@@ -176,6 +168,15 @@ namespace dz {
 			dr.window_reflectable_entries.erase(dr.window_reflectable_entries.begin() + index);
 			destroy_remaining = index == 0;
 		}
+		if (window->imguiViewport) {
+			auto& vp = *window->imguiViewport;
+            vp.PlatformHandle = nullptr;
+            vp.PlatformHandleRaw = nullptr;
+			if (!destroy_remaining)
+	            vp.RendererUserData = nullptr;
+            vp.PlatformUserData = nullptr;
+		}
+		window->destroy_platform();
 		auto& event_interface = *window->event_interface; 
 		while (!event_interface.window_free_queue.empty()) {
 			auto callback = event_interface.window_free_queue.front();

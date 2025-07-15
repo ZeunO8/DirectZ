@@ -196,6 +196,7 @@ namespace dz {
         ImFontConfig icons_config;
         icons_config.MergeMode = true;
         icons_config.PixelSnapH = true;
+        icons_config.FontDataOwnedByAtlas = false;
         static const ImWchar icon_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
         io.Fonts->AddFontFromMemoryTTF(
             (void*)fa_solid_900_ttf,
@@ -257,6 +258,7 @@ namespace dz {
         }
 		ImGui_ImplVulkan_Shutdown();
         DestroyImGuiDescriptorPool(direct_registry.device, DescriptorPool);
+        ImGui::DestroyContext();
         initialized = false;
         vulkan_initialized = false;
         return true;
@@ -283,8 +285,10 @@ namespace dz {
     
             ImGui::Render();
 
-            if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+            if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
                 ImGui::UpdatePlatformWindows();
+                ImGui::RenderPlatformWindowsDefault(nullptr, nullptr);
+            }
         }
 
         auto DrawData = GetDrawData(window);
