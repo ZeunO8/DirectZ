@@ -18,30 +18,17 @@ using namespace dz;
 #include <dz/GlobalUID.hpp>
 #include <spirv_reflect.h>
 #include <shaderc/shaderc.hpp>
-#if defined(_WIN32)
-#define VK_USE_PLATFORM_WIN32_KHR
-#elif defined(__linux__) && !defined(__ANDROID__)
-#define VK_USE_PLATFORM_XCB_KHR
-#elif defined(MACOS)
-// #define VK_USE_PLATFORM_MACOS_MVK
-#define VK_USE_PLATFORM_METAL_EXT
-#elif defined(__ANDROID__)
-#define VK_USE_PLATFORM_ANDROID_KHR
-#endif
 #include <vulkan/vulkan.h>
 #if defined(_WIN32)
 #include <ShellScalingApi.h>
 #pragma comment(lib, "Shcore.lib")
 #include <windows.h>
 #elif defined(__linux__) && !defined(__ANDROID__)
-#include <xcb/xcb.h>
-#include <xcb/xcb_keysyms.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/XKBlib.h>
-#include <X11/extensions/Xfixes.h>
 #include <X11/keysymdef.h>
-#include <xcb/xfixes.h>
+#include <X11/extensions/Xfixes.h>
 #include <xkbcommon/xkbcommon.h>
 #include <dlfcn.h>
 #elif defined(MACOS)
@@ -70,14 +57,24 @@ struct DirectRegistry
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue presentQueue;
+    int32_t graphicsAndComputeFamily = -1;
+    int32_t presentFamily = -1;
+    Renderer* currentRenderer = 0;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkCommandBuffer* commandBuffer = 0;
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    std::vector<WINDOW*> window_ptrs;
+    std::vector<WindowReflectableGroup*> window_reflectable_entries;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;
     std::atomic<uint32_t> window_count = 0;
+	ImGuiLayer imguiLayer;
+    std::queue<VkDescriptorSetLayout> layout_queue;
+#ifdef _WIN32
+    HWND hwnd_root;
+#endif
 #ifdef __ANDROID__
     AAssetManager* android_asset_manager = 0;
     AConfiguration* android_config = 0;

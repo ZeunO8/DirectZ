@@ -9,6 +9,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <string.h>
+#include "Renderer.hpp"
 namespace dz
 {
     /**
@@ -900,10 +901,12 @@ namespace dz
 // #elif GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_LH_NO
 // 			return perspectiveLH_NO(fovy, aspect, zNear, zFar);
 #if defined(RENDERER_VULKAN)
-        return perspectiveRH_ZO(fovy, aspect, zNear, zFar);
+        auto m = perspectiveRH_ZO(fovy, aspect, zNear, zFar);
 #elif defined(RENDERER_GL)
-        return perspectiveRH_NO(fovy, aspect, zNear, zFar);
+        auto m = perspectiveRH_NO(fovy, aspect, zNear, zFar);
 #endif
+        // m[1][1] *= -1.0f;
+        return m;
 	}
 
 	template<typename T>
@@ -1002,15 +1005,13 @@ namespace dz
 	template<typename T>
 	mat<T, 4, 4> infinitePerspective(T fovy, T aspect, T zNear)
 	{
-// #if GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_LH_ZO
-// 			return infinitePerspectiveLH_ZO(fovy, aspect, zNear);
-// #elif GLM_CONFIG_CLIP_CONTROL == GLM_CLIP_CONTROL_LH_NO
-// 			return infinitePerspectiveLH_NO(fovy, aspect, zNear);
 #if defined(RENDERER_VULKAN)
-			return infinitePerspectiveRH_ZO(fovy, aspect, zNear);
+        auto m = infinitePerspectiveRH_ZO(fovy, aspect, zNear);
 #elif defined(RENDERER_GL)
-			return infinitePerspectiveRH_NO(fovy, aspect, zNear);
+        auto m = infinitePerspectiveRH_NO(fovy, aspect, zNear);
 #endif
+        // m[1][1] *= -1.0f;
+        return m;
 	}
 
     /**
@@ -1039,10 +1040,11 @@ namespace dz
         mat<T, 4, 4> result((T)1);
         result[0][0] = (T)2 / (right - left);
         result[1][1] = (T)2 / (top - bottom);
-        result[2][2] = -(T)2 / (zfar - znear);
+        result[2][2] = -(T)1 / (zfar - znear);
         result[3][0] = -(right + left) / (right - left);
         result[3][1] = -(top + bottom) / (top - bottom);
-        result[3][2] = -(zfar + znear) / (zfar - znear);
+        result[3][2] = -(znear) / (zfar - znear);
+        // result[1][1] *= -1.0f;
         return result;
     }
 

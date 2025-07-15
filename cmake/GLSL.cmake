@@ -1,6 +1,7 @@
 set(SHADERC_SKIP_INSTALL ON)
 set(SHADERC_SKIP_TESTS ON)
 set(SHADERC_SKIP_EXAMPLES ON)
+set(SHADERC_SKIP_EXECUTABLES ON)
 set(SHADERC_SKIP_COPYRIGHT_CHECK ON)
 set(SHADERC_ENABLE_WERROR_COMPILE OFF)
 message(STATUS "FetchContent: shaderc")
@@ -23,6 +24,7 @@ set_target_properties(shaderc_util PROPERTIES
 message(STATUS "FetchContent: spirv_reflect")
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
+set(SPIRV_REFLECT_INSTALL OFF)
 FetchContent_Declare(spirv_reflect
     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
     GIT_TAG main)

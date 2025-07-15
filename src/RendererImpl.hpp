@@ -1,10 +1,13 @@
+#define MAX_FRAMES_IN_FLIGHT 4
 struct Renderer
 {
     WINDOW* window = 0;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
     VkSwapchainKHR swapChain;
     VkSwapchainKHR swapChains[1];
+    int imageCount = MAX_FRAMES_IN_FLIGHT;
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -23,6 +26,10 @@ struct Renderer
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
 	std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
 	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+
+    std::vector<DrawInformation*> vec_draw_information;
+    std::vector<ShaderDrawList*> screen_draw_lists;
+    std::vector<std::pair<Framebuffer*, ShaderDrawList*>> fb_draw_lists;
 #ifdef __ANDROID__
 	bool supportsIndirectCount = false;
 #else

@@ -1,2 +1,3 @@
 #include <DirectZ.hpp>
-DirectRegistry* dz_registry_global = make_direct_registry();
+DirectRegistry* dr_ptr = make_direct_registry();
+DirectRegistry& dr = *dr_ptr;

@@ -15,9 +15,9 @@ DirectZ provides:
 ##### Build Status
 [![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=run-actions&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
 [![MacOS (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=run-actions&label=MacOS%20x86_64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml)
-[![Linux Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=run-actions&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
-[![Windows Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
-[![Android (ARM64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=run-actions&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
+[![Linux (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=run-actions&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
+[![Windows (AMD64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
+[![Android (aarch64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=run-actions&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
 
 ##### Getting hands on DirectZ
 
@@ -26,7 +26,7 @@ You can download a Release installer from the releases page or, if building from
 ```bash
 git clone https://github.com/Zeucor/DirectZ.git --recurse-submodules
 cd DirectZ
-cmake -B build -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++
+cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
 cmake --build build
 
 # Unix

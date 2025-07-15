@@ -1,224 +1,462 @@
-struct Image
-{
-    VkImage image = VK_NULL_HANDLE;
-    VkImageView imageView = VK_NULL_HANDLE;
-    VkBuffer buffer = VK_NULL_HANDLE;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
-    VkSampler sampler = VK_NULL_HANDLE;
-    VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-};
-
-struct ImageCreateInfo
-{
-    uint32_t width = 1;
-    uint32_t height = 1;
-    uint32_t depth = 1;
-    VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-    VkImageUsageFlags usage;
-    VkImageType image_type = VK_IMAGE_TYPE_2D;
-    VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
-    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-    VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    void* data = nullptr;
-};
-
-void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_data);
-
-Image* image_create(const ImageCreateInfo& info)
-{
-    auto direct_registry = get_direct_registry();
-    Image* result = new Image{};
-
-    // VkImageCreateInfo setup
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = info.image_type;
-    imageInfo.extent.width = info.width;
-    imageInfo.extent.height = info.height;
-    imageInfo.extent.depth = info.depth;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = info.format;
-    imageInfo.tiling = info.tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = info.usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    vkCreateImage(direct_registry->device, &imageInfo, nullptr, &result->image);
-
-    // Allocate memory
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(direct_registry->device, result->image, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = find_memory_type(memRequirements.memoryTypeBits, info.memory_properties);
-
-    vkAllocateMemory(direct_registry->device, &allocInfo, nullptr, &result->memory);
-    vkBindImageMemory(direct_registry->device, result->image, result->memory, 0);
-
-    // Upload data if provided
-    if (info.data)
+namespace dz {
+    struct Image
     {
-        upload_image_data(result->image, info, info.data);
+        uint32_t width;
+        uint32_t height;
+        uint32_t depth;
+        VkFormat format;
+        VkImageUsageFlags usage;
+        VkImageType image_type;
+        VkImageViewType view_type;
+        VkImageTiling tiling;
+        VkMemoryPropertyFlags memory_properties;
+        VkImage image = VK_NULL_HANDLE;
+        VkImageView imageView = VK_NULL_HANDLE;
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        VkSampler sampler = VK_NULL_HANDLE;
+        VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkSampleCountFlagBits multisampling;
+        void* data;
+    };
+
+    struct ImageCreateInfoInternal
+    {
+        uint32_t width = 1;
+        uint32_t height = 1;
+        uint32_t depth = 1;
+        VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+        VkImageUsageFlags usage;
+        VkImageType image_type = VK_IMAGE_TYPE_2D;
+        VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
+        VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+        VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
+        void* data = nullptr;
+    };
+
+    void upload_image_data(Image* image);
+
+    Image* image_create_internal(const ImageCreateInfoInternal& info);
+    
+    void image_pre_resize_2D_internal(Image* image_ptr, uint32_t width, uint32_t height) {
+        auto& image = *image_ptr;
+        image.width = width;
+        image.height = height;
+        image.current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
-    // Create ImageView
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = result->image;
-    viewInfo.viewType = info.view_type;
-    viewInfo.format = info.format;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    vkCreateImageView(direct_registry->device, &viewInfo, nullptr, &result->imageView);
-
-    // Conditionally create sampler if image will be sampled
-    if (info.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
-    {
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.anisotropyEnable = VK_FALSE;
-        samplerInfo.maxAnisotropy = 1.0f;
-        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        samplerInfo.unnormalizedCoordinates = VK_FALSE;
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = 0.0f;
-
-        vkCreateSampler(direct_registry->device, &samplerInfo, nullptr, &result->sampler);
+    void image_pre_resize_3D_internal(Image* image_ptr, uint32_t width, uint32_t height, uint32_t depth) {
+        auto& image = *image_ptr;
+        image.width = width;
+        image.height = height;
+        image.depth = depth;
+        image.current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
-    return result;
-}
+    void image_init(Image* image);
+    
+    Image* image_create(const ImageCreateInfo& info) {
+        auto usage = info.usage;
+        switch (info.format)
+        {
+        case VK_FORMAT_R8_UNORM:
+        case VK_FORMAT_R8G8_UNORM:
+        case VK_FORMAT_R8G8B8_UNORM:
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            if (info.is_framebuffer_attachment)
+                usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        case VK_FORMAT_R8_UINT:
+            if (info.is_framebuffer_attachment)
+                usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            break;
+        default:
+            break;
+        }
+        ImageCreateInfoInternal internal_info{
+            .width = info.width,
+            .height = info.height,
+            .depth = info.depth,
+            .format = info.format,
+            .usage = usage,
+            .image_type = info.image_type,
+            .view_type = info.view_type,
+            .tiling = info.tiling,
+            .memory_properties = info.memory_properties,
+            .multisampling = info.multisampling,
+            .data = info.data
+        };
+        return image_create_internal(internal_info);
+    }
 
-void upload_image_data(VkImage image, const ImageCreateInfo& info, void* src_data)
-{
-    auto direct_registry = get_direct_registry();
+    Image* image_create_internal(const ImageCreateInfoInternal& info) {
+        Image* result = new Image{
+            .width = info.width,
+            .height = info.height,
+            .depth = info.depth,
+            .format = info.format,
+            .usage = info.usage,
+            .image_type = info.image_type,
+            .view_type = info.view_type,
+            .tiling = info.tiling,
+            .memory_properties = info.memory_properties,
+            .multisampling = info.multisampling,
+            .data = info.data
+        };
 
-    VkDeviceSize image_size = info.width * info.height * info.depth * 4; // Assuming 4 bytes per texel (e.g., RGBA8)
+        image_init(result);
 
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
+        return result;
+    }
 
-    VkBufferCreateInfo buffer_info{};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = image_size;
-    buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    void image_free_internal(Image* image_ptr) {
+        auto& image = *image_ptr;
+        auto& device = dr.device;
+        if (image.image != VK_NULL_HANDLE) {
+            vkDestroyImage(device, image.image, 0);
+            image.image = nullptr;
+        }
+        if (image.imageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(device, image.imageView, 0);
+            image.imageView = nullptr;
+        }
+        if (image.memory != VK_NULL_HANDLE) {
+            vkFreeMemory(device, image.memory, 0);
+            image.memory = nullptr;
+        }
+        if(image.sampler != VK_NULL_HANDLE) {
+            vkDestroySampler(device, image.sampler, 0);
+            image.sampler = nullptr;
+        }
+    }
 
-    vkCreateBuffer(direct_registry->device, &buffer_info, nullptr, &staging_buffer);
+    void image_resize_2D(Image*& image, uint32_t width, uint32_t height, void* data, bool create_new) {
+        if (!image)
+            return;
+        if (create_new) {
+            Image* new_image = new Image{
+                .width = width,
+                .height = height,
+                .depth = image->depth,
+                .format = image->format,
+                .usage = image->usage,
+                .image_type = image->image_type,
+                .view_type = image->view_type,
+                .tiling = image->tiling,
+                .memory_properties = image->memory_properties,
+                .multisampling = image->multisampling,
+                .data = image->data
+            };
 
-    VkMemoryRequirements mem_requirements;
-    vkGetBufferMemoryRequirements(direct_registry->device, staging_buffer, &mem_requirements);
+            image_init(new_image);
 
-    VkMemoryAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    alloc_info.allocationSize = mem_requirements.size;
-    alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            image = new_image;
+            return;
+        }
+        image_free_internal(image);
+        image_pre_resize_2D_internal(image, width, height);
+        image->data = data;
+        image_init(image);
+    }
 
-    vkAllocateMemory(direct_registry->device, &alloc_info, nullptr, &staging_buffer_memory);
-    vkBindBufferMemory(direct_registry->device, staging_buffer, staging_buffer_memory, 0);
+    void image_resize_3D(Image*& image, uint32_t width, uint32_t height, uint32_t depth, void* data, bool create_new) {
+        if (!image)
+            return;
+        if (create_new) {
+            Image* new_image = new Image{
+                .width = width,
+                .height = height,
+                .depth = depth,
+                .format = image->format,
+                .usage = image->usage,
+                .image_type = image->image_type,
+                .view_type = image->view_type,
+                .tiling = image->tiling,
+                .memory_properties = image->memory_properties,
+                .multisampling = image->multisampling,
+                .data = image->data
+            };
 
-    void* mapped_data;
-    vkMapMemory(direct_registry->device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
-    memcpy(mapped_data, src_data, static_cast<size_t>(image_size));
-    vkUnmapMemory(direct_registry->device, staging_buffer_memory);
+            image_init(new_image);
 
-    VkCommandBuffer command_buffer = begin_single_time_commands();
+            image = new_image;
+            return;
+        }
+        image_free_internal(image);
+        image_pre_resize_3D_internal(image, width, height, depth);
+        image->data = data;
+        image_init(image);
+    }
 
-    VkImageMemoryBarrier barrier_to_transfer{};
-    barrier_to_transfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier_to_transfer.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    barrier_to_transfer.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier_to_transfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_transfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_transfer.image = image;
-    barrier_to_transfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier_to_transfer.subresourceRange.baseMipLevel = 0;
-    barrier_to_transfer.subresourceRange.levelCount = 1;
-    barrier_to_transfer.subresourceRange.baseArrayLayer = 0;
-    barrier_to_transfer.subresourceRange.layerCount = 1;
-    barrier_to_transfer.srcAccessMask = 0;
-    barrier_to_transfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    void image_init(Image* image_ptr) {
+        auto& image = *image_ptr;
+        // VkImageCreateInfoInternal setup
+        VkImageCreateInfo imageInfo{};
+        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageInfo.imageType = image.image_type;
+        imageInfo.extent.width = image.width;
+        imageInfo.extent.height = image.height;
+        imageInfo.extent.depth = image.depth;
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.format = image.format;
+        imageInfo.tiling = image.tiling;
+        imageInfo.initialLayout = image.current_layout;
+        imageInfo.usage = image.usage;
+        imageInfo.samples = image.multisampling;
+        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    vkCmdPipelineBarrier(
-        command_buffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier_to_transfer
-    );
+        vkCreateImage(dr.device, &imageInfo, nullptr, &image.image);
 
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {info.width, info.height, info.depth};
+        // Allocate memory
+        VkMemoryRequirements memRequirements;
+        vkGetImageMemoryRequirements(dr.device, image.image, &memRequirements);
 
-    vkCmdCopyBufferToImage(command_buffer, staging_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = find_memory_type(memRequirements.memoryTypeBits, image.memory_properties);
 
-    VkImageMemoryBarrier barrier_to_shader{};
-    barrier_to_shader.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier_to_shader.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    barrier_to_shader.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier_to_shader.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_shader.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier_to_shader.image = image;
-    barrier_to_shader.subresourceRange = barrier_to_transfer.subresourceRange;
-    barrier_to_shader.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-    barrier_to_shader.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        vkAllocateMemory(dr.device, &allocInfo, nullptr, &image.memory);
+        vkBindImageMemory(dr.device, image.image, image.memory, 0);
 
-    vkCmdPipelineBarrier(
-        command_buffer,
-        VK_PIPELINE_STAGE_TRANSFER_BIT,
-        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier_to_shader
-    );
+        // Upload data if provided
+        if (image.data)
+        {
+            upload_image_data(image_ptr);
+        }
 
-    end_single_time_commands(command_buffer);
+        // Create ImageView
+        VkImageViewCreateInfo viewInfo{};
+        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewInfo.image = image.image;
+        viewInfo.viewType = image.view_type;
+        viewInfo.format = image.format;
+        switch (image.format) {
+        case VK_FORMAT_R8_UNORM:
+        case VK_FORMAT_R8G8_UNORM:
+        case VK_FORMAT_R8G8B8_UNORM:
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT:
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+            viewInfo.subresourceRange.aspectMask =
+                VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+            break;
+        case VK_FORMAT_R8_UINT:
+            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
+            break;
+        default:
+            break;
+        }
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
 
-    vkDestroyBuffer(direct_registry->device, staging_buffer, nullptr);
-    vkFreeMemory(direct_registry->device, staging_buffer_memory, nullptr);
-}
+        vkCreateImageView(dr.device, &viewInfo, nullptr, &image.imageView);
 
-void image_free(Image* image)
-{
-    auto direct_registry = get_direct_registry();
-    auto& device = direct_registry->device;
-    if (device == VK_NULL_HANDLE)
+        // Conditionally create sampler if image will be sampled
+        if (image.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
+        {
+            VkSamplerCreateInfo samplerInfo{};
+            samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+            samplerInfo.magFilter = VK_FILTER_LINEAR;
+            samplerInfo.minFilter = VK_FILTER_LINEAR;
+            samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            samplerInfo.anisotropyEnable = VK_FALSE;
+            samplerInfo.maxAnisotropy = 1.0f;
+            samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            samplerInfo.unnormalizedCoordinates = VK_FALSE;
+            samplerInfo.compareEnable = VK_FALSE;
+            samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+            samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            samplerInfo.mipLodBias = 0.0f;
+            samplerInfo.minLod = 0.0f;
+            samplerInfo.maxLod = 0.0f;
+
+            vkCreateSampler(dr.device, &samplerInfo, nullptr, &image.sampler);
+        }
+    }
+
+    void upload_image_data(Image* image_ptr)
+    {
+        auto& image = *image_ptr;
+        VkDeviceSize image_size = image.width * image.height * image.depth * 4; // Assuming 4 bytes per texel (e.g., RGBA8)
+
+        VkBuffer staging_buffer;
+        VkDeviceMemory staging_buffer_memory;
+
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = image_size;
+        buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        vkCreateBuffer(dr.device, &buffer_info, nullptr, &staging_buffer);
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(dr.device, staging_buffer, &mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        vkAllocateMemory(dr.device, &alloc_info, nullptr, &staging_buffer_memory);
+        vkBindBufferMemory(dr.device, staging_buffer, staging_buffer_memory, 0);
+
+        void* mapped_data;
+        vkMapMemory(dr.device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
+        memcpy(mapped_data, image.data, static_cast<size_t>(image_size));
+        vkUnmapMemory(dr.device, staging_buffer_memory);
+
+        VkCommandBuffer command_buffer = begin_single_time_commands();
+
+        auto new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+        VkImageMemoryBarrier barrier_to_transfer{};
+        barrier_to_transfer.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier_to_transfer.oldLayout = image.current_layout;
+        barrier_to_transfer.newLayout = new_layout;
+        barrier_to_transfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_to_transfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_to_transfer.image = image.image;
+        barrier_to_transfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier_to_transfer.subresourceRange.baseMipLevel = 0;
+        barrier_to_transfer.subresourceRange.levelCount = 1;
+        barrier_to_transfer.subresourceRange.baseArrayLayer = 0;
+        barrier_to_transfer.subresourceRange.layerCount = 1;
+        barrier_to_transfer.srcAccessMask = 0;
+        barrier_to_transfer.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        vkCmdPipelineBarrier(
+            command_buffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier_to_transfer
+        );
+
+        image.current_layout = new_layout;
+
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {image.width, image.height, image.depth};
+
+        vkCmdCopyBufferToImage(command_buffer, staging_buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+        VkImageMemoryBarrier barrier_to_shader{};
+        barrier_to_shader.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier_to_shader.oldLayout = image.current_layout;
+        new_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        barrier_to_shader.newLayout = new_layout;
+        barrier_to_shader.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_to_shader.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_to_shader.image = image.image;
+        barrier_to_shader.subresourceRange = barrier_to_transfer.subresourceRange;
+        barrier_to_shader.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier_to_shader.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            command_buffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier_to_shader
+        );
+
+        image.current_layout = new_layout;
+
+        end_single_time_commands(command_buffer);
+
+        vkDestroyBuffer(dr.device, staging_buffer, nullptr);
+        vkFreeMemory(dr.device, staging_buffer_memory, nullptr);
+    }
+
+    void image_free(Image* image)
+    {
+        if (!image)
+            return;
+        auto& device = dr.device;
+        if (device == VK_NULL_HANDLE)
+            return;
+        if (image->image != VK_NULL_HANDLE)
+            vkDestroyImage(device, image->image, 0);
+        if (image->imageView != VK_NULL_HANDLE)
+            vkDestroyImageView(device, image->imageView, 0);
+        if (image->memory != VK_NULL_HANDLE)
+            vkFreeMemory(device, image->memory, 0);
+        if(image->sampler != VK_NULL_HANDLE)
+            vkDestroySampler(device, image->sampler, 0);
+        delete image;
         return;
-    if (image->image != VK_NULL_HANDLE)
-        vkDestroyImage(device, image->image, 0);
-    if (image->imageView != VK_NULL_HANDLE)
-        vkDestroyImageView(device, image->imageView, 0);
-    if (image->memory != VK_NULL_HANDLE)
-        vkFreeMemory(device, image->memory, 0);
-    if(image->sampler != VK_NULL_HANDLE)
-        vkDestroySampler(device, image->sampler, 0);
-    delete image;
+    }
+
+    std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image) {
+        assert(image && "Image* is null");
+
+        VkDescriptorSetLayoutBinding binding = {};
+        binding.binding = 0;
+        binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        binding.descriptorCount = 1;
+        binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &binding;
+
+        VkDescriptorSetLayout layout;
+        vkCreateDescriptorSetLayout(dr.device, &layoutInfo, nullptr, &layout);
+
+        VkDescriptorSetAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = dr.imguiLayer.DescriptorPool;
+        allocInfo.descriptorSetCount = 1;
+        allocInfo.pSetLayouts = &layout;
+
+        VkDescriptorSet descriptorSet;
+        vkAllocateDescriptorSets(dr.device, &allocInfo, &descriptorSet);
+
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.imageView = image->imageView;
+        imageInfo.sampler = image->sampler;
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet descriptorWrite = {};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = descriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite.pImageInfo = &imageInfo;
+
+        vkUpdateDescriptorSets(dr.device, 1, &descriptorWrite, 0, nullptr);
+
+        dr.layout_queue.push(layout);
+
+        return {layout, descriptorSet};
+    }
 }

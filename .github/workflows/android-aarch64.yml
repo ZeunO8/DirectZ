@@ -1,9 +1,13 @@
-name: Build Android aarch64
+name: Build Android (aarch64)
 
 on:
   push:
     branches:
       - run-actions
+      - master
+  pull_request:
+    branches:
+      - master
 
 permissions:
   contents: write
@@ -13,7 +17,6 @@ jobs:
     runs-on: windows-2025
 
     env:
-      ANDROID_NDK_VERSION: 26.1.10909125
       ANDROID_API_LEVEL: 31
       ANDROID_ABI: arm64-v8a
       ANDROID_PLATFORM: android-31
@@ -24,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          choco install ninja openssl wget unzip
+          choco install unzip
         shell: powershell
 
       - name: Download and Extract Android NDK (bash)
@@ -41,7 +44,7 @@ jobs:
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
 
       - name: Configure
-        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM -DCMAKE_INSTALL_PREFIX=install
         shell: bash
 
       - name: fix_format_security
@@ -55,3 +58,15 @@ jobs:
       - name: Install
         run: cmake --install build
         shell: bash
+
+      - name: Package
+        run: |
+          cpack --config build/CPackConfig.cmake
+          ls -lah releases
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: releases
+          path: releases

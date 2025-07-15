@@ -69,7 +69,7 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
 
     shader_include_asset_pack(raster_shader, asset_pack);
 
-    quad_draw_list_mg_ptr = std::make_shared<DrawListManager<Quad>>("Quads", [&](auto buffer_group, auto& quad) -> std::pair<Shader*, uint32_t> {
+    quad_draw_list_mg_ptr = std::make_shared<DrawListManager<Quad>>("Quads", [&](auto buffer_group, auto& quad) -> DrawTuple {
         auto chosen_shader = raster_shader;
         uint32_t vert_count = 6;
         return {chosen_shader, vert_count};

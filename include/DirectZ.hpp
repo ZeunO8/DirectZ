@@ -4,11 +4,7 @@
  */
 #pragma once
 
-// Yes DirectZ just uses Vulkan (for v1.0 at the very least) 
-#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(ANDROID)
-#define RENDERER_VULKAN
-#endif
-
+#include <dz/Renderer.hpp>
 #include <filesystem>
 #include <dz/BufferGroup.hpp>
 #include <dz/size_ptr.hpp>
@@ -23,6 +19,12 @@
 #include <dz/ProgramArgs.hpp>
 #include <dz/EventInterface.hpp>
 #include <dz/zmalloc.hpp>
+#include <dz/D7Stream.hpp>
+#include <dz/ECS.hpp>
+#include <dz/ImGuiLayer.hpp>
+#include <dz/Reflectable.hpp>
+#include <dz/Camera.hpp>
+#include <dz/Displays.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)
@@ -31,6 +33,10 @@
 #endif
 
 using namespace dz;
+
+namespace dz {
+    DirectRegistry*& get_direct_registry();
+}
 
 inline static std::string DZ_GLSL_VERSION = "#version 450\n";
 
@@ -104,3 +110,17 @@ DZ_EXPORT void render();
 #endif
 mat<float, 4, 4> window_mvp(WINDOW* window, const mat<float, 4, 4>& mvp);
 mat<double, 4, 4> window_mvp(WINDOW* window, const mat<double, 4, 4>& mvp);
+
+#ifndef USING_VULKAN_1_2
+    #define UsingAttachmentDescription VkAttachmentDescription
+    #define UsingAttachmentReference VkAttachmentReference
+    #define UsingSubpassDescription VkSubpassDescription
+    #define UsingSubpassDependency VkSubpassDependency
+    #define UsingRenderPassCreateInfo VkRenderPassCreateInfo
+#else
+    #define UsingAttachmentDescription VkAttachmentDescription2
+    #define UsingAttachmentReference VkAttachmentReference2
+    #define UsingSubpassDescription VkSubpassDescription2
+    #define UsingSubpassDependency VkSubpassDependency2
+    #define UsingRenderPassCreateInfo VkRenderPassCreateInfo2
+#endif

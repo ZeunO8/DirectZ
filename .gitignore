@@ -14,3 +14,7 @@ android/commit.h
 pack.bin
 gradle-wrapper.jar
 gradle-wrapper.properties
+_CPack_Packages
+releases
+*~
+install
