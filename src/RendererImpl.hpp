@@ -28,8 +28,8 @@ struct Renderer
 	VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
     std::vector<DrawInformation*> vec_draw_information;
-    std::vector<ShaderDrawList*> screen_draw_lists;
-    std::vector<std::pair<Framebuffer*, ShaderDrawList*>> fb_draw_lists;
+    std::vector<std::pair<ShaderDrawList*, std::function<void()>>> screen_draw_lists;
+    std::vector<std::tuple<Framebuffer*, ShaderDrawList*, std::function<void()>>> fb_draw_lists;
 #ifdef __ANDROID__
 	bool supportsIndirectCount = false;
 #else

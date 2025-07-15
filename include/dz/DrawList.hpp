@@ -53,14 +53,14 @@ namespace dz
     using DrawTuple = std::tuple<Shader*, uint32_t>;
 
     /**
-    * @brief A CameraPair is the information required to draw from a cameras perspective
+    * @brief A CameraTuple is the information required to draw from a cameras perspective
     */
-    using CameraPair = std::tuple<int, Framebuffer*>;
+    using CameraTuple = std::tuple<int, Framebuffer*, std::function<void()>>;
 
     /**
     * @brief Map of camera index to Framebuffer*
     */
-    using CameraDrawList = std::map<int, Framebuffer*>;
+    using CameraDrawList = std::map<int, std::pair<Framebuffer*, std::function<void()>>>;
 
     /**
     * @brief struct containing required information to draw

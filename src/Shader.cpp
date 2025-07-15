@@ -17,6 +17,7 @@ namespace dz {
     uint32_t GetMinimumTypeSizeInBytes(const SpvReflectTypeDescription& type_desc);
     uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc);
     bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader);
+    VkShaderStageFlags GetShaderStageFromModuleType(ShaderModuleType type);
 
     struct ReflectedVariable {
         std::string name;
@@ -181,6 +182,13 @@ namespace dz {
         std::unordered_map<Shader*, VkImageLayout> expected_layouts;
     };
 
+    struct PushConstant {
+        void* ptr;
+        uint32_t size;
+        uint32_t offset;
+        VkShaderStageFlags stageFlags;
+    };
+
     struct Shader {
         bool initialized = false;
         std::map<ShaderModuleType, ShaderModule> module_map;
@@ -193,6 +201,8 @@ namespace dz {
         VkPipeline graphics_pipeline = VK_NULL_HANDLE;
         VkRenderPass render_pass = VK_NULL_HANDLE;
         std::map<std::string, std::string> define_map;
+        std::unordered_map<std::string, size_t> push_constants_name_index;
+        std::map<size_t, PushConstant> push_constants;
         AssetPack* include_asset_pack = 0;
         ShaderTopology topology;
         VkRenderPass renderPass = VK_NULL_HANDLE;
@@ -937,6 +947,7 @@ namespace dz {
             block.binding = 0; // Push constants don't have explicit bindings/sets
             block.set = 0;     // in the same way as descriptor sets
             block.type = CreateReflectedType(*push.type_description); // Populate block type
+            std::cout << "Reflected Push Constant '" << block.name << "'" << std::endl;
 
             for (uint32_t j = 0; j < push.member_count; ++j)
             {
@@ -947,6 +958,7 @@ namespace dz {
                 m.array_stride = member.array.stride;
                 m.type = CreateReflectedType(*member.type_description);
                 // m.decorations = member.decorations;
+                std::cout << "\tReflected Block Member '" << m.name << "'" << std::endl;
                 block.members.push_back(m);
             }
             out.push_constants.push_back(block); // Store push constants in their own vector
@@ -1223,13 +1235,7 @@ namespace dz {
                 // The stageFlags should be OR'd for bindings that appear in multiple stages.
                 // For simplicity here, we get the stage from the module type.
                 // A more robust system might map SpvExecutionModel to VkShaderStageFlagBits.
-                VkShaderStageFlags vk_stage = 0;
-                switch(stage) {
-                    case ShaderModuleType::Vertex:   vk_stage = VK_SHADER_STAGE_VERTEX_BIT;   break;
-                    case ShaderModuleType::Fragment: vk_stage = VK_SHADER_STAGE_FRAGMENT_BIT; break;
-                    case ShaderModuleType::Compute:  vk_stage = VK_SHADER_STAGE_COMPUTE_BIT;  break;
-                    // ... add other stages
-                }
+                VkShaderStageFlags vk_stage = GetShaderStageFromModuleType(stage);
                 layout_binding.stageFlags = vk_stage;
                 layout_binding.pImmutableSamplers = nullptr;
 
@@ -1327,6 +1333,27 @@ namespace dz {
             }
             shader->descriptor_sets[set_num] = descriptor_set;
             std::cout << "Successfully allocated descriptor set for set " << set_num << std::endl;
+        }
+        return true;
+    }
+
+    bool AllocatePushConstants(Shader* shader) {
+        for (auto& [module_type, module] : shader->module_map) {
+            for (auto& block : module.reflection.push_constants) {
+                for (auto& member : block.members) {
+                    auto exist_name_it = shader->push_constants_name_index.find(member.name);
+                    if (exist_name_it != shader->push_constants_name_index.end())
+                        continue;
+                    auto index = shader->push_constants.size();
+                    void* pc = malloc(member.type.size_in_bytes);
+                    shader->push_constants[index] = PushConstant{
+                        pc, member.type.size_in_bytes,
+                        member.offset,
+                        GetShaderStageFromModuleType(module_type)
+                    };
+                    shader->push_constants_name_index[member.name] = index;
+                }
+            }
         }
         return true;
     }
@@ -1539,6 +1566,7 @@ namespace dz {
         if (!CreateDescriptorSetLayouts(device, shader)) return;
         if (!CreateDescriptorPool(device, shader, 10)) return; // Max 10 sets of each type
         if (!AllocateDescriptorSets(device, shader)) return;
+        if (!AllocatePushConstants(shader)) return;
 
         std::cout << "Shader resources created and bound successfully using data-driven approach." << std::endl;
     }
@@ -1828,8 +1856,17 @@ namespace dz {
 
         pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layouts.size());
         pipelineLayoutInfo.pSetLayouts = layouts.data();
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
-        pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+        std::vector<VkPushConstantRange> ranges;
+        for (auto& [pc_index, pc] : shader->push_constants) {
+            VkPushConstantRange range;
+            range.offset = pc.offset;
+            range.size = pc.size;
+            range.stageFlags = pc.stageFlags;
+            ranges.push_back(range);
+        }
+        pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
+        pipelineLayoutInfo.pPushConstantRanges = ranges.data();
 
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &shader->pipeline_layout) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create pipeline layout!");
@@ -2020,12 +2057,43 @@ namespace dz {
         return shader->descriptor_sets[set_num];
     }
 
+    void shader_ensure_push_constants(Shader* shader) {
+        for (auto& [pc_index, pc] : shader->push_constants) {
+            vkCmdPushConstants(
+                *dr.commandBuffer,
+                shader->pipeline_layout,
+                pc.stageFlags,
+                pc.offset,
+                pc.size,
+                pc.ptr);
+        }
+    }
+
+    int32_t shader_get_push_constant_index(Shader* shader, const std::string& pc_member_name) {
+        auto it = shader->push_constants_name_index.find(pc_member_name);
+        if (it == shader->push_constants_name_index.end())
+            return -1;
+        return it->second;
+    }
+
+    void shader_update_push_constant(Shader* shader, uint32_t pc_index, void* data, uint32_t size) {
+        auto it = shader->push_constants.find(pc_index);
+        if (it == shader->push_constants.end())
+            return;
+        auto& pc = it->second;
+        if (pc.size != size) {
+            std::cerr << "pc.size != size, not copying data" << std::endl;
+        }
+        memcpy(pc.ptr, data, size);
+    }
+
     void draw_shader_draw_list(Renderer* renderer, ShaderDrawList& shaderDrawList) {
         for (auto& shader_pair : shaderDrawList) {
             auto shader = shader_pair.first;
             auto& draw_list = shader_pair.second;
             shader_ensure_image_layouts(shader);
             shader_bind(shader);
+            shader_ensure_push_constants(shader);
             renderer_draw_commands(renderer, shader, draw_list);
         }
     }
@@ -2067,8 +2135,8 @@ namespace dz {
 
         for (auto& drawInformation_ptr : renderer->vec_draw_information) {
             auto& drawInformation = *drawInformation_ptr;
-            for (auto& camera_pair : drawInformation.cameras) {
-                auto framebuffer_ptr = camera_pair.second;
+            for (auto& [camera_index, camera_pair] : drawInformation.cameras) {
+                auto framebuffer_ptr = camera_pair.first;
                 if (!framebuffer_ptr) {
                     screen_draw_list_count++;
                 }
@@ -2094,27 +2162,30 @@ namespace dz {
         for (auto& drawInformation_ptr : renderer->vec_draw_information) {
             auto& drawInformation = *drawInformation_ptr;
             auto& shaderDrawList = drawInformation.shaderDrawList;
-            for (auto& camera_pair : drawInformation.cameras) {
-                auto framebuffer_ptr = camera_pair.second;
+            for (auto& [camera__index, camera_pair] : drawInformation.cameras) {
+                auto framebuffer_ptr = camera_pair.first;
                 if (!framebuffer_ptr) {
                     if (screen_list_changed) {
-                        renderer->screen_draw_lists[screen_draw_list_index] = &shaderDrawList;
+                        renderer->screen_draw_lists[screen_draw_list_index] = {&shaderDrawList, camera_pair.second};
                     }
                     screen_draw_list_index++;
                 }
                 else {
                     if (fb_list_changed) {
-                        renderer->fb_draw_lists[fb_draw_list_index] = {framebuffer_ptr, &shaderDrawList};
+                        renderer->fb_draw_lists[fb_draw_list_index] = {framebuffer_ptr, &shaderDrawList, camera_pair.second};
                     }
                     fb_draw_list_index++;
                 }
             }
         }
 
-        for (auto& fb_pair : renderer->fb_draw_lists) {
-            auto framebuffer_ptr = fb_pair.first;
+        for (auto& fb_tuple : renderer->fb_draw_lists) {
+            auto& camera_pre_render_fn = std::get<2>(fb_tuple);
+            if (camera_pre_render_fn)
+                camera_pre_render_fn();
+            auto framebuffer_ptr = std::get<0>(fb_tuple);
             framebuffer_bind(framebuffer_ptr);
-            draw_shader_draw_list(renderer, *fb_pair.second);
+            draw_shader_draw_list(renderer, *std::get<1>(fb_tuple));
             framebuffer_unbind(framebuffer_ptr);
         }
 
@@ -2165,7 +2236,9 @@ namespace dz {
         };
         vkCmdSetScissor(*dr.commandBuffer, 0, 1, &scissor);
         
-        for (auto& screen_draw_list : renderer->screen_draw_lists) {
+        for (auto& [screen_draw_list, camera_pre_render_fn] : renderer->screen_draw_lists) {
+            if (camera_pre_render_fn)
+                camera_pre_render_fn();
             draw_shader_draw_list(renderer, *screen_draw_list);
         }
 
@@ -2288,5 +2361,13 @@ namespace dz {
             vkDestroyPipeline(device, shader->graphics_pipeline, 0);
         if (shader->pipeline_layout != VK_NULL_HANDLE)
             vkDestroyPipelineLayout(device, shader->pipeline_layout, 0);
+    }
+
+    VkShaderStageFlags GetShaderStageFromModuleType(ShaderModuleType type) {
+        switch(type) {
+            case ShaderModuleType::Vertex:   return VK_SHADER_STAGE_VERTEX_BIT;
+            case ShaderModuleType::Fragment: return VK_SHADER_STAGE_FRAGMENT_BIT;
+            case ShaderModuleType::Compute:  return VK_SHADER_STAGE_COMPUTE_BIT;
+        }
     }
 }

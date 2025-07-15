@@ -37,10 +37,10 @@ namespace dz
     struct DrawListManager : IDrawListManager
     {
         using Determine_DrawT_DrawTuple_Function = std::function<DrawTuple(BufferGroup*, DrawT&)>;
-        using Determine_CameraPair_Function = std::function<CameraPair(BufferGroup*, int)>;
+        using Determine_CameraTuple_Function = std::function<CameraTuple(BufferGroup*, int)>;
     private:
         Determine_DrawT_DrawTuple_Function fn_determine_DrawT_DrawTuple;
-        Determine_CameraPair_Function fn_determine_CameraPair;
+        Determine_CameraTuple_Function fn_determine_CameraTuple;
         std::string draw_key;
         std::string camera_key;
         DrawInformation drawInformation;
@@ -54,10 +54,10 @@ namespace dz
          */
         DrawListManager(
             const std::string& draw_key, const Determine_DrawT_DrawTuple_Function& fn_determine_DrawT_DrawTuple,
-            const std::string& camera_key = "", const Determine_CameraPair_Function& fn_determine_CameraPair = {}
+            const std::string& camera_key = "", const Determine_CameraTuple_Function& fn_determine_CameraTuple = {}
         ):
             fn_determine_DrawT_DrawTuple(fn_determine_DrawT_DrawTuple),
-            fn_determine_CameraPair(fn_determine_CameraPair),
+            fn_determine_CameraTuple(fn_determine_CameraTuple),
             draw_key(draw_key),
             camera_key(camera_key)
         {}
@@ -82,13 +82,13 @@ namespace dz
                 const size_t camera_elements = buffer_group_get_buffer_element_count(buffer_group, camera_key);
 
                 for (size_t i = 0; i < camera_elements; ++i) {
-                    auto [camera_index, framebuffer] = fn_determine_CameraPair(buffer_group, i);
-                    drawInformation.cameras[camera_index] = framebuffer;
+                    auto [camera_index, framebuffer, camera_pre_render_fn] = fn_determine_CameraTuple(buffer_group, i);
+                    drawInformation.cameras[camera_index] = {framebuffer, camera_pre_render_fn };
                 }
             }
 
             if (drawInformation.cameras.empty()) {
-                drawInformation.cameras[-1] = nullptr;
+                drawInformation.cameras[-1] = {nullptr, {}};
             }
 
             // Shader Draw List
