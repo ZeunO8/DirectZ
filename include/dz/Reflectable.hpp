@@ -49,7 +49,8 @@ struct ReflectableGroup {
         Scene,
         Entity,
         Camera,
-        Light
+        Light,
+        Provider
     };
     bool disabled = false;
     size_t id;

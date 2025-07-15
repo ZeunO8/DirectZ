@@ -17,7 +17,7 @@
 #define ECS_MAX_COMPONENTS 8
 
 template <typename T>
-struct ComponentTypeID;
+struct TComponenTypeID;
 
 template <typename T>
 struct ComponentComponentName;
@@ -36,7 +36,7 @@ struct ComponentGLSLMain;
 
 #define DEF_COMPONENT_ID(TYPE, ID) \
 template <> \
-struct ComponentTypeID<TYPE> { \
+struct TComponenTypeID<TYPE> { \
     static constexpr size_t id = ID; \
 }
 
@@ -72,15 +72,74 @@ struct ComponentGLSLMain<TYPE> { \
 
 namespace dz {
 
-    inline static std::string cameras_buffer_name = "Cameras";
+    inline static const std::string cameras_buffer_name = "Cameras";
+    inline static const std::string kEmptyString = "";
+
+    template <typename T>
+    struct Provider {
+        inline static float GetPriority() {
+            if constexpr (requires { T::Priority; }) {
+                return T::Priority;
+            }
+            else {
+                return 0.0f;
+            }
+        }
+
+        inline static const std::string& GetProviderName() {
+            if constexpr (requires { T::ProviderName; }) {
+                return T::ProviderName;
+            }
+            else {
+                return kEmptyString;
+            }
+        }
+
+        inline static const std::string& GetStructName() {
+            if constexpr (requires { T::StructName; }) {
+                return T::StructName;
+            }
+            else {
+                return kEmptyString;
+            }
+        }
+
+        inline static const std::string& GetGLSLStruct() {
+            if constexpr (requires { T::GLSLStruct; }) {
+                return T::GLSLStruct;
+            }
+            else {
+                return kEmptyString;
+            }
+        }
+
+        inline static const std::string& GetGLSLMethods() {
+            if constexpr (requires { T::GLSLMethods; }) {
+                return T::GLSLMethods;
+            }
+            else {
+                return kEmptyString;
+            }
+        }
+
+        inline static std::vector<std::pair<float, std::string>>& GetGLSLMain() {
+            if constexpr (requires { T::GLSLMain; }) {
+                return T::GLSLMain;
+            }
+            else {
+                static std::vector<std::pair<float, std::string>> kEmptyPriorityVector = {};
+                return kEmptyPriorityVector;
+            }
+        }
+    };
     
-    template<typename EntityT, typename ComponentT, typename SystemT>
+    template<typename TEntity, typename TComponent, typename... TProviders>
     struct ECS {
 
         struct EntityComponentReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
             std::string name;
-            std::unordered_map<int, std::shared_ptr<ComponentT>> components;
+            std::unordered_map<int, std::shared_ptr<TComponent>> components;
             std::set<int> children;
             std::vector<Reflectable*> reflectables;
             std::vector<ReflectableGroup*> reflectable_children;
@@ -106,10 +165,10 @@ namespace dz {
                 reflectable_children.clear();
                 reflectable_children.reserve(children.size());
                 for (auto& id : children) {
-                    auto id_it = ecs.id_entity_entries.find(id);
-                    assert(id_it != ecs.id_entity_entries.end());
-                    auto& child_entry = id_it->second;
-                    reflectable_children.push_back(&child_entry);
+                    auto id_it = ecs.id_entity_groups.find(id);
+                    assert(id_it != ecs.id_entity_groups.end());
+                    auto& child_group = id_it->second;
+                    reflectable_children.push_back(&child_group);
                 }
             }
         };
@@ -129,33 +188,29 @@ namespace dz {
             void UpdateChildren(ECS& ecs) {
                 reflectable_children.clear();
                 size_t count = 0;
-                for (auto& [entity_id, entity_entry] : ecs.id_entity_entries) {
-                    if (entity_entry.scene_id == id)
+                for (auto& [entity_id, entity_group] : ecs.id_entity_groups) {
+                    if (entity_group.scene_id == id)
                         count++;
                 }
-                for (auto& [camera_id, camera_entry] : ecs.indexed_camera_entries) {
-                    if (camera_entry.scene_id == id)
+                for (auto& [camera_id, camera_group] : ecs.indexed_camera_groups) {
+                    if (camera_group.scene_id == id)
                         count++;
                 }
                 reflectable_children.reserve(count);
-                for (auto& [entity_id, entity_entry] : ecs.id_entity_entries) {
-                    if (entity_entry.scene_id == id)
-                        reflectable_children.push_back(&entity_entry);
+                for (auto& [entity_id, entity_group] : ecs.id_entity_groups) {
+                    if (entity_group.scene_id == id)
+                        reflectable_children.push_back(&entity_group);
                 }
-                for (auto& [camera_id, camera_entry] : ecs.indexed_camera_entries) {
-                    if (camera_entry.scene_id == id)
-                        reflectable_children.push_back(&camera_entry);
+                for (auto& [camera_id, camera_group] : ecs.indexed_camera_groups) {
+                    if (camera_group.scene_id == id)
+                        reflectable_children.push_back(&camera_group);
                 }
             }
         };
 
         struct RegisteredComponentEntry {
             int type_id;
-            std::string component_name;
             std::string struct_name;
-            std::string component_struct;
-            std::string glsl_methods;
-            std::string glsl_main;
             int constructed_count = 0;
         };
 
@@ -237,17 +292,36 @@ namespace dz {
             }
         };
 
+        struct ProviderReflectableGroup : ReflectableGroup {
+            float priority;
+            std::string name;
+            std::string struct_name;
+            std::string glsl_struct;
+            std::string glsl_methods;
+            std::string glsl_main;
+
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Provider;
+            }
+            std::string& GetName() override {
+                return name;
+            }
+        };
+
         WINDOW* window_ptr = 0;
 
-        std::map<int, EntityComponentReflectableGroup> id_entity_entries;
-        std::map<size_t, SceneReflectableGroup> id_scene_entries;
-        std::map<int, CameraReflectableGroup> indexed_camera_entries;
+        std::map<int, EntityComponentReflectableGroup> id_entity_groups;
+        std::map<size_t, SceneReflectableGroup> id_scene_groups;
+        std::map<int, CameraReflectableGroup> indexed_camera_groups;
+        std::map<size_t, ProviderReflectableGroup> id_provider_groups;
+        std::map<float, std::vector<size_t>> prioritized_provider_ids;
+        std::map<float, std::vector<std::string>> priority_glsl_mains;
         size_t add_scene_id;
 
         std::map<int, RegisteredComponentEntry> registered_component_map;
         bool components_registered = false;
 
-        DrawListManager<EntityT> draw_mg;
+        DrawListManager<TEntity> draw_mg;
 
         BufferGroup* buffer_group = 0;
         bool buffer_initialized = false;
@@ -263,32 +337,62 @@ namespace dz {
             window_ptr(initial_window_ptr),
             components_registered(RegisterComponents(register_all_components_fn)),
             draw_mg(
-                "Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
-                    return {shader, entity.GetVertexCount()};
+                "Entitys", [&](auto buffer_group, auto& entity) -> DrawTuples {
+                    return {
+                        {shader, entity.GetVertexCount(entity)}
+                    };
                 },
                 "Cameras", [&](auto buffer_group, auto camera_index) -> CameraTuple {
-                    auto camera_it = indexed_camera_entries.find(camera_index);
-                    assert(camera_it != indexed_camera_entries.end());
+                    auto camera_it = indexed_camera_groups.find(camera_index);
+                    assert(camera_it != indexed_camera_groups.end());
                     return {camera_index, camera_it->second.framebuffer, [&, camera_index]() {
                         shader_update_push_constant(shader, 0, (void*)&camera_index, sizeof(uint32_t));
                     }};
                 }
             ),
-            buffer_group(CreateBufferGroup()),
-            shader(GenerateShader()),
-            buffer_name("Entities")
-        {
+            buffer_name("Entitys") {
+            RegisterProviders();
+            buffer_group = CreateBufferGroup();
+            shader = GenerateShader();
             EnableDrawInWindow(window_ptr);
             EnsureFirstScene();
             AddCameraToScene(add_scene_id, Camera::Perspective);
         };
 
+        void RegisterProviders() {
+            RegisterProvider<TEntity>();
+            (RegisterProvider<TProviders>(), ...);
+        }
+
+        template <typename TProvider>
+        void RegisterProvider() {
+            auto priority = TProvider::GetPriority();
+            auto& name = TProvider::GetProviderName();
+            auto& struct_name = TProvider::GetStructName();
+            auto& glsl_struct = TProvider::GetGLSLStruct();
+            auto& glsl_methods = TProvider::GetGLSLMethods();
+            auto& priority_glsl_main = TProvider::GetGLSLMain();
+            auto provider_id = GlobalUID::GetNew("ECS:Provider");
+            prioritized_provider_ids[priority].push_back(provider_id);
+            auto provider_index = id_provider_groups.size();
+            auto& provider_group = id_provider_groups[provider_id];
+            provider_group.index = provider_index;
+            provider_group.id = provider_id;
+            provider_group.name = name;
+            provider_group.struct_name = struct_name;
+            provider_group.glsl_struct = glsl_struct;
+            provider_group.glsl_methods = glsl_methods;
+            for (auto& [main_priority, main_string] : priority_glsl_main) {
+                priority_glsl_mains[main_priority].push_back(main_string);
+            }
+        }
+
         void EnsureFirstScene() {
             auto scene_id = GlobalUID::GetNew("ECS:Scene");
-            auto& scene_entry = id_scene_entries[scene_id];
+            auto& scene_group = id_scene_groups[scene_id];
 
-            scene_entry.id = scene_id;
-            scene_entry.name = "Scene #" + std::to_string(scene_id);
+            scene_group.id = scene_id;
+            scene_group.name = "Scene #" + std::to_string(scene_id);
 
             add_scene_id = scene_id;
         }
@@ -318,13 +422,13 @@ namespace dz {
 
         size_t AddCameraToScene(size_t scene_id, Camera::ProjectionType projectionType) {
             auto camera_id = GlobalUID::GetNew("ECS:Camera");
-            auto index = indexed_camera_entries.size();
-            auto& camera_entry = indexed_camera_entries[index];
-            camera_entry.index = index;
-            camera_entry.id = camera_id;
-            camera_entry.scene_id = scene_id;
-            camera_entry.name = ("Camera #" + std::to_string(camera_id));
-            camera_entry.NotifyNameChanged();
+            auto index = indexed_camera_groups.size();
+            auto& camera_group = indexed_camera_groups[index];
+            camera_group.index = index;
+            camera_group.id = camera_id;
+            camera_group.scene_id = scene_id;
+            camera_group.name = ("Camera #" + std::to_string(camera_id));
+            camera_group.NotifyNameChanged();
             if (buffer_group) {
                 auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, cameras_buffer_name);
                 if ((index + 1) > camera_buffer_size) {
@@ -349,20 +453,20 @@ namespace dz {
             }
             // Initialize camera framebuffer
             {
-                camera_entry.fb_color_image = image_create({
+                camera_group.fb_color_image = image_create({
                     .width = uint32_t(width),
                     .height = uint32_t(height),
                     .is_framebuffer_attachment = true
                 });
-                camera_entry.fb_depth_image = image_create({
+                camera_group.fb_depth_image = image_create({
                     .width = uint32_t(width),
                     .height = uint32_t(height),
                     .format = VK_FORMAT_D32_SFLOAT,
                     .is_framebuffer_attachment = true
                 });
                 Image* fb_images[2] = {
-                    camera_entry.fb_color_image,
-                    camera_entry.fb_depth_image
+                    camera_group.fb_color_image,
+                    camera_group.fb_depth_image
                 };
                 AttachmentType fb_attachment_types[2] = {
                     AttachmentType::Color,
@@ -375,28 +479,28 @@ namespace dz {
                     .attachmentTypesCount = 2,
                     .own_images = true
                 };
-                camera_entry.framebuffer = framebuffer_create(fb_info);
+                camera_group.framebuffer = framebuffer_create(fb_info);
 
-                auto frame_ds_pair = image_create_descriptor_set(camera_entry.fb_color_image);
-                camera_entry.frame_image_ds = frame_ds_pair.second;
+                auto frame_ds_pair = image_create_descriptor_set(camera_group.fb_color_image);
+                camera_group.frame_image_ds = frame_ds_pair.second;
 
-                shader_set_render_pass(shader, camera_entry.framebuffer);
+                shader_set_render_pass(shader, camera_group.framebuffer);
             }
             // Setup Reflection
             {
-                auto& scene_entry = id_scene_entries[scene_id];
-                scene_entry.UpdateChildren(*this);
-                camera_entry.UpdateChildren(*this);
+                auto& scene_group = id_scene_groups[scene_id];
+                scene_group.UpdateChildren(*this);
+                camera_group.UpdateChildren(*this);
             }
             draw_mg.SetDirty();
             return camera_id;
         }
 
-        int AddEntity(const EntityT& entity, bool is_child = false) {
+        int AddEntity(const TEntity& entity, bool is_child = false) {
             auto id = GlobalUID::GetNew("ECS:Entity");
-            ((EntityT&)entity).id = id;
-            auto index = id_entity_entries.size();
-            auto& entry = id_entity_entries[id];
+            ((TEntity&)entity).id = id;
+            auto index = id_entity_groups.size();
+            auto& entry = id_entity_groups[id];
             entry.index = index;
             entry.scene_id = add_scene_id;
             entry.name = ("Entity #" + std::to_string(id));
@@ -411,25 +515,25 @@ namespace dz {
                     assert(false);
                 *entity_ptr = entity;
             }
-            auto& scene_entry = id_scene_entries[add_scene_id];
-            scene_entry.UpdateChildren(*this);
+            auto& scene_group = id_scene_groups[add_scene_id];
+            scene_group.UpdateChildren(*this);
             return id;
         }
 
         template <typename... Args>
-        std::vector<int> AddEntities(const EntityT& first_entity, const Args&... rest_entities) {
-            return AddEntities(false, first_entity, rest_entities...);
+        std::vector<int> AddEntitys(const TEntity& first_entity, const Args&... rest_entitys) {
+            return AddEntitys(false, first_entity, rest_entitys...);
         }
 
         template <typename... Args>
-        std::vector<int> AddEntities(bool is_child, const EntityT& first_entity, const Args&... rest_entities) {
-            auto n = 1 + sizeof...(rest_entities);
+        std::vector<int> AddEntitys(bool is_child, const TEntity& first_entity, const Args&... rest_entitys) {
+            auto n = 1 + sizeof...(rest_entitys);
             std::vector<int> ids(n, 0);
             auto ids_data = ids.data();
-            auto index = id_entity_entries.size();
+            auto index = id_entity_groups.size();
             for (int c = 1; c <= n; c++) {
                 auto id = GlobalUID::GetNew("ECS:Entity");
-                auto& entry = id_entity_entries[id];
+                auto& entry = id_entity_groups[id];
                 entry.index = index;
                 entry.scene_id = add_scene_id;
                 entry.name = ("Entity #" + std::to_string(id));
@@ -440,28 +544,28 @@ namespace dz {
             if (index > buffer_size)
                 Resize(index);
             size_t id_index = 0;
-            SetEntities(ids_data, id_index, first_entity, rest_entities...);
-            auto& scene_entry = id_scene_entries[add_scene_id];
-            scene_entry.UpdateChildren(*this);
+            SetEntitys(ids_data, id_index, first_entity, rest_entitys...);
+            auto& scene_group = id_scene_groups[add_scene_id];
+            scene_group.UpdateChildren(*this);
             return ids;
         }
 
         template <typename... Args>
-        void SetEntities(int* ids_data, size_t& id_index, const EntityT& set_entity, const Args&... rest_entities) {
+        void SetEntitys(int* ids_data, size_t& id_index, const TEntity& set_entity, const Args&... rest_entitys) {
             auto& id = ids_data[id_index++];
             auto entity_ptr = GetEntity(id);
             if (entity_ptr) {
-                ((EntityT&)set_entity).id = id;
+                ((TEntity&)set_entity).id = id;
                 *entity_ptr = set_entity;
             }
-            SetEntities(ids_data, id_index, rest_entities...);
+            SetEntitys(ids_data, id_index, rest_entitys...);
         }
 
-        void SetEntities(int* ids_data, size_t& id_index) { }
+        void SetEntitys(int* ids_data, size_t& id_index) { }
 
-        int AddChildEntity(int entity_id, const EntityT& entity) {
-            auto it = id_entity_entries.find(entity_id);
-            if (it == id_entity_entries.end()) {
+        int AddChildEntity(int entity_id, const TEntity& entity) {
+            auto it = id_entity_groups.find(entity_id);
+            if (it == id_entity_groups.end()) {
                 return 0;
             }
             auto& entry = it->second;
@@ -472,35 +576,35 @@ namespace dz {
         }
 
         template <typename... Args>
-        std::vector<int> AddChildEntities(int entity_id, const EntityT& first_entity, const Args&... rest_entities) {
-            auto it = id_entity_entries.find(entity_id);
-            if (it == id_entity_entries.end()) {
+        std::vector<int> AddChildEntitys(int entity_id, const TEntity& first_entity, const Args&... rest_entitys) {
+            auto it = id_entity_groups.find(entity_id);
+            if (it == id_entity_groups.end()) {
                 return {};
             }
             auto& entry = it->second;
-            auto child_ids = AddEntities(true, first_entity, rest_entities...);
+            auto child_ids = AddEntitys(true, first_entity, rest_entitys...);
             for (auto& child_id : child_ids)
                 entry.children.insert(child_id);
             entry.UpdateChildren(*this);
             return child_ids;
         }
 
-        EntityT* GetEntity(int id) {
-            static auto entity_size = sizeof(EntityT);
-            auto it = id_entity_entries.find(id);
-            if (it == id_entity_entries.end()) {
+        TEntity* GetEntity(int id) {
+            static auto entity_size = sizeof(TEntity);
+            auto it = id_entity_groups.find(id);
+            if (it == id_entity_groups.end()) {
                 return nullptr;
             }
             auto& entry = it->second;
             auto index = entry.index;
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, buffer_name);
-            return (EntityT*)(buffer_ptr.get() + (entity_size * index));
+            return (TEntity*)(buffer_ptr.get() + (entity_size * index));
         }
 
         Camera* GetCamera(int camera_index) {
             static auto camera_size = sizeof(Camera);
-            auto it = indexed_camera_entries.find(camera_index);
-            if (it == indexed_camera_entries.end()) {
+            auto it = indexed_camera_groups.find(camera_index);
+            if (it == indexed_camera_groups.end()) {
                 return nullptr;
             }
             auto& entry = it->second;
@@ -508,25 +612,41 @@ namespace dz {
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, cameras_buffer_name);
             return (Camera*)(buffer_ptr.get() + (camera_size * index));
         }
+        
+        void SetProviderCount(const std::string& buffer_name, int count) {
+            if (buffer_group) {
+                auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+                if (count > camera_buffer_size) {
+                    buffer_group_set_buffer_element_count(buffer_group, buffer_name, count);
+                }
+            }
+        }
 
-        template<typename RComponentT>
+        template <typename T>
+        T* GetProviderData(const std::string& buffer_name) {
+            if (buffer_group) {
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, buffer_name);
+                return (T*)buffer_ptr.get();
+            }
+            return nullptr;
+        }
+
+        template<typename TRComponent>
         bool RegisterComponent() {
-            auto ID = ComponentTypeID<RComponentT>::id;
+            auto ID = int(TComponenTypeID<TRComponent>::id);
+            auto& StructName = ComponentStructName<TRComponent>::string;
             registered_component_map[ID] = {
-                .type_id = ComponentTypeID<RComponentT>::id,
-                .component_name = ComponentComponentName<RComponentT>::string,
-                .struct_name = ComponentStructName<RComponentT>::string,
-                .component_struct = ComponentStruct<RComponentT>::string,
-                .glsl_methods = ComponentGLSLMethods<RComponentT>::string,
-                .glsl_main = ComponentGLSLMain<RComponentT>::string
+                .type_id = ID,
+                .struct_name = StructName
             };
+            RegisterProvider<TRComponent>();
             return true;
         }
 
-        template<typename DComponentT>
-        DComponentT& ConstructComponent(int entity_id, const DComponentT::DataT& original_data) {
-            auto it = id_entity_entries.find(entity_id);
-            if (it == id_entity_entries.end()) {
+        template<typename TDComponent>
+        TDComponent& ConstructComponent(int entity_id, const TDComponent::DataT& original_data) {
+            auto it = id_entity_groups.find(entity_id);
+            if (it == id_entity_groups.end()) {
                 throw std::runtime_error("entity not found with passed id!");
             }
 
@@ -536,16 +656,16 @@ namespace dz {
             auto& entry = it->second;
 
             auto component_id = GlobalUID::GetNew("ECS:Component");
-            auto component_type_id = ComponentTypeID<DComponentT>::id;
+            auto component_type_id = TComponenTypeID<TDComponent>::id;
 
-            auto& component_entry = registered_component_map[component_type_id];
-            auto component_type_index = component_entry.constructed_count++;
+            auto& component_group = registered_component_map[component_type_id];
+            auto component_type_index = component_group.constructed_count++;
 
             auto& ucom = entry.components[component_id];
 
             auto component_index = constructed_component_count++;
             
-            ucom = std::shared_ptr<DComponentT>(new DComponentT{}, [](DComponentT* dp){ delete dp; });
+            ucom = std::shared_ptr<TDComponent>(new TDComponent{}, [](TDComponent* dp){ delete dp; });
             entry.UpdateReflectables();
 
             auto& aucom = *ucom;
@@ -557,25 +677,25 @@ namespace dz {
             root_data.index = component_index;
             root_data.type = component_type_id;
             root_data.type_index = component_type_index;
-            root_data.data_size = sizeof(typename DComponentT::DataT);
+            root_data.data_size = sizeof(typename TDComponent::DataT);
 
             auto& entity = *entity_ptr;
             auto entity_component_index = entity.componentsCount++;
             entity.components[entity_component_index] = component_index;
 
-            aucom.template GetData<DComponentT>() = original_data;
+            aucom.template GetData<TDComponent>() = original_data;
 
-            return *std::dynamic_pointer_cast<DComponentT>(ucom);
+            return *std::dynamic_pointer_cast<TDComponent>(ucom);
         }
 
-        ComponentT::DataT& GetComponentRootData(int component_index) {
+        TComponent::DataT& GetComponentRootData(int component_index) {
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Components");
-            return *(typename ComponentT::DataT*)(buffer_ptr.get() + (sizeof(typename ComponentT::DataT) * component_index));
+            return *(typename TComponent::DataT*)(buffer_ptr.get() + (sizeof(typename TComponent::DataT) * component_index));
         }
 
-        template<typename AComponentT>
-        AComponentT::DataT& GetComponentData(int component_index) {
-            return *(typename AComponentT::DataT*)GetComponentDataVoid(component_index);
+        template<typename TAComponent>
+        TAComponent::DataT& GetComponentData(int component_index) {
+            return *(typename TAComponent::DataT*)GetComponentDataVoid(component_index);
         }
 
         void* GetComponentDataVoid(int component_index) {
@@ -588,18 +708,20 @@ namespace dz {
             if (type_it == registered_component_map.end())
                 throw std::runtime_error("type_id not registered!");
 
-            auto& type_entry = type_it->second;
-            auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, type_entry.struct_name + "s");
+            auto& type_group = type_it->second;
+            auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, type_group.struct_name + "s");
 
             return (buffer_ptr.get() + (root_data.data_size * type_index));
         }
 
         BufferGroup* CreateBufferGroup() {
-            auto buffer_group_ptr = buffer_group_create("EntitiesGroup");
-            std::vector<std::string> restricted_keys{"Entities", "Components", "Cameras"};
-            for (auto& component_pair : registered_component_map) {
-                auto& entry = component_pair.second;
-                restricted_keys.push_back(entry.struct_name + "s");
+            auto buffer_group_ptr = buffer_group_create("EntitysGroup");
+            std::vector<std::string> restricted_keys{"Components", "Cameras"};
+            for (auto& [component_id, component_group] : registered_component_map) {
+                restricted_keys.push_back(component_group.struct_name + "s");
+            }
+            for (auto& [provider_id, provider_group] : id_provider_groups) {
+                restricted_keys.push_back(provider_group.struct_name + "s");
             }
             buffer_group_restrict_to_keys(buffer_group_ptr, restricted_keys);
             return buffer_group_ptr;
@@ -622,13 +744,14 @@ namespace dz {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
 
             window_register_free_callback(window_ptr, [&]() mutable {
-                indexed_camera_entries.clear();
-                id_scene_entries.clear();
+                indexed_camera_groups.clear();
+                id_scene_groups.clear();
             });
         }
 
         std::string GenerateVertexShader() {
             auto binding_index = 0;
+
             auto shader_string = R"(
 #version 450
 layout(location = 0) out vec4 outColor;
@@ -644,52 +767,60 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Came
     Camera cameras[];
 } Cameras;
 )";
-            shader_string += EntityT::GetGLSLStruct() +
-R"(
-layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer EntitiesBuffer {
-    Entity entities[];
-} Entities;
-)" +
-EntityT::GetGLSLEntityVertexFunction() +
-EntityT::GetGLSLEntityVertexColorFunction();
-            shader_string += ComponentT::GetGLSLStruct();
+
+            // Setup Provider Buffers
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
+                    shader_string += provider_group.glsl_struct;
+                    shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
+    )" + provider_group.struct_name + R"( data[];
+} )" + provider_group.struct_name + R"(s;
+
+)";
+                    shader_string += provider_group.struct_name + " Get" + provider_group.struct_name + R"(Data(int t_provider_index) {
+    return )" + provider_group.struct_name + R"(s.data[t_provider_index];
+}
+)";
+                    shader_string += provider_group.glsl_methods;
+                }
+            }
+
+            // TComponent
+            shader_string += TComponent::ComponentGLSLStruct;
             shader_string += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
     Component data[];
 } Components;
 )";
-            shader_string += ComponentT::GetGLSLMethods();
-            for (auto& [id, entry] : registered_component_map) {
-                shader_string += entry.component_struct;
-                shader_string += R"(
-layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + entry.struct_name + R"(Buffer {
-    )" + entry.struct_name + R"( data[];
-} )" + entry.struct_name + R"(s;
+            shader_string += TComponent::ComponentGLSLMethods;
 
-)";
-                shader_string += entry.struct_name + " Get" + entry.struct_name + R"(Data(int t_component_index) {
-    return )" + entry.struct_name + R"(s.data[t_component_index];
-}
-)";
-                shader_string += entry.glsl_methods;
-            }
+            // Main
             shader_string += R"(
 void main() {
-    Entity entity = Entities.entities[gl_InstanceIndex];
-    vec4 vertex = vec4(GetEntityVertex(entity), 1.0);
-    vec4 final_color = GetEntityVertexColor(entity);
-    vec4 final_position = vertex;
+    Entity entity = GetEntityData(gl_InstanceIndex);
+    vec4 final_color;
+    vec4 final_position;
     int t_component_index = -1;
 )";
+
+            // Main Get Components
             for (auto& [id, entry] : registered_component_map) {
                 auto struct_name_lower = to_lower(entry.struct_name);
                 shader_string += "    " + entry.struct_name + " " + struct_name_lower + ";\n";
-                shader_string += R"(    if (HasComponentWithType(entity, )" + std::to_string(entry.type_id) + R"(, t_component_index)) {
-        )" + struct_name_lower + " = Get" + entry.struct_name + R"(Data(t_component_index);
-)" + entry.glsl_main + R"(
-    }
-)";
+                shader_string += R"(    if (HasComponentWithType(entity, )" + std::to_string(entry.type_id) + R"(, t_component_index))
+        )" + struct_name_lower + " = Get" + entry.struct_name + "Data(t_component_index);\n";
             }
+
+            // Priority Mains
+            for (auto& [priority, string_vec] : priority_glsl_mains) {
+                for (auto& string : string_vec) {
+                    shader_string += string;
+                }
+            }
+
+            // Main Output
             shader_string += R"(
     // Vulkan Y Fix
     final_position.y *= -1.0;
@@ -701,6 +832,7 @@ void main() {
     outPosition = final_position;
 }
 )";
+
             return shader_string;
         }
 
@@ -720,60 +852,60 @@ void main() {
         }
 
         std::vector<size_t> GetSceneIDs() {
-            std::vector<size_t> ids(id_scene_entries.size(), 0);
+            std::vector<size_t> ids(id_scene_groups.size(), 0);
             size_t i = 0;
-            for (auto& [id, entry] : id_scene_entries)
+            for (auto& [id, entry] : id_scene_groups)
                 ids[i++] = id;
             return ids;
         }
 
         std::map<size_t, SceneReflectableGroup>::iterator GetScenesBegin() {
-            return id_scene_entries.begin();
+            return id_scene_groups.begin();
         }
 
         std::map<size_t, SceneReflectableGroup>::iterator GetScenesEnd() {
-            return id_scene_entries.end();
+            return id_scene_groups.end();
         }
 
         std::map<int, CameraReflectableGroup>::iterator GetCamerasBegin() {
-            return indexed_camera_entries.begin();
+            return indexed_camera_groups.begin();
         }
 
         std::map<int, CameraReflectableGroup>::iterator GetCamerasEnd() {
-            return indexed_camera_entries.end();
+            return indexed_camera_groups.end();
         }
 
         Image* GetFramebufferImage(size_t camera_index) {
-            auto it = indexed_camera_entries.find(camera_index);
-            if (it == indexed_camera_entries.end())
+            auto it = indexed_camera_groups.find(camera_index);
+            if (it == indexed_camera_groups.end())
                 return nullptr;
             return it->second.fb_color_image;
         }
 
         bool ResizeFramebuffer(size_t camera_index, uint32_t width, uint32_t height) {
-            auto it = indexed_camera_entries.find(camera_index);
-            if (it == indexed_camera_entries.end())
+            auto it = indexed_camera_groups.find(camera_index);
+            if (it == indexed_camera_groups.end())
                 return false;
-            auto& camera_entry = it->second;
-            auto fb_resized = framebuffer_resize(camera_entry.framebuffer, width, height);
+            auto& camera_group = it->second;
+            auto fb_resized = framebuffer_resize(camera_group.framebuffer, width, height);
             if (!fb_resized)
                 return false;
             if (FramebufferChanged(camera_index)) {
-                camera_entry.fb_color_image = framebuffer_get_image(camera_entry.framebuffer, AttachmentType::Color, true);
-                camera_entry.fb_depth_image = framebuffer_get_image(camera_entry.framebuffer, AttachmentType::Depth, true);
+                camera_group.fb_color_image = framebuffer_get_image(camera_group.framebuffer, AttachmentType::Color, true);
+                camera_group.fb_depth_image = framebuffer_get_image(camera_group.framebuffer, AttachmentType::Depth, true);
                 SetCameraAspect(camera_index, width, height);
-                auto frame_ds_pair = image_create_descriptor_set(camera_entry.fb_color_image);
-                camera_entry.frame_image_ds = frame_ds_pair.second;
+                auto frame_ds_pair = image_create_descriptor_set(camera_group.fb_color_image);
+                camera_group.frame_image_ds = frame_ds_pair.second;
             }
             return true;
         }
 
         bool FramebufferChanged(size_t camera_index) {
-            auto it = indexed_camera_entries.find(camera_index);
-            if (it == indexed_camera_entries.end())
+            auto it = indexed_camera_groups.find(camera_index);
+            if (it == indexed_camera_groups.end())
                 return false;
-            auto& camera_entry = it->second;
-            return framebuffer_changed(camera_entry.framebuffer);
+            auto& camera_group = it->second;
+            return framebuffer_changed(camera_group.framebuffer);
         }
 
         bool SetCameraAspect(size_t camera_index, float width, float height) {
