@@ -1,20 +1,23 @@
 #pragma once
-#include "GlobalUID.hpp"
+#include "../GlobalUID.hpp"
 #include <unordered_map>
 #include <memory>
-#include "BufferGroup.hpp"
-#include "Framebuffer.hpp"
-#include "DrawListManager.hpp"
-#include "Window.hpp"
-#include "Shader.hpp"
-#include "Camera.hpp"
-#include "Util.hpp"
+#include "../BufferGroup.hpp"
+#include "../Framebuffer.hpp"
+#include "../DrawListManager.hpp"
+#include "../Window.hpp"
+#include "../Shader.hpp"
+#include "../Camera.hpp"
+#include "../Util.hpp"
+#include "Provider.hpp"
+#include "Light.hpp"
+#include "Component.hpp"
+#include "Entity.hpp"
 #include <string>
 #include <vector>
 #include <functional>
 #include <map>
 #include <set>
-#define ECS_MAX_COMPONENTS 8
 
 template <typename T>
 struct TComponenTypeID;
@@ -73,68 +76,10 @@ struct ComponentGLSLMain<TYPE> { \
 namespace dz {
 
     inline static const std::string cameras_buffer_name = "Cameras";
-    inline static const std::string kEmptyString = "";
-
-    template <typename T>
-    struct Provider {
-        inline static float GetPriority() {
-            if constexpr (requires { T::Priority; }) {
-                return T::Priority;
-            }
-            else {
-                return 0.0f;
-            }
-        }
-
-        inline static const std::string& GetProviderName() {
-            if constexpr (requires { T::ProviderName; }) {
-                return T::ProviderName;
-            }
-            else {
-                return kEmptyString;
-            }
-        }
-
-        inline static const std::string& GetStructName() {
-            if constexpr (requires { T::StructName; }) {
-                return T::StructName;
-            }
-            else {
-                return kEmptyString;
-            }
-        }
-
-        inline static const std::string& GetGLSLStruct() {
-            if constexpr (requires { T::GLSLStruct; }) {
-                return T::GLSLStruct;
-            }
-            else {
-                return kEmptyString;
-            }
-        }
-
-        inline static const std::string& GetGLSLMethods() {
-            if constexpr (requires { T::GLSLMethods; }) {
-                return T::GLSLMethods;
-            }
-            else {
-                return kEmptyString;
-            }
-        }
-
-        inline static std::vector<std::pair<float, std::string>>& GetGLSLMain() {
-            if constexpr (requires { T::GLSLMain; }) {
-                return T::GLSLMain;
-            }
-            else {
-                static std::vector<std::pair<float, std::string>> kEmptyPriorityVector = {};
-                return kEmptyPriorityVector;
-            }
-        }
-    };
+    inline static const std::string lights_buffer_name = "Lights";
     
     template<typename TEntity, typename TComponent, typename... TProviders>
-    struct ECS {
+    struct ECS : IGetComponentDataVoid {
 
         struct EntityComponentReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
@@ -292,6 +237,62 @@ namespace dz {
             }
         };
 
+        struct LightReflectableGroup : ReflectableGroup {
+            std::string name;
+            std::vector<Reflectable*> reflectables;
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Light;
+            }
+            std::string& GetName() override {
+                return name;
+            }
+            ~LightReflectableGroup() {
+                ClearChildren();
+            }
+            void UpdateChildren(ECS& ecs) {
+                auto ecs_ptr = &ecs;
+                auto light_index = index;
+                if (reflectables.size() == 0) {
+                    // reflectables.push_back(new LightMetaReflectable([ecs_ptr, light_index]() mutable {
+                    //     return ecs_ptr->GetLight(light_index);
+                    // }, [&, ecs_ptr]() mutable {
+                    //     UpdateChildren(*ecs_ptr);
+                    // }));
+                }
+                auto light_ptr = ecs.GetLight(index);
+                assert(light_ptr);
+                auto& light = *light_ptr;
+                // // clear type reflectables
+                // for (size_t index = 0; index < reflectables.size(); index++) {
+                //     auto& reflectable = reflectables[index];
+                //     if (dynamic_cast<LightPerspectiveReflectable*>(reflectable) ||
+                //         dynamic_cast<LightOrthographicReflectable*>(reflectable)) {
+                //         delete reflectable;
+                //         reflectables.erase(reflectables.begin() + index);
+                //         index--;
+                //     }
+                // }
+                // switch (ecs::Light::ProjectionType(camera.type)) {
+                // case Light::Perspective:
+                //     reflectables.push_back(new LightPerspectiveReflectable([ecs_ptr, light_index]() mutable {
+                //         return ecs_ptr->GetLight(light_index);
+                //     }));
+                //     break;
+                // case Light::Orthographic:
+                //     reflectables.push_back(new LightOrthographicReflectable([ecs_ptr, light_index]() mutable {
+                //         return ecs_ptr->GetLight(light_index);
+                //     }));
+                //     break;
+                // default: break;
+                // }
+            }
+            void ClearChildren() {
+                for (auto reflectable_child : reflectables)
+                    delete reflectable_child;
+                reflectables.clear();
+            }
+        };
+
         struct ProviderReflectableGroup : ReflectableGroup {
             float priority;
             std::string name;
@@ -313,6 +314,7 @@ namespace dz {
         std::map<int, EntityComponentReflectableGroup> id_entity_groups;
         std::map<size_t, SceneReflectableGroup> id_scene_groups;
         std::map<int, CameraReflectableGroup> indexed_camera_groups;
+        std::map<int, LightReflectableGroup> indexed_light_groups;
         std::map<size_t, ProviderReflectableGroup> id_provider_groups;
         std::map<float, std::vector<size_t>> prioritized_provider_ids;
         std::map<float, std::vector<std::string>> priority_glsl_mains;
@@ -339,7 +341,7 @@ namespace dz {
             draw_mg(
                 "Entitys", [&](auto buffer_group, auto& entity) -> DrawTuples {
                     return {
-                        {shader, entity.GetVertexCount(entity)}
+                        {shader, entity.GetVertexCount(buffer_group, entity)}
                     };
                 },
                 "Cameras", [&](auto buffer_group, auto camera_index) -> CameraTuple {
@@ -607,10 +609,23 @@ namespace dz {
             if (it == indexed_camera_groups.end()) {
                 return nullptr;
             }
-            auto& entry = it->second;
-            auto index = entry.index;
+            auto& camera_entry = it->second;
+            auto index = camera_entry.index;
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, cameras_buffer_name);
             return (Camera*)(buffer_ptr.get() + (camera_size * index));
+        }
+
+        ecs::Light* GetLight(int light_index) {
+            static auto light_size = sizeof(ecs::Light);
+            auto it = indexed_light_groups.find(light_index);
+            if (it == indexed_light_groups.end()) {
+                return nullptr;
+            }
+            auto& light_entry = it->second;
+            auto index = light_entry.index;
+            auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, lights_buffer_name);
+            return (ecs::Light*)(buffer_ptr.get() + (light_size * index));
+
         }
         
         void SetProviderCount(const std::string& buffer_name, int count) {
@@ -671,8 +686,9 @@ namespace dz {
             auto& aucom = *ucom;
             aucom.index = component_index;
             aucom.id = component_id;
+            aucom.i = this;
 
-            auto& root_data = aucom.GetRootData();
+            auto& root_data = GetComponentRootData(aucom.index);
 
             root_data.index = component_index;
             root_data.type = component_type_id;
@@ -683,7 +699,7 @@ namespace dz {
             auto entity_component_index = entity.componentsCount++;
             entity.components[entity_component_index] = component_index;
 
-            aucom.template GetData<TDComponent>() = original_data;
+            GetComponentData<TDComponent>(aucom.index) = original_data;
 
             return *std::dynamic_pointer_cast<TDComponent>(ucom);
         }
@@ -698,7 +714,7 @@ namespace dz {
             return *(typename TAComponent::DataT*)GetComponentDataVoid(component_index);
         }
 
-        void* GetComponentDataVoid(int component_index) {
+        void* GetComponentDataVoid(int component_index) override {
             auto& root_data = GetComponentRootData(component_index);
 
             auto& type_id = root_data.type;
@@ -752,7 +768,7 @@ namespace dz {
         std::string GenerateVertexShader() {
             auto binding_index = 0;
 
-            auto shader_string = R"(
+            std::string shader_string = R"(
 #version 450
 layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 outPosition;
@@ -760,19 +776,26 @@ layout(location = 1) out vec4 outPosition;
 layout(push_constant) uniform PushConstants {
     int camera_index;
 } pc;
-)" +
-Camera::GetGLSLStruct() +
-R"(
-layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer CamerasBuffer {
-    Camera cameras[];
-} Cameras;
 )";
-
-            // Setup Provider Buffers
+            // Setup Structs
+            shader_string += Camera::GetGLSLStruct();
+            shader_string += TComponent::ComponentGLSLStruct;
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
                     auto& provider_group = id_provider_groups[provider_id];
                     shader_string += provider_group.glsl_struct;
+                }
+            }
+
+            // Setup Buffers
+            shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer CamerasBuffer {
+    Camera cameras[];
+} Cameras;
+)";
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
                     shader_string += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
     )" + provider_group.struct_name + R"( data[];
@@ -788,7 +811,6 @@ layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + pr
             }
 
             // TComponent
-            shader_string += TComponent::ComponentGLSLStruct;
             shader_string += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
     Component data[];

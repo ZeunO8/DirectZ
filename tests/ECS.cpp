@@ -1,71 +1,22 @@
 #include <DirectZ.hpp>
+using namespace dz::ecs;
 
 #include <typeinfo>
 
 uint32_t default_vertex_count = 6;
 
-struct Entity;
-struct Component;
-struct System;
-
-struct Shape : Provider<Shape> {
-    int id = 0;
-    inline static float Priority = 1.0f;
-    inline static std::string ProviderName = "Shape";
-    inline static std::string StructName = "Shape";
+struct Material : Provider<Material> {
+    vec<float, 4> color;
+    inline static float Priority = 2.5f;
+    inline static std::string ProviderName = "Material";
+    inline static std::string StructName = "Material";
     inline static std::string GLSLStruct = R"(
-struct Shape {
-    int id;
+struct Material {
+    vec4 color;
 };
 )";
     inline static std::string GLSLMethods = "";
     inline static std::vector<std::pair<float, std::string>> GLSLMain = {};
-};
-
-struct Entity : Provider<Entity> {
-    int id = 0;
-    int componentsCount = 0;
-    int shape_type;
-    int components[ECS_MAX_COMPONENTS] = {0};
-    
-    inline static float Priority = 0.5f;
-    inline static std::string ProviderName = "Entity";
-    inline static std::string StructName = "Entity";
-    inline static std::string GLSLStruct = R"(
-struct Entity {
-    int id;
-    int componentsCount;
-    int shape_type;
-    int components[ECS_MAX_COMPONENTS];
-};
-)";
-    inline static std::string GLSLMethods = R"(
-vec3 GetEntityVertex(in Entity entity) {
-    switch (gl_VertexIndex) {
-    case 0: return vec3(-0.5, -0.5, 0);
-    case 1: return vec3(-0.5, 0.5, 0);
-    case 2: return vec3(0.5, 0.5, 0);
-    case 3: return vec3(0.5, 0.5, 0);
-    case 4: return vec3(0.5, -0.5, 0);
-    case 5: return vec3(-0.5, -0.5, 0);
-    }
-    return vec3(0);
-}
-vec4 GetEntityVertexColor(in Entity entity) {
-    return vec4(0, 0, 1, 0.8);
-}
-)";
-
-    inline static std::vector<std::pair<float, std::string>> GLSLMain = {
-        {0.5f, R"(
-final_position = vec4(GetEntityVertex(entity), 1.0);
-final_color = GetEntityVertexColor(entity);
-)"}
-    };
-
-    uint32_t GetVertexCount(Entity& entity) {
-        return default_vertex_count;
-    }
 };
 
 struct StateSystem : Provider<StateSystem> {
@@ -76,62 +27,6 @@ struct StateSystem : Provider<StateSystem> {
 #define ExampleECS ECS<Entity, Component, Shape>
 
 std::shared_ptr<ExampleECS> ecs_ptr;
-
-struct Component : Reflectable {
-    struct ComponentData {
-        int index;
-        int type;
-        int type_index;
-        int data_size;
-    };
-    using DataT = ComponentData;
-    int id = 0;
-    int index = -1;
-
-    virtual ~Component() = default;
-
-    DataT& GetRootData() {
-        return ecs_ptr->GetComponentRootData(index);
-    }
-    
-    template<typename AComponentT>
-    AComponentT::DataT& GetData() {
-        return ecs_ptr->GetComponentData<AComponentT>(index);
-    }
-    
-    inline static std::string ComponentGLSLStruct = R"(
-struct Component {
-    int index;
-    int type;
-    int type_index;
-    int data_size;
-};
-)";
-
-    inline static std::string ComponentGLSLMethods = R"(
-Component GetComponentByType(in Entity entity, int type) {
-    for (int i = 0; i < entity.componentsCount; i++) {
-        int component_index = entity.components[i];
-        if (Components.data[component_index].type == type) {
-            return Components.data[component_index];
-        }
-    }
-    Component DefaultComponent = Component(-1, -1, -1, -1);
-    return DefaultComponent;
-}
-bool HasComponentWithType(in Entity entity, int type, out int t_component_index) {
-    for (int i = 0; i < entity.componentsCount; i++) {
-        int component_index = entity.components[i];
-        if (Components.data[component_index].type == type) {
-            t_component_index = Components.data[component_index].type_index;
-            return true;
-        }
-    }
-    t_component_index = -1;
-    return false;
-}
-)";
-};
 
 /// Position Component
 
@@ -180,7 +75,7 @@ struct PositionComponent : Component, Provider<PositionComponent> {
     inline static float Priority = 1.5f;
     inline static std::string ProviderName = "Position";
     inline static std::string StructName = "PositionComponent";
-    inline static std::string GLSLStruct = "#define PositionComponent vec4";
+    inline static std::string GLSLStruct = "#define PositionComponent vec4\n";
     inline static std::string GLSLMethods = "";
 
     inline static std::vector<std::pair<float, std::string>> GLSLMain = {
@@ -284,6 +179,9 @@ int main() {
         .borderless = true,
         .vsync = true
     });
+
+    const auto plane_shape_id = RegisterPlaneShape();
+    const auto cube_shape_id = RegisterCubeShape();
     
     ecs_ptr = std::make_shared<ExampleECS>(window, [](auto& ecs){
         assert(ecs.template RegisterComponent<PositionComponent>());
@@ -293,11 +191,16 @@ int main() {
     
     auto& ecs = *ecs_ptr;
 
-    ecs.SetProviderCount("Shapes", 1);
+    ecs.SetProviderCount("Shapes", 2);
     auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
-    auto& shape = shapes_ptr[0];
-    shape.id = 1;
+    auto& plane_shape = shapes_ptr[0];
+    plane_shape.type = plane_shape_id;
+    plane_shape.vertex_count = 6;
+
+    auto& cube_shape = shapes_ptr[1];
+    cube_shape.type = cube_shape_id;
+    cube_shape.vertex_count = 36;
 
     auto eids = ecs.AddEntitys(Entity{}, Entity{});
 
@@ -308,6 +211,7 @@ int main() {
     auto e1_ptr = ecs.GetEntity(e1_id);
     assert(e1_ptr);
     auto& e1 = *e1_ptr;
+    e1.shape_index = 1;
     auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
     auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
 

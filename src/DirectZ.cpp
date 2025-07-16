@@ -89,6 +89,7 @@ namespace dz
 #include "ImGuiLayer.cpp"
 #include "Camera.cpp"
 #include "Displays.cpp"
+#include "ECS/Shape.cpp"
 #include "runtime.cpp"
 
 template<typename T>

@@ -13,6 +13,11 @@ enum class ReflectableTypehint {
     STRUCT
 };
 
+struct IGetComponentDataVoid {
+    virtual ~IGetComponentDataVoid() = default;
+    virtual void* GetComponentDataVoid(int component_index) { return nullptr; }
+};
+
 struct Reflectable {
     virtual ~Reflectable() = default;
 
@@ -97,7 +102,7 @@ struct ReflectableGroup {
 }
 
 #define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
-    auto& data = GetData<PositionComponent>(); \
+    auto data = i->GetComponentDataVoid(index); \
     auto index_it = INDEX_NAMES.find(prop_index); \
     if (index_it == INDEX_NAMES.end()) \
         return nullptr; \
@@ -106,7 +111,7 @@ struct ReflectableGroup {
     if (it == NAME_INDEXES.end()) \
         return nullptr; \
     auto offset = it->second.second; \
-    return ((char*)&data) + offset; \
+    return ((char*)data) + offset; \
 }
 
 #define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(const std::string& prop_name) override { \
