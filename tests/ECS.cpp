@@ -24,120 +24,9 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-#define ExampleECS ECS<Entity, Component, Shape>
+#define ExampleECS ECS<Entity, Component, Shape, Light, Camera>
 
 std::shared_ptr<ExampleECS> ecs_ptr;
-
-/// Position Component
-
-struct PositionComponent;
-DEF_COMPONENT_ID(PositionComponent, 1);
-DEF_COMPONENT_COMPONENT_NAME(PositionComponent, "Position");
-DEF_COMPONENT_STRUCT_NAME(PositionComponent, "PositionComponent");
-
-struct PositionComponent : Component, Provider<PositionComponent> {
-    using DataT = vec<float, 4>;
-    inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-        {"x", {0, 0}},
-        {"y", {1, 4}},
-        {"z", {2, 8}},
-        {"t", {3, 12}}
-    };
-    inline static std::unordered_map<int, std::string> prop_index_names = {
-        {0, "x"},
-        {1, "y"},
-        {2, "z"},
-        {3, "t"}
-    };
-    inline static std::vector<std::string> prop_names = {
-        "x",
-        "y",
-        "z",
-        "t"
-    };
-    inline static const std::vector<const std::type_info*> typeinfos = {
-        &typeid(float),
-        &typeid(float),
-        &typeid(float),
-        &typeid(float)
-    };
-    DEF_GET_ID;
-    DEF_GET_NAME(PositionComponent);
-    ReflectableTypehint GetTypeHint() override {
-        return ReflectableTypehint::VEC4;
-    }
-    DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
-    DEF_GET_PROPERTY_NAMES(prop_names);
-    DEF_GET_VOID_PROPERTY_BY_INDEX(prop_name_indexes, prop_index_names);
-    DEF_GET_VOID_PROPERTY_BY_NAME;
-    DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
-    
-    inline static float Priority = 1.5f;
-    inline static std::string ProviderName = "Position";
-    inline static std::string StructName = "PositionComponent";
-    inline static std::string GLSLStruct = "#define PositionComponent vec4\n";
-    inline static std::string GLSLMethods = "";
-
-    inline static std::vector<std::pair<float, std::string>> GLSLMain = {
-        {1.5f, "    final_position += vec4(positioncomponent.x, positioncomponent.y, positioncomponent.z, 0);\n"}
-    };
-
-};
-
-/// Position Component
-
-struct ColorComponent;
-DEF_COMPONENT_ID(ColorComponent, 2);
-DEF_COMPONENT_COMPONENT_NAME(ColorComponent, "Color");
-DEF_COMPONENT_STRUCT_NAME(ColorComponent, "ColorComponent");
-
-struct ColorComponent : Component, Provider<ColorComponent> {
-    using DataT = vec<float, 4>;
-    inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-        {"r", {0, 0}},
-        {"g", {1, 4}},
-        {"b", {2, 8}},
-        {"a", {3, 12}}
-    };
-    inline static std::unordered_map<int, std::string> prop_index_names = {
-        {0, "r"},
-        {1, "g"},
-        {2, "b"},
-        {3, "a"}
-    };
-    inline static std::vector<std::string> prop_names = {
-        "r",
-        "g",
-        "b",
-        "a"
-    };
-    inline static const std::vector<const std::type_info*> typeinfos = {
-        &typeid(float),
-        &typeid(float),
-        &typeid(float),
-        &typeid(float)
-    };
-    DEF_GET_ID;
-    DEF_GET_NAME(ColorComponent);
-    ReflectableTypehint GetTypeHint() override {
-        return ReflectableTypehint::VEC4_RGBA;
-    }
-    DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
-    DEF_GET_PROPERTY_NAMES(prop_names);
-    DEF_GET_VOID_PROPERTY_BY_INDEX(prop_name_indexes, prop_index_names);
-    DEF_GET_VOID_PROPERTY_BY_NAME;
-    DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
-
-    inline static float Priority = 2.5f;
-    inline static std::string ProviderName = "Color";
-    inline static std::string StructName = "ColorComponent";
-    inline static std::string GLSLStruct = "#define ColorComponent vec4\n";
-    inline static std::string GLSLMethods = "";
-
-    inline static std::vector<std::pair<float, std::string>> GLSLMain = {
-        {1.5f, "    final_color = colorcomponent;\n"}
-    };
-};
 
 // struct RotationComponent : Component {
 //     float yaw;
@@ -191,6 +80,8 @@ int main() {
     
     auto& ecs = *ecs_ptr;
 
+    auto ecs_scene_ids = ecs.GetSceneIDs();
+
     ecs.SetProviderCount("Shapes", 2);
     auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
@@ -201,6 +92,10 @@ int main() {
     auto& cube_shape = shapes_ptr[1];
     cube_shape.type = cube_shape_id;
     cube_shape.vertex_count = 36;
+
+    ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
+
+    ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
 
     auto eids = ecs.AddEntitys(Entity{}, Entity{});
 
@@ -226,8 +121,6 @@ int main() {
     auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
     auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
 
-    auto ecs_scene_ids = ecs.GetSceneIDs();
-
     auto frame_image = ecs.GetFramebufferImage(0);
 
     auto& imgui = window_get_ImGuiLayer(window);
@@ -247,8 +140,7 @@ int main() {
 
             static bool dragging = false;
 
-            if (main_viewport && main_viewport->PlatformHandle && !dragging && (hovered && held))
-            {
+            if (main_viewport && main_viewport->PlatformHandle && !dragging && (hovered && held)) {
                 dragging = true;
                 window_request_drag((WINDOW*)main_viewport->PlatformHandle);
             }
@@ -256,8 +148,7 @@ int main() {
                 dragging = false;
             }
 
-            if (ImGui::BeginMenu("File"))
-            {
+            if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New", "Ctrl+N")) {
                 }
 
@@ -279,8 +170,7 @@ int main() {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Edit"))
-            {
+            if (ImGui::BeginMenu("Edit")) {
                 if (ImGui::MenuItem("Undo", "Ctrl+Z")) {
                 }
 
@@ -301,8 +191,7 @@ int main() {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("View"))
-            {
+            if (ImGui::BeginMenu("View")) {
                 static bool showToolbar = true;
                 static bool showSidebar = true;
                 static bool showStatusbar = true;
@@ -314,8 +203,7 @@ int main() {
                 ImGui::EndMenu();
             }
 
-            if (ImGui::BeginMenu("Help"))
-            {
+            if (ImGui::BeginMenu("Help")) {
                 if (ImGui::MenuItem("Documentation", "F1")) {
                 }
 
@@ -335,20 +223,17 @@ int main() {
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4, 3));
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 2.0f);
 
-            if (ImGui::Button(ICON_MAX, ImVec2(button_w, button_h)))
-            {
+            if (ImGui::Button(ICON_MAX, ImVec2(button_w, button_h))) {
                 // window_request_maximize(window);
             }
 
             ImGui::SameLine(0.0f, spacing);
-            if (ImGui::Button(ICON_MIN, ImVec2(button_w, button_h)))
-            {
+            if (ImGui::Button(ICON_MIN, ImVec2(button_w, button_h))) {
                 // window_request_minimize(window);
             }
 
             ImGui::SameLine(0.0f, spacing);
-            if (ImGui::Button(ICON_CLOSE, ImVec2(button_w, button_h)))
-            {
+            if (ImGui::Button(ICON_CLOSE, ImVec2(button_w, button_h))) {
                 window_request_close(window);
             }
 
@@ -427,8 +312,7 @@ int main() {
         static bool window_graph_open = true;
         if (window_graph_open) {
             ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
-            if (!ImGui::Begin("Window Graph", &window_graph_open))
-            {
+            if (!ImGui::Begin("Window Graph", &window_graph_open)) {
                 ImGui::End();
                 return;
             }
@@ -439,8 +323,7 @@ int main() {
                 WindowGraphFilter.Build();
             ImGui::PopItemFlag();
 
-            if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
-            {
+            if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg)) {
                 auto window_reflectable_entries_begin = dr_get_window_reflectable_entries_begin();
                 auto window_reflectable_entries_end = dr_get_window_reflectable_entries_end();
                 
@@ -465,8 +348,7 @@ int main() {
         static bool scene_graph_open = true;
         if (scene_graph_open) {
             ImGui::SetNextWindowSize(ImVec2(430, 450), ImGuiCond_FirstUseEver);
-            if (!ImGui::Begin("Scene Graph", &scene_graph_open))
-            {
+            if (!ImGui::Begin("Scene Graph", &scene_graph_open)) {
                 ImGui::End();
                 return;
             }
@@ -477,8 +359,7 @@ int main() {
                 SceneGraphFilter.Build();
             ImGui::PopItemFlag();
 
-            if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg))
-            {
+            if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg)) {
                 auto scenes_begin = ecs.GetScenesBegin();
                 auto scenes_end = ecs.GetScenesEnd();
                 for (auto scene_it = scenes_begin; scene_it != scenes_end; ++scene_it) {
@@ -493,8 +374,7 @@ int main() {
 
     imgui.AddImmediateDrawFunction(4.0f, "Property Editor", [&](auto& layer) {
         if (property_editor.is_open) {
-            if (!ImGui::Begin("Property Editor", &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse))
-            {
+            if (!ImGui::Begin("Property Editor", &property_editor.is_open, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
                 property_editor.is_open = false;
                 SelectedReflectableGroup = nullptr;
                 SelectedReflectableID = 0;
@@ -502,8 +382,7 @@ int main() {
                 return;
             }
 
-            if (ReflectableGroup* reflectable_group_ptr = SelectedReflectableGroup)
-            {
+            if (ReflectableGroup* reflectable_group_ptr = SelectedReflectableGroup) {
                 auto& reflectable_group = *reflectable_group_ptr;
                 auto& reflectable_group_name = reflectable_group.GetName();
                 if (reflectable_group_name.size() < 28)
@@ -543,7 +422,37 @@ int main() {
                         auto reflectable_type_hint = reflectable.GetTypeHint();
 
                         switch (reflectable_type_hint) {
-                        case ReflectableTypehint::VEC4:
+                        case ReflectableTypeHint::VEC2:
+                        {
+                            auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                            // ImGui::SetNextItemWidth(250);
+                            if (ImGui::DragFloat2("##vec2", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                reflectable.NotifyChange(0);
+                                update_iterators();
+                            }
+                            break;
+                        }
+                        case ReflectableTypeHint::VEC3:
+                        {
+                            auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                            // ImGui::SetNextItemWidth(250);
+                            if (ImGui::DragFloat3("##vec3", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                                reflectable.NotifyChange(0);
+                                update_iterators();
+                            }
+                            break;
+                        }
+                        case ReflectableTypeHint::VEC3_RGB:
+                        {
+                            auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                            // ImGui::SetNextItemWidth(250);
+                            if (ImGui::ColorEdit3("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                                reflectable.NotifyChange(0);
+                                update_iterators();
+                            }
+                            break;
+                        }
+                        case ReflectableTypeHint::VEC4:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             // ImGui::SetNextItemWidth(250);
@@ -553,7 +462,7 @@ int main() {
                             }
                             break;
                         }
-                        case ReflectableTypehint::VEC4_RGBA:
+                        case ReflectableTypeHint::VEC4_RGBA:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
                             // ImGui::SetNextItemWidth(250);
@@ -564,7 +473,7 @@ int main() {
                             break;
                         }
                         default:
-                        case ReflectableTypehint::STRUCT: {
+                        case ReflectableTypeHint::STRUCT: {
                             const auto& reflectable_typeinfos = reflectable.GetPropertyTypeinfos();
                             const auto& reflectable_prop_names = reflectable.GetPropertyNames();
                             const auto& disabled_properties = reflectable.GetDisabledProperties();
@@ -598,6 +507,16 @@ int main() {
                                         update_iterators();
                                     }
                                     ImGui::PopID();
+                                }
+                                else if (*type_info == typeid(Light::LightType)) {
+                                    auto& value = reflectable.GetPropertyByIndex<Light::LightType>(prop_index);
+                                    static const char* projection_types[] = { "Directional", "Spot", "Point" };
+                                    int current_index = static_cast<int>(value);
+                                    if (ImGui::Combo("##lightType", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
+                                        value = static_cast<Light::LightType>(current_index);
+                                        reflectable.NotifyChange(prop_index);
+                                        update_iterators();
+                                    }
                                 }
                                 else if (*type_info == typeid(Camera::ProjectionType)) {
                                     auto& value = reflectable.GetPropertyByIndex<Camera::ProjectionType>(prop_index);
@@ -702,20 +621,16 @@ void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentReflect
 
     if (ImGui::BeginPopup("EntityContextMenu")) {
         if (ImGui::BeginMenu("Add Child")) {
-            if (ImGui::MenuItem("Plane"))
-            {
+            if (ImGui::MenuItem("Plane")) {
                 // ecs.AddEntityToScene(scene_id, "Plane");
             }
-            if (ImGui::MenuItem("Cube"))
-            {
+            if (ImGui::MenuItem("Cube")) {
                 // ecs.AddEntityToScene(scene_id, "Cube");
             }
-            if (ImGui::MenuItem("Monkey"))
-            {
+            if (ImGui::MenuItem("Monkey")) {
                 // ecs.AddEntityToScene(scene_id, "Monkey");
             }
-            if (ImGui::MenuItem("Mesh"))
-            {
+            if (ImGui::MenuItem("Mesh")) {
                 // ecs.AddEntityToScene(scene_id, "Mesh");
             }
             ImGui::EndMenu();
@@ -773,49 +688,40 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
 
     if (ImGui::BeginPopup("SceneContextMenu")) {
         if (ImGui::BeginMenu("Add Entity")) {
-            if (ImGui::MenuItem("Plane"))
-            {
+            if (ImGui::MenuItem("Plane")) {
                 // ecs.AddEntityToScene(scene_id, "Plane");
             }
-            if (ImGui::MenuItem("Cube"))
-            {
+            if (ImGui::MenuItem("Cube")) {
                 // ecs.AddEntityToScene(scene_id, "Cube");
             }
-            if (ImGui::MenuItem("Monkey"))
-            {
+            if (ImGui::MenuItem("Monkey")) {
                 // ecs.AddEntityToScene(scene_id, "Monkey");
             }
-            if (ImGui::MenuItem("Mesh"))
-            {
+            if (ImGui::MenuItem("Mesh")) {
                 // ecs.AddEntityToScene(scene_id, "Mesh");
             }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Add Camera")) {
-            if (ImGui::MenuItem("Perspective"))
-            {
+            if (ImGui::MenuItem("Perspective")) {
                 ecs.AddCameraToScene(scene_id, Camera::Perspective);
             }
-            if (ImGui::MenuItem("Orthographic"))
-            {
+            if (ImGui::MenuItem("Orthographic")) {
                 ecs.AddCameraToScene(scene_id, Camera::Orthographic);
             }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Add Light")) {
-            if (ImGui::MenuItem("Directional"))
-            {
-                // ecs.AddEntityToScene(scene_id, "Plane");
+            if (ImGui::MenuItem("Directional")) {
+                ecs.AddLightToScene(scene_id, Light::Directional);
             }
-            if (ImGui::MenuItem("Spot"))
-            {
-                // ecs.AddEntityToScene(scene_id, "Plane");
+            if (ImGui::MenuItem("Spot")) {
+                ecs.AddLightToScene(scene_id, Light::Spot);
             }
-            if (ImGui::MenuItem("Point"))
-            {
-                // ecs.AddEntityToScene(scene_id, "Cube");
+            if (ImGui::MenuItem("Point")) {
+                ecs.AddLightToScene(scene_id, Light::Point);
             }
             ImGui::EndMenu();
         }

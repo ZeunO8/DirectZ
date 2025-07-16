@@ -141,6 +141,10 @@ namespace dz {
                     if (camera_group.scene_id == id)
                         count++;
                 }
+                for (auto& [light_id, light_group] : ecs.indexed_light_groups) {
+                    if (light_group.scene_id == id)
+                        count++;
+                }
                 reflectable_children.reserve(count);
                 for (auto& [entity_id, entity_group] : ecs.id_entity_groups) {
                     if (entity_group.scene_id == id)
@@ -149,6 +153,10 @@ namespace dz {
                 for (auto& [camera_id, camera_group] : ecs.indexed_camera_groups) {
                     if (camera_group.scene_id == id)
                         reflectable_children.push_back(&camera_group);
+                }
+                for (auto& [light_id, light_group] : ecs.indexed_light_groups) {
+                    if (light_group.scene_id == id)
+                        reflectable_children.push_back(&light_group);
                 }
             }
         };
@@ -161,7 +169,7 @@ namespace dz {
 
         struct CameraReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
-            std::string name;            
+            std::string name;
             std::string imgui_name;
 
             Framebuffer* framebuffer = 0;
@@ -238,7 +246,9 @@ namespace dz {
         };
 
         struct LightReflectableGroup : ReflectableGroup {
+            size_t scene_id = 0;
             std::string name;
+            std::string imgui_name;
             std::vector<Reflectable*> reflectables;
             GroupType GetGroupType() override {
                 return ReflectableGroup::Light;
@@ -249,15 +259,25 @@ namespace dz {
             ~LightReflectableGroup() {
                 ClearChildren();
             }
+            void NotifyNameChanged() override {
+                imgui_name.clear();
+                auto name_len = strlen(name.c_str());
+                imgui_name.insert(imgui_name.end(), name.begin(), name.begin() + name_len);
+                imgui_name += "###Light" + std::to_string(index);
+                return;
+            }
+            const std::vector<Reflectable*>& GetReflectables() override {
+                return reflectables;
+            }
             void UpdateChildren(ECS& ecs) {
                 auto ecs_ptr = &ecs;
                 auto light_index = index;
                 if (reflectables.size() == 0) {
-                    // reflectables.push_back(new LightMetaReflectable([ecs_ptr, light_index]() mutable {
-                    //     return ecs_ptr->GetLight(light_index);
-                    // }, [&, ecs_ptr]() mutable {
-                    //     UpdateChildren(*ecs_ptr);
-                    // }));
+                    reflectables.push_back(new ecs::LightMetaReflectable([ecs_ptr, light_index]() mutable {
+                        return ecs_ptr->GetLight(light_index);
+                    }, [&, ecs_ptr]() mutable {
+                        UpdateChildren(*ecs_ptr);
+                    }));
                 }
                 auto light_ptr = ecs.GetLight(index);
                 assert(light_ptr);
@@ -498,6 +518,49 @@ namespace dz {
             return camera_id;
         }
 
+        size_t AddLightToScene(size_t scene_id, ecs::Light::LightType lightType) {
+            auto light_id = GlobalUID::GetNew("ECS:Light");
+            auto index = indexed_light_groups.size();
+            auto& light_group = indexed_light_groups[index];
+            light_group.index = index;
+            light_group.id = light_id;
+            light_group.scene_id = scene_id;
+            light_group.name = ("Light #" + std::to_string(light_id));
+            light_group.NotifyNameChanged();
+            if (buffer_group) {
+                auto light_buffer_size = buffer_group_get_buffer_element_count(buffer_group, lights_buffer_name);
+                if ((index + 1) > light_buffer_size) {
+                    buffer_group_set_buffer_element_count(buffer_group, lights_buffer_name, (index + 1));
+                }
+            }
+            auto light_ptr = GetLight(index);
+            assert(light_ptr);
+            auto& light = *light_ptr;
+            // Initialize light matrices
+            {
+                light.type = (int32_t)lightType;
+                switch(lightType) {
+                case ecs::Light::Directional:
+                    // LightInit(light, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width, height, radians(81.f));
+                    break;
+                case ecs::Light::Spot:
+                    // LightInit(light, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
+                    break;
+                case ecs::Light::Point:
+                    // LightInit(light, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
+                    break;
+                }
+            }
+            // Setup Reflection
+            {
+                auto& scene_group = id_scene_groups[scene_id];
+                scene_group.UpdateChildren(*this);
+                light_group.UpdateChildren(*this);
+            }
+            // draw_mg.SetDirty();
+            return light_id;
+        }
+
         int AddEntity(const TEntity& entity, bool is_child = false) {
             auto id = GlobalUID::GetNew("ECS:Entity");
             ((TEntity&)entity).id = id;
@@ -630,8 +693,8 @@ namespace dz {
         
         void SetProviderCount(const std::string& buffer_name, int count) {
             if (buffer_group) {
-                auto camera_buffer_size = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
-                if (count > camera_buffer_size) {
+                auto buffer_size = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+                if (count > buffer_size) {
                     buffer_group_set_buffer_element_count(buffer_group, buffer_name, count);
                 }
             }
@@ -778,7 +841,6 @@ layout(push_constant) uniform PushConstants {
 } pc;
 )";
             // Setup Structs
-            shader_string += Camera::GetGLSLStruct();
             shader_string += TComponent::ComponentGLSLStruct;
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
@@ -788,11 +850,6 @@ layout(push_constant) uniform PushConstants {
             }
 
             // Setup Buffers
-            shader_string += R"(
-layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer CamerasBuffer {
-    Camera cameras[];
-} Cameras;
-)";
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
                     auto& provider_group = id_provider_groups[provider_id];
@@ -844,10 +901,6 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    // Vulkan Y Fix
-    final_position.y *= -1.0;
-    Camera camera = Cameras.cameras[pc.camera_index];
-    vec4 camera_position = camera.projection * camera.view * final_position;
     final_position = camera_position;
     gl_Position = final_position;
     outColor = final_color;

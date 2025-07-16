@@ -5,8 +5,11 @@
 #include <typeinfo>
 #include "GlobalUID.hpp"
 
-enum class ReflectableTypehint {
+enum class ReflectableTypeHint {
     FLOAT,
+    VEC2,
+    VEC3,
+    VEC3_RGB,
     VEC4,
     VEC4_RGBA,
     MAT4,
@@ -23,8 +26,8 @@ struct Reflectable {
 
     virtual int GetID() = 0;
     virtual std::string& GetName() = 0;
-    virtual ReflectableTypehint GetTypeHint() {
-        return ReflectableTypehint::STRUCT;
+    virtual ReflectableTypeHint GetTypeHint() {
+        return ReflectableTypeHint::STRUCT;
     }
 
     virtual int GetPropertyIndexByName(const std::string& prop_name) = 0;

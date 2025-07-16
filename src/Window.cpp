@@ -15,6 +15,10 @@ namespace dz {
 	std::string& WindowReflectableGroup::GetName() {
 		return window_ptr->title;
 	}
+
+	void WindowReflectableGroup::NotifyNameChanged() {
+		window_set_title(window_ptr, window_ptr->title);
+	}
 	
 	const std::vector<Reflectable*>& WindowReflectableGroup::GetReflectables() {
 		return reflectables;

@@ -1,9 +1,10 @@
 #pragma once
 
+#include "ECS/Provider.hpp"
 #include "math.hpp"
 
 namespace dz {
-    struct Camera {
+    struct Camera : Provider<Camera> {
         enum ProjectionType : int32_t {
             Perspective,
             Orthographic
@@ -20,8 +21,10 @@ namespace dz {
         float orthoWidth;
         vec<float, 3> up;
         float orthoHeight;
-        inline static std::string GetGLSLStruct() {
-            return R"(
+        inline static float Priority = 0.5f;
+        inline static std::string ProviderName = "Camera";
+        inline static std::string StructName = "Camera";
+        inline static std::string GLSLStruct = R"(
 struct Camera {
     mat4 view;
     mat4 projection;
@@ -37,7 +40,19 @@ struct Camera {
     float orthoHeight;
 };
 )";
-        }
+        inline static std::string GLSLMethods = "";
+
+        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
+            {0.5f, R"(
+    Camera camera = Cameras.data[pc.camera_index];
+)"},
+            {2.0f, R"(
+    // Vulkan Y Fix
+    final_position.y *= -1.0;
+    vec4 camera_position = camera.projection * camera.view * final_position;
+    vec3 view_dir = normalize(camera.position - vec3(camera_position));
+)"}
+        };
     };
 
     void CameraInit(

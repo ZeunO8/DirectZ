@@ -21,6 +21,8 @@
 #include <dz/zmalloc.hpp>
 #include <dz/D7Stream.hpp>
 #include <dz/ECS/ECS.hpp>
+#include <dz/ECS/components/PositionComponent.hpp>
+#include <dz/ECS/components/ColorComponent.hpp>
 #include <dz/ImGuiLayer.hpp>
 #include <dz/Reflectable.hpp>
 #include <dz/Camera.hpp>

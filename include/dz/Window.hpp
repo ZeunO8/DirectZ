@@ -49,6 +49,7 @@ namespace dz
             return ReflectableGroup::Window;
         }
         std::string& GetName() override;
+        void NotifyNameChanged() override;
         const std::vector<Reflectable*>& GetReflectables() override;
     };
 

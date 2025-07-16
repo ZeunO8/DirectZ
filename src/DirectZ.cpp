@@ -90,6 +90,7 @@ namespace dz
 #include "Camera.cpp"
 #include "Displays.cpp"
 #include "ECS/Shape.cpp"
+#include "ECS/Light.cpp"
 #include "runtime.cpp"
 
 template<typename T>

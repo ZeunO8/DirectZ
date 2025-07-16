@@ -14,24 +14,24 @@ namespace dz::ecs {
         inline static std::string ProviderName = "Entity";
         inline static std::string StructName = "Entity";
         inline static std::string GLSLStruct = R"(
-    struct Entity {
-        int id;
-        int shape_index;
-        int componentsCount;
-        int components[ECS_MAX_COMPONENTS];
-    };
-    )";
+struct Entity {
+    int id;
+    int shape_index;
+    int componentsCount;
+    int components[ECS_MAX_COMPONENTS];
+};
+)";
         inline static std::string GLSLMethods = R"(
-    vec4 GetEntityVertexColor(in Entity entity) {
-        return vec4(0, 0, 1, 0.8);
-    }
-    )";
+vec4 GetEntityVertexColor(in Entity entity) {
+    return vec4(0, 0, 1, 0.8);
+}
+)";
 
         inline static std::vector<std::pair<float, std::string>> GLSLMain = {
             {0.5f, R"(
-        final_position = vec4(GetShapeVertex(entity), 1.0);
-        final_color = GetEntityVertexColor(entity);
-    )"}
+    final_position = vec4(shape_vertex, 1.0);
+    final_color = GetEntityVertexColor(entity);
+)"}
         };
 
         uint32_t GetVertexCount(BufferGroup* buffer_group, Entity& entity) {
