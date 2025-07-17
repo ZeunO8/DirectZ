@@ -24,6 +24,12 @@ jobs:
         run: choco install nasm openssl
         shell: bash
 
+      - name: List OpenSSL
+        run: |
+          dir C:\
+          dir C:\Program Files\
+          dir C:\Program Files (x86)\
+
       - name: Download NSIS
         shell: pwsh
         run: |
