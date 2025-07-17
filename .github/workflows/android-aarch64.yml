@@ -27,7 +27,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          choco install unzip
+          choco install nasm unzip make
         shell: powershell
 
       - name: Download and Extract Android NDK (bash)
