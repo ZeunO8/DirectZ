@@ -377,32 +377,6 @@ namespace dz {
                         UpdateChildren(*ecs_ptr);
                     }));
                 }
-                auto light_ptr = ecs.GetLight(index);
-                assert(light_ptr);
-                auto& light = *light_ptr;
-                // // clear type reflectables
-                // for (size_t index = 0; index < reflectables.size(); index++) {
-                //     auto& reflectable = reflectables[index];
-                //     if (dynamic_cast<LightPerspectiveReflectable*>(reflectable) ||
-                //         dynamic_cast<LightOrthographicReflectable*>(reflectable)) {
-                //         delete reflectable;
-                //         reflectables.erase(reflectables.begin() + index);
-                //         index--;
-                //     }
-                // }
-                // switch (ecs::Light::ProjectionType(camera.type)) {
-                // case Light::Perspective:
-                //     reflectables.push_back(new LightPerspectiveReflectable([ecs_ptr, light_index]() mutable {
-                //         return ecs_ptr->GetLight(light_index);
-                //     }));
-                //     break;
-                // case Light::Orthographic:
-                //     reflectables.push_back(new LightOrthographicReflectable([ecs_ptr, light_index]() mutable {
-                //         return ecs_ptr->GetLight(light_index);
-                //     }));
-                //     break;
-                // default: break;
-                // }
             }
             void ClearChildren() {
                 for (auto reflectable_child : reflectables)
@@ -594,12 +568,20 @@ namespace dz {
                 ioSerial >> restricted_key;
                 uint32_t element_count, element_size;
                 ioSerial >> element_count >> element_size;
+                auto buffer_size = element_count * element_size;
+                auto r_key_it = std::find(restricted_keys.begin(), restricted_keys.end(), restricted_key);
+                if (r_key_it == restricted_keys.end()) {
+                    auto bytes = (char*)malloc(buffer_size);
+                    ioSerial.readBytes((char*)bytes, buffer_size);
+                    free(bytes);
+                    continue;
+                }
                 buffer_group_set_buffer_element_count(buffer_group, restricted_key, element_count);
                 auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
                 if (actual_element_size != element_size)
                     throw std::runtime_error("Incompatible buffer element sizes");
                 auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
-                ioSerial.readBytes((char*)buffer_ptr.get(), element_count * element_size);
+                ioSerial.readBytes((char*)buffer_ptr.get(), buffer_size);
             }
             return true;
         }
