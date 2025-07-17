@@ -27,13 +27,8 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          choco install nasm unzip make strawberryperl
+          choco install unzip
         shell: powershell
-
-      - name: Check Perl
-        shell: powershell
-        run: |
-          perl -v
 
       - name: Download and Extract Android NDK (bash)
         shell: bash
@@ -49,7 +44,7 @@ jobs:
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
 
       - name: Configure
-        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM -DCMAKE_INSTALL_PREFIX=install -DMAKE=C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe -DOPENSSL_CONFIGURE_TOOL="C:/Strawberry/perl/bin/perl.exe"
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM -DCMAKE_INSTALL_PREFIX=install
         shell: bash
 
       - name: fix_format_security
