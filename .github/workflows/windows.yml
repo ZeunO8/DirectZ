@@ -21,14 +21,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Dependencies on Windows
-        run: choco install nasm openssl
+        run: choco install nasm openssl make
         shell: bash
 
       - name: List OpenSSL
         run: |
           dir C:\
-          dir C:\Program Files\
-          dir C:\Program Files (x86)\
+          dir "C:\Program Files\"
+          dir "C:\Program Files (x86)\"
 
       - name: Download NSIS
         shell: pwsh
