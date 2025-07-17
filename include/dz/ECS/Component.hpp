@@ -1,5 +1,6 @@
 #pragma once
 #include "../Reflectable.hpp"
+#include <iostreams/Serial.hpp>
 
 namespace dz::ecs {
     struct Component : Reflectable {
@@ -13,8 +14,6 @@ namespace dz::ecs {
         int id = 0;
         int index = -1;
         IGetComponentDataVoid* i = 0;
-
-        virtual ~Component() = default;
         
         inline static std::string ComponentGLSLStruct = R"(
 struct Component {
@@ -48,5 +47,15 @@ bool HasComponentWithType(in Entity entity, int type, out int t_component_index)
     return false;
 }
 )";
+
+        bool serialize(Serial& ioSerial) const {
+            ioSerial << id << index;
+            return true;
+        }
+
+        bool deserialize(Serial& ioSerial) {
+            ioSerial >> id >> index;
+            return true;
+        }
     };
 }

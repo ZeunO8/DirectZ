@@ -69,12 +69,15 @@ target_include_directories(DirectZ PRIVATE
 	${Vulkan_INCLUDE_DIRS}
 	${spirv_reflect_SOURCE_DIR}
 	${imgui_SOURCE_DIR}
+	${iostreams_SOURCE_DIR}/include
 )
 
 target_include_directories(dzp PRIVATE
+	include
 	${Vulkan_INCLUDE_DIRS}
 	${imgui_SOURCE_DIR}
-	include)
+	${iostreams_SOURCE_DIR}/include
+)
 
 target_link_libraries(DirectZ PRIVATE
 	Vulkan::Vulkan

@@ -18,6 +18,8 @@
 #include <functional>
 #include <map>
 #include <set>
+#include <iostreams/Serial.hpp>
+#include <fstream>
 
 template <typename T>
 struct TComponenTypeID;
@@ -116,6 +118,46 @@ namespace dz {
                     reflectable_children.push_back(&child_group);
                 }
             }
+            bool serialize(ECS& ecs, Serial& ioSerial) const {
+                ioSerial << scene_id << name;
+                ioSerial << disabled << id << index << is_child;
+                ioSerial << components.size();
+                for (auto& [component_id, component_ptr] : components) {
+                    ioSerial << component_id;
+                    auto& root_data = ecs.GetComponentRootData(component_ptr->index);
+                    ioSerial << root_data.type;
+                    if (!component_ptr->serialize(ioSerial))
+                        return false;
+                }
+                ioSerial << children.size();
+                for (auto& child_id : children)
+                    ioSerial << child_id;
+                return true;
+            }
+            bool deserialize(ECS& ecs, Serial& ioSerial) {
+                ioSerial >> scene_id >> name;
+                ioSerial >> disabled >> id >> index >> is_child;
+                auto components_size = components.size();
+                ioSerial >> components_size;
+                for (size_t component_count = 1; component_count <= components_size; ++component_count) {
+                    int component_id;
+                    ioSerial >> component_id;
+                    int component_type;
+                    ioSerial >> component_type;
+                    auto& component_reg = ecs.registered_component_map[component_type];
+                    auto& component_ptr = (components[component_id] = component_reg.construct_component_fn());
+                    if (!component_ptr->deserialize(ioSerial))
+                        return false;
+                }
+                auto children_size = children.size();
+                ioSerial >> children_size;
+                for (size_t child_count = 1; child_count <= children_size; ++child_count) {
+                    int child_id;
+                    ioSerial >> child_id;
+                    children.insert(child_id);
+                }
+                return true;
+            }
         };
 
         struct SceneReflectableGroup : ReflectableGroup {
@@ -159,11 +201,22 @@ namespace dz {
                         reflectable_children.push_back(&light_group);
                 }
             }
+            bool serialize(ECS& ecs, Serial& ioSerial) const {
+                ioSerial << name;
+                ioSerial << disabled << id << index << is_child;
+                return true;
+            }
+            bool deserialize(ECS& ecs, Serial& ioSerial) {
+                ioSerial >> name;
+                ioSerial >> disabled >> id >> index >> is_child;
+                return true;
+            }
         };
 
         struct RegisteredComponentEntry {
             int type_id;
             std::string struct_name;
+            std::function<std::shared_ptr<TComponent>()> construct_component_fn;
             int constructed_count = 0;
         };
 
@@ -243,6 +296,51 @@ namespace dz {
                     delete reflectable_child;
                 reflectables.clear();
             }
+            bool serialize(ECS& ecs, Serial& ioSerial) const {
+                ioSerial << scene_id << name << imgui_name;
+                ioSerial << disabled << id << index << is_child;
+                return true;
+            }
+            bool deserialize(ECS& ecs, Serial& ioSerial) {
+                ioSerial >> scene_id >> name >> imgui_name;
+                ioSerial >> disabled >> id >> index >> is_child;
+                return true;
+            }
+            void InitFramebuffer(ECS& ecs, float width, float height) {
+                // Initialize camera framebuffer
+                fb_color_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .is_framebuffer_attachment = true
+                });
+                fb_depth_image = image_create({
+                    .width = uint32_t(width),
+                    .height = uint32_t(height),
+                    .format = VK_FORMAT_D32_SFLOAT,
+                    .is_framebuffer_attachment = true
+                });
+                Image* fb_images[2] = {
+                    fb_color_image,
+                    fb_depth_image
+                };
+                AttachmentType fb_attachment_types[2] = {
+                    AttachmentType::Color,
+                    AttachmentType::Depth
+                };
+                FramebufferInfo fb_info{
+                    .pImages = fb_images,
+                    .imagesCount = 2,
+                    .pAttachmentTypes = fb_attachment_types,
+                    .attachmentTypesCount = 2,
+                    .own_images = true
+                };
+                framebuffer = framebuffer_create(fb_info);
+
+                auto frame_ds_pair = image_create_descriptor_set(fb_color_image);
+                frame_image_ds = frame_ds_pair.second;
+
+                shader_set_render_pass(ecs.shader, framebuffer);
+            }
         };
 
         struct LightReflectableGroup : ReflectableGroup {
@@ -311,6 +409,16 @@ namespace dz {
                     delete reflectable_child;
                 reflectables.clear();
             }
+            bool serialize(ECS& ecs, Serial& ioSerial) const {
+                ioSerial << scene_id << name << imgui_name;
+                ioSerial << disabled << id << index << is_child;
+                return true;
+            }
+            bool deserialize(ECS& ecs, Serial& ioSerial) {
+                ioSerial >> scene_id >> name >> imgui_name;
+                ioSerial >> disabled >> id >> index >> is_child;
+                return true;
+            }
         };
 
         struct ProviderReflectableGroup : ReflectableGroup {
@@ -330,6 +438,8 @@ namespace dz {
         };
 
         WINDOW* window_ptr = 0;
+        std::filesystem::path save_path;
+        bool loaded_from_io = false;
 
         std::map<int, EntityComponentReflectableGroup> id_entity_groups;
         std::map<size_t, SceneReflectableGroup> id_scene_groups;
@@ -340,6 +450,7 @@ namespace dz {
         std::map<float, std::vector<std::string>> priority_glsl_mains;
         size_t add_scene_id;
 
+        std::vector<std::string> restricted_keys{"Components"};
         std::map<int, RegisteredComponentEntry> registered_component_map;
         bool components_registered = false;
 
@@ -355,8 +466,13 @@ namespace dz {
 
         int constructed_component_count = 0;
 
-        ECS(WINDOW* initial_window_ptr, const std::function<bool(ECS&)>& register_all_components_fn = {}):
+        ECS(
+            WINDOW* initial_window_ptr,
+            const std::filesystem::path& save_path,
+            const std::function<bool(ECS&)>& register_all_components_fn = {}
+        ):
             window_ptr(initial_window_ptr),
+            save_path(save_path),
             components_registered(RegisterComponents(register_all_components_fn)),
             draw_mg(
                 "Entitys", [&](auto buffer_group, auto& entity) -> DrawTuples {
@@ -377,9 +493,132 @@ namespace dz {
             buffer_group = CreateBufferGroup();
             shader = GenerateShader();
             EnableDrawInWindow(window_ptr);
-            EnsureFirstScene();
-            AddCameraToScene(add_scene_id, Camera::Perspective);
+            if (!LoadFromIO()) {
+                EnsureFirstScene();
+                AddCameraToScene(add_scene_id, Camera::Perspective);
+            } else {
+                loaded_from_io = true;
+            }
+            if (!buffer_initialized) {
+                buffer_group_initialize(buffer_group);
+                buffer_initialized = true;
+            }
         };
+
+        bool LoadFromIO() {
+            std::ifstream stream(save_path, std::ios::in | std::ios::binary);
+            Serial ioSerial(stream);
+            if (!ioSerial.canRead() || ioSerial.getReadLength() == 0)
+                return false;
+            if (!DeserializeGroups(ioSerial, id_entity_groups))
+                return false;
+            if (!DeserializeGroups(ioSerial, indexed_camera_groups))
+                return false;
+            if (!DeserializeGroups(ioSerial, indexed_light_groups))
+                return false;
+            if (!DeserializeGroups(ioSerial, id_scene_groups))
+                return false;
+            if (!DeserializeBuffers(ioSerial))
+                return false;
+            UpdateGroupsChildren(id_entity_groups);
+            UpdateGroupsChildren(indexed_camera_groups);
+            UpdateGroupsChildren(indexed_light_groups);
+            UpdateGroupsChildren(id_scene_groups);
+            return true;
+        }
+
+        bool SaveToIO() {
+            std::ofstream stream(save_path, std::ios::out | std::ios::binary | std::ios::trunc);
+            Serial ioSerial(stream);
+            if (!ioSerial.canWrite())
+                return false;
+            if (!SerializeGroups(ioSerial, id_entity_groups))
+                return false;
+            if (!SerializeGroups(ioSerial, indexed_camera_groups))
+                return false;
+            if (!SerializeGroups(ioSerial, indexed_light_groups))
+                return false;
+            if (!SerializeGroups(ioSerial, id_scene_groups))
+                return false;
+            if (!SerializeBuffers(ioSerial))
+                return false;
+            return true;
+        }
+
+        template <typename KeyT, typename GroupT>
+        bool SerializeGroups(Serial& ioSerial, const std::map<KeyT, GroupT>& groups) {
+            ioSerial << groups.size();
+            for (auto& [id, group] : groups) {
+                ioSerial << id;
+                if (!group.serialize(*this, ioSerial))
+                    return false;
+            }
+            return true;
+        }
+
+        template <typename KeyT, typename GroupT>
+        bool DeserializeGroups(Serial& ioSerial, std::map<KeyT, GroupT>& groups) {
+            auto size = groups.size();
+            ioSerial >> size;
+            for (size_t count = 1; count <= size; ++count) {
+                KeyT id;
+                ioSerial >> id;
+                auto& group = groups[id];
+                if (!group.deserialize(*this, ioSerial))
+                    return false;
+                if constexpr (std::is_same_v<GroupT, CameraReflectableGroup>) {
+                    auto& width = *window_get_width_ref(window_ptr);
+                    auto& height = *window_get_height_ref(window_ptr);
+                    group.InitFramebuffer(*this, width, height);
+                }
+            }
+            return true;
+        }
+
+        template <typename KeyT, typename GroupT>
+        void UpdateGroupsChildren(std::map<KeyT, GroupT>& groups) {
+            for (auto& [id, group] : groups) {
+                group.UpdateChildren(*this);
+                if constexpr (std::is_same_v<GroupT, EntityComponentReflectableGroup>)
+                    group.UpdateReflectables();
+            }
+        }
+
+        bool DeserializeBuffers(Serial& ioSerial) {
+            if (!buffer_group)
+                return false;
+            auto keys_size = restricted_keys.size();
+            ioSerial >> keys_size;
+            for (size_t key_count = 1; key_count <= keys_size; ++key_count) {
+                std::string restricted_key;
+                ioSerial >> restricted_key;
+                uint32_t element_count, element_size;
+                ioSerial >> element_count >> element_size;
+                buffer_group_set_buffer_element_count(buffer_group, restricted_key, element_count);
+                auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+                if (actual_element_size != element_size)
+                    throw std::runtime_error("Incompatible buffer element sizes");
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                ioSerial.readBytes((char*)buffer_ptr.get(), element_count * element_size);
+            }
+            return true;
+        }
+
+        bool SerializeBuffers(Serial& ioSerial) {
+            if (!buffer_group)
+                return false;
+            auto keys_size = restricted_keys.size();
+            ioSerial << keys_size;
+            for (auto& restricted_key : restricted_keys) {
+                ioSerial << restricted_key;
+                auto element_count = buffer_group_get_buffer_element_count(buffer_group, restricted_key);
+                auto element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+                ioSerial << element_count << element_size;
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                ioSerial.writeBytes((const char*)buffer_ptr.get(), element_count * element_size);
+            }
+            return true;
+        }
 
         void RegisterProviders() {
             RegisterProvider<TEntity>();
@@ -436,10 +675,6 @@ namespace dz {
                 }
             }
             buffer_size = n;
-            if (!buffer_initialized) {
-                buffer_group_initialize(buffer_group);
-                buffer_initialized = true;
-            }
         }
 
         size_t AddCameraToScene(size_t scene_id, Camera::ProjectionType projectionType) {
@@ -473,41 +708,7 @@ namespace dz {
                     break;
                 }
             }
-            // Initialize camera framebuffer
-            {
-                camera_group.fb_color_image = image_create({
-                    .width = uint32_t(width),
-                    .height = uint32_t(height),
-                    .is_framebuffer_attachment = true
-                });
-                camera_group.fb_depth_image = image_create({
-                    .width = uint32_t(width),
-                    .height = uint32_t(height),
-                    .format = VK_FORMAT_D32_SFLOAT,
-                    .is_framebuffer_attachment = true
-                });
-                Image* fb_images[2] = {
-                    camera_group.fb_color_image,
-                    camera_group.fb_depth_image
-                };
-                AttachmentType fb_attachment_types[2] = {
-                    AttachmentType::Color,
-                    AttachmentType::Depth
-                };
-                FramebufferInfo fb_info{
-                    .pImages = fb_images,
-                    .imagesCount = 2,
-                    .pAttachmentTypes = fb_attachment_types,
-                    .attachmentTypesCount = 2,
-                    .own_images = true
-                };
-                camera_group.framebuffer = framebuffer_create(fb_info);
-
-                auto frame_ds_pair = image_create_descriptor_set(camera_group.fb_color_image);
-                camera_group.frame_image_ds = frame_ds_pair.second;
-
-                shader_set_render_pass(shader, camera_group.framebuffer);
-            }
+            camera_group.InitFramebuffer(*this, width, height);
             // Setup Reflection
             {
                 auto& scene_group = id_scene_groups[scene_id];
@@ -713,9 +914,15 @@ namespace dz {
         bool RegisterComponent() {
             auto ID = int(TComponenTypeID<TRComponent>::id);
             auto& StructName = ComponentStructName<TRComponent>::string;
+            auto ecs_ptr = this;
             registered_component_map[ID] = {
                 .type_id = ID,
-                .struct_name = StructName
+                .struct_name = StructName,
+                .construct_component_fn = [ecs_ptr]() -> std::shared_ptr<TComponent> {
+                    auto ptr = std::shared_ptr<TRComponent>(new TRComponent{}, [](TRComponent* dp){ delete dp; });
+                    ptr->i = ecs_ptr;
+                    return ptr;
+                }
             };
             RegisterProvider<TRComponent>();
             return true;
@@ -795,7 +1002,6 @@ namespace dz {
 
         BufferGroup* CreateBufferGroup() {
             auto buffer_group_ptr = buffer_group_create("EntitysGroup");
-            std::vector<std::string> restricted_keys{"Components", "Cameras"};
             for (auto& [component_id, component_group] : registered_component_map) {
                 restricted_keys.push_back(component_group.struct_name + "s");
             }
@@ -823,6 +1029,8 @@ namespace dz {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
 
             window_register_free_callback(window_ptr, [&]() mutable {
+                if (!SaveToIO())
+                    std::cerr << "Failed to Serialize ECS" << std::endl;
                 indexed_camera_groups.clear();
                 id_scene_groups.clear();
             });

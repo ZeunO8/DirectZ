@@ -1,4 +1,5 @@
 #include <DirectZ.hpp>
+#include <fstream>
 using namespace dz::ecs;
 
 #include <typeinfo>
@@ -71,8 +72,10 @@ int main() {
 
     const auto plane_shape_id = RegisterPlaneShape();
     const auto cube_shape_id = RegisterCubeShape();
+
+    std::filesystem::path ioPath("example.ecs");
     
-    ecs_ptr = std::make_shared<ExampleECS>(window, [](auto& ecs){
+    ecs_ptr = std::make_shared<ExampleECS>(window, ioPath, [](auto& ecs){
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
         return true;
@@ -80,46 +83,48 @@ int main() {
     
     auto& ecs = *ecs_ptr;
 
-    auto ecs_scene_ids = ecs.GetSceneIDs();
+    if (!ecs.loaded_from_io) {
+        auto ecs_scene_ids = ecs.GetSceneIDs();
 
-    ecs.SetProviderCount("Shapes", 2);
-    auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
+        ecs.SetProviderCount("Shapes", 2);
+        auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
-    auto& plane_shape = shapes_ptr[0];
-    plane_shape.type = plane_shape_id;
-    plane_shape.vertex_count = 6;
+        auto& plane_shape = shapes_ptr[0];
+        plane_shape.type = plane_shape_id;
+        plane_shape.vertex_count = 6;
 
-    auto& cube_shape = shapes_ptr[1];
-    cube_shape.type = cube_shape_id;
-    cube_shape.vertex_count = 36;
+        auto& cube_shape = shapes_ptr[1];
+        cube_shape.type = cube_shape_id;
+        cube_shape.vertex_count = 36;
 
-    ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
+        ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
 
-    ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
+        ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
 
-    auto eids = ecs.AddEntitys(Entity{}, Entity{});
+        auto eids = ecs.AddEntitys(Entity{}, Entity{});
 
-    auto e1_id = eids[0];
+        auto e1_id = eids[0];
 
-    // ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
+        // ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
 
-    auto e1_ptr = ecs.GetEntity(e1_id);
-    assert(e1_ptr);
-    auto& e1 = *e1_ptr;
-    e1.shape_index = 1;
-    auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
-    auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
+        auto e1_ptr = ecs.GetEntity(e1_id);
+        assert(e1_ptr);
+        auto& e1 = *e1_ptr;
+        e1.shape_index = 1;
+        auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
+        auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
 
-    auto e2_id = eids[1];
+        auto e2_id = eids[1];
 
-    // ecs.AddChildEntitys(e2_id, Entity{}, Entity{});
+        // ecs.AddChildEntitys(e2_id, Entity{}, Entity{});
 
-    auto e2_ptr = ecs.GetEntity(e2_id);
+        auto e2_ptr = ecs.GetEntity(e2_id);
 
-    assert(e2_ptr);
-    auto& e2 = *e2_ptr;
-    auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
-    auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
+        assert(e2_ptr);
+        auto& e2 = *e2_ptr;
+        auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
+        auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
+    }
 
     auto frame_image = ecs.GetFramebufferImage(0);
 
