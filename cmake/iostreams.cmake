@@ -3,3 +3,5 @@ FetchContent_Declare(iostreams
     GIT_TAG main
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(iostreams)
+set_target_properties(iostreams PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(archive_static PROPERTIES DEBUG_POSTFIX "d")
