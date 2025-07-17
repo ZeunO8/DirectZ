@@ -60,6 +60,7 @@ include(FetchContent)
 include(cmake/SwiftShader.cmake)
 include(cmake/GLSL.cmake)
 include(cmake/ImGui.cmake)
+include(cmake/iostreams.cmake)
 
 include(cmake/dz-targets.cmake)
 
@@ -84,6 +85,8 @@ target_link_libraries(DirectZ PRIVATE
 	SPIRV
 	SPIRV-Tools
 	SPIRV-Tools-opt
+	iostreams
+	archive_static
 )
 
 target_link_libraries(dzp PRIVATE DirectZ)

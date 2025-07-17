@@ -7,7 +7,9 @@ set(DirectZ_TGTS
     shaderc shaderc_util spirv-reflect-static
     glslang GenericCodeGen OSDependent MachineIndependent
     SPIRV SPIRV-Tools-static SPIRV-Tools-opt
-    imgui)
+    imgui
+	iostreams
+	archive_static)
 
 foreach(TGT ${DirectZ_TGTS})
     set_target_properties(${TGT} PROPERTIES
@@ -26,6 +28,7 @@ foreach(TGT ${DirectZ_TGTS})
 endforeach()
 
 # Export targets
+set_target_properties(archive_static PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
 if(ANDROID)
     set_target_properties(spirv-reflect-static PROPERTIES PUBLIC_HEADER "")
     install(TARGETS ${DirectZ_TGTS}
