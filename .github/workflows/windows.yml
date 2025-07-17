@@ -28,7 +28,6 @@ jobs:
         run: |
           dir C:\
           dir "C:\Program Files\"
-          dir "C:\Program Files (x86)\"
 
       - name: Download NSIS
         shell: pwsh
@@ -61,7 +60,7 @@ jobs:
           cache: true
 
       - name: Configure
-        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_INSTALL_PREFIX=install "-DOPENSSL_ROOT_DIR=C:/Program Files/OpenSSL-Win64" "-DOPENSSL_USE_STATIC_LIBS=ON"
+        run: cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_INSTALL_PREFIX=install "-DOPENSSL_ROOT_DIR=C:/Program Files/OpenSSL" "-DOPENSSL_USE_STATIC_LIBS=ON"
         shell: cmd
 
       - name: Build
