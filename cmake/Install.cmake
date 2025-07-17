@@ -29,6 +29,9 @@ endforeach()
 
 # Export targets
 set_target_properties(archive_static PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+IF(NOT WIN32 OR CYGWIN OR NOT BUILD_SHARED_LIBS)
+  SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive_static)
+endif()
 if(ANDROID)
     set_target_properties(spirv-reflect-static PROPERTIES PUBLIC_HEADER "")
     install(TARGETS ${DirectZ_TGTS}
