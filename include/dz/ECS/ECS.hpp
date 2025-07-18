@@ -338,8 +338,6 @@ namespace dz {
 
                 auto frame_ds_pair = image_create_descriptor_set(fb_color_image);
                 frame_image_ds = frame_ds_pair.second;
-
-                shader_set_render_pass(ecs.shader, framebuffer);
             }
         };
 
