@@ -17,7 +17,7 @@ struct Material {
 };
 )";
     inline static std::string GLSLMethods = "";
-    inline static std::vector<std::pair<float, std::string>> GLSLMain = {};
+    inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {};
 };
 
 struct StateSystem : Provider<StateSystem> {
@@ -25,7 +25,7 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-#define ExampleECS ECS<Entity, Component, Shape, Light, Camera>
+#define ExampleECS ECS<Entity, Component, Shape, Camera>
 
 std::shared_ptr<ExampleECS> ecs_ptr;
 

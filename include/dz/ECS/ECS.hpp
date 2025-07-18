@@ -421,7 +421,7 @@ namespace dz {
         std::map<int, LightReflectableGroup> indexed_light_groups;
         std::map<size_t, ProviderReflectableGroup> id_provider_groups;
         std::map<float, std::vector<size_t>> prioritized_provider_ids;
-        std::map<float, std::vector<std::string>> priority_glsl_mains;
+        std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains;
         size_t add_scene_id;
 
         std::vector<std::string> restricted_keys{"Components"};
@@ -625,8 +625,8 @@ namespace dz {
             provider_group.struct_name = struct_name;
             provider_group.glsl_struct = glsl_struct;
             provider_group.glsl_methods = glsl_methods;
-            for (auto& [main_priority, main_string] : priority_glsl_main) {
-                priority_glsl_mains[main_priority].push_back(main_string);
+            for (auto& [main_priority, main_string, module_type] : priority_glsl_main) {
+                priority_glsl_mains[module_type][main_priority].push_back(main_string);
             }
         }
 
@@ -984,9 +984,6 @@ namespace dz {
 
         BufferGroup* CreateBufferGroup() {
             auto buffer_group_ptr = buffer_group_create("EntitysGroup");
-            for (auto& [component_id, component_group] : registered_component_map) {
-                restricted_keys.push_back(component_group.struct_name + "s");
-            }
             for (auto& [provider_id, provider_group] : id_provider_groups) {
                 restricted_keys.push_back(provider_group.struct_name + "s");
             }
@@ -1023,8 +1020,9 @@ namespace dz {
 
             std::string shader_string = R"(
 #version 450
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec4 outPosition;
+layout(location = 0) out int outID;
+layout(location = 1) out vec4 outColor;
+layout(location = 2) out vec4 outPosition;
 
 layout(push_constant) uniform PushConstants {
     int camera_index;
@@ -1068,7 +1066,8 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Comp
             // Main
             shader_string += R"(
 void main() {
-    Entity entity = GetEntityData(gl_InstanceIndex);
+    outID = gl_InstanceIndex;
+    Entity entity = GetEntityData(outID);
     vec4 final_color;
     vec4 final_position;
     int t_component_index = -1;
@@ -1083,7 +1082,8 @@ void main() {
             }
 
             // Priority Mains
-            for (auto& [priority, string_vec] : priority_glsl_mains) {
+            auto& module_glsl_mains = priority_glsl_mains[ShaderModuleType::Vertex];
+            for (auto& [priority, string_vec] : module_glsl_mains) {
                 for (auto& string : string_vec) {
                     shader_string += string;
                 }
@@ -1102,14 +1102,77 @@ void main() {
         }
 
         std::string GenerateFragmentShader() {
-            auto shader_string = R"(
+            auto binding_index = 0;
+
+            std::string shader_string = R"(
 #version 450
-layout(location = 0) in vec4 inColor;
-layout(location = 1) in vec4 inPosition;
+layout(location = 0) flat in int inID;
+layout(location = 1) in vec4 inColor;
+layout(location = 2) in vec4 inPosition;
 
 layout(location = 0) out vec4 FragColor;
 
+layout(push_constant) uniform PushConstants {
+    int camera_index;
+} pc;
+)";
+
+            // Setup Structs
+            shader_string += TComponent::ComponentGLSLStruct;
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
+                    shader_string += provider_group.glsl_struct;
+                }
+            }
+
+            // Setup Buffers
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
+                    shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
+    )" + provider_group.struct_name + R"( data[];
+} )" + provider_group.struct_name + R"(s;
+
+)";
+                    shader_string += provider_group.struct_name + " Get" + provider_group.struct_name + R"(Data(int t_provider_index) {
+    return )" + provider_group.struct_name + R"(s.data[t_provider_index];
+}
+)";
+                }
+            }
+
+            // TComponent
+            shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
+    Component data[];
+} Components;
+)";
+            shader_string += TComponent::ComponentGLSLMethods;
+
+            shader_string += R"(
 void main() {
+    Entity entity = GetEntityData(inID);
+    int t_component_index = -1;
+)";
+    
+            // Main Get Components
+            for (auto& [id, entry] : registered_component_map) {
+                auto struct_name_lower = to_lower(entry.struct_name);
+                shader_string += "    " + entry.struct_name + " " + struct_name_lower + ";\n";
+                shader_string += R"(    if (HasComponentWithType(entity, )" + std::to_string(entry.type_id) + R"(, t_component_index))
+        )" + struct_name_lower + " = Get" + entry.struct_name + "Data(t_component_index);\n";
+            }
+
+            // Priority Mains
+            auto& module_glsl_mains = priority_glsl_mains[ShaderModuleType::Fragment];
+            for (auto& [priority, string_vec] : module_glsl_mains) {
+                for (auto& string : string_vec) {
+                    shader_string += string;
+                }
+            }
+            shader_string += R"(
     FragColor = inColor;
 }
 )";

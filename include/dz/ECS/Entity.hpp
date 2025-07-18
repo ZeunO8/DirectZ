@@ -27,11 +27,11 @@ vec4 GetEntityVertexColor(in Entity entity) {
 }
 )";
 
-        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     final_position = vec4(shape_vertex, 1.0);
     final_color = GetEntityVertexColor(entity);
-)"}
+)", ShaderModuleType::Vertex}
         };
 
         uint32_t GetVertexCount(BufferGroup* buffer_group, Entity& entity) {

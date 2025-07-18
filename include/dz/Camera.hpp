@@ -42,16 +42,16 @@ struct Camera {
 )";
         inline static std::string GLSLMethods = "";
 
-        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     Camera camera = Cameras.data[pc.camera_index];
-)"},
+)", ShaderModuleType::Vertex},
             {2.0f, R"(
     // Vulkan Y Fix
     final_position.y *= -1.0;
     vec4 camera_position = camera.projection * camera.view * final_position;
     vec3 view_dir = normalize(camera.position - vec3(camera_position));
-)"}
+)", ShaderModuleType::Vertex}
         };
     };
 

@@ -52,8 +52,8 @@ namespace dz::ecs {
         inline static std::string GLSLStruct = "#define PositionComponent vec4\n";
         inline static std::string GLSLMethods = "";
 
-        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
-            {1.5f, "    final_position += vec4(positioncomponent.x, positioncomponent.y, positioncomponent.z, 0);\n"}
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
+            {1.5f, "    final_position += vec4(positioncomponent.x, positioncomponent.y, positioncomponent.z, 0);\n", ShaderModuleType::Vertex}
         };
 
     };

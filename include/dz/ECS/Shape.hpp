@@ -30,11 +30,11 @@ vec3 GetShapeNormal(in Entity entity) {
     }
 }
 )";
-        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.0, R"(
     vec3 shape_vertex = GetShapeVertex(entity);
     vec3 shape_normal = GetShapeNormal(entity);
-)"}
+)", ShaderModuleType::Vertex}
         };
 
         inline static std::unordered_map<std::string, size_t> registered_shapes = {};

@@ -69,7 +69,7 @@ vec3 CalculateLight(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Light light
     return (diffuse + specular) * attenuation * spotlight_factor;
 }
 )";
-        inline static std::vector<std::pair<float, std::string>> GLSLMain = {
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {3.5f, R"(
     int lights_size = Lights.data.length();
     vec3 light_color = vec3(0.0);
@@ -77,7 +77,7 @@ vec3 CalculateLight(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Light light
         light_color += CalculateLight(shape_normal, vec3(final_position), view_dir, Lights.data[light_index]);
     }
     final_color = vec4(light_color, 1.0) * final_color;
-)"}
+)", ShaderModuleType::Vertex}
         };
     };
         

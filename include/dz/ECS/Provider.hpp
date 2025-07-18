@@ -53,12 +53,12 @@ namespace dz {
             }
         }
 
-        inline static std::vector<std::pair<float, std::string>>& GetGLSLMain() {
+        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>>& GetGLSLMain() {
             if constexpr (requires { T::GLSLMain; }) {
                 return T::GLSLMain;
             }
             else {
-                static std::vector<std::pair<float, std::string>> kEmptyPriorityVector = {};
+                static std::vector<std::tuple<float, std::string, ShaderModuleType>> kEmptyPriorityVector = {};
                 return kEmptyPriorityVector;
             }
         }
