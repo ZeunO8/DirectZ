@@ -25,7 +25,13 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-#define ExampleECS ECS<Entity, Component, Shape, Camera>
+// #define ENABLE_LIGHTS
+using ExampleECS = ECS<Entity, Component, Shape, Camera
+#ifdef ENABLE_LIGHTS
+, Light
+#endif
+>;
+
 
 std::shared_ptr<ExampleECS> ecs_ptr;
 
@@ -84,7 +90,6 @@ int main() {
     auto& ecs = *ecs_ptr;
 
     if (!ecs.loaded_from_io) {
-        auto ecs_scene_ids = ecs.GetSceneIDs();
 
         ecs.SetProviderCount("Shapes", 2);
         auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
@@ -96,10 +101,6 @@ int main() {
         auto& cube_shape = shapes_ptr[1];
         cube_shape.type = cube_shape_id;
         cube_shape.vertex_count = 36;
-
-        ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
-
-        ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
 
         auto eids = ecs.AddEntitys(Entity{}, Entity{});
 
@@ -125,6 +126,16 @@ int main() {
         auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
         auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
     }
+
+#ifdef ENABLE_LIGHTS
+    if (buffer_group_get_buffer_element_count(ecs.buffer_group, "Lights") == 0) {
+        auto ecs_scene_ids = ecs.GetSceneIDs();
+        ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
+        ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
+    }
+#endif
+
+    ecs.MarkReady();
 
     auto frame_image = ecs.GetFramebufferImage(0);
 

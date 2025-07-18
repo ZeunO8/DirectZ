@@ -473,11 +473,14 @@ namespace dz {
             } else {
                 loaded_from_io = true;
             }
+        }
+
+        void MarkReady() {
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
             }
-        };
+        }
 
         bool LoadFromIO() {
             std::ifstream stream(save_path, std::ios::in | std::ios::binary);
@@ -494,11 +497,23 @@ namespace dz {
                 return false;
             if (!DeserializeBuffers(ioSerial))
                 return false;
+            CheckDisabled();
             UpdateGroupsChildren(id_entity_groups);
             UpdateGroupsChildren(indexed_camera_groups);
             UpdateGroupsChildren(indexed_light_groups);
             UpdateGroupsChildren(id_scene_groups);
             return true;
+        }
+
+        void CheckDisabled() {
+            CheckLightDisabled();
+        }
+
+        void CheckLightDisabled() {
+            auto r_it = std::find(restricted_keys.begin(), restricted_keys.end(), "Lights");
+            if (r_it == restricted_keys.end() && indexed_light_groups.size() > 0) {
+                indexed_light_groups.clear();
+            }
         }
 
         bool SaveToIO() {
@@ -871,7 +886,6 @@ namespace dz {
             auto index = light_entry.index;
             auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, lights_buffer_name);
             return (ecs::Light*)(buffer_ptr.get() + (light_size * index));
-
         }
         
         void SetProviderCount(const std::string& buffer_name, int count) {
