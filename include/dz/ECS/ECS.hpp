@@ -1037,6 +1037,8 @@ namespace dz {
 layout(location = 0) out int outID;
 layout(location = 1) out vec4 outColor;
 layout(location = 2) out vec4 outPosition;
+layout(location = 3) out vec3 outNormal;
+layout(location = 4) out vec3 outViewPosition;
 
 layout(push_constant) uniform PushConstants {
     int camera_index;
@@ -1105,10 +1107,12 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    final_position = camera_position;
-    gl_Position = final_position;
+    vec3 normal_vs = normalize((camera.view * vec4(shape_normal, 0.0)).xyz);
+    gl_Position = clip_position;
     outColor = final_color;
-    outPosition = final_position;
+    outPosition = world_position;
+    outViewPosition = view_position.xyz;
+    outNormal = normal_vs;
 }
 )";
 
@@ -1123,6 +1127,8 @@ void main() {
 layout(location = 0) flat in int inID;
 layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec4 inPosition;
+layout(location = 3) in vec3 inNormal;
+layout(location = 4) in vec3 inViewPosition;
 
 layout(location = 0) out vec4 FragColor;
 
@@ -1169,6 +1175,7 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Comp
 void main() {
     Entity entity = GetEntityData(inID);
     int t_component_index = -1;
+    vec4 current_color = inColor;
 )";
     
             // Main Get Components
@@ -1187,7 +1194,7 @@ void main() {
                 }
             }
             shader_string += R"(
-    FragColor = inColor;
+    FragColor = current_color;
 }
 )";
             return shader_string;

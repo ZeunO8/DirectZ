@@ -48,9 +48,9 @@ struct Camera {
 )", ShaderModuleType::Vertex},
             {2.0f, R"(
     // Vulkan Y Fix
-    final_position.y *= -1.0;
-    vec4 camera_position = camera.projection * camera.view * final_position;
-    vec3 view_dir = normalize(camera.position - vec3(camera_position));
+    world_position.y *= -1.0;
+    vec4 view_position = camera.view * world_position;
+    vec4 clip_position = camera.projection * view_position;
 )", ShaderModuleType::Vertex}
         };
     };

@@ -74,10 +74,10 @@ vec3 CalculateLight(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Light light
     int lights_size = Lights.data.length();
     vec3 light_color = vec3(0.0);
     for (int light_index = 0; light_index < lights_size; light_index++) {
-        light_color += CalculateLight(shape_normal, vec3(final_position), view_dir, Lights.data[light_index]);
+        light_color += vec3(0.5);//CalculateLight(shape_normal, vec3(final_position), view_dir, Lights.data[light_index]);
     }
-    final_color = vec4(light_color, 1.0) * final_color;
-)", ShaderModuleType::Vertex}
+    current_color = vec4(light_color, 1.0) * current_color;
+)", ShaderModuleType::Fragment}
         };
     };
         
