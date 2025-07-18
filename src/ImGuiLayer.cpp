@@ -145,7 +145,8 @@ namespace dz {
 
         platform_io.Platform_GetWindowMinimized = [](ImGuiViewport* vp) -> bool {
             auto window = (WINDOW*)vp->PlatformHandle;
-            return window_get_minimized(window);
+            bool minimized = window_get_minimized(window);
+            return minimized;
         };
 
         platform_io.Platform_SetWindowTitle = [](ImGuiViewport* vp, const char* title) {

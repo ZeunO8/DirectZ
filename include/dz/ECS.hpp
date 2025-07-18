@@ -1,18 +1,19 @@
 #pragma once
-#include "../GlobalUID.hpp"
+#include "GlobalUID.hpp"
 #include <unordered_map>
 #include <memory>
-#include "../BufferGroup.hpp"
-#include "../Framebuffer.hpp"
-#include "../DrawListManager.hpp"
-#include "../Window.hpp"
-#include "../Shader.hpp"
-#include "../Camera.hpp"
-#include "../Util.hpp"
-#include "Provider.hpp"
-#include "Light.hpp"
-#include "Component.hpp"
-#include "Entity.hpp"
+#include "BufferGroup.hpp"
+#include "Framebuffer.hpp"
+#include "DrawListManager.hpp"
+#include "Window.hpp"
+#include "Shader.hpp"
+#include "Camera.hpp"
+#include "Util.hpp"
+#include "State.hpp"
+#include "ECS/Provider.hpp"
+#include "ECS/Light.hpp"
+#include "ECS/Component.hpp"
+#include "ECS/Entity.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -80,8 +81,17 @@ namespace dz {
     inline static const std::string cameras_buffer_name = "Cameras";
     inline static const std::string lights_buffer_name = "Lights";
     
-    template<typename TEntity, typename TComponent, typename... TProviders>
-    struct ECS : IGetComponentDataVoid {
+    template<int TCID, typename TEntity, typename TComponent, typename... TProviders>
+    struct ECS : IGetComponentDataVoid, Restorable {
+
+        inline static int CID = TCID;
+	    int getCID() override { return TCID; }
+
+        inline static void RegisterStateCID() {
+            register_restorable_constructor(CID, [](Serial& serial) -> Restorable* {
+                return new ECS(serial);
+            });
+        }
 
         struct EntityComponentReflectableGroup : ReflectableGroup {
             size_t scene_id = 0;
@@ -440,39 +450,61 @@ namespace dz {
 
         int constructed_component_count = 0;
 
-        ECS(
-            WINDOW* initial_window_ptr,
-            const std::filesystem::path& save_path,
-            const std::function<bool(ECS&)>& register_all_components_fn = {}
-        ):
-            window_ptr(initial_window_ptr),
-            save_path(save_path),
-            components_registered(RegisterComponents(register_all_components_fn)),
+        auto GenerateEntitysDrawFunction() {
+            return [&](auto buffer_group, auto& entity) -> DrawTuples {
+                return {
+                    {shader, entity.GetVertexCount(buffer_group, entity)}
+                };
+            };
+        }
+
+        auto GenerateCamerasDrawFunction() {
+            return [&](auto buffer_group, auto camera_index) -> CameraTuple {
+                auto camera_it = indexed_camera_groups.find(camera_index);
+                assert(camera_it != indexed_camera_groups.end());
+                return {camera_index, camera_it->second.framebuffer, [&, camera_index]() {
+                    shader_update_push_constant(shader, 0, (void*)&camera_index, sizeof(uint32_t));
+                }};
+            };
+        }
+
+        inline static std::function<bool(ECS&)> _register_all_components_fn = {};
+        inline static void SetComponentsRegisterFunction(const std::function<bool(ECS&)>& register_all_components_fn) {
+            _register_all_components_fn = register_all_components_fn;
+        }
+
+        ECS(Serial& serial):
+            window_ptr(state_get_ptr<WINDOW>(CID_WINDOW)),
+            components_registered(RegisterComponents(_register_all_components_fn)),
             draw_mg(
-                "Entitys", [&](auto buffer_group, auto& entity) -> DrawTuples {
-                    return {
-                        {shader, entity.GetVertexCount(buffer_group, entity)}
-                    };
-                },
-                "Cameras", [&](auto buffer_group, auto camera_index) -> CameraTuple {
-                    auto camera_it = indexed_camera_groups.find(camera_index);
-                    assert(camera_it != indexed_camera_groups.end());
-                    return {camera_index, camera_it->second.framebuffer, [&, camera_index]() {
-                        shader_update_push_constant(shader, 0, (void*)&camera_index, sizeof(uint32_t));
-                    }};
-                }
+                "Entitys", GenerateEntitysDrawFunction(),
+                "Cameras", GenerateCamerasDrawFunction()
             ),
-            buffer_name("Entitys") {
+            buffer_name("Entitys")
+        {
             RegisterProviders();
             buffer_group = CreateBufferGroup();
             shader = GenerateShader();
             EnableDrawInWindow(window_ptr);
-            if (!LoadFromIO()) {
-                EnsureFirstScene();
-                AddCameraToScene(add_scene_id, Camera::Perspective);
-            } else {
-                loaded_from_io = true;
-            }
+            restore(serial);
+            loaded_from_io = true;
+        }
+
+        ECS(WINDOW* initial_window_ptr):
+            window_ptr(initial_window_ptr),
+            components_registered(RegisterComponents(_register_all_components_fn)),
+            draw_mg(
+                "Entitys", GenerateEntitysDrawFunction(),
+                "Cameras", GenerateCamerasDrawFunction()
+            ),
+            buffer_name("Entitys")
+        {
+            RegisterProviders();
+            buffer_group = CreateBufferGroup();
+            shader = GenerateShader();
+            EnableDrawInWindow(window_ptr);
+            EnsureFirstScene();
+            AddCameraToScene(add_scene_id, Camera::Perspective);
         }
 
         void MarkReady() {
@@ -482,20 +514,34 @@ namespace dz {
             }
         }
 
-        bool LoadFromIO() {
-            std::ifstream stream(save_path, std::ios::in | std::ios::binary);
-            Serial ioSerial(stream);
-            if (!ioSerial.canRead() || ioSerial.getReadLength() == 0)
+        bool backup(Serial& serial) override {
+            if (!serial.canWrite())
                 return false;
-            if (!DeserializeGroups(ioSerial, id_entity_groups))
+            if (!SerializeGroups(serial, id_entity_groups))
                 return false;
-            if (!DeserializeGroups(ioSerial, indexed_camera_groups))
+            if (!SerializeGroups(serial, indexed_camera_groups))
                 return false;
-            if (!DeserializeGroups(ioSerial, indexed_light_groups))
+            if (!SerializeGroups(serial, indexed_light_groups))
                 return false;
-            if (!DeserializeGroups(ioSerial, id_scene_groups))
+            if (!SerializeGroups(serial, id_scene_groups))
                 return false;
-            if (!DeserializeBuffers(ioSerial))
+            if (!SerializeBuffers(serial))
+                return false;
+            return true;
+        }
+
+        bool restore(Serial& serial) override {
+            if (!serial.canRead() || serial.getReadLength() == 0)
+                return false;
+            if (!DeserializeGroups(serial, id_entity_groups))
+                return false;
+            if (!DeserializeGroups(serial, indexed_camera_groups))
+                return false;
+            if (!DeserializeGroups(serial, indexed_light_groups))
+                return false;
+            if (!DeserializeGroups(serial, id_scene_groups))
+                return false;
+            if (!DeserializeBuffers(serial))
                 return false;
             CheckDisabled();
             UpdateGroupsChildren(id_entity_groups);
@@ -514,24 +560,6 @@ namespace dz {
             if (r_it == restricted_keys.end() && indexed_light_groups.size() > 0) {
                 indexed_light_groups.clear();
             }
-        }
-
-        bool SaveToIO() {
-            std::ofstream stream(save_path, std::ios::out | std::ios::binary | std::ios::trunc);
-            Serial ioSerial(stream);
-            if (!ioSerial.canWrite())
-                return false;
-            if (!SerializeGroups(ioSerial, id_entity_groups))
-                return false;
-            if (!SerializeGroups(ioSerial, indexed_camera_groups))
-                return false;
-            if (!SerializeGroups(ioSerial, indexed_light_groups))
-                return false;
-            if (!SerializeGroups(ioSerial, id_scene_groups))
-                return false;
-            if (!SerializeBuffers(ioSerial))
-                return false;
-            return true;
         }
 
         template <typename KeyT, typename GroupT>
@@ -1021,9 +1049,7 @@ namespace dz {
         void EnableDrawInWindow(WINDOW* window_ptr) {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
 
-            window_register_free_callback(window_ptr, [&]() mutable {
-                if (!SaveToIO())
-                    std::cerr << "Failed to Serialize ECS" << std::endl;
+            window_register_free_callback(window_ptr, 100.f, [&]() mutable {
                 indexed_camera_groups.clear();
                 id_scene_groups.clear();
             });

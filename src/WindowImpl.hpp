@@ -1,12 +1,55 @@
 #pragma once
 #include <dz/GlobalUID.hpp>
-struct WINDOW
+#include <dz/State.hpp>
+struct WINDOW : Restorable
 {
     std::string title;
     float x;
     float y;
     bool borderless;
     bool vsync;
+	WINDOW(
+		const std::string& title,
+		float x, float y,
+		bool borderless, bool vsync,
+		float _width, float _height
+#ifdef ANDROID
+        , ANativeWindow* android_window, AAssetManager* android_asset_manager
+#endif
+	):
+		title(title),
+		x(x),
+		y(y),
+		borderless(borderless),
+		vsync(vsync),
+		width(std::shared_ptr<float>(zmalloc<float>(1, _width), [](float* fp) { zfree(fp, 1); })),
+		height(std::shared_ptr<float>(zmalloc<float>(1, _height), [](float* fp) { zfree(fp, 1); }))
+#ifdef ANDROID
+        , android_window(android_window), android_asset_manager(android_asset_manager)
+#endif
+	{};
+
+	WINDOW(Serial& serial) {
+		restore(serial);
+	}
+
+	inline static int CID = CID_WINDOW;
+	int getCID() override { return CID; }
+
+	bool backup(Serial& serial) override {
+		serial << title << x << y << borderless << vsync << *width << *height;
+		return true;
+	}
+
+	bool restore(Serial& serial) override {
+		serial >> title >> x >> y >> borderless >> vsync;
+		float _width, _height;
+		serial >> _width >> _height;
+		width = std::shared_ptr<float>(zmalloc<float>(1, _width), [](float* fp) { zfree(fp, 1); });
+		height = std::shared_ptr<float>(zmalloc<float>(1, _height), [](float* fp) { zfree(fp, 1); });
+		return true;
+	}
+
     std::shared_ptr<float> width;
     std::shared_ptr<float> height;
 	std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
@@ -17,6 +60,7 @@ struct WINDOW
 	std::shared_ptr<float> cursor;
 	std::shared_ptr<int32_t> mod;
 	std::shared_ptr<int32_t> focused;
+	bool minimized = false;
 	bool closed = false;
 	bool close_requested = false;
 	VkViewport viewport = {};
@@ -57,7 +101,6 @@ struct WINDOW
 	void *nsImageView = 0;
 	void *metalView = 0;
 #endif
-	size_t id = GlobalUID::GetNew("Window");
 	void create_platform();
 	void post_init_platform();
 	bool poll_events_platform();
@@ -65,6 +108,8 @@ struct WINDOW
 #ifdef __ANDROID__
 	void recreate_android(ANativeWindow* android_window, float width, float height);
 #endif
+
+	size_t id = GlobalUID::GetNew("Window");
 };
 inline static constexpr uint8_t WINDOW_TYPE_WIN32 = 1;
 inline static constexpr uint8_t WINDOW_TYPE_MACOS = 2;

@@ -25,8 +25,8 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-// #define ENABLE_LIGHTS
-using ExampleECS = ECS<Entity, Component, Shape, Camera
+#define ENABLE_LIGHTS
+using ExampleECS = ECS<CID_MIN, Entity, Component, Shape, Camera
 #ifdef ENABLE_LIGHTS
 , Light
 #endif
@@ -65,32 +65,56 @@ struct PropertyEditor {
 
 PropertyEditor property_editor;
 
+WINDOW* window = nullptr;
+
+auto GetRegisterComponentsLambda() {
+    return [](auto& ecs) {
+        assert(ecs.template RegisterComponent<PositionComponent>());
+        assert(ecs.template RegisterComponent<ColorComponent>());
+        return true;
+    };
+}
+
 int main() {
-    auto window = window_create({
-        .title = "ECS Test",
-        .x = 0,
-        .y = 240,
-        .width = ORIGINAL_WINDOW_WIDTH,
-        .height = ORIGINAL_WINDOW_HEIGHT,
-        .borderless = true,
-        .vsync = true
-    });
+    ExampleECS::RegisterStateCID();
+
+    ExampleECS::SetComponentsRegisterFunction(GetRegisterComponentsLambda());
 
     const auto plane_shape_id = RegisterPlaneShape();
     const auto cube_shape_id = RegisterCubeShape();
 
     std::filesystem::path ioPath("example.ecs");
-    
-    ecs_ptr = std::make_shared<ExampleECS>(window, ioPath, [](auto& ecs){
-        assert(ecs.template RegisterComponent<PositionComponent>());
-        assert(ecs.template RegisterComponent<ColorComponent>());
-        return true;
-    });
-    
+
+    set_state_file_path(ioPath);
+
+    if (has_state()) {
+        if (load_state()) {
+            window = state_get_ptr<WINDOW>(CID_WINDOW);
+            auto _ecs_ptr = dynamic_cast<ExampleECS*>(state_get_ptr<ExampleECS>(ExampleECS::CID));
+            ecs_ptr = std::shared_ptr<ExampleECS>(_ecs_ptr, [](auto v) {});
+        }
+    }
+
+    bool state_loaded = is_state_loaded();
+
+    if (!state_loaded) {
+        window = window_create({
+            .title = "ECS Test",
+            .x = 0,
+            .y = 240,
+            .width = ORIGINAL_WINDOW_WIDTH,
+            .height = ORIGINAL_WINDOW_HEIGHT,
+            .borderless = true,
+            .vsync = true
+        });
+        track_window_state(window);
+        ecs_ptr = std::make_shared<ExampleECS>(window);
+        track_state(ecs_ptr.get());
+    }
+
     auto& ecs = *ecs_ptr;
-
-    if (!ecs.loaded_from_io) {
-
+        
+    if (!state_loaded) {
         ecs.SetProviderCount("Shapes", 2);
         auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
@@ -138,11 +162,25 @@ int main() {
     ecs.MarkReady();
 
     auto frame_image = ecs.GetFramebufferImage(0);
-
-    auto& imgui = window_get_ImGuiLayer(window);
     
     auto& window_width = *window_get_width_ref(window);
     auto& window_height = *window_get_height_ref(window);
+
+    window_register_free_callback(window, 0.0f, [&]() mutable {
+        if (is_tracking_state()) {
+            if (!save_state())
+                std::cerr << "Failed to Save State" << std::endl;
+        }
+    });
+
+    window_register_free_callback(window, 1000.0f, [&]() mutable {
+        if (is_tracking_state()) {
+            if (!free_state())
+                std::cerr << "Failed to Free State" << std::endl;
+        }
+    });
+
+    auto& imgui = get_ImGuiLayer();
     
     imgui.AddImmediateDrawFunction(0.5, "Menu", [&](auto& layer) {
         if (ImGui::BeginMainMenuBar()) {

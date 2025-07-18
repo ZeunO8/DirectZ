@@ -91,6 +91,7 @@ namespace dz
 #include "Displays.cpp"
 #include "ECS/Shape.cpp"
 #include "ECS/Light.cpp"
+#include "State.cpp"
 #include "runtime.cpp"
 
 template<typename T>
