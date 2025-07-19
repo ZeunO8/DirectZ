@@ -1,3 +1,4 @@
+#pragma once
 #define MAX_FRAMES_IN_FLIGHT 4
 struct Renderer
 {
