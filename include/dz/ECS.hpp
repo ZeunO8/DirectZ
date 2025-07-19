@@ -1133,7 +1133,7 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    vec3 normal_vs = normalize((camera.view * vec4(shape_normal, 0.0)).xyz);
+    vec3 normal_vs = normalize(mat3(transpose(inverse(model))) * shape_normal);
     gl_Position = clip_position;
     outColor = final_color;
     outPosition = world_position;

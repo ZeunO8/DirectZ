@@ -53,6 +53,8 @@ namespace dz::ecs {
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {1.5f, R"(
+    mat4 model = mat4(1.0);
+    model[3] = vec4(positioncomponent.xyz, 1.0);
     vec4 world_position = final_position;
     world_position += vec4(positioncomponent.xyz, 0.0);
 )", ShaderModuleType::Vertex}
