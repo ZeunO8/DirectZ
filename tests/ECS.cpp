@@ -16,7 +16,6 @@ struct Material {
     vec4 color;
 };
 )";
-    inline static std::string GLSLMethods = "";
     inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {};
 };
 

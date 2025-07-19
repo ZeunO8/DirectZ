@@ -410,7 +410,7 @@ namespace dz {
             std::string name;
             std::string struct_name;
             std::string glsl_struct;
-            std::string glsl_methods;
+            std::unordered_map<ShaderModuleType, std::string> glsl_methods;
             std::string glsl_main;
 
             GroupType GetGroupType() override {
@@ -1093,7 +1093,7 @@ layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + pr
     return )" + provider_group.struct_name + R"(s.data[t_provider_index];
 }
 )";
-                    shader_string += provider_group.glsl_methods;
+                    shader_string += provider_group.glsl_methods[ShaderModuleType::Vertex];
                 }
             }
 
@@ -1186,6 +1186,7 @@ layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + pr
     return )" + provider_group.struct_name + R"(s.data[t_provider_index];
 }
 )";
+                    shader_string += provider_group.glsl_methods[ShaderModuleType::Fragment];
                 }
             }
 

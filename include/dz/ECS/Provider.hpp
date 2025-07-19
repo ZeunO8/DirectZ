@@ -44,12 +44,13 @@ namespace dz {
             }
         }
 
-        inline static const std::string& GetGLSLMethods() {
+        inline static const std::unordered_map<ShaderModuleType, std::string>& GetGLSLMethods() {
             if constexpr (requires { T::GLSLMethods; }) {
                 return T::GLSLMethods;
             }
             else {
-                return kEmptyString;
+                static std::unordered_map<ShaderModuleType, std::string> kEmptyVec = {};
+                return kEmptyVec;
             }
         }
 

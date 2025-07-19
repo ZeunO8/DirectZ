@@ -40,12 +40,14 @@ struct Camera {
     float orthoHeight;
 };
 )";
-        inline static std::string GLSLMethods = "";
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     Camera camera = Cameras.data[pc.camera_index];
 )", ShaderModuleType::Vertex},
+            {0.5f, R"(
+    Camera camera = Cameras.data[pc.camera_index];
+)", ShaderModuleType::Fragment},
             {2.0f, R"(
     // Vulkan Y Fix
     world_position.y *= -1.0;

@@ -50,7 +50,6 @@ namespace dz::ecs {
         inline static std::string ProviderName = "Position";
         inline static std::string StructName = "PositionComponent";
         inline static std::string GLSLStruct = "#define PositionComponent vec4\n";
-        inline static std::string GLSLMethods = "";
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {1.5f, R"(

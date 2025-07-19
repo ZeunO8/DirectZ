@@ -21,11 +21,13 @@ struct Entity {
     int components[ECS_MAX_COMPONENTS];
 };
 )";
-        inline static std::string GLSLMethods = R"(
+        inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
+            { ShaderModuleType::Vertex, R"(
 vec4 GetEntityVertexColor(in Entity entity) {
     return vec4(0, 0, 1, 0.8);
 }
-)";
+)" }
+        };
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
