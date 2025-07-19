@@ -7,7 +7,7 @@ set(DirectZ_TGTS
     shaderc shaderc_util spirv-reflect-static
     glslang GenericCodeGen OSDependent MachineIndependent
     SPIRV SPIRV-Tools-static SPIRV-Tools-opt
-    imgui
+    imgui imguizmo
 	iostreams
 	archive_static)
 
@@ -80,6 +80,12 @@ if(NOT ANDROID)
     install(FILES
         ${imgui_SOURCE_DIR}/imgui.h
         ${imgui_SOURCE_DIR}/imconfig.h
+        ${imguizmo_SOURCE_DIR}/GraphEditor.h
+        ${imguizmo_SOURCE_DIR}/ImCurveEdit.h
+        ${imguizmo_SOURCE_DIR}/ImGradient.h
+        ${imguizmo_SOURCE_DIR}/ImGuizmo.h
+        ${imguizmo_SOURCE_DIR}/ImSequencer.h
+        ${imguizmo_SOURCE_DIR}/ImZoomSlider.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT Core)
     install(FILES

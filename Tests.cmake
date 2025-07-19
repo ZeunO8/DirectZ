@@ -5,6 +5,7 @@ function(add_dz_test TEST_NAME TEST_SRC)
         include
         ${Vulkan_INCLUDE_DIRS}
         ${imgui_SOURCE_DIR}
+	    ${imguizmo_SOURCE_DIR}
 	    ${iostreams_SOURCE_DIR}/include
     )
     target_link_libraries(${TEST_NAME} PRIVATE DirectZ)
