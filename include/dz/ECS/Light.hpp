@@ -129,7 +129,7 @@ vec3 CalculateLight(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Light light
             &typeid(float),
             &typeid(vec<float, 3>),
             &typeid(vec<float, 3>),
-            &typeid(vec<float, 3>),
+            &typeid(color_vec<float, 3>),
             &typeid(float)
         };
 

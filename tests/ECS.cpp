@@ -684,6 +684,20 @@ int main() {
                                         update_iterators();
                                     }
                                 }
+                                else if (*type_info == typeid(color_vec<float, 3>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<color_vec<float, 3>>(prop_index);
+                                    if (ImGui::ColorEdit3("##rgb", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                                        reflectable.NotifyChange(0);
+                                        update_iterators();
+                                    }
+                                }
+                                else if (*type_info == typeid(color_vec<float, 4>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<color_vec<float, 4>>(prop_index);
+                                    if (ImGui::ColorEdit4("##rgba", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                                        reflectable.NotifyChange(0);
+                                        update_iterators();
+                                    }
+                                }
                                 else {
                                     ImGui::TextDisabled("<Unsupported type>");
                                 }
