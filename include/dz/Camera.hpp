@@ -49,8 +49,6 @@ struct Camera {
     Camera camera = Cameras.data[pc.camera_index];
 )", ShaderModuleType::Fragment},
             {2.0f, R"(
-    // Vulkan Y Fix
-    world_position.y *= -1.0;
     vec4 view_position = camera.view * world_position;
     vec4 clip_position = camera.projection * view_position;
 )", ShaderModuleType::Vertex}

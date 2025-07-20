@@ -10,12 +10,12 @@ int ecs::RegisterPlaneShape()
 vec3 GetPlaneVertex(in Entity entity)
 {
     const vec3 plane_vertices[6] = vec3[6](
-        vec3(-0.5, -0.5, 0),
+        vec3( 0.5,  0.5, 0),
         vec3(-0.5,  0.5, 0),
-        vec3( 0.5,  0.5, 0),
-        vec3( 0.5,  0.5, 0),
+        vec3(-0.5, -0.5, 0),
+        vec3(-0.5, -0.5, 0),
         vec3( 0.5, -0.5, 0),
-        vec3(-0.5, -0.5, 0)
+        vec3( 0.5,  0.5, 0)
     );
     return plane_vertices[gl_VertexIndex];
 }
