@@ -537,6 +537,7 @@ int main() {
                 for (; reflect_it != reflect_end; reflect_it++) {
                     reflect_dist = std::distance(reflect_begin, reflect_it);
                     auto& reflectable = **reflect_it;
+                    ImGui::PushID(&reflectable);
                     const auto& reflectable_name = reflectable.GetName();
 
                     if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -550,7 +551,6 @@ int main() {
                         case ReflectableTypeHint::VEC2:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat2("##vec2", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -560,7 +560,6 @@ int main() {
                         case ReflectableTypeHint::VEC3:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat3("##vec3", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -570,8 +569,7 @@ int main() {
                         case ReflectableTypeHint::VEC3_RGB:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
-                            if (ImGui::ColorEdit3("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                            if (ImGui::ColorEdit3("##rgb", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
                             }
@@ -580,7 +578,6 @@ int main() {
                         case ReflectableTypeHint::VEC4:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -590,7 +587,6 @@ int main() {
                         case ReflectableTypeHint::VEC4_RGBA:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -711,6 +707,8 @@ int main() {
 
                         ImGui::PopStyleVar(2);
                     }
+                
+                    ImGui::PopID();
                 }
 
                 ImGui::PopID();
