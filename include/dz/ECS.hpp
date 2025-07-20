@@ -792,6 +792,7 @@ namespace dz {
             ((TEntity&)entity).id = id;
             auto index = id_entity_groups.size();
             auto& entry = id_entity_groups[id];
+            entry.id = id;
             entry.index = index;
             entry.scene_id = add_scene_id;
             entry.name = ("Entity #" + std::to_string(id));
@@ -825,6 +826,7 @@ namespace dz {
             for (int c = 1; c <= n; c++) {
                 auto id = GlobalUID::GetNew("ECS:Entity");
                 auto& entry = id_entity_groups[id];
+                entry.id = id;
                 entry.index = index;
                 entry.scene_id = add_scene_id;
                 entry.name = ("Entity #" + std::to_string(id));
