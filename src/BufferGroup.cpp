@@ -1,8 +1,7 @@
 namespace dz {
     void buffer_group_destroy(BufferGroup* bg);
 
-    BufferGroup* buffer_group_create(const std::string& group_name)
-    {
+    BufferGroup* buffer_group_create(const std::string& group_name) {
         auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
             new BufferGroup{
                 .group_name = group_name
@@ -15,8 +14,7 @@ namespace dz {
         return bg.get();
     }
 
-    void buffer_group_initialize(BufferGroup* buffer_group)
-    {
+    void buffer_group_initialize(BufferGroup* buffer_group) {
         for (auto& sp: buffer_group->shaders)
         {
             auto shader = sp.first;
@@ -27,8 +25,7 @@ namespace dz {
         }
     }
 
-    VkImageUsageFlags infer_image_usage_flags(const std::unordered_map<Shader*, VkDescriptorType>& types)
-    {
+    VkImageUsageFlags infer_image_usage_flags(const std::unordered_map<Shader*, VkDescriptorType>& types) {
         VkImageUsageFlags flags = 0;
         for (auto& pair : types)
         {
@@ -52,8 +49,7 @@ namespace dz {
         return flags;
     }
 
-    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, void* data_pointer)
-    {
+    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, void* data_pointer) {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
         ImageCreateInfoInternal create_info{};
@@ -73,8 +69,7 @@ namespace dz {
         return image;
     }
 
-    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data_pointer)
-    {
+    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data_pointer) {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
         ImageCreateInfoInternal create_info{
@@ -95,8 +90,7 @@ namespace dz {
         return image;
     }
 
-    void buffer_group_restrict_to_keys(BufferGroup* buffer_group, const std::vector<std::string>& restruct_keys)
-    {
+    void buffer_group_restrict_to_keys(BufferGroup* buffer_group, const std::vector<std::string>& restruct_keys) {
         for (auto& key : restruct_keys)
             buffer_group->restricted_to_keys[key] = true;
     }
@@ -112,8 +106,7 @@ namespace dz {
     * @param buffer_name The GLSL variable name of the buffer.
     * @param element_count The number of elements to allocate space for.
     */
-    void buffer_group_set_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t element_count)
-    {
+    void buffer_group_set_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t element_count) {
         if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
             std::cerr << "Warning: Cannot set element count for buffer '" << buffer_name << "'. It was not found in reflection." << std::endl;
             return;
@@ -156,16 +149,30 @@ namespace dz {
         }
     }
 
-    uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name)
-    {
+    uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name) {
         if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end())
         {
-            throw std::runtime_error("Warning: Cannot set element count for buffer '" + buffer_name + "'. It was not found in reflection.");
+            throw std::runtime_error("Warning: Cannot get element count for buffer '" + buffer_name + "'. It was not found in reflection.");
         }
 
         auto& buffer = buffer_group->buffers.at(buffer_name);
 
         return buffer.element_count;
+    }
+    
+    uint32_t buffer_group_get_buffer_element_size(BufferGroup* buffer_group, const std::string& buffer_name) {
+        if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
+            std::cerr << "Warning: Cannot get element size for buffer '" << buffer_name << "'. It was not found in reflection." << std::endl;
+            return 0;
+        }
+
+        auto& buffer = buffer_group->buffers.at(buffer_name);
+        if (!buffer.is_dynamic_sized) {
+            std::cerr << "Warning: Buffer '" << buffer_name << "' is not a dynamic, runtime-sized buffer." << std::endl;
+            return 0;
+        }
+
+        return buffer.element_stride;
     }
 
     /**
@@ -177,8 +184,7 @@ namespace dz {
     * @param buffer_name The GLSL variable name of the buffer.
     * @return A shared_ptr to the raw buffer data.
     */
-    std::shared_ptr<uint8_t> buffer_group_get_buffer_data_ptr(BufferGroup* buffer_group, const std::string& buffer_name)
-    {
+    std::shared_ptr<uint8_t> buffer_group_get_buffer_data_ptr(BufferGroup* buffer_group, const std::string& buffer_name) {
         if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
             std::cerr << "Error: Buffer '" << buffer_name << "' not found." << std::endl;
             return nullptr;
@@ -207,8 +213,7 @@ namespace dz {
     * @throws std::runtime_error if the buffer/element is not found, data_ptr is null,
     * index is out of bounds, or the element type is not a struct.
     */
-    ReflectedStructView buffer_group_get_buffer_element_view(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t index)
-    {
+    ReflectedStructView buffer_group_get_buffer_element_view(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t index) {
         // Find the ShaderBuffer
         auto it = buffer_group->buffers.find(buffer_name);
         if (it == buffer_group->buffers.end()) {
@@ -255,8 +260,7 @@ namespace dz {
         throw std::runtime_error("Could not get ReflectedStruct");
     }
 
-    void buffer_group_destroy(BufferGroup* buffer_group)
-    {
+    void buffer_group_destroy(BufferGroup* buffer_group) {
         auto& device = dr.device;
         if (device == VK_NULL_HANDLE)
             return;
@@ -279,8 +283,7 @@ namespace dz {
         }
     }
 
-    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
-    {
+    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer) {
         VkDeviceSize buffer_size = ensure_buffer_size(name, buffer);
 
         if (buffer_size == 0) {
@@ -329,8 +332,7 @@ namespace dz {
         std::cout << "Remapped data_ptr for '" << name << "' to point directly to GPU memory." << std::endl;
     }
 
-    bool buffer_group_resize_gpu_buffer(const std::string& name, ShaderBuffer& buffer)
-    {
+    bool buffer_group_resize_gpu_buffer(const std::string& name, ShaderBuffer& buffer) {
         VkDeviceSize old_size = buffer.gpu_buffer.size;
         VkDeviceSize new_size = ensure_buffer_size(name, buffer);
 

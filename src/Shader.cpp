@@ -183,10 +183,10 @@ namespace dz {
     };
 
     struct PushConstant {
-        void* ptr;
-        uint32_t size;
-        uint32_t offset;
-        VkShaderStageFlags stageFlags;
+        std::shared_ptr<void> ptr;
+        uint32_t size = 0;
+        uint32_t offset = 0;
+        VkShaderStageFlags stageFlags = (VkShaderStageFlags)0;
     };
 
     struct Shader {
@@ -1228,20 +1228,26 @@ namespace dz {
             {
                 const SpvReflectDescriptorBinding& binding_info = reflect_module->descriptor_bindings[i];
 
+                auto& set_binding = set_bindings[binding_info.set];
+
+                auto layout_binding_it = std::find_if(set_binding.begin(), set_binding.end(),
+                    [&](auto& val) {
+                        return val.binding == binding_info.binding;
+                    });
+
+                if (layout_binding_it != set_binding.end()) {
+                    auto& layout_binding = *layout_binding_it;
+                    layout_binding.stageFlags |= GetShaderStageFromModuleType(stage);
+                    continue;
+                }
+
                 VkDescriptorSetLayoutBinding layout_binding{};
                 layout_binding.binding = binding_info.binding;
                 layout_binding.descriptorType = static_cast<VkDescriptorType>(binding_info.descriptor_type);
                 layout_binding.descriptorCount = binding_info.count;
-                // The stageFlags should be OR'd for bindings that appear in multiple stages.
-                // For simplicity here, we get the stage from the module type.
-                // A more robust system might map SpvExecutionModel to VkShaderStageFlagBits.
-                VkShaderStageFlags vk_stage = GetShaderStageFromModuleType(stage);
-                layout_binding.stageFlags = vk_stage;
+                layout_binding.stageFlags = GetShaderStageFromModuleType(stage);
                 layout_binding.pImmutableSamplers = nullptr;
 
-                // Add the binding to the correct set
-                auto& set_binding = set_bindings[binding_info.set];
-                auto layout_index = set_binding.size();
                 set_binding.push_back(layout_binding);
                 shader->keyed_set_binding_index_map[binding_info.name] = binding_info.set;
             }
@@ -1342,12 +1348,14 @@ namespace dz {
             for (auto& block : module.reflection.push_constants) {
                 for (auto& member : block.members) {
                     auto exist_name_it = shader->push_constants_name_index.find(member.name);
-                    if (exist_name_it != shader->push_constants_name_index.end())
+                    if (exist_name_it != shader->push_constants_name_index.end()) {
+                        shader->push_constants[exist_name_it->second].stageFlags |= GetShaderStageFromModuleType(module_type);
                         continue;
+                    }
                     auto index = shader->push_constants.size();
                     void* pc = malloc(member.type.size_in_bytes);
                     shader->push_constants[index] = PushConstant{
-                        pc, member.type.size_in_bytes,
+                        std::shared_ptr<void>(pc, free), member.type.size_in_bytes,
                         member.offset,
                         GetShaderStageFromModuleType(module_type)
                     };
@@ -2065,7 +2073,7 @@ namespace dz {
                 pc.stageFlags,
                 pc.offset,
                 pc.size,
-                pc.ptr);
+                pc.ptr.get());
         }
     }
 
@@ -2084,7 +2092,7 @@ namespace dz {
         if (pc.size != size) {
             std::cerr << "pc.size != size, not copying data" << std::endl;
         }
-        memcpy(pc.ptr, data, size);
+        memcpy(pc.ptr.get(), data, size);
     }
 
     void draw_shader_draw_list(Renderer* renderer, ShaderDrawList& shaderDrawList) {

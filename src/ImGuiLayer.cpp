@@ -145,7 +145,8 @@ namespace dz {
 
         platform_io.Platform_GetWindowMinimized = [](ImGuiViewport* vp) -> bool {
             auto window = (WINDOW*)vp->PlatformHandle;
-            return window_get_minimized(window);
+            bool minimized = window_get_minimized(window);
+            return minimized;
         };
 
         platform_io.Platform_SetWindowTitle = [](ImGuiViewport* vp, const char* title) {
@@ -278,7 +279,8 @@ namespace dz {
 
             ImGui_ImplVulkan_NewFrame();
             ImGui::NewFrame();
-    
+            ImGuizmo::BeginFrame();
+            
             for (auto& [priority, fn_map] : priority_immediate_draw_fn_map)
                 for (auto& [id, pair] : fn_map)
                     pair.second(*this);

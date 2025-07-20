@@ -216,9 +216,9 @@ namespace dz
 	bool window_get_minimized(WINDOW* window_ptr) {
 #if defined(MACOS)
 		DZWindow* nsWindow = (DZWindow*)window_ptr;
-		return [nsWindow isMiniaturized];
+		return (window_ptr->minimized = [nsWindow isMiniaturized]);
 #elif defined(IOS)
-		return false;
+		return (window_ptr->minimized = false);
 #endif
 	}
 

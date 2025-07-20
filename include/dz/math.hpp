@@ -740,6 +740,19 @@ namespace dz
             mat<T, C, R> temp(*this);
             return temp *= rhs;
         }
+
+        constexpr mat<T, R, C> transpose()
+        {
+            mat<T, R, C> result {};
+            for (size_t i = 0; i < C; ++i)
+            {
+                for (size_t j = 0; j < R; ++j)
+                {
+                    result[j][i] = (*this)[i][j];
+                }
+            }
+            return result;
+        }
     };
 
     /**

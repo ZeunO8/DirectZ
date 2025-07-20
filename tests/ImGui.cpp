@@ -10,7 +10,7 @@ int main() {
         .vsync = true
     });
 
-    auto& imgui = window_get_ImGuiLayer(window);
+    auto& imgui = get_ImGuiLayer();
     
     imgui.AddImmediateDrawFunction(0.5, "Menu", [](auto& layer)
     {

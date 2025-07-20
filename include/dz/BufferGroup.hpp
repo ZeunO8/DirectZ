@@ -80,6 +80,11 @@ namespace dz
     uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name);
 
     /**
+    * @brief Gets the element size of a named buffer
+    */
+    uint32_t buffer_group_get_buffer_element_size(BufferGroup* buffer_group, const std::string& buffer_name);
+
+    /**
      * @brief Gets the raw buffer data pointer for a named buffer.
      * 
      * @param buffer_group Pointer to the BufferGroup.

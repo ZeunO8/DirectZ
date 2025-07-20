@@ -1,5 +1,8 @@
 ### DirectZ
 
+![GitHub](https://img.shields.io/github/license/ZeunO8/DirectZ)
+![GitHub repo size](https://img.shields.io/github/repo-size/ZeunO8/DirectZ)
+
 DirectZ `namespace dz` is a rewrite of **[Zeungine](https://github.com/Zeucor/Zeungine)** and aims to improve upon its core logic while adding *GPU driven rendering*.
 
 DirectZ uses `spirv_reflect` to reflect developer written `.glsl` shaders. Because of this, DirectZ allows developers to simply write shader code and have their render resources created automagically for you.

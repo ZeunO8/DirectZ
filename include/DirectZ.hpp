@@ -21,10 +21,13 @@
 #include <dz/zmalloc.hpp>
 #include <dz/D7Stream.hpp>
 #include <dz/ECS.hpp>
+#include <dz/ECS/components/PositionComponent.hpp>
+#include <dz/ECS/components/ColorComponent.hpp>
 #include <dz/ImGuiLayer.hpp>
 #include <dz/Reflectable.hpp>
 #include <dz/Camera.hpp>
 #include <dz/Displays.hpp>
+#include <dz/State.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)

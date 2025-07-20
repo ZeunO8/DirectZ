@@ -1,5 +1,4 @@
 namespace dz {
-	#include "WindowImpl.hpp"
 	
     WindowReflectableGroup::WindowReflectableGroup(WINDOW* window_ptr):
 		window_ptr(window_ptr) {
@@ -14,6 +13,10 @@ namespace dz {
 	
 	std::string& WindowReflectableGroup::GetName() {
 		return window_ptr->title;
+	}
+
+	void WindowReflectableGroup::NotifyNameChanged() {
+		window_set_title(window_ptr, window_ptr->title);
 	}
 	
 	const std::vector<Reflectable*>& WindowReflectableGroup::GetReflectables() {
@@ -72,30 +75,22 @@ namespace dz {
 		}
 	}
 
-	WINDOW* window_create(const WindowCreateInfo& info) {
-		auto window = new WINDOW{
-			.title = info.title,
-			.x = info.x,
-			.y = info.y,
-			.borderless = info.borderless,
-			.vsync = info.vsync
-		};
-
+	WINDOW* window_create_internal(WINDOW* window) {
 		dr.window_ptrs.push_back(window);
 		dr.window_reflectable_entries.push_back(new WindowReflectableGroup(window));
 
 		window->event_interface = new EventInterface(window);
 
 	#ifdef __ANDROID__
-		window->android_window = info.android_window;
 		if (!dr.android_asset_manager)
-			dr.android_asset_manager = info.android_asset_manager;
+			dr.android_asset_manager = window->android_asset_manager;
 		if (!dr.android_config)
-			AConfiguration_fromAssetManager(dr.android_config, info.android_asset_manager);
+			AConfiguration_fromAssetManager(dr.android_config, dr.android_asset_manager);
 	#endif
 
-		window->width = std::shared_ptr<float>(zmalloc<float>(1, info.width), [](float* fp) { zfree(fp, 1); });
-		window->height = std::shared_ptr<float>(zmalloc<float>(1, info.height), [](float* fp) { zfree(fp, 1); });
+		auto& width = *window->width;
+		auto& height = *window->height;
+
 		window->float_frametime = std::shared_ptr<float>(zmalloc<float>(1, 0), [](float* fp) { zfree(fp, 1); });
 		window->double_frametime = std::shared_ptr<double>(zmalloc<double>(1, 0), [](double* dp) { zfree(dp, 1); });
 		window->keys = std::shared_ptr<int32_t>(zmalloc<int32_t>(256, 0), [](int32_t* bp) { zfree(bp, 256); });
@@ -107,14 +102,14 @@ namespace dz {
 		auto& viewport = window->viewport;
 		viewport.x = 0.0f;
 		viewport.y = 0.0f;
-		viewport.width = info.width;
-		viewport.height = info.height;
+		viewport.width = width;
+		viewport.height = height;
 		viewport.minDepth = 0.0f;
 		viewport.maxDepth = 1.0f;
 
 		auto& scissor = window->scissor;
 		scissor.offset = {0, 0};
-		scissor.extent = {uint32_t(info.width), uint32_t(info.height)};
+		scissor.extent = {uint32_t(width), uint32_t(height)};
 
 		dr.window_count++;
 
@@ -132,8 +127,8 @@ namespace dz {
 			main_viewport->PlatformHandle = window;
 			main_viewport->Pos.x = window->x;
 			main_viewport->Pos.y = window->y;
-			main_viewport->Size.x = *window->width;
-			main_viewport->Size.y = *window->height;
+			main_viewport->Size.x = width;
+			main_viewport->Size.y = height;
 			main_viewport->PlatformWindowCreated = false;
 			window->imguiViewport = main_viewport;
 #ifdef _WIN32
@@ -143,8 +138,27 @@ namespace dz {
 
 		return window;
 	}
+
+	WINDOW* window_create_from_serial(Serial& serial) {
+		auto window = new WINDOW(serial);
+		return window_create_internal(window);
+	}
+
+	WINDOW* window_create(const WindowCreateInfo& info) {
+		auto window = new WINDOW(
+			info.title,
+			info.x, info.y,
+			info.borderless, info.vsync,
+			info.width, info.height
+#ifdef ANDROID
+			, info.android_window, info.android_asset_manager
+#endif
+		);
+
+		return window_create_internal(window);
+	}
 	
-	ImGuiLayer& window_get_ImGuiLayer(WINDOW* window) {
+	ImGuiLayer& get_ImGuiLayer() {
 		return dr.imguiLayer;
 	}
 
@@ -178,10 +192,12 @@ namespace dz {
 		}
 		window->destroy_platform();
 		auto& event_interface = *window->event_interface; 
-		while (!event_interface.window_free_queue.empty()) {
-			auto callback = event_interface.window_free_queue.front();
-			event_interface.window_free_queue.pop();
-			callback();
+		for (auto& [priority, window_free_queue] : event_interface.window_free_priorities) {
+			while (!window_free_queue.empty()) {
+				auto callback = window_free_queue.front();
+				window_free_queue.pop();
+				callback();
+			}
 		}
 		renderer_free(window->renderer);
 		delete window;
@@ -234,11 +250,11 @@ namespace dz {
 	}
 
 	void window_render(WINDOW* window, bool multi_window_render) {
-		renderer_render(window->renderer);
+		if (!window->minimized || !window_get_minimized(window))
+			renderer_render(window->renderer);
 	}
 
 	void windows_render() {
-		
 		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
 			window_render(dr.window_ptrs[index], true);
 	}
@@ -999,8 +1015,8 @@ namespace dz {
 		return window->event_interface;
 	}
 
-    void window_register_free_callback(WINDOW* window, const std::function<void()>& callback) {
-		window->event_interface->window_free_queue.push(callback);
+    void window_register_free_callback(WINDOW* window, float priority, const std::function<void()>& callback) {
+		window->event_interface->window_free_priorities[priority].push(callback);
 	}
 
 #if defined(_WIN32) || defined(__linux__)
@@ -1074,11 +1090,11 @@ namespace dz {
 #if defined(_WIN32) || defined(__linux__)
 	bool window_get_minimized(WINDOW* window_ptr) {
 #if defined(_WIN32)
-		return IsIconic(window_ptr->hwnd);
+		return (window_ptr->minimized = IsIconic(window_ptr->hwnd));
 #elif defined(__linux) && !defined(ANDROID)
 		Atom wm_state_atom = XInternAtom(window_ptr->display, "WM_STATE", True);
 		if (wm_state_atom == None)
-			return false;
+			return (window_ptr->minimized = false);
 
 		Atom actual_type;
 		int actual_format;
@@ -1111,9 +1127,9 @@ namespace dz {
 		if (prop)
 			XFree(prop);
 
-		return minimized;
+		return (window_ptr->minimized = minimized);
 #elif defined(ANDROID)
-		return false;
+		return (window_ptr->minimized = false);
 #endif
 	}
 	

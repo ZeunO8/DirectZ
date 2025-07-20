@@ -1,6 +1,4 @@
 namespace dz {
-	#include "WindowImpl.hpp"
-	#include "RendererImpl.hpp"
 	struct QueueFamilyIndices
 	{
 		int32_t graphicsAndComputeFamily = -1;
@@ -928,6 +926,7 @@ namespace dz {
 		vk_check("vkWaitForFences", vkWaitForFences(dr.device, 1,
 			&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
+_aquire:
 		VkResult res = vkAcquireNextImageKHR(dr.device,
 			renderer->swapChain, UINT64_MAX,
 			renderer->imageAvailableSemaphores[renderer->currentFrame],
@@ -936,7 +935,7 @@ namespace dz {
 		if (res == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			recreate_swap_chain(renderer);
-			return;
+			goto _aquire;
 		}
 		else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
 		{
@@ -995,12 +994,15 @@ namespace dz {
 		}
 	}
 
-	void recreate_swap_chain(Renderer* renderer)
+	bool recreate_swap_chain(Renderer* renderer)
 	{
 		destroy_swap_chain(renderer);
-		create_swap_chain(renderer);
-		create_image_views(renderer);
-		create_framebuffers(renderer);
+		if (create_swap_chain(renderer)) {
+			create_image_views(renderer);
+			create_framebuffers(renderer);
+			return true;
+		}
+		return false;
 	}
 
 	bool swap_buffers(Renderer* renderer)
@@ -1008,7 +1010,8 @@ namespace dz {
 		auto result = vkQueuePresentKHR(dr.presentQueue, &renderer->presentInfo);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 		{
-			recreate_swap_chain(renderer);
+			if (!window_get_minimized(renderer->window))
+				return recreate_swap_chain(renderer);
 			// *viewportResized = false;
 		}
 		else

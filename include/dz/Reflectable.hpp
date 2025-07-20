@@ -5,12 +5,20 @@
 #include <typeinfo>
 #include "GlobalUID.hpp"
 
-enum class ReflectableTypehint {
+enum class ReflectableTypeHint {
     FLOAT,
+    VEC2,
+    VEC3,
+    VEC3_RGB,
     VEC4,
     VEC4_RGBA,
     MAT4,
     STRUCT
+};
+
+struct IGetComponentDataVoid {
+    virtual ~IGetComponentDataVoid() = default;
+    virtual void* GetComponentDataVoid(int component_index) { return nullptr; }
 };
 
 struct Reflectable {
@@ -18,8 +26,8 @@ struct Reflectable {
 
     virtual int GetID() = 0;
     virtual std::string& GetName() = 0;
-    virtual ReflectableTypehint GetTypeHint() {
-        return ReflectableTypehint::STRUCT;
+    virtual ReflectableTypeHint GetTypeHint() {
+        return ReflectableTypeHint::STRUCT;
     }
 
     virtual int GetPropertyIndexByName(const std::string& prop_name) = 0;
@@ -49,7 +57,8 @@ struct ReflectableGroup {
         Scene,
         Entity,
         Camera,
-        Light
+        Light,
+        Provider
     };
     bool disabled = false;
     size_t id;
@@ -96,7 +105,7 @@ struct ReflectableGroup {
 }
 
 #define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
-    auto& data = GetData<PositionComponent>(); \
+    auto data = i->GetComponentDataVoid(index); \
     auto index_it = INDEX_NAMES.find(prop_index); \
     if (index_it == INDEX_NAMES.end()) \
         return nullptr; \
@@ -105,7 +114,7 @@ struct ReflectableGroup {
     if (it == NAME_INDEXES.end()) \
         return nullptr; \
     auto offset = it->second.second; \
-    return ((char*)&data) + offset; \
+    return ((char*)data) + offset; \
 }
 
 #define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(const std::string& prop_name) override { \

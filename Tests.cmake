@@ -2,9 +2,12 @@ include(CTest)
 function(add_dz_test TEST_NAME TEST_SRC)
     add_executable(${TEST_NAME} ${TEST_SRC})
     target_include_directories(${TEST_NAME} PRIVATE
+        include
         ${Vulkan_INCLUDE_DIRS}
         ${imgui_SOURCE_DIR}
-        include)
+	    ${imguizmo_SOURCE_DIR}
+	    ${iostreams_SOURCE_DIR}/include
+    )
     target_link_libraries(${TEST_NAME} PRIVATE DirectZ)
     if(ANDROID)
         target_link_libraries(${TEST_NAME} PRIVATE android log)

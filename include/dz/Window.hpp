@@ -49,6 +49,7 @@ namespace dz
             return ReflectableGroup::Window;
         }
         std::string& GetName() override;
+        void NotifyNameChanged() override;
         const std::vector<Reflectable*>& GetReflectables() override;
     };
 
@@ -225,9 +226,9 @@ namespace dz
     void windows_render();
 
     /**
-    * @brief Gets the ImGuiLayer of a window
+    * @brief Gets the global ImGuiLayer
     */
-    ImGuiLayer& window_get_ImGuiLayer(WINDOW*);
+    ImGuiLayer& get_ImGuiLayer();
 
     /**
     * @brief Returns a reference to the title
@@ -419,7 +420,7 @@ namespace dz
     /**
     * @brief Adds a destroy event callback function
     */
-    void window_register_free_callback(WINDOW*, const std::function<void()>&);
+    void window_register_free_callback(WINDOW*, float priority, const std::function<void()>&);
 
     /**
     * @brief sets Window mouse capture (for mouse capture outside window)

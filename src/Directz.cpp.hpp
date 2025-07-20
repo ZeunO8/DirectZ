@@ -38,6 +38,14 @@ using namespace dz;
 #endif
 #undef min
 #undef max
+namespace dz {
+	#include "WindowImpl.hpp"
+	#include "RendererImpl.hpp"
+    /**
+    * @brief Creates a Window given a Serial interface
+    */
+    WINDOW* window_create_from_serial(Serial& serial);
+}
 static std::unordered_map<ShaderModuleType, shaderc_shader_kind> stageEShaderc = {
 	{ShaderModuleType::Vertex, shaderc_vertex_shader},
 	{ShaderModuleType::Fragment, shaderc_fragment_shader},
@@ -46,8 +54,35 @@ static std::unordered_map<ShaderModuleType, VkShaderStageFlagBits> stageFlags = 
 	{ShaderModuleType::Vertex, VK_SHADER_STAGE_VERTEX_BIT},
 	{ShaderModuleType::Fragment, VK_SHADER_STAGE_FRAGMENT_BIT},
 	{ShaderModuleType::Compute, VK_SHADER_STAGE_COMPUTE_BIT}};
+
+struct StateHolder {
+    struct Restorer {
+        Restorable* restorable_ptr = nullptr;
+        bool owned_by_state_holder = false;
+        int cid = 0;
+    };
+    inline static std::unordered_map<int, std::function<Restorable*(Serial&)>> c_id_fn_map = { 
+        { CID_WINDOW, [](Serial& serial) -> Restorable* {
+            return window_create_from_serial(serial);
+        } }
+    };
+    std::filesystem::path path;
+    std::istream* istream_ptr = nullptr;
+    bool use_istream = false;
+    std::ostream* ostream_ptr = nullptr;
+    bool use_ostream = false;
+    std::vector<Restorer> restorables;
+    std::map<int, std::function<bool(Serial&)>> static_restores = {
+        { GlobalUID::SID, GlobalUID::RestoreFunction }
+    };
+    std::map<int, std::function<bool(Serial&)>> static_backups = {
+        { GlobalUID::SID, GlobalUID::BackupFunction }
+    };
+    bool loaded = false;
+};
 struct DirectRegistry
 {
+    StateHolder stateHolder;
     uint8_t windowType;
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
@@ -85,5 +120,5 @@ namespace dz
 {
     bool vk_check(const char* fn, VkResult result);
     void vk_log(const char* fn, VkResult result);
-    void recreate_swap_chain(Renderer* renderer);
+    bool recreate_swap_chain(Renderer* renderer);
 }

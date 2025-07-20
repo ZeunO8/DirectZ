@@ -94,10 +94,10 @@ struct Entity
     VEC4 index_meta;
 };
 
-layout(std430, binding = 2) buffer EntitiesBuffer
+layout(std430, binding = 2) buffer EntitysBuffer
 {
-    Entity entities[];
-} Entities;
+    Entity entitys[];
+} Entitys;
 
 struct Camera
 {
@@ -126,7 +126,7 @@ int get_entity_id()
 Entity get_entity(int entity_id)
 {
     if (entity_id >= 0) {
-        return Entities.entities[entity_id];
+        return Entitys.entitys[entity_id];
     }
     Entity defaultEntity;
     defaultEntity.model = mat4(1);
@@ -201,7 +201,7 @@ int main()
     });
 
     auto main_buffer_group = buffer_group_create("main_buffer_group");
-    buffer_group_restrict_to_keys(main_buffer_group, {"Meshes", "Materials", "Entities", "Cameras"});
+    buffer_group_restrict_to_keys(main_buffer_group, {"Meshes", "Materials", "Entitys", "Cameras"});
     auto windows_buffer_group = buffer_group_create("windows_buffer_group");
     buffer_group_restrict_to_keys(windows_buffer_group, {"WindowStates"});
 
@@ -234,21 +234,21 @@ WINDOW_STATE_S_A_B + R"(
 
 void main() {
     uint id = gl_GlobalInvocationID.x;
-    if (id >= Entities.entities.length())
+    if (id >= Entitys.entitys.length())
         return;
-    Real x = Entities.entities[id].position.x;
+    Real x = Entitys.entitys[id].position.x;
     int right = WindowStates.states[0].keys[19];
     int left = WindowStates.states[0].keys[20];
     int up = WindowStates.states[0].keys[17];
     int down = WindowStates.states[0].keys[18];
     if (right == 1)
-        Entities.entities[id].position.x += (2.5 * WindowStates.states[0].frametime);
+        Entitys.entitys[id].position.x += (2.5 * WindowStates.states[0].frametime);
     if (left == 1)
-        Entities.entities[id].position.x -= (2.5 * WindowStates.states[0].frametime);
+        Entitys.entitys[id].position.x -= (2.5 * WindowStates.states[0].frametime);
     if (up == 1)
-        Entities.entities[id].position.y -= (2.5 * WindowStates.states[0].frametime);
+        Entitys.entitys[id].position.y -= (2.5 * WindowStates.states[0].frametime);
     if (down == 1)
-        Entities.entities[id].position.y += (2.5 * WindowStates.states[0].frametime);
+        Entitys.entitys[id].position.y += (2.5 * WindowStates.states[0].frametime);
 }
 )");
 
@@ -259,7 +259,7 @@ void main() {
     auto green_entity_shader = shader_create();
     set_shader_defines(green_entity_shader);
 
-    DrawListManager<Entity> entity_draw_list_mg("Entities", [&](auto buffer_group, auto& entity) -> DrawTuple {
+    DrawListManager<Entity> entity_draw_list_mg("Entitys", [&](auto buffer_group, auto& entity) -> DrawTuples {
         auto mesh_index = entity.index_meta[0];
         auto material_index = entity.index_meta[1];
         auto mesh_view = buffer_group_get_buffer_element_view(buffer_group, "Meshes", mesh_index);
@@ -285,7 +285,9 @@ void main() {
             vert_count = 6;
             break;
         }
-        return {chosen_shader, vert_count}; // return 6 indices for a plane for now, todo get size based on mesh.shape_type
+        return {
+            {chosen_shader, vert_count}
+        };
     });
 
     window_add_drawn_buffer_group(main_window, &entity_draw_list_mg, main_buffer_group);
@@ -385,7 +387,7 @@ void main()
     buffer_group_set_buffer_element_count(main_buffer_group, "Meshes", 1);
     std::vector<Entity*> entity_ptrs;
     entity_ptrs.resize(5);
-    buffer_group_set_buffer_element_count(main_buffer_group, "Entities", entity_ptrs.size());
+    buffer_group_set_buffer_element_count(main_buffer_group, "Entitys", entity_ptrs.size());
     buffer_group_set_buffer_element_count(main_buffer_group, "Cameras", 1);
     
     buffer_group_initialize(main_buffer_group);
@@ -415,7 +417,7 @@ void main()
 
     for (size_t i = 0; i < entity_ptrs.size(); ++i)
     {
-        auto entity_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entities", i);
+        auto entity_view = buffer_group_get_buffer_element_view(main_buffer_group, "Entitys", i);
         auto& entity = entity_view.as_struct<Entity>();
         entity_ptrs[i] = &entity;
     }

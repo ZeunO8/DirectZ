@@ -7,7 +7,9 @@ set(DirectZ_TGTS
     shaderc shaderc_util spirv-reflect-static
     glslang GenericCodeGen OSDependent MachineIndependent
     SPIRV SPIRV-Tools-static SPIRV-Tools-opt
-    imgui)
+    imgui imguizmo
+	iostreams
+	archive_static)
 
 foreach(TGT ${DirectZ_TGTS})
     set_target_properties(${TGT} PROPERTIES
@@ -26,6 +28,10 @@ foreach(TGT ${DirectZ_TGTS})
 endforeach()
 
 # Export targets
+set_target_properties(archive_static PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "")
+IF(NOT WIN32 OR CYGWIN OR NOT BUILD_SHARED_LIBS)
+  SET_TARGET_PROPERTIES(archive_static PROPERTIES OUTPUT_NAME archive_static)
+endif()
 if(ANDROID)
     set_target_properties(spirv-reflect-static PROPERTIES PUBLIC_HEADER "")
     install(TARGETS ${DirectZ_TGTS}
@@ -74,6 +80,12 @@ if(NOT ANDROID)
     install(FILES
         ${imgui_SOURCE_DIR}/imgui.h
         ${imgui_SOURCE_DIR}/imconfig.h
+        ${imguizmo_SOURCE_DIR}/GraphEditor.h
+        ${imguizmo_SOURCE_DIR}/ImCurveEdit.h
+        ${imguizmo_SOURCE_DIR}/ImGradient.h
+        ${imguizmo_SOURCE_DIR}/ImGuizmo.h
+        ${imguizmo_SOURCE_DIR}/ImSequencer.h
+        ${imguizmo_SOURCE_DIR}/ImZoomSlider.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT Core)
     install(FILES

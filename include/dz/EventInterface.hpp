@@ -5,12 +5,12 @@ namespace dz
 {
     struct EventInterface
     {
-        friend void window_register_free_callback(WINDOW*, const std::function<void()>&);
+        friend void window_register_free_callback(WINDOW*, float priority, const std::function<void()>&);
         friend void window_free(WINDOW* window);
     private:
         WINDOW* window;
     protected:
-        std::queue<std::function<void()>> window_free_queue;
+        std::map<float, std::queue<std::function<void()>>> window_free_priorities;
     public:
         EventInterface(WINDOW* window);
 #ifdef __ANDROID__

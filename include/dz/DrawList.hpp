@@ -48,9 +48,9 @@ namespace dz
     // using FramebufferDrawList = std::unordered_map<Framebuffer*, ShaderDrawList>;
 
     /**
-    * @brief A DrawTuple is the information required to produce a DrawList in a DrawListManager
+    * @brief A DrawTuples is the information required to produce a DrawList in a DrawListManager
     */
-    using DrawTuple = std::tuple<Shader*, uint32_t>;
+    using DrawTuples = std::vector<std::tuple<Shader*, uint32_t>>;
 
     /**
     * @brief A CameraTuple is the information required to draw from a cameras perspective
