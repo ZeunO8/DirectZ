@@ -48,17 +48,15 @@ void dz::CameraInit(
 }
 
 void dz::CameraInit(Camera& camera) {
-    auto adj_position = camera.position;
-    adj_position[1] *= -1.f;
     switch(Camera::ProjectionType(camera.type))
     {
     case Camera::Perspective:
         camera.projection = perspective(camera.fov, camera.aspect, camera.nearPlane, camera.farPlane);
-        camera.view = lookAt(adj_position, camera.center, camera.up);
+        camera.view = lookAt(camera.position, camera.center, camera.up);
         break;
     case Camera::Orthographic:
         camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.nearPlane, camera.farPlane);
-        camera.view = lookAt(adj_position, camera.center, camera.up);
+        camera.view = lookAt(camera.position, camera.center, camera.up);
         break;
     default: break;
     }

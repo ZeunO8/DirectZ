@@ -31,7 +31,7 @@ vec4 GetEntityVertexColor(in Entity entity) {
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
-    final_position = vec4(shape_vertex, 1.0);
+    vec4 vertex_position = vec4(shape_vertex, 1.0);
     final_color = GetEntityVertexColor(entity);
 )", ShaderModuleType::Vertex}
         };

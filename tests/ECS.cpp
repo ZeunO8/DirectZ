@@ -70,6 +70,7 @@ auto GetRegisterComponentsLambda() {
     return [](auto& ecs) {
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
+        assert(ecs.template RegisterComponent<ScaleComponent>());
         return true;
     };
 }
@@ -137,6 +138,7 @@ int main() {
         e1.shape_index = 1;
         auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
         auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
+        auto& e1_scale_component = ecs.ConstructComponent<ScaleComponent>(e1.id, {1.0f, 1.0f, 1.0f, 1.0f});
 
         auto e2_id = eids[1];
 
@@ -148,6 +150,7 @@ int main() {
         auto& e2 = *e2_ptr;
         auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
         auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
+        auto& e2_scale_component = ecs.ConstructComponent<ScaleComponent>(e2.id, {1.0f, 1.0f, 1.0f, 1.0f});
     }
 
 #ifdef ENABLE_LIGHTS
@@ -367,9 +370,29 @@ int main() {
                     assert(entity_ptr);
                     auto& entity = *entity_ptr;
                     try {
-                        auto& entty_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
+                        static auto manipulate_type = ImGuizmo::TRANSLATE;
+                        if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+                            manipulate_type = ImGuizmo::TRANSLATE;
+                        }
+                        else if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+                            manipulate_type = ImGuizmo::SCALE;
+                        }
+                        else if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+                            manipulate_type = ImGuizmo::ROTATE;
+                        }
+                        auto& entity_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
+                        auto& entity_scale = ecs.GetTypeComponentData<ScaleComponent>(entity_group.id);
                         mat<float, 4, 4> transform(1.0f);
-                        transform[3] = entty_position;
+                        transform[3] = entity_position;
+                        transform[0][0] *= entity_scale[0];
+                        transform[0][1] *= entity_scale[0];
+                        transform[0][2] *= entity_scale[0];
+                        transform[1][0] *= entity_scale[1];
+                        transform[1][1] *= entity_scale[1];
+                        transform[1][2] *= entity_scale[1];
+                        transform[2][0] *= entity_scale[2];
+                        transform[2][1] *= entity_scale[2];
+                        transform[2][2] *= entity_scale[2];
                         // transform = transform.transpose();
                         ImGuizmo::SetDrawlist();
                         ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
@@ -383,7 +406,7 @@ int main() {
                         ImGuizmo::Manipulate(
                             &camera_view[0][0],
                             &camera_projection[0][0],
-                            ImGuizmo::TRANSLATE, // or ROTATE / SCALE
+                            manipulate_type, // or ROTATE / SCALE
                             ImGuizmo::LOCAL,     // or WORLD
                             &transform[0][0],
                             nullptr              // optional delta matrix out
@@ -394,9 +417,12 @@ int main() {
                             float rot[3] = {0};
                             float scale[3] = {0};
                             ImGuizmo::DecomposeMatrixToComponents(&transform[0][0], pos, rot, scale);
-                            entty_position[0] = pos[0];
-                            entty_position[1] = pos[1];
-                            entty_position[2] = pos[2];
+                            entity_position[0] = pos[0];
+                            entity_position[1] = pos[1];
+                            entity_position[2] = pos[2];
+                            entity_scale[0] = scale[0];
+                            entity_scale[1] = scale[1];
+                            entity_scale[2] = scale[2];
                         }
                     }
                     catch (...) { }
