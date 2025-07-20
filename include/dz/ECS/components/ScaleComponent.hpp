@@ -2,14 +2,14 @@
 #include "../Component.hpp"
 #include "../Provider.hpp"
 namespace dz::ecs {
-    struct PositionComponent;
+    struct ScaleComponent;
 }
-DEF_COMPONENT_ID(dz::ecs::PositionComponent, 1);
-DEF_COMPONENT_COMPONENT_NAME(dz::ecs::PositionComponent, "Position");
-DEF_COMPONENT_STRUCT_NAME(dz::ecs::PositionComponent, "PositionComponent");
+DEF_COMPONENT_ID(dz::ecs::ScaleComponent, 3);
+DEF_COMPONENT_COMPONENT_NAME(dz::ecs::ScaleComponent, "Scale");
+DEF_COMPONENT_STRUCT_NAME(dz::ecs::ScaleComponent, "ScaleComponent");
 
 namespace dz::ecs {
-    struct PositionComponent : Component, Provider<PositionComponent> {
+    struct ScaleComponent : Component, Provider<ScaleComponent> {
         using DataT = vec<float, 4>;
         inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
             {"x", {0, 0}},
@@ -36,7 +36,7 @@ namespace dz::ecs {
             &typeid(float)
         };
         DEF_GET_ID;
-        DEF_GET_NAME(PositionComponent);
+        DEF_GET_NAME(ScaleComponent);
         ReflectableTypeHint GetTypeHint() override {
             return ReflectableTypeHint::VEC3;
         }
@@ -47,16 +47,15 @@ namespace dz::ecs {
         DEF_GET_PROPERTY_TYPEINFOS(typeinfos);
         
         inline static float Priority = 1.5f;
-        inline static std::string ProviderName = "Position";
-        inline static std::string StructName = "PositionComponent";
-        inline static std::string GLSLStruct = "#define PositionComponent vec4\n";
+        inline static std::string ProviderName = "Scale";
+        inline static std::string StructName = "ScaleComponent";
+        inline static std::string GLSLStruct = "#define ScaleComponent vec4\n";
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {0.0f, R"(            
-    mat4 model = mat4(1.0);
-)", ShaderModuleType::Vertex},
             {1.5f, R"(
-    model[3] = vec4(positioncomponent.xyz, 1.0);
+    model[0].xyz *= scalecomponent.x;
+    model[1].xyz *= scalecomponent.y;
+    model[2].xyz *= scalecomponent.z;
 )", ShaderModuleType::Vertex}
         };
 

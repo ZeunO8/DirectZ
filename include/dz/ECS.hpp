@@ -1129,7 +1129,6 @@ void main() {
     outID = gl_InstanceIndex;
     Entity entity = GetEntityData(outID);
     vec4 final_color;
-    vec4 final_position;
     int t_component_index = -1;
 )";
 
@@ -1154,7 +1153,7 @@ void main() {
     vec3 normal_vs = normalize(mat3(transpose(inverse(model))) * shape_normal);
     gl_Position = clip_position;
     outColor = final_color;
-    outPosition = world_position;
+    outPosition = model * vertex_position;
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
 }

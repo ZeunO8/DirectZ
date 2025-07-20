@@ -49,7 +49,7 @@ struct Camera {
     Camera camera = Cameras.data[pc.camera_index];
 )", ShaderModuleType::Fragment},
             {2.0f, R"(
-    vec4 view_position = camera.view * world_position;
+    vec4 view_position = camera.view * model * vertex_position;
     vec4 clip_position = camera.projection * view_position;
 )", ShaderModuleType::Vertex}
         };

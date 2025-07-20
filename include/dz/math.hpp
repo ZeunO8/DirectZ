@@ -380,6 +380,38 @@ namespace dz
         }
     };
 
+    template <typename T, size_t N>
+    struct color_vec : public vec<T, N>
+    {
+        using Base = vec<T, N>;
+
+        using Base::data;
+        using Base::operator=;
+        using Base::operator+=;
+        using Base::operator-=;
+        using Base::operator*=;
+        using Base::operator/=;
+        using Base::operator+;
+        using Base::operator-;
+        using Base::operator*;
+        using Base::operator/;
+        using Base::operator[];
+        using Base::length;
+        using Base::normalize;
+
+        template <typename... Args>
+        color_vec(Args&&... args) : Base(std::forward<Args>(args)...) { }
+
+        template <typename OT, size_t ON>
+        color_vec(const vec<OT, ON>& other) : Base(other) { }
+
+        color_vec() = default;
+        color_vec(const color_vec&) = default;
+        color_vec& operator=(const color_vec&) = default;
+        color_vec(color_vec&&) noexcept = default;
+        color_vec& operator=(color_vec&&) noexcept = default;
+    };
+
     /**
     * @brief A generic fixed-size matrix template supporting common matrix operations.
     * 

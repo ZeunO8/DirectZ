@@ -24,7 +24,7 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-// #define ENABLE_LIGHTS
+#define ENABLE_LIGHTS
 using ExampleECS = ECS<CID_MIN, Entity, Component, Shape, Camera
 #ifdef ENABLE_LIGHTS
 , Light
@@ -70,6 +70,7 @@ auto GetRegisterComponentsLambda() {
     return [](auto& ecs) {
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
+        assert(ecs.template RegisterComponent<ScaleComponent>());
         return true;
     };
 }
@@ -137,6 +138,7 @@ int main() {
         e1.shape_index = 1;
         auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
         auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
+        auto& e1_scale_component = ecs.ConstructComponent<ScaleComponent>(e1.id, {1.0f, 1.0f, 1.0f, 1.0f});
 
         auto e2_id = eids[1];
 
@@ -148,6 +150,7 @@ int main() {
         auto& e2 = *e2_ptr;
         auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
         auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
+        auto& e2_scale_component = ecs.ConstructComponent<ScaleComponent>(e2.id, {1.0f, 1.0f, 1.0f, 1.0f});
     }
 
 #ifdef ENABLE_LIGHTS
@@ -367,9 +370,29 @@ int main() {
                     assert(entity_ptr);
                     auto& entity = *entity_ptr;
                     try {
-                        auto& entty_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
+                        static auto manipulate_type = ImGuizmo::TRANSLATE;
+                        if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+                            manipulate_type = ImGuizmo::TRANSLATE;
+                        }
+                        else if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+                            manipulate_type = ImGuizmo::SCALE;
+                        }
+                        else if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+                            manipulate_type = ImGuizmo::ROTATE;
+                        }
+                        auto& entity_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
+                        auto& entity_scale = ecs.GetTypeComponentData<ScaleComponent>(entity_group.id);
                         mat<float, 4, 4> transform(1.0f);
-                        transform[3] = entty_position;
+                        transform[3] = entity_position;
+                        transform[0][0] *= entity_scale[0];
+                        transform[0][1] *= entity_scale[0];
+                        transform[0][2] *= entity_scale[0];
+                        transform[1][0] *= entity_scale[1];
+                        transform[1][1] *= entity_scale[1];
+                        transform[1][2] *= entity_scale[1];
+                        transform[2][0] *= entity_scale[2];
+                        transform[2][1] *= entity_scale[2];
+                        transform[2][2] *= entity_scale[2];
                         // transform = transform.transpose();
                         ImGuizmo::SetDrawlist();
                         ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
@@ -383,7 +406,7 @@ int main() {
                         ImGuizmo::Manipulate(
                             &camera_view[0][0],
                             &camera_projection[0][0],
-                            ImGuizmo::TRANSLATE, // or ROTATE / SCALE
+                            manipulate_type, // or ROTATE / SCALE
                             ImGuizmo::LOCAL,     // or WORLD
                             &transform[0][0],
                             nullptr              // optional delta matrix out
@@ -394,9 +417,12 @@ int main() {
                             float rot[3] = {0};
                             float scale[3] = {0};
                             ImGuizmo::DecomposeMatrixToComponents(&transform[0][0], pos, rot, scale);
-                            entty_position[0] = pos[0];
-                            entty_position[1] = pos[1];
-                            entty_position[2] = pos[2];
+                            entity_position[0] = pos[0];
+                            entity_position[1] = pos[1];
+                            entity_position[2] = pos[2];
+                            entity_scale[0] = scale[0];
+                            entity_scale[1] = scale[1];
+                            entity_scale[2] = scale[2];
                         }
                     }
                     catch (...) { }
@@ -511,6 +537,7 @@ int main() {
                 for (; reflect_it != reflect_end; reflect_it++) {
                     reflect_dist = std::distance(reflect_begin, reflect_it);
                     auto& reflectable = **reflect_it;
+                    ImGui::PushID(&reflectable);
                     const auto& reflectable_name = reflectable.GetName();
 
                     if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -524,7 +551,6 @@ int main() {
                         case ReflectableTypeHint::VEC2:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat2("##vec2", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -534,7 +560,6 @@ int main() {
                         case ReflectableTypeHint::VEC3:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat3("##vec3", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -544,8 +569,7 @@ int main() {
                         case ReflectableTypeHint::VEC3_RGB:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
-                            if (ImGui::ColorEdit3("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                            if (ImGui::ColorEdit3("##rgb", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
                             }
@@ -554,7 +578,6 @@ int main() {
                         case ReflectableTypeHint::VEC4:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -564,7 +587,6 @@ int main() {
                         case ReflectableTypeHint::VEC4_RGBA:
                         {
                             auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                            // ImGui::SetNextItemWidth(250);
                             if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
                                 reflectable.NotifyChange(0);
                                 update_iterators();
@@ -658,6 +680,20 @@ int main() {
                                         update_iterators();
                                     }
                                 }
+                                else if (*type_info == typeid(color_vec<float, 3>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<color_vec<float, 3>>(prop_index);
+                                    if (ImGui::ColorEdit3("##rgb", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                                        reflectable.NotifyChange(0);
+                                        update_iterators();
+                                    }
+                                }
+                                else if (*type_info == typeid(color_vec<float, 4>)) {
+                                    auto& value = reflectable.GetPropertyByIndex<color_vec<float, 4>>(prop_index);
+                                    if (ImGui::ColorEdit4("##rgba", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                                        reflectable.NotifyChange(0);
+                                        update_iterators();
+                                    }
+                                }
                                 else {
                                     ImGui::TextDisabled("<Unsupported type>");
                                 }
@@ -671,6 +707,8 @@ int main() {
 
                         ImGui::PopStyleVar(2);
                     }
+                
+                    ImGui::PopID();
                 }
 
                 ImGui::PopID();

@@ -10,7 +10,7 @@ DEF_COMPONENT_STRUCT_NAME(dz::ecs::ColorComponent, "ColorComponent");
 
 namespace dz::ecs {
     struct ColorComponent : Component, Provider<ColorComponent> {
-        using DataT = vec<float, 4>;
+        using DataT = color_vec<float, 4>;
         inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
             {"r", {0, 0}},
             {"g", {1, 4}},
