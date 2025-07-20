@@ -1010,6 +1010,22 @@ namespace dz {
             return *(typename TAComponent::DataT*)GetComponentDataVoid(component_index);
         }
 
+        template<typename TAComponent>
+        TAComponent::DataT& GetTypeComponentData(int entity_id) {
+            auto component_type = int(TComponenTypeID<TAComponent>::id);
+            auto entity_ptr = GetEntity(entity_id);
+            if (!entity_ptr)
+                throw std::runtime_error("Entity not found with id!");
+            auto& entity = *entity_ptr;
+            for (auto i = 0; i < entity.componentsCount; ++i) {
+                auto component_index = entity.components[i];
+                auto& component_data = GetComponentRootData(component_index);
+                if (component_data.type == component_type)
+                    return GetComponentData<TAComponent>(component_index);
+            }
+            throw std::runtime_error("Component not found with type!");
+        }
+
         void* GetComponentDataVoid(int component_index) override {
             auto& root_data = GetComponentRootData(component_index);
 
