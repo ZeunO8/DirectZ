@@ -53,9 +53,10 @@ namespace dz::ecs {
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {1.5f, R"(
-    model[0].xyz *= scalecomponent.x;
-    model[1].xyz *= scalecomponent.y;
-    model[2].xyz *= scalecomponent.z;
+    mat4 scale = mat4(1.0);
+    scale[0].xyz *= scalecomponent.x;
+    scale[1].xyz *= scalecomponent.y;
+    scale[2].xyz *= scalecomponent.z;
 )", ShaderModuleType::Vertex}
         };
 

@@ -52,7 +52,29 @@ namespace dz::ecs {
         inline static std::string GLSLStruct = "#define RotationComponent vec4\n";
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {1.5f, R"(
+            {1.6f, R"(
+    mat4 rotX = mat4(1.0);
+    rotX[1][1] =  cos(rotationcomponent.x);
+    rotX[1][2] = -sin(rotationcomponent.x);
+    rotX[2][1] =  sin(rotationcomponent.x);
+    rotX[2][2] =  cos(rotationcomponent.x);
+
+    mat4 rotY = mat4(1.0);
+    rotY[0][0] =  cos(rotationcomponent.y);
+    rotY[0][2] =  sin(rotationcomponent.y);
+    rotY[2][0] = -sin(rotationcomponent.y);
+    rotY[2][2] =  cos(rotationcomponent.y);
+
+    mat4 rotZ = mat4(1.0);
+    rotZ[0][0] =  cos(rotationcomponent.z);
+    rotZ[0][1] = -sin(rotationcomponent.z);
+    rotZ[1][0] =  sin(rotationcomponent.z);
+    rotZ[1][1] =  cos(rotationcomponent.z);
+
+    // Apply rotation in object space (local)
+    mat4 rot = rotZ * rotY * rotX;
+
+    transform = model * rot * scale;
 )", ShaderModuleType::Vertex}
         };
 

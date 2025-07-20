@@ -512,6 +512,16 @@ namespace dz
             return *this;
         }
 
+        template <size_t N>
+        inline static mat translate_static(const vec<T, N>& v)
+        {
+            mat m(1.0f);
+            static_assert(C == 4 && R == 4 && N == 3, "translate requires a 4x4 matrix and 3D vector");
+            auto& pos = (vec<T, N>&)(m)[3];
+            pos += v;
+            return m;
+        }
+
         /**
         * @brief Applies a component-wise scale to the matrix columns.
         * 
@@ -531,6 +541,18 @@ namespace dz
                 y *= v[l];
             }
             return *this;
+        }
+
+        template <size_t N>
+        inline static mat scale_static(const vec<T, N>& v)
+        {
+            mat m(1.0f);
+            for (size_t l = 0; l < N; ++l)
+            {
+                auto& y = (vec<T, N>&)(m)[l];
+                y *= v[l];
+            }
+            return m;
         }
 
         /**
@@ -624,6 +646,86 @@ namespace dz
             }
 
             return *this;
+        }
+
+        template <size_t N>
+        inline static mat rotate_static(T angle, const vec<T, N>& axis)
+        {
+            static_assert(N == 2 || N == 3, "Rotation axis must be 2D or 3D");
+            constexpr size_t D = N;
+
+            mat m(1.0f);
+
+            T c = std::cos(angle);
+            T s = std::sin(angle);
+            T ic = T(1) - c;
+
+            vec<T, 3> a{};
+            if constexpr (N == 2)
+            {
+                a[0] = axis[0];
+                a[1] = axis[1];
+                a[2] = T(0); // implicit Z = 0 for 2D rotation
+            }
+            else
+            {
+                a = axis.normalize();
+            }
+
+            T x = a[0];
+            T y = a[1];
+            T z = a[2];
+
+            // Precompute rotation matrix components
+            T r00, r01, r02;
+            T r10, r11, r12;
+            T r20, r21, r22;
+
+            if constexpr (N == 2)
+            {
+                r00 =  c; r01 = -s; r02 = 0;
+                r10 =  s; r11 =  c; r12 = 0;
+                r20 =  0; r21 =  0; r22 = 1;
+            }
+            else
+            {
+                r00 = x * x * ic + c;
+                r01 = x * y * ic - z * s;
+                r02 = x * z * ic + y * s;
+
+                r10 = y * x * ic + z * s;
+                r11 = y * y * ic + c;
+                r12 = y * z * ic - x * s;
+
+                r20 = z * x * ic - y * s;
+                r21 = z * y * ic + x * s;
+                r22 = z * z * ic + c;
+            }
+
+            // Apply rotation matrix to each column vector
+            for (size_t cidx = 0; cidx < C; ++cidx)
+            {
+                vec<T, R>& col = (vec<T, R>&)(m)[cidx];
+
+                T vx = (D > 0) ? col[0] : T(0);
+                T vy = (D > 1) ? col[1] : T(0);
+                T vz = (D > 2) ? col[2] : T(0);
+
+                if constexpr (N == 2)
+                {
+                    col[0] = vx * r00 + vy * r01;
+                    col[1] = vx * r10 + vy * r11;
+                }
+                else
+                {
+                    col[0] = vx * r00 + vy * r01 + vz * r02;
+                    col[1] = vx * r10 + vy * r11 + vz * r12;
+                    col[2] = vx * r20 + vy * r21 + vz * r22;
+                }
+                // Remaining rows (3 and above) remain unchanged
+            }
+
+            return m;
         }
 
         /**

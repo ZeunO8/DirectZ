@@ -71,6 +71,7 @@ auto GetRegisterComponentsLambda() {
         assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
         assert(ecs.template RegisterComponent<ScaleComponent>());
+        assert(ecs.template RegisterComponent<RotationComponent>());
         return true;
     };
 }
@@ -139,6 +140,7 @@ int main() {
         auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
         auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
         auto& e1_scale_component = ecs.ConstructComponent<ScaleComponent>(e1.id, {1.0f, 1.0f, 1.0f, 1.0f});
+        auto& e1_rotation_component = ecs.ConstructComponent<RotationComponent>(e1.id, {0.0f, 0.0f, 0.0f});
 
         auto e2_id = eids[1];
 
@@ -151,6 +153,7 @@ int main() {
         auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
         auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
         auto& e2_scale_component = ecs.ConstructComponent<ScaleComponent>(e2.id, {1.0f, 1.0f, 1.0f, 1.0f});
+        auto& e2_rotation_component = ecs.ConstructComponent<RotationComponent>(e2.id, {0.0f, 0.0f, 0.0f});
     }
 
 #ifdef ENABLE_LIGHTS
@@ -382,18 +385,18 @@ int main() {
                         }
                         auto& entity_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
                         auto& entity_scale = ecs.GetTypeComponentData<ScaleComponent>(entity_group.id);
-                        mat<float, 4, 4> transform(1.0f);
-                        transform[3] = entity_position;
-                        transform[0][0] *= entity_scale[0];
-                        transform[0][1] *= entity_scale[0];
-                        transform[0][2] *= entity_scale[0];
-                        transform[1][0] *= entity_scale[1];
-                        transform[1][1] *= entity_scale[1];
-                        transform[1][2] *= entity_scale[1];
-                        transform[2][0] *= entity_scale[2];
-                        transform[2][1] *= entity_scale[2];
-                        transform[2][2] *= entity_scale[2];
-                        // transform = transform.transpose();
+                        auto& entity_rotation = ecs.GetTypeComponentData<RotationComponent>(entity_group.id);
+
+                        mat<float, 4, 4> scale_mat = mat<float, 4, 4>::scale_static(vec<float, 3>(entity_scale));
+                        mat<float, 4, 4> rot_x = mat<float, 4, 4>::rotate_static(-entity_rotation[0], vec<float, 3>(1, 0, 0));
+                        mat<float, 4, 4> rot_y = mat<float, 4, 4>::rotate_static(-entity_rotation[1], vec<float, 3>(0, 1, 0));
+                        mat<float, 4, 4> rot_z = mat<float, 4, 4>::rotate_static(-entity_rotation[2], vec<float, 3>(0, 0, 1));
+                        mat<float, 4, 4> translation_mat = mat<float, 4, 4>::translate_static(vec<float, 3>(entity_position));
+
+                        // NOTE: order matters — typically scale * rotation * translation
+                        mat<float, 4, 4> rotation_mat = rot_z * rot_y * rot_x;
+                        mat<float, 4, 4> transform = translation_mat * rotation_mat * scale_mat;
+
                         ImGuizmo::SetDrawlist();
                         ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
                         auto camera_ptr = ecs.GetCamera(camera_index);
@@ -402,14 +405,14 @@ int main() {
                         ImGuizmo::SetOrthographic(Camera::ProjectionType(camera.type) == Camera::Orthographic);
                         auto& camera_view = camera.view;
                         auto camera_projection = camera.projection;
-                        // camera_projection[1][1] *= -1.0f;
+                        
                         ImGuizmo::Manipulate(
                             &camera_view[0][0],
                             &camera_projection[0][0],
-                            manipulate_type, // or ROTATE / SCALE
-                            ImGuizmo::LOCAL,     // or WORLD
+                            manipulate_type,
+                            ImGuizmo::LOCAL,
                             &transform[0][0],
-                            nullptr              // optional delta matrix out
+                            nullptr
                         );
                         if (ImGuizmo::IsUsing())
                         {
@@ -423,6 +426,10 @@ int main() {
                             entity_scale[0] = scale[0];
                             entity_scale[1] = scale[1];
                             entity_scale[2] = scale[2];
+                            entity_rotation[0] = -radians(rot[0]);
+                            entity_rotation[1] = -radians(rot[1]);
+                            entity_rotation[2] = -radians(rot[2]);
+                            std::cout << "rot[0]: " << entity_rotation[0] << ", rot[1]: " << entity_rotation[1] << ", rot[2]: " << entity_rotation[2] << std::endl;
                         }
                     }
                     catch (...) { }
