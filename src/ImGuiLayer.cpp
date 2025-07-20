@@ -279,7 +279,8 @@ namespace dz {
 
             ImGui_ImplVulkan_NewFrame();
             ImGui::NewFrame();
-    
+            ImGuizmo::BeginFrame();
+            
             for (auto& [priority, fn_map] : priority_immediate_draw_fn_map)
                 for (auto& [id, pair] : fn_map)
                     pair.second(*this);

@@ -353,9 +353,55 @@ int main() {
                     ImGui::End();
                     continue;
                 }
-                ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-                ImGui::Image((ImTextureID)camera_group.frame_image_ds, viewportSize);
-                ecs.ResizeFramebuffer(camera_index, viewportSize.x, viewportSize.y);
+                auto panel_pos = ImGui::GetCursorScreenPos();
+                auto panel_size = ImGui::GetContentRegionAvail();
+
+                ImGui::Image((ImTextureID)camera_group.frame_image_ds, panel_size, ImVec2(0, 1), ImVec2(1, 0));
+                ecs.ResizeFramebuffer(camera_index, panel_size.x, panel_size.y);
+
+                auto reflectable_group_ptr = SelectedReflectableGroup;
+                auto entity_group_ptr = dynamic_cast<ExampleECS::EntityComponentReflectableGroup*>(reflectable_group_ptr);
+                if (entity_group_ptr) {
+                    auto& entity_group = *entity_group_ptr;
+                    auto entity_ptr = ecs.GetEntity(entity_group.id);
+                    assert(entity_ptr);
+                    auto& entity = *entity_ptr;
+                    try {
+                        auto& entty_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
+                        mat<float, 4, 4> transform(1.0f);
+                        transform[3] = entty_position;
+                        // transform = transform.transpose();
+                        ImGuizmo::SetDrawlist();
+                        ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
+                        auto camera_ptr = ecs.GetCamera(camera_index);
+                        assert(camera_ptr);
+                        auto& camera = *camera_ptr;
+                        ImGuizmo::SetOrthographic(Camera::ProjectionType(camera.type) == Camera::Orthographic);
+                        auto& camera_view = camera.view;
+                        auto camera_projection = camera.projection;
+                        // camera_projection[1][1] *= -1.0f;
+                        ImGuizmo::Manipulate(
+                            &camera_view[0][0],
+                            &camera_projection[0][0],
+                            ImGuizmo::TRANSLATE, // or ROTATE / SCALE
+                            ImGuizmo::LOCAL,     // or WORLD
+                            &transform[0][0],
+                            nullptr              // optional delta matrix out
+                        );
+                        if (ImGuizmo::IsUsing())
+                        {
+                            float pos[3] = {0};
+                            float rot[3] = {0};
+                            float scale[3] = {0};
+                            ImGuizmo::DecomposeMatrixToComponents(&transform[0][0], pos, rot, scale);
+                            entty_position[0] = pos[0];
+                            entty_position[1] = pos[1];
+                            entty_position[2] = pos[2];
+                        }
+                    }
+                    catch (...) { }
+                }
+                
                 ImGui::End();
             }
         }
