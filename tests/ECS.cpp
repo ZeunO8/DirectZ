@@ -24,7 +24,7 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-#define ENABLE_LIGHTS
+// #define ENABLE_LIGHTS
 using ExampleECS = ECS<CID_MIN, Entity, Component, Shape, Camera
 #ifdef ENABLE_LIGHTS
 , Light
