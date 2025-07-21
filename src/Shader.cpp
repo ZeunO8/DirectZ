@@ -1608,7 +1608,7 @@ namespace dz {
         std::stringstream inputStream(input);
         std::stringstream outputStream;
         std::string line;
-        std::size_t lineIndex = 0;
+        std::size_t lineIndex = 1;
 
         while (std::getline(inputStream, line)) {
             outputStream << std::setw(4) << std::setfill(' ') << lineIndex << ": " << line << "\n";

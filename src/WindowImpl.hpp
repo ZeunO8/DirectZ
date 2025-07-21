@@ -71,6 +71,7 @@ struct WINDOW : Restorable
 	bool capture = false;
 	bool drag_in_progress = false;
 	ImGuiViewport* imguiViewport = 0;
+	std::map<float, std::unordered_map<Shader*, std::function<int()>>> priority_shader_dispatches;
 #ifdef _WIN32
     HINSTANCE hInstance;
     HWND hwnd;

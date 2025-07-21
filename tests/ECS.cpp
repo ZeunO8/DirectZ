@@ -24,7 +24,7 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-#define ENABLE_LIGHTS
+// #define ENABLE_LIGHTS
 using ExampleECS = ECS<CID_MIN, Entity, Component, Shape, Camera
 #ifdef ENABLE_LIGHTS
 , Light
@@ -68,10 +68,7 @@ WINDOW* window = nullptr;
 
 auto GetRegisterComponentsLambda() {
     return [](auto& ecs) {
-        assert(ecs.template RegisterComponent<PositionComponent>());
         assert(ecs.template RegisterComponent<ColorComponent>());
-        assert(ecs.template RegisterComponent<ScaleComponent>());
-        assert(ecs.template RegisterComponent<RotationComponent>());
         return true;
     };
 }
@@ -137,10 +134,10 @@ int main() {
         assert(e1_ptr);
         auto& e1 = *e1_ptr;
         e1.shape_index = 1;
-        auto& e1_position_component = ecs.ConstructComponent<PositionComponent>(e1.id, {0.5f, -0.5f, 1.f, 1.f});
+        e1.position = {0.5f, -0.5f, 1.f, 1.f};
         auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
-        auto& e1_scale_component = ecs.ConstructComponent<ScaleComponent>(e1.id, {1.0f, 1.0f, 1.0f, 1.0f});
-        auto& e1_rotation_component = ecs.ConstructComponent<RotationComponent>(e1.id, {0.0f, 0.0f, 0.0f});
+        e1.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
+        e1.scale = {1.0f, 1.0f, 1.0f, 1.0f};
 
         auto e2_id = eids[1];
 
@@ -150,10 +147,10 @@ int main() {
 
         assert(e2_ptr);
         auto& e2 = *e2_ptr;
-        auto& e2_position_component = ecs.ConstructComponent<PositionComponent>(e2.id, {-0.5f, 0.5f, 1.f, 1.f});
+        e2.position = {-0.5f, 0.5f, 1.f, 1.f};
         auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
-        auto& e2_scale_component = ecs.ConstructComponent<ScaleComponent>(e2.id, {1.0f, 1.0f, 1.0f, 1.0f});
-        auto& e2_rotation_component = ecs.ConstructComponent<RotationComponent>(e2.id, {0.0f, 0.0f, 0.0f});
+        e2.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
+        e2.scale = {1.0f, 1.0f, 1.0f, 1.0f};
     }
 
 #ifdef ENABLE_LIGHTS
@@ -383,19 +380,20 @@ int main() {
                         else if (ImGui::IsKeyPressed(ImGuiKey_R)) {
                             manipulate_type = ImGuizmo::ROTATE;
                         }
-                        auto& entity_position = ecs.GetTypeComponentData<PositionComponent>(entity_group.id);
-                        auto& entity_scale = ecs.GetTypeComponentData<ScaleComponent>(entity_group.id);
-                        auto& entity_rotation = ecs.GetTypeComponentData<RotationComponent>(entity_group.id);
+                        auto& entity_position = entity.position;
+                        auto& entity_rotation = entity.rotation;
+                        auto& entity_scale = entity.scale;
+                        auto& model = entity.model;
 
-                        mat<float, 4, 4> scale_mat = mat<float, 4, 4>::scale_static(vec<float, 3>(entity_scale));
-                        mat<float, 4, 4> rot_x = mat<float, 4, 4>::rotate_static(-entity_rotation[0], vec<float, 3>(1, 0, 0));
-                        mat<float, 4, 4> rot_y = mat<float, 4, 4>::rotate_static(-entity_rotation[1], vec<float, 3>(0, 1, 0));
-                        mat<float, 4, 4> rot_z = mat<float, 4, 4>::rotate_static(-entity_rotation[2], vec<float, 3>(0, 0, 1));
-                        mat<float, 4, 4> translation_mat = mat<float, 4, 4>::translate_static(vec<float, 3>(entity_position));
+                        // mat<float, 4, 4> scale_mat = mat<float, 4, 4>::scale_static(vec<float, 3>(entity_scale));
+                        // mat<float, 4, 4> rot_x = mat<float, 4, 4>::rotate_static(-entity_rotation[0], vec<float, 3>(1, 0, 0));
+                        // mat<float, 4, 4> rot_y = mat<float, 4, 4>::rotate_static(-entity_rotation[1], vec<float, 3>(0, 1, 0));
+                        // mat<float, 4, 4> rot_z = mat<float, 4, 4>::rotate_static(-entity_rotation[2], vec<float, 3>(0, 0, 1));
+                        // mat<float, 4, 4> translation_mat = mat<float, 4, 4>::translate_static(vec<float, 3>(entity_position));
 
-                        // NOTE: order matters — typically scale * rotation * translation
-                        mat<float, 4, 4> rotation_mat = rot_z * rot_y * rot_x;
-                        mat<float, 4, 4> transform = translation_mat * rotation_mat * scale_mat;
+                        // // NOTE: order matters — typically scale * rotation * translation
+                        // mat<float, 4, 4> rotation_mat = rot_z * rot_y * rot_x;
+                        // mat<float, 4, 4> transform = translation_mat * rotation_mat * scale_mat;
 
                         ImGuizmo::SetDrawlist();
                         ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
@@ -411,7 +409,7 @@ int main() {
                             &camera_projection[0][0],
                             manipulate_type,
                             ImGuizmo::LOCAL,
-                            &transform[0][0],
+                            &model[0][0],
                             nullptr
                         );
                         if (ImGuizmo::IsUsing())
@@ -419,7 +417,7 @@ int main() {
                             float pos[3] = {0};
                             float rot[3] = {0};
                             float scale[3] = {0};
-                            ImGuizmo::DecomposeMatrixToComponents(&transform[0][0], pos, rot, scale);
+                            ImGuizmo::DecomposeMatrixToComponents(&model[0][0], pos, rot, scale);
                             entity_position[0] = pos[0];
                             entity_position[1] = pos[1];
                             entity_position[2] = pos[2];
@@ -429,7 +427,7 @@ int main() {
                             entity_rotation[0] = -radians(rot[0]);
                             entity_rotation[1] = -radians(rot[1]);
                             entity_rotation[2] = -radians(rot[2]);
-                            std::cout << "rot[0]: " << entity_rotation[0] << ", rot[1]: " << entity_rotation[1] << ", rot[2]: " << entity_rotation[2] << std::endl;
+                            // std::cout << "rot[0]: " << entity_rotation[0] << ", rot[1]: " << entity_rotation[1] << ", rot[2]: " << entity_rotation[2] << std::endl;
                         }
                     }
                     catch (...) { }

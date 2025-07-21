@@ -89,6 +89,7 @@ namespace dz
 #include "ImGuiLayer.cpp"
 #include "Camera.cpp"
 #include "Displays.cpp"
+#include "ECS/Entity.cpp"
 #include "ECS/Shape.cpp"
 #include "ECS/Light.cpp"
 #include "State.cpp"

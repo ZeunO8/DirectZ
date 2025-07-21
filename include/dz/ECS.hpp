@@ -100,6 +100,9 @@ namespace dz {
             std::set<int> children;
             std::vector<Reflectable*> reflectables;
             std::vector<ReflectableGroup*> reflectable_children;
+            ~EntityComponentReflectableGroup() {
+                ClearReflectables();
+            }
             GroupType GetGroupType() override {
                 return ReflectableGroup::Entity;
             }
@@ -112,13 +115,29 @@ namespace dz {
             const std::vector<ReflectableGroup*>& GetChildren() override {
                 return reflectable_children;
             }
-            void UpdateReflectables() {
+            void UpdateReflectables() { }
+            void ClearReflectables() {
+                if (reflectables.empty()) {
+                    return;
+                }
+                delete reflectables[0];
                 reflectables.clear();
-                reflectables.reserve(components.size());
-                for (auto& [id, component_ptr] : components)
-                    reflectables.push_back(component_ptr.get());
             }
             void UpdateChildren(ECS& ecs) {
+                auto ecs_ptr = &ecs;
+                auto entity_id = id;
+                if (reflectables.empty()) {
+                    reflectables.push_back(new ecs::EntityTransformReflectable([ecs_ptr, entity_id]() {
+                        return ecs_ptr->GetEntity(entity_id);
+                    }));
+                }
+                else {
+                    for (size_t i = 1; i < reflectables.size();)
+                        reflectables.erase(reflectables.begin() + i);
+                }
+                for (auto& [id, component_ptr] : components)
+                    reflectables.push_back(component_ptr.get());
+
                 reflectable_children.clear();
                 reflectable_children.reserve(children.size());
                 for (auto& id : children) {
@@ -349,7 +368,7 @@ namespace dz {
                 auto frame_ds_pair = image_create_descriptor_set(fb_color_image);
                 frame_image_ds = frame_ds_pair.second;
 
-                shader_set_render_pass(ecs.shader, framebuffer);
+                shader_set_render_pass(ecs.main_shader, framebuffer);
             }
         };
 
@@ -444,7 +463,8 @@ namespace dz {
         bool buffer_initialized = false;
         int buffer_size = 0;
         
-        Shader* shader = 0;
+        Shader* main_shader = 0;
+        Shader* model_compute_shader = 0;
 
         std::string buffer_name;
 
@@ -453,7 +473,7 @@ namespace dz {
         auto GenerateEntitysDrawFunction() {
             return [&](auto buffer_group, auto& entity) -> DrawTuples {
                 return {
-                    {shader, entity.GetVertexCount(buffer_group, entity)}
+                    {main_shader, entity.GetVertexCount(buffer_group, entity)}
                 };
             };
         }
@@ -463,7 +483,7 @@ namespace dz {
                 auto camera_it = indexed_camera_groups.find(camera_index);
                 assert(camera_it != indexed_camera_groups.end());
                 return {camera_index, camera_it->second.framebuffer, [&, camera_index]() {
-                    shader_update_push_constant(shader, 0, (void*)&camera_index, sizeof(uint32_t));
+                    shader_update_push_constant(main_shader, 0, (void*)&camera_index, sizeof(uint32_t));
                 }};
             };
         }
@@ -484,7 +504,8 @@ namespace dz {
         {
             RegisterProviders();
             buffer_group = CreateBufferGroup();
-            shader = GenerateShader();
+            main_shader = GenerateMainShader();
+            model_compute_shader = GenerateModelComputeShader();
             EnableDrawInWindow(window_ptr);
             restore(serial);
             loaded_from_io = true;
@@ -501,7 +522,8 @@ namespace dz {
         {
             RegisterProviders();
             buffer_group = CreateBufferGroup();
-            shader = GenerateShader();
+            main_shader = GenerateMainShader();
+            model_compute_shader = GenerateModelComputeShader();
             EnableDrawInWindow(window_ptr);
             EnsureFirstScene();
             AddCameraToScene(add_scene_id, Camera::Perspective);
@@ -807,6 +829,7 @@ namespace dz {
                     assert(false);
                 *entity_ptr = entity;
             }
+            entity.UpdateChildren(*this);
             auto& scene_group = id_scene_groups[add_scene_id];
             scene_group.UpdateChildren(*this);
             return id;
@@ -831,6 +854,7 @@ namespace dz {
                 entry.scene_id = add_scene_id;
                 entry.name = ("Entity #" + std::to_string(id));
                 entry.is_child = is_child;
+                entry.UpdateChildren(*this);
                 index++;
                 ids_data[c - 1] = id;
             }
@@ -964,7 +988,7 @@ namespace dz {
             auto entity_ptr = GetEntity(entity_id);
             assert(entity_ptr);
 
-            auto& entry = it->second;
+            auto& entity_entry = it->second;
 
             auto component_id = GlobalUID::GetNew("ECS:Component");
             auto component_type_id = TComponenTypeID<TDComponent>::id;
@@ -972,12 +996,13 @@ namespace dz {
             auto& component_group = registered_component_map[component_type_id];
             auto component_type_index = component_group.constructed_count++;
 
-            auto& ucom = entry.components[component_id];
+            auto& ucom = entity_entry.components[component_id];
 
             auto component_index = constructed_component_count++;
             
             ucom = std::shared_ptr<TDComponent>(new TDComponent{}, [](TDComponent* dp){ delete dp; });
-            entry.UpdateReflectables();
+            entity_entry.UpdateReflectables();
+            entity_entry.UpdateChildren(*this);
 
             auto& aucom = *ucom;
             aucom.index = component_index;
@@ -1051,15 +1076,31 @@ namespace dz {
             return buffer_group_ptr;
         }
 
-        Shader* GenerateShader() {
+        Shader* GenerateMainShader() {
             auto shader_ptr = shader_create();
 
             shader_set_define(shader_ptr, "ECS_MAX_COMPONENTS", std::to_string(ECS_MAX_COMPONENTS));
 
             shader_add_buffer_group(shader_ptr, buffer_group);
 
-            shader_add_module(shader_ptr, ShaderModuleType::Vertex, GenerateVertexShader());
-            shader_add_module(shader_ptr, ShaderModuleType::Fragment, GenerateFragmentShader());
+            shader_add_module(shader_ptr, ShaderModuleType::Vertex, GenerateMainVertexShaderCode());
+            shader_add_module(shader_ptr, ShaderModuleType::Fragment, GenerateMainFragmentShaderCode());
+
+            return shader_ptr;
+        }
+
+        Shader* GenerateModelComputeShader() {
+            auto shader_ptr = shader_create();
+
+            shader_set_define(shader_ptr, "ECS_MAX_COMPONENTS", std::to_string(ECS_MAX_COMPONENTS));
+
+            shader_add_buffer_group(shader_ptr, buffer_group);
+
+            shader_add_module(shader_ptr, ShaderModuleType::Compute, GenerateModelComputeShaderCode());
+
+            window_register_compute_dispatch(window_ptr, 0.0f, shader_ptr, [&]() {
+                return buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+            });
 
             return shader_ptr;
         }
@@ -1073,7 +1114,7 @@ namespace dz {
             });
         }
 
-        std::string GenerateVertexShader() {
+        std::string GenerateMainVertexShaderCode() {
             auto binding_index = 0;
 
             std::string shader_string = R"(
@@ -1150,10 +1191,10 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    vec3 normal_vs = normalize(mat3(transpose(inverse(model))) * shape_normal);
+    vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * shape_normal);
     gl_Position = clip_position;
     outColor = final_color;
-    outPosition = model * vertex_position;
+    outPosition = entity.model * vertex_position;
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
 }
@@ -1162,7 +1203,7 @@ void main() {
             return shader_string;
         }
 
-        std::string GenerateFragmentShader() {
+        std::string GenerateMainFragmentShaderCode() {
             auto binding_index = 0;
 
             std::string shader_string = R"(
@@ -1239,6 +1280,89 @@ void main() {
             }
             shader_string += R"(
     FragColor = current_color;
+}
+)";
+            return shader_string;
+        }
+
+        std::string GenerateModelComputeShaderCode() {
+            auto binding_index = 0;
+
+            std::string shader_string = R"(
+#version 450
+layout(local_size_x = 1) in;
+)";
+
+            // Setup Structs
+            shader_string += TComponent::ComponentGLSLStruct;
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
+                    shader_string += provider_group.glsl_struct;
+                }
+            }
+
+            // Setup Buffers
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = id_provider_groups[provider_id];
+                    shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
+    )" + provider_group.struct_name + R"( data[];
+} )" + provider_group.struct_name + R"(s;
+
+)";
+                    shader_string += provider_group.struct_name + " Get" + provider_group.struct_name + R"(Data(int t_provider_index) {
+    return )" + provider_group.struct_name + R"(s.data[t_provider_index];
+}
+)";
+                    shader_string += provider_group.glsl_methods[ShaderModuleType::Compute];
+                }
+            }
+
+            // TComponent
+            shader_string += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
+    Component data[];
+} Components;
+)";
+            shader_string += TComponent::ComponentGLSLMethods;
+
+            shader_string += R"(
+void main() {
+    int entity_index = int(gl_GlobalInvocationID.x);
+    if (entity_index >= Entitys.data.length()) return;
+    Entity entity = GetEntityData(entity_index);
+
+    mat4 model = mat4(1.0);
+    model[3] = vec4(entity.position.xyz, 1.0);
+
+    mat4 scale = mat4(1.0);
+    scale[0].xyz *= entity.scale.x;
+    scale[1].xyz *= entity.scale.y;
+    scale[2].xyz *= entity.scale.z;
+
+    mat4 rotX = mat4(1.0);
+    rotX[1][1] =  cos(entity.rotation.x);
+    rotX[1][2] = -sin(entity.rotation.x);
+    rotX[2][1] =  sin(entity.rotation.x);
+    rotX[2][2] =  cos(entity.rotation.x);
+
+    mat4 rotY = mat4(1.0);
+    rotY[0][0] =  cos(entity.rotation.y);
+    rotY[0][2] =  sin(entity.rotation.y);
+    rotY[2][0] = -sin(entity.rotation.y);
+    rotY[2][2] =  cos(entity.rotation.y);
+
+    mat4 rotZ = mat4(1.0);
+    rotZ[0][0] =  cos(entity.rotation.z);
+    rotZ[0][1] = -sin(entity.rotation.z);
+    rotZ[1][0] =  sin(entity.rotation.z);
+    rotZ[1][1] =  cos(entity.rotation.z);
+
+    mat4 rot = rotZ * rotY * rotX;
+
+    Entitys.data[entity_index].model = model * rot * scale;
 }
 )";
             return shader_string;
