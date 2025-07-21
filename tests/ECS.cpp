@@ -128,7 +128,15 @@ int main() {
 
         auto e1_id = eids[0];
 
-        // ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
+        auto e1_child_ids = ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
+
+        for (auto& child_id : e1_child_ids) {
+            auto e_ptr = ecs.GetEntity(child_id);
+            assert(e_ptr);
+            auto& e = *e_ptr;
+            e.shape_index = 1;
+            auto& e_color_component = ecs.ConstructComponent<ColorComponent>(e.id, {0.f, 1.f, 0.f, 1.f});
+        }
 
         auto e1_ptr = ecs.GetEntity(e1_id);
         assert(e1_ptr);
@@ -888,9 +896,12 @@ void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneR
                 case ReflectableGroup::Scene:
                     DrawSceneReflectableGroup(ecs, child_group.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_group));
                     break;
-                case ReflectableGroup::Entity:
-                    DrawEntityEntry(ecs, child_group.id, dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_group));
+                case ReflectableGroup::Entity: {
+                    auto& entity_group = dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_group);
+                    if (!entity_group.is_child)
+                        DrawEntityEntry(ecs, child_group.id, entity_group);
                     break;
+                }
                 }
             }
         }

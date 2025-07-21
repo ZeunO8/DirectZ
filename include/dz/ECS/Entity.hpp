@@ -11,9 +11,9 @@ namespace dz::ecs {
         int componentsCount = 0;
         int parent_index = -1;
         int components[ECS_MAX_COMPONENTS] = {0};
-        vec<float, 4> position;
-        vec<float, 4> rotation;
-        vec<float, 4> scale;
+        vec<float, 4> position = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);
+        vec<float, 4> rotation = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);;
+        vec<float, 4> scale = vec<float, 4>(1.0f, 1.0f, 1.0f, 1.0f);;
         mat<float, 4, 4> model;
         
         inline static float Priority = 0.5f;

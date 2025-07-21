@@ -809,7 +809,7 @@ namespace dz {
             return light_id;
         }
 
-        int AddEntity(const TEntity& entity, bool is_child = false) {
+        int AddEntity(const TEntity& entity, bool is_child = false, int parent_index = -1) {
             auto id = GlobalUID::GetNew("ECS:Entity");
             ((TEntity&)entity).id = id;
             auto index = id_entity_groups.size();
@@ -828,8 +828,9 @@ namespace dz {
                 if (!entity_ptr)
                     assert(false);
                 *entity_ptr = entity;
+                entity_ptr->parent_index = parent_index;
             }
-            entity.UpdateChildren(*this);
+            entry.UpdateChildren(*this);
             auto& scene_group = id_scene_groups[add_scene_id];
             scene_group.UpdateChildren(*this);
             return id;
@@ -837,11 +838,11 @@ namespace dz {
 
         template <typename... Args>
         std::vector<int> AddEntitys(const TEntity& first_entity, const Args&... rest_entitys) {
-            return AddEntitys(false, first_entity, rest_entitys...);
+            return AddEntitys(false, -1, first_entity, rest_entitys...);
         }
 
         template <typename... Args>
-        std::vector<int> AddEntitys(bool is_child, const TEntity& first_entity, const Args&... rest_entitys) {
+        std::vector<int> AddEntitys(bool is_child, int parent_index, const TEntity& first_entity, const Args&... rest_entitys) {
             auto n = 1 + sizeof...(rest_entitys);
             std::vector<int> ids(n, 0);
             auto ids_data = ids.data();
@@ -861,24 +862,25 @@ namespace dz {
             if (index > buffer_size)
                 Resize(index);
             size_t id_index = 0;
-            SetEntitys(ids_data, id_index, first_entity, rest_entitys...);
+            SetEntitys(parent_index, ids_data, id_index, first_entity, rest_entitys...);
             auto& scene_group = id_scene_groups[add_scene_id];
             scene_group.UpdateChildren(*this);
             return ids;
         }
 
         template <typename... Args>
-        void SetEntitys(int* ids_data, size_t& id_index, const TEntity& set_entity, const Args&... rest_entitys) {
+        void SetEntitys(int parent_index, int* ids_data, size_t& id_index, const TEntity& set_entity, const Args&... rest_entitys) {
             auto& id = ids_data[id_index++];
             auto entity_ptr = GetEntity(id);
             if (entity_ptr) {
                 ((TEntity&)set_entity).id = id;
                 *entity_ptr = set_entity;
+                entity_ptr->parent_index = parent_index;
             }
-            SetEntitys(ids_data, id_index, rest_entitys...);
+            SetEntitys(parent_index, ids_data, id_index, rest_entitys...);
         }
 
-        void SetEntitys(int* ids_data, size_t& id_index) { }
+        void SetEntitys(int parent_index, int* ids_data, size_t& id_index) { }
 
         int AddChildEntity(int entity_id, const TEntity& entity) {
             auto it = id_entity_groups.find(entity_id);
@@ -886,7 +888,7 @@ namespace dz {
                 return 0;
             }
             auto& entry = it->second;
-            auto child_id = AddEntity(entity, true);
+            auto child_id = AddEntity(entity, true, entry->index);
             entry.children.insert(child_id);
             entry.UpdateChildren(*this);
             return child_id;
@@ -899,7 +901,7 @@ namespace dz {
                 return {};
             }
             auto& entry = it->second;
-            auto child_ids = AddEntitys(true, first_entity, rest_entitys...);
+            auto child_ids = AddEntitys(true, entry.index, first_entity, rest_entitys...);
             for (auto& child_id : child_ids)
                 entry.children.insert(child_id);
             entry.UpdateChildren(*this);
@@ -1329,9 +1331,7 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Comp
             shader_string += TComponent::ComponentGLSLMethods;
 
             shader_string += R"(
-void main() {
-    int entity_index = int(gl_GlobalInvocationID.x);
-    if (entity_index >= Entitys.data.length()) return;
+void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index) {
     Entity entity = GetEntityData(entity_index);
 
     mat4 model = mat4(1.0);
@@ -1362,7 +1362,26 @@ void main() {
 
     mat4 rot = rotZ * rotY * rotX;
 
-    Entitys.data[entity_index].model = model * rot * scale;
+    out_model = model * rot * scale;
+
+    parent_index = entity.parent_index;
+}
+
+void main() {
+    int entity_index = int(gl_GlobalInvocationID.x);
+    if (entity_index >= Entitys.data.length()) return;
+    
+    int current_index = entity_index;
+
+    mat4 final_model = mat4(1.0);
+
+    while (current_index != -1) {
+        mat4 current_model = mat4(1.0);
+        GetEntityModel(current_index, current_model, current_index);
+        final_model = current_model * final_model;
+    }
+
+    Entitys.data[entity_index].model = final_model;
 }
 )";
             return shader_string;
