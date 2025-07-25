@@ -34,7 +34,7 @@ namespace dz {
     inline static const std::string lights_buffer_name = "Lights";
     
     template<int TCID, typename... TProviders>
-    struct ECS : IGetComponentDataVoid, Restorable {
+    struct ECS : Restorable {
 
         inline static int CID = TCID;
 	    int getCID() override { return TCID; }
