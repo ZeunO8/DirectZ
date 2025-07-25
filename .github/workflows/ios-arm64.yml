@@ -89,7 +89,11 @@ jobs:
             -DCMAKE_RANLIB=$RANLIB \
             -DVulkan_INCLUDE_DIR=$VULKAN_SDK/include \
             -DVulkan_LIBRARY=$VULKAN_SDK/lib/libMoltenVK.a \
-            -DOPENSSL_ROOT_DIR=$TARGET_DIR/openssl
+            -DOPENSSL_ROOT_DIR=$TARGET_DIR/openssl \
+            -DOPENSSL_INCLUDE_DIR=$TARGET_DIR/openssl/include \
+            -DOPENSSL_CRYPTO_LIBRARY=$TARGET_DIR/openssl/lib/libcrypto.a \
+            -DOPENSSL_SSL_LIBRARY=$TARGET_DIR/openssl/lib/libssl.a \
+            -DOPENSSL_USE_STATIC_LIBS=TRUE
 
       - name: fix_format_security
         run: python3 fix_format_security.py build
