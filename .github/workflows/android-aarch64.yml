@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 jobs:
-  build-android:
+  build-android-aarch64:
     runs-on: windows-2025
 
     env:
