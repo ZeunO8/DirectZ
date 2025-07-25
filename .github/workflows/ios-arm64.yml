@@ -37,10 +37,17 @@ jobs:
           version: 1.4.309.0
           cache: true
 
+      - name: Get MoltenVK iOS
+        run: |
+          curl -LO https://github.com/KhronosGroup/MoltenVK/releases/download/v1.3.0/MoltenVK-ios.tar
+          tar -xf MoltenVK-ios.tar
+          ls -lah .
+          cd MoltenVK
+          ls -lah .
+
       - name: List Vulkan SDK
         run: |
-          ls -lah $VULKAN_SDK
-          ls -lah $VULKAN_SDK/iOS
+          ls -lah $VULKAN_SDK/../MoltenVK
 
       - name: Set iOS Toolchain Variables
         id: toolchain
