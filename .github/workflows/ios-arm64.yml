@@ -37,6 +37,12 @@ jobs:
           version: 1.4.309.0
           cache: true
 
+      - name: List Vulkan SDK
+        run: |
+          ls -lah $VULKAN_SDK
+          ls -lah $VULKAN_SDK/lib
+          ls -lah $VULKAN_SDK/include
+
       - name: Set iOS Toolchain Variables
         id: toolchain
         run: |
