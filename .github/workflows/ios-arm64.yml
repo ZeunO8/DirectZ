@@ -3,11 +3,11 @@ name: Build iOS (arm64)
 on:
   push:
     branches:
-      - run-actions
-      - master
-  pull_request:
-    branches:
-      - master
+      - ios-actions
+  #     - master
+  # pull_request:
+  #   branches:
+  #     - master
 
 permissions:
   contents: write
