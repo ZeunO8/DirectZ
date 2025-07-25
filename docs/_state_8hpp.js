@@ -1,6 +1,5 @@
 var _state_8hpp =
 [
-    [ "dz::CIDGen", "structdz_1_1_c_i_d_gen.html", null ],
     [ "dz::StaticRestorable", "structdz_1_1_static_restorable.html", null ],
     [ "dz::Restorable", "structdz_1_1_restorable.html", "structdz_1_1_restorable" ],
     [ "CID_MIN", "_state_8hpp.html#a2d57b7d3b499c687ceb3f8b3f182a2a9", null ],

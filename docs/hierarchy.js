@@ -3,7 +3,6 @@ var hierarchy =
     [ "dz::AABB< T, N >", "structdz_1_1_a_a_b_b.html", null ],
     [ "dz::BlendState", "structdz_1_1_blend_state.html", null ],
     [ "dz::CameraDrawInformation", "structdz_1_1_camera_draw_information.html", null ],
-    [ "dz::CIDGen", "structdz_1_1_c_i_d_gen.html", null ],
     [ "dz::D7Stream", "structdz_1_1_d7_stream.html", null ],
     [ "dz::default_delete_array", "structdz_1_1default__delete__array.html", null ],
     [ "dz::default_delete_single", "structdz_1_1default__delete__single.html", null ],

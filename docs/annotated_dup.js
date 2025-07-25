@@ -14,7 +14,6 @@ var annotated_dup =
       [ "BlendState", "structdz_1_1_blend_state.html", "structdz_1_1_blend_state" ],
       [ "Camera", "structdz_1_1_camera.html", "structdz_1_1_camera" ],
       [ "CameraDrawInformation", "structdz_1_1_camera_draw_information.html", "structdz_1_1_camera_draw_information" ],
-      [ "CIDGen", "structdz_1_1_c_i_d_gen.html", null ],
       [ "color_vec", "structdz_1_1color__vec.html", "structdz_1_1color__vec" ],
       [ "D7Stream", "structdz_1_1_d7_stream.html", "structdz_1_1_d7_stream" ],
       [ "default_delete_array", "structdz_1_1default__delete__array.html", null ],
