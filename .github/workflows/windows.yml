@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - run-actions
+      - windows-actions
       - master
   pull_request:
     branches:

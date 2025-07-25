@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - run-actions
+      - macos-actions
       - master
   pull_request:
     branches:
