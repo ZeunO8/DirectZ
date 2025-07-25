@@ -41,7 +41,11 @@ namespace dz
 {
 	#include "path.mm"
 	uint8_t get_window_type_platform() {
+#if defined(MACOS)
 		return WINDOW_TYPE_MACOS;
+#elif defined(IOS)
+		return WINDOW_TYPE_IOS;
+#endif
 	}
 	void WINDOW::create_platform() {
 		@autoreleasepool {

@@ -96,7 +96,7 @@ struct WINDOW : Restorable
 #elif defined(__ANDROID__)
 	ANativeWindow* android_window = 0;
 	AAssetManager* android_asset_manager = 0;
-#elif defined(MACOS)
+#elif defined(MACOS) || defined(IOS)
 	void *nsWindow = 0;
 	void *nsView;
 	void *nsImage = 0;

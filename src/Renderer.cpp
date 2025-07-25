@@ -215,7 +215,7 @@ namespace dz {
 		possible_extensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
 	#endif
 
-	#if defined(MACOS)
+	#if defined(MACOS) || defined(IOS)
 		possible_extensions.push_back("VK_KHR_portability_enumeration");
 	#endif
 
@@ -260,7 +260,7 @@ namespace dz {
 		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 		createInfo.pApplicationInfo = &appInfo;
 
-	#if defined(MACOS)
+	#if defined(MACOS) || defined(IOS)
 		createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 	#endif
 
@@ -307,50 +307,34 @@ namespace dz {
 		}
 	}
 
-	#ifndef MACOS
+#if !defined(MACOS) && !defined(IOS)
 	void create_surface(Renderer* renderer)
 	{
 		auto& window = *renderer->window;
 		auto& windowType = dr.windowType;
-	#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 		VkXlibSurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.dpy = window.display;
 		surfaceCreateInfo.window = window.window;
 		vk_check("vkCreateXlibSurfaceKHR",
 			vkCreateXlibSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
-	#elif defined(ANDROID)
+#elif defined(ANDROID)
 		VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.window = window.android_window;
 		vk_check("vkCreateAndroidSurfaceKHR",
 			vkCreateAndroidSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
-	#elif defined(_WIN32)
+#elif defined(_WIN32)
 		VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.hinstance = window.hInstance;
 		surfaceCreateInfo.hwnd = window.hwnd;
 		vk_check("vkCreateWin32SurfaceKHR",
 			vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
-	#elif defined(MACOS)
-		CAMetalLayer* metalLayer = (CAMetalLayer*)[(NSView*)window.nsView layer];
-
-		VkMetalSurfaceCreateInfoEXT surfaceCreateInfo{};
-		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-		surfaceCreateInfo.pNext = nullptr;
-		surfaceCreateInfo.flags = 0;
-		surfaceCreateInfo.pLayer = (__bridge void*)metalLayer;
-
-		vk_check("vkCreateMetalSurfaceEXT",
-			vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
-		// VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
-		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
-		// surfaceCreateInfo.pView = window.nsView;
-		// vk_check("vkCreateMacOSSurfaceMVK",
-		// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
-	#endif
+#endif
 	}
-	#endif
+#endif
 
 	void Renderer::destroy_surface()
 	{

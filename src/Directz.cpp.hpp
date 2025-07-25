@@ -31,7 +31,7 @@ using namespace dz;
 #include <X11/extensions/Xfixes.h>
 #include <xkbcommon/xkbcommon.h>
 #include <dlfcn.h>
-#elif defined(MACOS)
+#elif defined(MACOS) || defined(IOS)
 #include <dlfcn.h>
 #elif defined(__ANDROID__)
 #include <dlfcn.h>

@@ -8,7 +8,7 @@
 #elif defined(__linux__) && !defined(__ANDROID__)
 #define USING_VULKAN_1_2 true
 #define VK_USE_PLATFORM_XLIB_KHR
-#elif defined(MACOS)
+#elif defined(MACOS) || defined(IOS)
 #define USING_VULKAN_1_2 true
 #define VK_USE_PLATFORM_METAL_EXT
 #elif defined(__ANDROID__)
