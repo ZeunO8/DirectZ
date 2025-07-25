@@ -22,7 +22,7 @@ include(cmake/InstallPaths.cmake)
 
 set(DZ_SOURCES src/DirectZ.cpp)
 
-if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+if(MACOS OR IOS)
 	list(APPEND DZ_SOURCES src/Window.mm)
 endif()
 
