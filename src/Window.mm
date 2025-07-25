@@ -1,3 +1,10 @@
+#import <QuartzCore/CAMetalLayer.h>
+#import <TargetConditionals.h>
+#include <Metal/Metal.h>
+#include <mach-o/dyld.h>
+#include <DirectZ.hpp>
+#include "Directz.cpp.hpp"
+#include "MetalView.mm"
 #if defined(MACOS)
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
@@ -8,13 +15,6 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #endif
-#import <QuartzCore/CAMetalLayer.h>
-#import <TargetConditionals.h>
-#include <Metal/Metal.h>
-#include <mach-o/dyld.h>
-#include <DirectZ.hpp>
-#include "Directz.cpp.hpp"
-#include "MetalView.mm"
 namespace dz
 {
 	#include "WindowImpl.hpp"
