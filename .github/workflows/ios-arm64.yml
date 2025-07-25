@@ -40,6 +40,7 @@ jobs:
       - name: Get MoltenVK iOS
         run: |
           curl -LO https://github.com/KhronosGroup/MoltenVK/releases/download/v1.3.0/MoltenVK-ios.tar
+          mkdir MVK
           tar -xf MoltenVK-ios.tar -C MVK
           mv MVK/MoltenVK .
           ls -lah .
