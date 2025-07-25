@@ -451,12 +451,14 @@ namespace dz {
                 return;
             constexpr auto pid = TProvider::GetPID();
             auto ecs_id = GlobalUID::GetNew("ECS:GID");
+            auto pro_id = GlobalUID::GetNew(("ECS:PID:" + std::to_string(pid)));
             std::lock_guard lock(e_mutex);
             auto root_index = reflectable_group_vector.size();
             auto group_ptr = TProvider::TryMakeGroup(buffer_group);
             reflectable_group_vector.push_back(group_ptr);
             auto& group = *group_ptr;
             group.id = ecs_id;
+            group.GetName() += (" #" + std::to_string(pro_id));
             auto& provider_group = id_provider_groups[pid];
             provider_id_reflectable_maps[pid][ecs_id] = group_ptr.get();
             id = ecs_id;
