@@ -1,6 +1,14 @@
-#import <Metal/Metal.h>
-#import <QuartzCore/CAMetalLayer.h>
+#if defined(MACOS)
+#include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
+#include <ApplicationServices/ApplicationServices.h>
+#elif defined(IOS)
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#endif
+#import <QuartzCore/CAMetalLayer.h>
+#import <TargetConditionals.h>
+#include <Metal/Metal.h>
 
 @interface MetalView : NSView
 @property (nonatomic, strong) CAMetalLayer *metalLayer;
