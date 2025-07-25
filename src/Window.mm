@@ -2,8 +2,8 @@
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #include <ApplicationServices/ApplicationServices.h>
-#include "WINDOWDelegateImpl.mm"
 #include "DZWindow.mm"
+#include "WINDOWDelegateImpl.mm"
 #elif defined(IOS)
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
