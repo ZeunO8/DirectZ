@@ -17,11 +17,6 @@ enum class ReflectableTypeHint {
     STRUCT
 };
 
-struct IGetComponentDataVoid {
-    virtual ~IGetComponentDataVoid() = default;
-    virtual void* GetComponentDataVoid(int component_index) { return nullptr; }
-};
-
 struct Reflectable {
     virtual ~Reflectable() = default;
 
