@@ -364,6 +364,7 @@ endif()
 if(APPLE AND DEFINED ENV{VULKAN_SDK})
   cmake_path(SET _MoltenVK_path NORMALIZE "$ENV{VULKAN_SDK}/../MoltenVK")
   if(EXISTS "${_MoltenVK_path}")
+    message(STATUS "MoltenVK exists")
     list(APPEND _Vulkan_hint_include_search_paths
       "${_MoltenVK_path}/include"
     )

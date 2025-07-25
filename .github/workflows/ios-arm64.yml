@@ -47,6 +47,11 @@ jobs:
           cd MoltenVK
           ls -lah .
 
+      - name: LS VULKAN_SDK
+        run: |
+          ls -lah $VULKAN_SDK
+          ls -lah $VULKAN_SDK/../MoltenVK
+
       - name: Set iOS Toolchain Variables
         id: toolchain
         run: |
