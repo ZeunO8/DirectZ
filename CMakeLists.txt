@@ -118,6 +118,13 @@ elseif(LINUX)
 	if(GTKMM_FOUND)
 		target_link_libraries(DirectZ PRIVATE PkgConfig::GTKMM)
 	endif()
+elseif(IOS)
+	target_link_libraries(DirectZ PRIVATE
+		"-framework UIKit"
+		"-framework Foundation"
+		"-framework QuartzCore"
+		"-framework Metal"
+	)
 elseif(MACOS)
 	target_link_libraries(DirectZ PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif()
