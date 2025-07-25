@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['directz_0',['DirectZ',['../index.html',1,'']]]
+  ['apps_20with_20directz_0',['Building apps with DirectZ',['../index.html#autotoc_md3',1,'']]]
 ];

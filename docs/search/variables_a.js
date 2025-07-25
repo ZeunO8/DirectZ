@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['offset_0',['offset',['../structdz_1_1_key_value_stream_1_1_header_entry.html#a33c024a271d49dbf6c352561752cce72',1,'dz::KeyValueStream::HeaderEntry']]],
-  ['options_1',['options',['../structdz_1_1_program_args.html#a8419537b3427f6be61aab81d67eb54e1',1,'dz::ProgramArgs']]]
+  ['layout_0',['Layout',['../structdz_1_1_blend_state.html#a91e2891af36340e7b799f8baf2c0b3bf',1,'dz::BlendState']]],
+  ['loaded_5ffrom_5fio_1',['loaded_from_io',['../structdz_1_1_e_c_s.html#aef1d55204eac95fd05d02782f1275b5c',1,'dz::ECS']]],
+  ['location_2',['location',['../structdz_1_1_file_handle.html#afe0637a1f0c3179aa6999f3f2ed5b0db',1,'dz::FileHandle']]]
 ];

@@ -39,20 +39,22 @@ var NAVTREE =
       [ "Class Index", "classes.html", null ],
       [ "Class Hierarchy", "hierarchy.html", "hierarchy" ],
       [ "Class Members", "functions.html", [
-        [ "All", "functions.html", null ],
-        [ "Functions", "functions_func.html", null ],
-        [ "Variables", "functions_vars.html", null ],
+        [ "All", "functions.html", "functions_dup" ],
+        [ "Functions", "functions_func.html", "functions_func" ],
+        [ "Variables", "functions_vars.html", "functions_vars" ],
         [ "Typedefs", "functions_type.html", null ],
         [ "Enumerations", "functions_enum.html", null ],
-        [ "Enumerator", "functions_eval.html", null ]
+        [ "Enumerator", "functions_eval.html", null ],
+        [ "Related Symbols", "functions_rela.html", null ]
       ] ]
     ] ],
     [ "Files", "files.html", [
       [ "File List", "files.html", "files_dup" ],
       [ "File Members", "globals.html", [
-        [ "All", "globals.html", null ],
+        [ "All", "globals.html", "globals_dup" ],
         [ "Functions", "globals_func.html", null ],
-        [ "Macros", "globals_defs.html", null ]
+        [ "Enumerations", "globals_enum.html", null ],
+        [ "Macros", "globals_defs.html", "globals_defs" ]
       ] ]
     ] ]
   ] ]
@@ -61,8 +63,20 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "_asset_pack_8hpp.html",
-"namespacedz.html#aac7dab3f3fabfdf1ea25503dc0708a16"
+"_icons_font_awesome6_8h.html#a23ffed7cd795445ce4be5fa6ac545c6b",
+"_icons_font_awesome6_8h.html#a52e09ed29af8fc2ce83789859c4a6f27",
+"_icons_font_awesome6_8h.html#a7f13e0c5dc57c93c71cf8d0ba2ed4347",
+"_icons_font_awesome6_8h.html#aad0925443d1c91ff3c870b91d382eb46",
+"_icons_font_awesome6_8h.html#ad9f0a78279f7f8d34e00e76e6bf34ec2",
+"_scene_8hpp_source.html",
+"namespacedz.html#a502ef428449184b02a3e8ce6fb88b085",
+"namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3afbaedde498cdead4f2780217646e9ba1",
+"structdz_1_1_camera_draw_information.html#a45dd8c0de17f5d0d530170c6830f188f",
+"structdz_1_1_e_c_s_1_1_registered_component_entry.html",
+"structdz_1_1color__vec.html#ace48045b1d027b715c6cf2854979d94e",
+"structdz_1_1mat.html#a9ccf6cfa7b8578e93bfff0b02162a229"
 ];
 
-var SYNCONMSG = 'click to disable panel synchronisation';
-var SYNCOFFMSG = 'click to enable panel synchronisation';
+var SYNCONMSG = 'click to disable panel synchronization';
+var SYNCOFFMSG = 'click to enable panel synchronization';
+var LISTOFALLMEMBERS = 'List of all members';

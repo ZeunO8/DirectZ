@@ -1,11 +1,13 @@
 var searchData=
 [
-  ['aabb_0',['AABB',['../structdz_1_1_a_a_b_b.html',1,'dz::AABB&lt; T, N &gt;'],['../structdz_1_1_a_a_b_b.html#a0a9a4de1522fe92746efaeada9603c97',1,'dz::AABB::AABB()=default'],['../structdz_1_1_a_a_b_b.html#a836ada02cc36209e1f5ca93c0c1ed594',1,'dz::AABB::AABB(vec&lt; T, N &gt; min, vec&lt; T, N &gt; max)']]],
-  ['add_5fasset_1',['add_asset',['../namespacedz.html#a502ef428449184b02a3e8ce6fb88b085',1,'dz::add_asset(AssetPack *asset_pack, const std::string &amp;path, const Asset &amp;asset)'],['../namespacedz.html#a27ba8e6f5b62804f8b69e6c6cfb345d9',1,'dz::add_asset(AssetPack *asset_pack, FileHandle &amp;file_handle)']]],
-  ['apps_20with_20directz_2',['Building apps with DirectZ',['../index.html#autotoc_md2',1,'']]],
-  ['arguments_3',['arguments',['../structdz_1_1_program_args.html#a7fa27358f03f392dae5be904a8e7105f',1,'dz::ProgramArgs']]],
-  ['as_5fstruct_4',['as_struct',['../classdz_1_1_reflected_struct_view.html#a8dc0ed3453029e0cc631884cc7c18e0d',1,'dz::ReflectedStructView']]],
-  ['asset_5',['ASSET',['../structdz_1_1_file_handle.html#adb9d0ba7357a2f774ff33f9272f4f9a4aaa3b911dfd1ea8610b6935b10729bbca',1,'dz::FileHandle']]],
-  ['asset_6',['Asset',['../namespacedz.html#aa1ed64f551f6769756e73eb1df9d8892',1,'dz']]],
-  ['assetpack_2ehpp_7',['AssetPack.hpp',['../_asset_pack_8hpp.html',1,'']]]
+  ['_5f0_0',['_0',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3aa764b4bf13a360c7ac2a35ec4ca96c95',1,'dz']]],
+  ['_5f1_1',['_1',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a5d98ec0427152056397e9e35f357be87',1,'dz']]],
+  ['_5f2_2',['_2',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a26e3d8bac39f9313d584a6025bd7544d',1,'dz']]],
+  ['_5f3_3',['_3',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3af806252045a28179caaf0ec8f0b5f298',1,'dz']]],
+  ['_5f4_4',['_4',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ab49511be6fca00a500dc7cd69ecc6c58',1,'dz']]],
+  ['_5f5_5',['_5',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3afc85e0e9e785e1ac37df34f744769c5f',1,'dz']]],
+  ['_5f6_6',['_6',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3adfbfc4a9ddfbf50d6b3349e7a97f0101',1,'dz']]],
+  ['_5f7_7',['_7',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a56bb8449aba0e83c4cd30e57fab20c9d',1,'dz']]],
+  ['_5f8_8',['_8',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3add494b805517113d9d15b8adf0a09b5c',1,'dz']]],
+  ['_5f9_9',['_9',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a9748632a03a999f14fd0c94056c4aa24',1,'dz']]]
 ];

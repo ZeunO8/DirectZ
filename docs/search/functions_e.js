@@ -1,11 +1,11 @@
 var searchData=
 [
-  ['radians_0',['radians',['../namespacedz.html#a11ae1a19c0477cb9a8d20aedcc530e7b',1,'dz']]],
-  ['read_1',['read',['../classdz_1_1_key_value_stream.html#a4a31748484ee1e3ffd39ed5d3c116c87',1,'dz::KeyValueStream']]],
-  ['read_5fu64_2',['read_u64',['../namespacevlen.html#a176d8ef018ce36c37a40c19cf3dda76a',1,'vlen']]],
-  ['reflectedstructview_3',['ReflectedStructView',['../classdz_1_1_reflected_struct_view.html#ab52c32d8484daa670f177cdbbc1de4c6',1,'dz::ReflectedStructView']]],
-  ['render_4',['render',['../_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da',1,'DirectZ.hpp']]],
-  ['reset_5',['reset',['../structdz_1_1size__ptr.html#a67d36e9b7fd25c8a9c427b733da531c7',1,'dz::size_ptr']]],
-  ['rotate_6',['rotate',['../structdz_1_1mat.html#aeef57115b48ff63f704557295900a268',1,'dz::mat']]],
-  ['rotatearound_7',['rotateAround',['../structdz_1_1mat.html#a35fe2cc5ebb5d13672d26713edc15a13',1,'dz::mat']]]
+  ['perspective_0',['perspective',['../namespacedz.html#a59a97e5d6de5764964d355cd9c2fb305',1,'dz']]],
+  ['perspectivelh_5fno_1',['perspectiveLH_NO',['../namespacedz.html#ac36921592979d0f12328f0f2a8b6c8f6',1,'dz']]],
+  ['perspectivelh_5fzo_2',['perspectiveLH_ZO',['../namespacedz.html#a09fefe8c7dc4e014cf21cf8f9502dfab',1,'dz']]],
+  ['perspectiverh_5fno_3',['perspectiveRH_NO',['../namespacedz.html#abe3fc072299bb1c87cc52ff25cbf3a8e',1,'dz']]],
+  ['perspectiverh_5fzo_4',['perspectiveRH_ZO',['../namespacedz.html#a19476f3e906a78fdcd350f0b8839432d',1,'dz']]],
+  ['poll_5fevents_5',['poll_events',['../_direct_z_8hpp.html#a82c7b80bbdbda5afec4477bda7f6bcb7',1,'DirectZ.hpp']]],
+  ['printstreampoints_6',['printStreamPoints',['../structdz_1_1_d7_stream.html#a788eb24eb7a30641c78848c06ea13f65',1,'dz::D7Stream']]],
+  ['programargs_7',['ProgramArgs',['../structdz_1_1_program_args.html#ae0b3dd5468a46c3e9613b4e5a253667a',1,'dz::ProgramArgs']]]
 ];

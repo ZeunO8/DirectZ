@@ -1,4 +1,28 @@
 var searchData=
 [
-  ['translate_0',['translate',['../structdz_1_1mat.html#afba8750c7e76f37c2ed5dadcd6a46ab3',1,'dz::mat']]]
+  ['radians_0',['radians',['../namespacedz.html#a11ae1a19c0477cb9a8d20aedcc530e7b',1,'dz']]],
+  ['read_1',['read',['../classdz_1_1_key_value_stream.html#a4a31748484ee1e3ffd39ed5d3c116c87',1,'dz::KeyValueStream']]],
+  ['read_5fu64_2',['read_u64',['../namespacevlen.html#a176d8ef018ce36c37a40c19cf3dda76a',1,'vlen']]],
+  ['reflectedstructview_3',['ReflectedStructView',['../classdz_1_1_reflected_struct_view.html#ab52c32d8484daa670f177cdbbc1de4c6',1,'dz::ReflectedStructView']]],
+  ['register_5frestorable_5fconstructor_4',['register_restorable_constructor',['../namespacedz.html#a9e063990ab02dca3f3e4ee18880c1b2c',1,'dz']]],
+  ['registercomponent_5',['RegisterComponent',['../structdz_1_1_e_c_s.html#a03458c6fb19cd356f36ce16cf9cd5a68',1,'dz::ECS']]],
+  ['registercomponents_6',['RegisterComponents',['../structdz_1_1_e_c_s.html#a1835b10dd309ba731024aeb55258ed6d',1,'dz::ECS']]],
+  ['registercubeshape_7',['RegisterCubeShape',['../namespacedz_1_1ecs.html#a8304244c8a32e127d3ea33e70c94ab30',1,'dz::ecs']]],
+  ['registerplaneshape_8',['RegisterPlaneShape',['../namespacedz_1_1ecs.html#a33d61bdd7162aef18bcb7da0d621eafa',1,'dz::ecs']]],
+  ['registerprovider_9',['RegisterProvider',['../structdz_1_1_e_c_s.html#a041f577d62852ad760f548981bb82836',1,'dz::ECS']]],
+  ['registerproviders_10',['RegisterProviders',['../structdz_1_1_e_c_s.html#ac0ce0475966805ca0ac8e0df89e487ba',1,'dz::ECS']]],
+  ['registershape_11',['RegisterShape',['../structdz_1_1ecs_1_1_shape.html#a9a61e771e410c8fd5a7208d9ad953fc2',1,'dz::ecs::Shape']]],
+  ['registerstatecid_12',['RegisterStateCID',['../structdz_1_1_e_c_s.html#a6990a0e560c6bff05b1c7e34a0501330',1,'dz::ECS']]],
+  ['removeimmediatedrawfunction_13',['RemoveImmediateDrawFunction',['../structdz_1_1_im_gui_layer.html#a511164ad21bb92fbc0923b64f67a937e',1,'dz::ImGuiLayer']]],
+  ['removestreampoint_14',['removeStreamPoint',['../structdz_1_1_d7_stream.html#a5df5d9070983584281580e7bf6fb4d63',1,'dz::D7Stream']]],
+  ['render_15',['Render',['../structdz_1_1_im_gui_layer.html#ab9d60099296d55cf40b91aa32517b6e9',1,'dz::ImGuiLayer']]],
+  ['render_16',['render',['../_direct_z_8hpp.html#ae14d864e152386451db5e2f0d8d881da',1,'DirectZ.hpp']]],
+  ['reset_17',['reset',['../structdz_1_1size__ptr.html#a67d36e9b7fd25c8a9c427b733da531c7',1,'dz::size_ptr']]],
+  ['resize_18',['Resize',['../structdz_1_1_e_c_s.html#a56541cb5ba821513658ca415de7445ed',1,'dz::ECS']]],
+  ['resizeframebuffer_19',['ResizeFramebuffer',['../structdz_1_1_e_c_s.html#a94cfbcad08e25debeff99822331d5860',1,'dz::ECS']]],
+  ['restore_20',['restore',['../structdz_1_1_e_c_s.html#a2baea428e44d9dec4cc942c09bbdca58',1,'dz::ECS::restore()'],['../structdz_1_1_restorable.html#a986eeb301aac3d44ce8686495b120a38',1,'dz::Restorable::restore()']]],
+  ['rewindnpoints_21',['rewindNPoints',['../structdz_1_1_d7_stream.html#abc07aa687209d5197a8973dd2033a47c',1,'dz::D7Stream']]],
+  ['rotate_22',['rotate',['../structdz_1_1mat.html#aeef57115b48ff63f704557295900a268',1,'dz::mat::rotate()'],['../structdz_1_1quat.html#a9d529134b8ea6e3caa75825e525bd3d9',1,'dz::quat::rotate()']]],
+  ['rotate_5fstatic_23',['rotate_static',['../structdz_1_1mat.html#a809d91a6ef9576a34086d8b8f6dbe9fb',1,'dz::mat']]],
+  ['rotatearound_24',['rotateAround',['../structdz_1_1mat.html#a35fe2cc5ebb5d13672d26713edc15a13',1,'dz::mat']]]
 ];

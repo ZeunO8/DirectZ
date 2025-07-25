@@ -1,4 +1,23 @@
 var searchData=
 [
-  ['title_0',['title',['../structdz_1_1_window_create_info.html#a1a810a9a37b0edf1d5b7364911d2e985',1,'dz::WindowCreateInfo']]]
+  ['padding1_0',['padding1',['../structdz_1_1ecs_1_1_light.html#a4d0cc1855c4bcc018ec0c86f2052bb9e',1,'dz::ecs::Light']]],
+  ['padding2_1',['padding2',['../structdz_1_1ecs_1_1_light.html#aa3b629d771f8f0175665f78a755ccc71',1,'dz::ecs::Light']]],
+  ['parent_5fid_2',['parent_id',['../structdz_1_1_camera_1_1_camera_reflectable_group.html#afe1906d5dfe8c05a39105c566869a20d',1,'dz::Camera::CameraReflectableGroup::parent_id'],['../structdz_1_1ecs_1_1_entity_1_1_entity_reflectable_group.html#a8a09d96dd5f6ef2552783a73f8a9fc75',1,'dz::ecs::Entity::EntityReflectableGroup::parent_id'],['../structdz_1_1ecs_1_1_scene_1_1_scene_reflectable_group.html#a733a9a8ed4fce0300936e69eab93171a',1,'dz::ecs::Scene::SceneReflectableGroup::parent_id']]],
+  ['parent_5findex_3',['parent_index',['../structdz_1_1ecs_1_1_entity.html#a3bcd9ba4b9b18e23d5a0d7a3985cbca2',1,'dz::ecs::Entity']]],
+  ['parent_5fptr_4',['parent_ptr',['../struct_reflectable_group.html#a1920b6cbced908202b57032d4a43dc9c',1,'ReflectableGroup']]],
+  ['path_5',['path',['../structdz_1_1_file_handle.html#a439ffebff10254aaf4f052581f3db46e',1,'dz::FileHandle']]],
+  ['pattachmenttypes_6',['pAttachmentTypes',['../structdz_1_1_framebuffer_info.html#a4c77a6afbcc29dfc79d10b54f44ec10a',1,'dz::FramebufferInfo']]],
+  ['pid_7',['PID',['../structdz_1_1_camera.html#adfebc8759b572848bd45568e23dd6fe7',1,'dz::Camera::PID'],['../structdz_1_1ecs_1_1_color_component.html#a5de8b2097891f5327ed1b24aa3df206d',1,'dz::ecs::ColorComponent::PID'],['../structdz_1_1ecs_1_1_entity.html#a2346fd5a8850497a998bb7a57c5db101',1,'dz::ecs::Entity::PID'],['../structdz_1_1ecs_1_1_light.html#a26baee94915c0ee7427d325f15890bae',1,'dz::ecs::Light::PID'],['../structdz_1_1ecs_1_1_scene.html#a8b3e1228c89301701d4cb6406cf29ac8',1,'dz::ecs::Scene::PID'],['../structdz_1_1ecs_1_1_shape.html#a7bcb7d97f33ef191a68c108c7dfb45c6',1,'dz::ecs::Shape::PID']]],
+  ['pimages_8',['pImages',['../structdz_1_1_framebuffer_info.html#a1085811c2b2c7ee7c574866997faf766',1,'dz::FramebufferInfo']]],
+  ['position_9',['position',['../structdz_1_1_camera.html#acfb377067a61a68ccef5ea37d7e5ba7d',1,'dz::Camera::position'],['../structdz_1_1ecs_1_1_entity.html#a0418c4057750b985ebaaf65df6f01633',1,'dz::ecs::Entity::position'],['../structdz_1_1ecs_1_1_light.html#a3b8ae46ce4b10957cadd0406f72e3c05',1,'dz::ecs::Light::position']]],
+  ['pre_5frender_5ffn_10',['pre_render_fn',['../structdz_1_1_camera_draw_information.html#a45dd8c0de17f5d0d530170c6830f188f',1,'dz::CameraDrawInformation']]],
+  ['prioritized_5fprovider_5fids_11',['prioritized_provider_ids',['../structdz_1_1_e_c_s.html#a2af4eafcbe67f8d6b06a1f0fbb31ccb8',1,'dz::ECS']]],
+  ['priority_12',['Priority',['../structdz_1_1_camera.html#a1d748d176386bf5594e1e5b0ffdc7c0e',1,'dz::Camera::Priority'],['../structdz_1_1ecs_1_1_color_component.html#ac63d9eaaa7d3cc20ec956dd0bcadf5cf',1,'dz::ecs::ColorComponent::Priority'],['../structdz_1_1ecs_1_1_entity.html#a1e1e960f7d8e33810ff5e7bc332386e8',1,'dz::ecs::Entity::Priority'],['../structdz_1_1ecs_1_1_light.html#a1ad2d07a7f7b1bdd4d2c026d56b0ddaa',1,'dz::ecs::Light::Priority'],['../structdz_1_1ecs_1_1_scene.html#a968947dd62264e4b9a235f6c048ef850',1,'dz::ecs::Scene::Priority'],['../structdz_1_1ecs_1_1_shape.html#abea14b2ce4e3a86b379bab82ba20404c',1,'dz::ecs::Shape::Priority']]],
+  ['priority_13',['priority',['../structdz_1_1_e_c_s_1_1_provider_reflectable_group.html#a4d1a546e5d517f6c0fa867b1f8a4eeed',1,'dz::ECS::ProviderReflectableGroup']]],
+  ['priority_5fglsl_5fmains_14',['priority_glsl_mains',['../structdz_1_1_e_c_s.html#aa6f0ab28e7efafccc15fc97b40bb8ac3',1,'dz::ECS']]],
+  ['projection_15',['projection',['../structdz_1_1_camera.html#aa4d69a1253d0ba34ec4a2ecfc9c19748',1,'dz::Camera']]],
+  ['provider_5fid_5freflectable_5fmaps_16',['provider_id_reflectable_maps',['../structdz_1_1_e_c_s.html#a68691bef47fb757e049898fc664e20c9',1,'dz::ECS']]],
+  ['provider_5findex_5fvectors_17',['provider_index_vectors',['../structdz_1_1_e_c_s.html#a9480cc5ed75db8b120997363ed872a2e',1,'dz::ECS']]],
+  ['providername_18',['ProviderName',['../structdz_1_1_camera.html#a152db2658776171072e6a109ad0edd07',1,'dz::Camera::ProviderName'],['../structdz_1_1ecs_1_1_color_component.html#afa2fda60001f48ee797c65b40f6cd7aa',1,'dz::ecs::ColorComponent::ProviderName'],['../structdz_1_1ecs_1_1_entity.html#aae28ac67971ffb941aa94da0674198da',1,'dz::ecs::Entity::ProviderName'],['../structdz_1_1ecs_1_1_light.html#a6dc8d43ec299cf8404feef7119eac3db',1,'dz::ecs::Light::ProviderName'],['../structdz_1_1ecs_1_1_scene.html#a96d91cef61c586e63900e2a9cb487784',1,'dz::ecs::Scene::ProviderName'],['../structdz_1_1ecs_1_1_shape.html#a756f8725ae22dae43515201bb85fdef2',1,'dz::ecs::Shape::ProviderName']]],
+  ['ptr_19',['ptr',['../structdz_1_1size__ptr.html#ab4f4a383d7fc65589361c9e72e985612',1,'dz::size_ptr']]]
 ];

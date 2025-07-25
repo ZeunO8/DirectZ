@@ -11,5 +11,6 @@ var structdz_1_1mat =
     [ "rotateAround", "structdz_1_1mat.html#a35fe2cc5ebb5d13672d26713edc15a13", null ],
     [ "scale", "structdz_1_1mat.html#ad3162dc5481aea4807f0552c2a933b5b", null ],
     [ "translate", "structdz_1_1mat.html#afba8750c7e76f37c2ed5dadcd6a46ab3", null ],
+    [ "transpose", "structdz_1_1mat.html#afb53e534ed8989a309214ba50e0c6977", null ],
     [ "matrix", "structdz_1_1mat.html#a9ccf6cfa7b8578e93bfff0b02162a229", null ]
 ];

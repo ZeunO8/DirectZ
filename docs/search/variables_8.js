@@ -1,4 +1,19 @@
 var searchData=
 [
-  ['location_0',['location',['../structdz_1_1_file_handle.html#afe0637a1f0c3179aa6999f3f2ed5b0db',1,'dz::FileHandle']]]
+  ['id_0',['id',['../structdz_1_1ecs_1_1_entity.html#a9210234caadc06cc1d3203f00b12aaa4',1,'dz::ecs::Entity::id'],['../structdz_1_1ecs_1_1_scene.html#a0990090e1f38101704de4c27b368f97e',1,'dz::ecs::Scene::id'],['../struct_reflectable_group.html#a11566ef8c85276ad386bb1704af2bae9',1,'ReflectableGroup::id']]],
+  ['id_5fprovider_5fgroups_1',['id_provider_groups',['../structdz_1_1_e_c_s.html#aea0871faeaa60fbc78c0b587764179a2',1,'dz::ECS']]],
+  ['image_5ftype_2',['image_type',['../structdz_1_1_image_create_info.html#a9f61b1fff089c7e167e1dce4db268003',1,'dz::ImageCreateInfo']]],
+  ['imagescount_3',['imagesCount',['../structdz_1_1_framebuffer_info.html#a169b291b09f93f6e4685a1103558e7ed',1,'dz::FramebufferInfo']]],
+  ['imgui_5fname_4',['imgui_name',['../structdz_1_1_camera_1_1_camera_reflectable_group.html#a680d811142a529d160af2ac52c9c88ca',1,'dz::Camera::CameraReflectableGroup']]],
+  ['index_5',['index',['../struct_reflectable_group.html#a09d5b0ad177942b2002b635cea7ae3a4',1,'ReflectableGroup']]],
+  ['innercone_6',['innerCone',['../structdz_1_1ecs_1_1_light.html#a7f407506368f8e8e5c88989b1a8e1feb',1,'dz::ecs::Light']]],
+  ['instancecount_7',['instanceCount',['../structdz_1_1_draw_indirect_command.html#a25841c1887da579a6bb537ccb611b64e',1,'dz::DrawIndirectCommand']]],
+  ['intensity_8',['intensity',['../structdz_1_1ecs_1_1_light.html#acd96d7119984c3753bbb2211a845a691',1,'dz::ecs::Light']]],
+  ['is_5fchild_9',['is_child',['../struct_reflectable_group.html#abd67522a6f0ff674f5c2a2296a52aeb1',1,'ReflectableGroup']]],
+  ['is_5fcomponent_10',['is_component',['../structdz_1_1_e_c_s_1_1_provider_reflectable_group.html#ad9854eff7f8ed392c016e87ea45b6656',1,'dz::ECS::ProviderReflectableGroup']]],
+  ['is_5fframebuffer_5fattachment_11',['is_framebuffer_attachment',['../structdz_1_1_image_create_info.html#a2b1014222d28125c47b74c14cb5179f8',1,'dz::ImageCreateInfo']]],
+  ['iscameraprovider_12',['IsCameraProvider',['../structdz_1_1_camera.html#a673d9148e0dddc6e14372b238bf92027',1,'dz::Camera']]],
+  ['iscomponent_13',['IsComponent',['../structdz_1_1ecs_1_1_color_component.html#ae8561e1ee7557f938d51c1270ed0aa58',1,'dz::ecs::ColorComponent']]],
+  ['isdrawprovider_14',['IsDrawProvider',['../structdz_1_1ecs_1_1_entity.html#a41eb39ce3d33d1bb5fb4badc5f5a73e7',1,'dz::ecs::Entity']]],
+  ['issceneprovider_15',['IsSceneProvider',['../structdz_1_1ecs_1_1_scene.html#aaa2b6facf35db74098cc45792e26103d',1,'dz::ecs::Scene']]]
 ];

@@ -1,15 +1,11 @@
 var searchData=
 [
-  ['idrawlistmanager_0',['IDrawListManager',['../structdz_1_1_i_draw_list_manager.html',1,'dz']]],
-  ['image_2ehpp_1',['Image.hpp',['../_image_8hpp.html',1,'']]],
-  ['image_5fresize_5f2d_2',['image_resize_2D',['../namespacedz.html#a5ddb998335541c5fbdd08c85e39a5a5a',1,'dz']]],
-  ['image_5fresize_5f3d_3',['image_resize_3D',['../namespacedz.html#adc39a9454af0b8194d8932c5d437fff9',1,'dz']]],
-  ['infiniteperspective_4',['infinitePerspective',['../namespacedz.html#a3b4aa7883ac79edf5a8b36ad087d9f9e',1,'dz']]],
-  ['infiniteperspectivelh_5fno_5',['infinitePerspectiveLH_NO',['../namespacedz.html#aeec62f7169e3716c337219228ae2ca3c',1,'dz']]],
-  ['infiniteperspectivelh_5fzo_6',['infinitePerspectiveLH_ZO',['../namespacedz.html#ac79d4847f1e75e3e1551f3a9fd2b394e',1,'dz']]],
-  ['infiniteperspectiverh_5fno_7',['infinitePerspectiveRH_NO',['../namespacedz.html#aaee56f124a9649785a7655d39f0c0a7d',1,'dz']]],
-  ['infiniteperspectiverh_5fzo_8',['infinitePerspectiveRH_ZO',['../namespacedz.html#a725085c2bf65284e6b077a2b47454ad3',1,'dz']]],
-  ['init_9',['init',['../_direct_z_8hpp.html#aa4218317b90536af90e642661b5fe878',1,'DirectZ.hpp']]],
-  ['instancecount_10',['instanceCount',['../structdz_1_1_draw_indirect_command.html#a25841c1887da579a6bb537ccb611b64e',1,'dz::DrawIndirectCommand']]],
-  ['inverse_11',['inverse',['../structdz_1_1mat.html#a5b8d520dad06b68e76a6605c7b0966d5',1,'dz::mat']]]
+  ['h_0',['H',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ac1d9f50f86825a1a2302ec2449c17196',1,'dz']]],
+  ['h_1',['h',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a2510c39011c5be704182423e3a695e91',1,'dz']]],
+  ['hands_20on_20directz_2',['Getting hands on DirectZ',['../index.html#autotoc_md2',1,'']]],
+  ['has_5fstate_3',['has_state',['../namespacedz.html#abf1c9147d3ae56ee9eaea49aedcc2e16',1,'dz']]],
+  ['hashtag_4',['HASHTAG',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ac0cd4691ee439a0c7652e7f6002061aa',1,'dz']]],
+  ['headerentry_5',['HeaderEntry',['../structdz_1_1_key_value_stream_1_1_header_entry.html',1,'dz::KeyValueStream']]],
+  ['height_6',['height',['../structdz_1_1_display_description.html#ab7b995f11ab0bbf6f1a63e26b9e6f4f5',1,'dz::DisplayDescription::height'],['../structdz_1_1_image_create_info.html#a36c26b33cc6b6a9a52152e3d70009f16',1,'dz::ImageCreateInfo::height'],['../structdz_1_1_window_create_info.html#a418652579b400a4268898f121e383428',1,'dz::WindowCreateInfo::height']]],
+  ['home_7',['HOME',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a710533dd879dd1202e5c73b27705bf02',1,'dz']]]
 ];

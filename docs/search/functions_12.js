@@ -1,6 +1,12 @@
 var searchData=
 [
-  ['value_0',['value',['../structdz_1_1_random.html#a12d2694330ef3e55531cb61a9fd20424',1,'dz::Random::value(const T min, const T max, const size_t seed=(std::numeric_limits&lt; size_t &gt;::max)())'],['../structdz_1_1_random.html#a34f796a72bb374ff93332d5fcdb26db6',1,'dz::Random::value(const T min, const T max, std::mt19937 &amp;mt19937)']]],
-  ['valuefromrandomrange_1',['valueFromRandomRange',['../structdz_1_1_random.html#a164f41b8f44bd2f5af633144911167ea',1,'dz::Random::valueFromRandomRange(const std::vector&lt; std::pair&lt; T, T &gt; &gt; &amp;ranges, const size_t seed=(std::numeric_limits&lt; size_t &gt;::max)())'],['../structdz_1_1_random.html#ac739ecf2b3592f199b26377f77a7ad8e',1,'dz::Random::valueFromRandomRange(const std::vector&lt; std::pair&lt; T, T &gt; &gt; &amp;ranges, std::mt19937 &amp;mt19937)']]],
-  ['vec_2',['vec',['../structdz_1_1vec.html#ac788ae4114a05c374b22c0943d0e188b',1,'dz::vec::vec(Args... args)'],['../structdz_1_1vec.html#aa00f282eadfc4035f873120fa3559e75',1,'dz::vec::vec(const vec&lt; OT, ON &gt; &amp;other)']]]
+  ['to_5faxis_5fangle_0',['to_axis_angle',['../structdz_1_1quat.html#a7fe99d36a2c20d4cf044c637efeebd54',1,'dz::quat']]],
+  ['to_5fmat4_1',['to_mat4',['../structdz_1_1quat.html#a4f1251cd8a81e952c6e81cc9966610e7',1,'dz::quat']]],
+  ['track_5fstate_2',['track_state',['../namespacedz.html#a53f420348e1d2f81d9f7a16e79c7f570',1,'dz']]],
+  ['track_5fstatic_5fstate_3',['track_static_state',['../namespacedz.html#acbcce80121bb493e304325ff65b53871',1,'dz']]],
+  ['track_5fwindow_5fstate_4',['track_window_state',['../namespacedz.html#aa4cd094b7825d6fe870c4d87263d54d9',1,'dz']]],
+  ['translate_5',['translate',['../structdz_1_1mat.html#afba8750c7e76f37c2ed5dadcd6a46ab3',1,'dz::mat']]],
+  ['translate_5fstatic_6',['translate_static',['../structdz_1_1mat.html#a75c6cf67c6397f7e9c0c2b2b12a6ab36',1,'dz::mat']]],
+  ['transpose_7',['transpose',['../structdz_1_1mat.html#afb53e534ed8989a309214ba50e0c6977',1,'dz::mat']]],
+  ['trymakegroup_8',['TryMakeGroup',['../structdz_1_1_provider.html#afb9bc198f50dbc3fdfba723020d01f57',1,'dz::Provider']]]
 ];

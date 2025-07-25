@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['size_5fptr_0',['size_ptr',['../structdz_1_1size__ptr.html',1,'dz']]]
+  ['light_0',['Light',['../structdz_1_1ecs_1_1_light.html',1,'dz::ecs']]],
+  ['lightmetareflectable_1',['LightMetaReflectable',['../structdz_1_1ecs_1_1_light_meta_reflectable.html',1,'dz::ecs']]]
 ];

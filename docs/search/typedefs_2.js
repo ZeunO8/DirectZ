@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['shaderdrawlist_0',['ShaderDrawList',['../namespacedz.html#a785e670fc013de428f1202033bf835a5',1,'dz']]]
+  ['cameraprovidert_0',['CameraProviderT',['../structdz_1_1_e_c_s.html#aff6ca6c2589732b628b7fcea0fec5bef',1,'dz::ECS']]],
+  ['cameratuple_1',['CameraTuple',['../namespacedz.html#aa02da7cbbd5268e8bc4182ef59392f5b',1,'dz']]]
 ];
