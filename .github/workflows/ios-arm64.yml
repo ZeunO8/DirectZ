@@ -85,6 +85,7 @@ jobs:
       - name: Configure
         run: |
           source $VULKAN_SDK/iOS/setup-env.sh
+          ls -lah $VULKAN_SDK/../iOS
           cmake -G Ninja -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES \
