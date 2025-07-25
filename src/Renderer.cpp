@@ -543,6 +543,8 @@ namespace dz {
 			});
 		};
 
+		bool robustness2_enabled = false;
+
 		if (is_supported("VK_KHR_portability_subset"))
 			extensions.push_back("VK_KHR_portability_subset");
 		if (is_supported(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
@@ -551,25 +553,34 @@ namespace dz {
 			extensions.push_back("VK_KHR_maintenance1");
 		if (is_supported("VK_KHR_swapchain"))
 			extensions.push_back("VK_KHR_swapchain");
+		if (is_supported("VK_EXT_robustness2")) {
+			extensions.push_back("VK_EXT_robustness2");
+			robustness2_enabled = true;
+		}
+
+		VkPhysicalDeviceRobustness2FeaturesEXT robustness2{
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
+			.robustBufferAccess2 = false,
+			.robustImageAccess2 = false,
+			.nullDescriptor = true
+		};
 
 		VkPhysicalDeviceShaderDrawParametersFeatures shaderDrawParamsFeatures_query{};
 		shaderDrawParamsFeatures_query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES;
-
+		if (robustness2_enabled)
+			shaderDrawParamsFeatures_query.pNext = &robustness2;
 	#ifndef __ANDROID__
 		VkPhysicalDeviceVulkan12Features vulkan12Features{};
 		vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 		vulkan12Features.pNext = &shaderDrawParamsFeatures_query;
+		void* pNextFeatureChain = &vulkan12Features;
 	#else
 		void* pNextFeatureChain = &shaderDrawParamsFeatures_query;
 	#endif
 
 		VkPhysicalDeviceFeatures2 supportedFeatures{};
 		supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-	#ifndef __ANDROID__
-		supportedFeatures.pNext = &vulkan12Features;
-	#else
 		supportedFeatures.pNext = pNextFeatureChain;
-	#endif
 
 		vkGetPhysicalDeviceFeatures2(dr.physicalDevice, &supportedFeatures);
 

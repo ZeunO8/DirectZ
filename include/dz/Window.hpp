@@ -21,6 +21,7 @@ namespace dz
     struct WINDOW;
     struct EventInterface;
     struct ImGuiLayer;
+    struct Shader;
 
     struct WindowCreateInfo
     {
@@ -484,4 +485,16 @@ namespace dz
     * @brief explicitly closes a window
     */
     void window_request_close(WINDOW* window_ptr);
+
+    /**
+    * @brief Registers a Compute shader for dispatch
+    *
+    * @note shader dispatch will be called during window_render
+    */
+    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const std::function<int()>& dispatch_count_fn);
+
+    /**
+    * @brief Dergisters a Compute shader dispatch
+    */
+    void window_deregister_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader);
 }

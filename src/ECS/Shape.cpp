@@ -2,7 +2,7 @@
 
 namespace dz {
 
-int ecs::RegisterPlaneShape()
+std::pair<int, int> ecs::RegisterPlaneShape()
 {
     return Shape::RegisterShape(
         "Plane",
@@ -29,7 +29,7 @@ vec3 GetPlaneNormal(in Entity entity)
     );
 }
 
-int ecs::RegisterCubeShape()
+std::pair<int, int> ecs::RegisterCubeShape()
 {
     return Shape::RegisterShape(
         "Cube",

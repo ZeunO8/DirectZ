@@ -18,6 +18,7 @@ namespace dz::ecs {
         int padding2 = 0;
         vec<float, 3> color;      // RGBA
         float outerCone;          // for spot
+        inline static constexpr size_t PID = 4;
         inline static float Priority = 3.5f;
         inline static std::string ProviderName = "Light";
         inline static std::string StructName = "Light";

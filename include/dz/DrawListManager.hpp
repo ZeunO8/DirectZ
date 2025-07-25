@@ -38,9 +38,11 @@ namespace dz
     {
         using Determine_DrawT_DrawTuples_Function = std::function<DrawTuples(BufferGroup*, DrawT&)>;
         using Determine_CameraTuple_Function = std::function<CameraTuple(BufferGroup*, int)>;
+        using Determine_VisibleDraws_Function = std::function<std::vector<int>(BufferGroup*, int camera_index)>;
     private:
         Determine_DrawT_DrawTuples_Function fn_determine_DrawT_DrawTuples;
         Determine_CameraTuple_Function fn_determine_CameraTuple;
+        Determine_VisibleDraws_Function fn_get_visible_draws;
         std::string draw_key;
         std::string camera_key;
         DrawInformation drawInformation;
@@ -54,13 +56,29 @@ namespace dz
          */
         DrawListManager(
             const std::string& draw_key, const Determine_DrawT_DrawTuples_Function& fn_determine_DrawT_DrawTuples,
-            const std::string& camera_key = "", const Determine_CameraTuple_Function& fn_determine_CameraTuple = {}
+            const std::string& camera_key = "", const Determine_CameraTuple_Function& fn_determine_CameraTuple = {},
+            const Determine_VisibleDraws_Function& fn_get_visible_draws = {}
         ):
             fn_determine_DrawT_DrawTuples(fn_determine_DrawT_DrawTuples),
             fn_determine_CameraTuple(fn_determine_CameraTuple),
             draw_key(draw_key),
             camera_key(camera_key)
-        {}
+        {
+            if (fn_get_visible_draws) {
+                this->fn_get_visible_draws = fn_get_visible_draws;
+            }
+            else {
+                this->fn_get_visible_draws = [&](auto buffer_group, auto camera_index) {
+                    auto draw_count = buffer_group_get_buffer_element_count(buffer_group, this->draw_key);
+                    std::vector<int> visible(draw_count, 0);
+                    auto visible_size = visible.size();
+                    auto visible_data = visible.data();
+                    for (size_t i = 1; i < visible_size; ++i)
+                        visible_data[i] = i;
+                    return visible;
+                };
+            }
+        }
 
         /**
          * @brief Ensures DrawInformation
@@ -84,13 +102,23 @@ namespace dz
                 for (size_t i = 0; i < camera_elements; ++i)
                 {
                     auto [camera_index, framebuffer, camera_pre_render_fn] = fn_determine_CameraTuple(buffer_group, i);
-                    drawInformation.cameras[camera_index] = { framebuffer, camera_pre_render_fn };
+                    CameraDrawInformation cameraDrawInfo{
+                        .camera_index = camera_index,
+                        .framebuffer = framebuffer,
+                        .pre_render_fn = camera_pre_render_fn
+                    };
+                    drawInformation.cameraDrawInfos.push_back(cameraDrawInfo);
                 }
             }
 
-            if (drawInformation.cameras.empty())
+            if (drawInformation.cameraDrawInfos.empty())
             {
-                drawInformation.cameras[-1] = { nullptr, {} };
+                CameraDrawInformation cameraDrawInfo{
+                    .camera_index = -1,
+                    .framebuffer = nullptr,
+                    .pre_render_fn = {}
+                };
+                drawInformation.cameraDrawInfos.push_back(cameraDrawInfo);
             }
 
             auto drawTuplesMatch = [](const auto& a, const auto& b) -> bool
@@ -105,44 +133,52 @@ namespace dz
                 return true;
             };
 
-            const size_t draw_elements = buffer_group_get_buffer_element_count(buffer_group, draw_key);
+            for (auto& cameraDrawInfo : drawInformation.cameraDrawInfos) {
+                auto camera_index = cameraDrawInfo.camera_index;
+                auto visible_entity_indices = fn_get_visible_draws(buffer_group, camera_index);
+                auto visible_entity_indices_data = visible_entity_indices.data();
+                auto visible_entity_indices_size = visible_entity_indices.size();
+                size_t vi = 0;
+                size_t i = 0;
+                for (; vi < visible_entity_indices_size;) {
+                    i = visible_entity_indices_data[vi];
 
-            size_t i = 0;
-            while (i < draw_elements)
-            {
-                auto element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, i);
-                auto& element = element_view.template as_struct<DrawT>();
-                auto draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, element);
+                    auto element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, i);
+                    auto& element = element_view.template as_struct<DrawT>();
+                    auto draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, element);
 
-                uint32_t run_start = static_cast<uint32_t>(i);
-                uint32_t instance_count = 1;
-                size_t j = i + 1;
+                    uint32_t run_start = static_cast<uint32_t>(i);
+                    uint32_t instance_count = 1;
+                    size_t vj = vi + 1;
+                    size_t j = 0;
 
-                while (j < draw_elements)
-                {
-                    auto next_element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, j);
-                    auto& next_element = next_element_view.template as_struct<DrawT>();
-                    auto next_draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, next_element);
+                    while (vj < visible_entity_indices_size)
+                    {
+                        j = visible_entity_indices_data[vj];
+                        auto next_element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, j);
+                        auto& next_element = next_element_view.template as_struct<DrawT>();
+                        auto next_draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, next_element);
 
-                    if (!drawTuplesMatch(draw_tuples, next_draw_tuples))
-                        break;
+                        if (!drawTuplesMatch(draw_tuples, next_draw_tuples))
+                            break;
 
-                    instance_count += 1;
-                    j += 1;
+                        instance_count += 1;
+                        vj += 1;
+                    }
+
+                    for (auto& [shader, vertexCount] : draw_tuples)
+                    {
+                        DrawIndirectCommand cmd;
+                        cmd.vertexCount = vertexCount;
+                        cmd.instanceCount = instance_count;
+                        cmd.firstVertex = 0;
+                        cmd.firstInstance = run_start;
+
+                        cameraDrawInfo.shaderDrawList[shader].push_back(cmd);
+                    }
+
+                    vi = vj;
                 }
-
-                for (auto& [shader, vertexCount] : draw_tuples)
-                {
-                    DrawIndirectCommand cmd;
-                    cmd.vertexCount = vertexCount;
-                    cmd.instanceCount = instance_count;
-                    cmd.firstVertex = 0;
-                    cmd.firstInstance = run_start;
-
-                    drawInformation.shaderDrawList[shader].push_back(cmd);
-                }
-
-                i = j;
             }
 
             draw_list_dirty = false;

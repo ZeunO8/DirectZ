@@ -15,8 +15,7 @@ namespace dz {
     }
 
     void buffer_group_initialize(BufferGroup* buffer_group) {
-        for (auto& sp: buffer_group->shaders)
-        {
+        for (auto& sp: buffer_group->shaders) {
             auto shader = sp.first;
             shader->bound_buffer_groups.push_back(buffer_group);
             shader_initialize(shader);
@@ -27,11 +26,9 @@ namespace dz {
 
     VkImageUsageFlags infer_image_usage_flags(const std::unordered_map<Shader*, VkDescriptorType>& types) {
         VkImageUsageFlags flags = 0;
-        for (auto& pair : types)
-        {
+        for (auto& pair : types) {
             auto& type = pair.second;
-            switch (type)
-            {
+            switch (type) {
                 case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
                 case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
                     flags |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -122,27 +119,30 @@ namespace dz {
         auto old_data_ptr = buffer.data_ptr;
 
         buffer.element_count = element_count;
+        size_t old_size = old_element_count * buffer.element_stride;
         size_t new_size = buffer.element_count * buffer.element_stride;
 
-        if (!buffer.gpu_buffer.mapped_memory)
-        {
+        if (buffer.data_ptr && !buffer.gpu_buffer.mapped_memory) {
+            auto new_buffer = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
+            memset(new_buffer.get(), 0, new_size);
+            memcpy(new_buffer.get(), buffer.data_ptr.get(), (std::min)(old_size, new_size));
+            buffer.data_ptr = new_buffer;
+        }
+        else if (!buffer.gpu_buffer.mapped_memory) {
             // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
             buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
             memset(buffer.data_ptr.get(), 0, new_size);
         
-            if (old_element_count && old_data_ptr)
-            {
+            if (old_element_count && old_data_ptr) {
                 auto copy_size = std::min(old_element_count, element_count);
                 memcpy(buffer.data_ptr.get(), old_data_ptr.get(), copy_size);
                 std::cout << "Resized dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
             }
-            else
-            {
+            else {
                 std::cout << "Set dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
             }
         }
-        else
-        {
+        else {
             buffer_group_resize_gpu_buffer(buffer_name, buffer);
             for (auto& [shader, _] : buffer_group->shaders)
                 shader_update_descriptor_sets(shader);
@@ -150,8 +150,7 @@ namespace dz {
     }
 
     uint32_t buffer_group_get_buffer_element_count(BufferGroup* buffer_group, const std::string& buffer_name) {
-        if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end())
-        {
+        if (buffer_group->buffers.find(buffer_name) == buffer_group->buffers.end()) {
             throw std::runtime_error("Warning: Cannot get element count for buffer '" + buffer_name + "'. It was not found in reflection.");
         }
 
@@ -247,11 +246,9 @@ namespace dz {
             throw std::runtime_error("shader_get_buffer_element_view: Buffer '" + buffer_name + "' element is not a struct type. Type kind: " + buffer.element_type.type_kind);
         }
 
-        for (auto& shader_pair : buffer_group->shaders)
-        {
+        for (auto& shader_pair : buffer_group->shaders) {
             auto shader = shader_pair.first;
-            for (auto& shaderModulePair : shader->module_map)
-            {
+            for (auto& shaderModulePair : shader->module_map) {
                 const ReflectedStruct& reflected_struct_def = getCanonicalStruct(shaderModulePair.second.reflection, buffer.element_type);
                 // Return the ReflectedStructView
                 return ReflectedStructView(element_base_ptr, reflected_struct_def);
@@ -264,8 +261,7 @@ namespace dz {
         auto& device = dr.device;
         if (device == VK_NULL_HANDLE)
             return;
-        for (auto& bufferPair : buffer_group->buffers)
-        {
+        for (auto& bufferPair : buffer_group->buffers) {
             vkDestroyBuffer(device, bufferPair.second.gpu_buffer.buffer, 0);
             vkFreeMemory(device, bufferPair.second.gpu_buffer.memory, 0);
         }
@@ -336,14 +332,12 @@ namespace dz {
         VkDeviceSize old_size = buffer.gpu_buffer.size;
         VkDeviceSize new_size = ensure_buffer_size(name, buffer);
 
-        if (new_size == 0)
-        {
+        if (new_size == 0) {
             std::cerr << "Warning: Skipping resize of buffer '" << name << "' with zero size." << std::endl;
             return false;
         }
 
-        if (new_size <= old_size)
-        {
+        if (new_size <= old_size) {
             std::cout << "No resize needed for buffer '" << name << "'." << std::endl;
             return false;
         }
@@ -358,8 +352,7 @@ namespace dz {
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VkBuffer new_buffer;
-        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &new_buffer) != VK_SUCCESS)
-        {
+        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &new_buffer) != VK_SUCCESS) {
             std::cerr << "Failed to create new buffer for resize: " << name << std::endl;
             return false;
         }
@@ -373,15 +366,13 @@ namespace dz {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
         VkDeviceMemory new_memory;
-        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &new_memory) != VK_SUCCESS)
-        {
+        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &new_memory) != VK_SUCCESS) {
             std::cerr << "Failed to allocate memory for new buffer: " << name << std::endl;
             vkDestroyBuffer(dr.device, new_buffer, nullptr);
             return false;
         }
 
-        if (vkBindBufferMemory(dr.device, new_buffer, new_memory, 0) != VK_SUCCESS)
-        {
+        if (vkBindBufferMemory(dr.device, new_buffer, new_memory, 0) != VK_SUCCESS) {
             std::cerr << "Failed to bind new buffer memory: " << name << std::endl;
             vkDestroyBuffer(dr.device, new_buffer, nullptr);
             vkFreeMemory(dr.device, new_memory, nullptr);
@@ -389,17 +380,15 @@ namespace dz {
         }
 
         void* new_mapped_memory;
-        if (vkMapMemory(dr.device, new_memory, 0, new_size, 0, &new_mapped_memory) != VK_SUCCESS)
-        {
+        if (vkMapMemory(dr.device, new_memory, 0, new_size, 0, &new_mapped_memory) != VK_SUCCESS) {
             std::cerr << "Failed to map new memory for buffer: " << name << std::endl;
             vkDestroyBuffer(dr.device, new_buffer, nullptr);
             vkFreeMemory(dr.device, new_memory, nullptr);
             return false;
         }
 
-        if (buffer.gpu_buffer.mapped_memory && old_size > 0)
-        {
-            memcpy(new_mapped_memory, buffer.gpu_buffer.mapped_memory, old_size);
+        if (buffer.gpu_buffer.mapped_memory && old_size > 0) {
+            memcpy(new_mapped_memory, buffer.gpu_buffer.mapped_memory, (std::min)(old_size, new_size));
             std::cout << "Copied " << old_size << " bytes from old to new buffer for '" << name << "'." << std::endl;
         }
 

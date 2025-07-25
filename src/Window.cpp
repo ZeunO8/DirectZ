@@ -250,6 +250,12 @@ namespace dz {
 	}
 
 	void window_render(WINDOW* window, bool multi_window_render) {
+		for (auto& [priority, shader_dispatches] : window->priority_shader_dispatches) {
+			for (auto& [shader, dispatch_fn] : shader_dispatches) {
+				auto count = dispatch_fn();
+				shader_dispatch(shader, {count, 1, 1});
+			}
+		}
 		if (!window->minimized || !window_get_minimized(window))
 			renderer_render(window->renderer);
 	}
@@ -1332,7 +1338,7 @@ namespace dz {
 	}
 #endif
 
-	#ifdef __ANDROID__
+#ifdef __ANDROID__
 	void WINDOW::recreate_android(ANativeWindow* android_window, float width, float height) {
 		this->android_window = android_window;
 		*this->width = width;
@@ -1342,5 +1348,20 @@ namespace dz {
 		create_image_views(renderer);
 		create_framebuffers(renderer);
 	}
-	#endif
+#endif
+
+    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const std::function<int()>& dispatch_count_fn) {
+		window_ptr->priority_shader_dispatches[priority][shader] = dispatch_count_fn;
+	}
+
+    void window_deregister_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader) {
+		auto priority_it = window_ptr->priority_shader_dispatches.find(priority);
+		if (priority_it == window_ptr->priority_shader_dispatches.end())
+			return;
+		auto& shader_dispatches = priority_it->second;
+		auto it = shader_dispatches.find(shader);
+		if (it == shader_dispatches.end())
+			return;
+		shader_dispatches.erase(it);
+	}
 }

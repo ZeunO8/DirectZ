@@ -1608,7 +1608,7 @@ namespace dz {
         std::stringstream inputStream(input);
         std::stringstream outputStream;
         std::string line;
-        std::size_t lineIndex = 0;
+        std::size_t lineIndex = 1;
 
         while (std::getline(inputStream, line)) {
             outputStream << std::setw(4) << std::setfill(' ') << lineIndex << ": " << line << "\n";
@@ -2143,9 +2143,8 @@ namespace dz {
 
         for (auto& drawInformation_ptr : renderer->vec_draw_information) {
             auto& drawInformation = *drawInformation_ptr;
-            for (auto& [camera_index, camera_pair] : drawInformation.cameras) {
-                auto framebuffer_ptr = camera_pair.first;
-                if (!framebuffer_ptr) {
+            for (auto& cameraDrawInfo : drawInformation.cameraDrawInfos) {
+                if (!cameraDrawInfo.framebuffer) {
                     screen_draw_list_count++;
                 }
                 else {
@@ -2169,18 +2168,18 @@ namespace dz {
 
         for (auto& drawInformation_ptr : renderer->vec_draw_information) {
             auto& drawInformation = *drawInformation_ptr;
-            auto& shaderDrawList = drawInformation.shaderDrawList;
-            for (auto& [camera__index, camera_pair] : drawInformation.cameras) {
-                auto framebuffer_ptr = camera_pair.first;
+            for (auto& cameraDrawInfo : drawInformation.cameraDrawInfos) {
+                auto framebuffer_ptr = cameraDrawInfo.framebuffer;
+                auto& shaderDrawList = cameraDrawInfo.shaderDrawList;
                 if (!framebuffer_ptr) {
                     if (screen_list_changed) {
-                        renderer->screen_draw_lists[screen_draw_list_index] = {&shaderDrawList, camera_pair.second};
+                        renderer->screen_draw_lists[screen_draw_list_index] = {&shaderDrawList, cameraDrawInfo.pre_render_fn};
                     }
                     screen_draw_list_index++;
                 }
                 else {
                     if (fb_list_changed) {
-                        renderer->fb_draw_lists[fb_draw_list_index] = {framebuffer_ptr, &shaderDrawList, camera_pair.second};
+                        renderer->fb_draw_lists[fb_draw_list_index] = {framebuffer_ptr, &shaderDrawList, cameraDrawInfo.pre_render_fn};
                     }
                     fb_draw_list_index++;
                 }

@@ -58,15 +58,19 @@ namespace dz
     using CameraTuple = std::tuple<int, Framebuffer*, std::function<void()>>;
 
     /**
-    * @brief Map of camera index to Framebuffer*
+    * @brief Information for a single Camera draw
     */
-    using CameraDrawList = std::map<int, std::pair<Framebuffer*, std::function<void()>>>;
+    struct CameraDrawInformation {
+        int camera_index;
+        Framebuffer* framebuffer;
+        std::function<void()> pre_render_fn;
+        ShaderDrawList shaderDrawList;
+    };
 
     /**
     * @brief struct containing required information to draw
     */
     struct DrawInformation {
-        CameraDrawList cameras;
-        ShaderDrawList shaderDrawList;
+        std::vector<CameraDrawInformation> cameraDrawInfos;
     };
 } // namespace dz
