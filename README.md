@@ -22,7 +22,13 @@ DirectZ provides:
 [![Windows (AMD64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
 [![Android (aarch64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=run-actions&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
 
-##### Getting hands on DirectZ
+## Documentation
+
+DirectZ has a GitHub pages site, a static build of the Doxygen documentaion.
+
+It is available at [https://ZeunO8.github.io/DirectZ/](https://ZeunO8.github.io/DirectZ/)
+
+## Getting hands on DirectZ
 
 You can download a Release installer from the releases page or, if building from source, I recommend a clone and install
 
@@ -39,7 +45,7 @@ sudo cmake --install build
 cmake --install build
 ```
 
-##### Building apps with DirectZ
+## Building apps with DirectZ
 
 To get setup with a cross platform compatible render context, create the following files.
 
@@ -137,7 +143,7 @@ int main()
 
 ```
 
-##### Buffer Groups
+### Buffer Groups
 
 Before we get into Shaders, we must touch on Buffer Groups.
 
@@ -161,11 +167,11 @@ buffer_group_restrict_to_keys(main_buffer_group, {"Quads"});
 buffer_group_restrict_to_keys(windows_buffer_group, {"WindowStates"});
 ```
 
-##### Shaders
+### Shaders
 
 Shaders *drive* DirectZ. You write your shader using `.glsl`, DirectZ uses `spirv_reflect` to reflect the inputs/outputs, SSBOs, images back to DirectZ such that you can interface with the Shader as if it were mapped to your program.
 
-###### Writing a raster pipeline
+##### Writing a raster pipeline
 
 For our `raster_shader` we need two modules, Vertex and Fragment. Below is an implementation of a raster_shader that declares a Quad struct and the "Quads" Buffer
 
@@ -223,3 +229,9 @@ void main() {
 }
 )");
 ```
+
+## License
+
+Almost all of the code in this repository is licensed under the MIT license.
+
+Dependencies and fonts may have their own license
