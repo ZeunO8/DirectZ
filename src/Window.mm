@@ -1,4 +1,8 @@
+#if defined(MACOS)
 #include <AppKit/AppKit.h>
+#elif defined(IOS)
+#include <UIKit/UIKit.h>
+#endif
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <TargetConditionals.h>
