@@ -106,8 +106,12 @@ $(function(){initNavTree('index.html','',''); });
 <h4 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
 Build Status</h4>
 <p><a href="https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml"><img src="https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=run-actions&amp;label=MacOS%20ARM%20Build" alt="MacOS (ARM) Build" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml"><img src="https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=run-actions&amp;label=MacOS%20x86_64%20Build" alt="MacOS (x86_64) Build" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml"><img src="https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=run-actions&amp;label=Linux%20Build" alt="Linux (x86_64) Build" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml"><img src="https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&amp;label=Windows%20Build" alt="Windows (AMD64) Build" style="pointer-events: none;" class="inline"/></a> <a href="https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml"><img src="https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=run-actions&amp;label=Android%20ARM64%20Build" alt="Android (aarch64) Build" style="pointer-events: none;" class="inline"/></a></p>
-<h4 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
-Getting hands on DirectZ</h4>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Documentation</h1>
+<p>DirectZ has a GitHub pages site, a static build of the Doxygen documentaion.</p>
+<p>It is available at <a href="https://ZeunO8.github.io/DirectZ/">https://ZeunO8.github.io/DirectZ/</a></p>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+Getting hands on DirectZ</h1>
 <p>You can download a Release installer from the releases page or, if building from source, I recommend a clone and install</p>
 <div class="fragment"><div class="line">git clone https://github.com/Zeucor/DirectZ.git --recurse-submodules</div>
 <div class="line">cd DirectZ</div>
@@ -119,8 +123,8 @@ Getting hands on DirectZ</h4>
 <div class="line"> </div>
 <div class="line"># Windows (as admin)</div>
 <div class="line">cmake --install build</div>
-</div><!-- fragment --><h4 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
-Building apps with DirectZ</h4>
+</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
+Building apps with DirectZ</h1>
 <p>To get setup with a cross platform compatible render context, create the following files.</p>
 <p>(<b>note</b>: this example is available in full at <a href="https://github.com/ZeunO8/DirectZ/tree/master/tests/x-platform">/tests/x-platform</a>)</p>
 <p><b>CMakeLists.txt</b></p>
@@ -209,8 +213,8 @@ Building apps with DirectZ</h4>
 <div class="line"> </div>
 <div class="line">    <span class="keywordflow">return</span> 0;</div>
 <div class="line">}</div>
-</div><!-- fragment --><h4 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Buffer Groups</h4>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
+Buffer Groups</h2>
 <p>Before we get into Shaders, we must touch on Buffer Groups.</p>
 <p>As we are now GPU driven, the core location of data for logic and rendering exists on the GPU.</p>
 <p>Buffer Groups allow us to group a set of buffers (known as SSBOs in glsl) and images such that their data can be shared between Shaders.</p>
@@ -222,10 +226,11 @@ Buffer Groups</h4>
 <div class="line"> </div>
 <div class="line">buffer_group_restrict_to_keys(main_buffer_group, {<span class="stringliteral">&quot;Quads&quot;</span>});</div>
 <div class="line">buffer_group_restrict_to_keys(windows_buffer_group, {<span class="stringliteral">&quot;WindowStates&quot;</span>});</div>
-</div><!-- fragment --><h4 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Shaders</h4>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
+Shaders</h2>
 <p>Shaders <em>drive</em> DirectZ. You write your shader using <span class="tt">.glsl</span>, DirectZ uses <span class="tt">spirv_reflect</span> to reflect the inputs/outputs, SSBOs, images back to DirectZ such that you can interface with the Shader as if it were mapped to your program.</p>
-<h5>Writing a raster pipeline</h5>
+<h4 class="doxsection"><a class="anchor" id="autotoc_md7"></a>
+Writing a raster pipeline</h4>
 <p>For our <span class="tt">raster_shader</span> we need two modules, Vertex and Fragment. Below is an implementation of a raster_shader that declares a Quad struct and the "Quads" Buffer</p>
 <div class="fragment"><div class="line">shader_add_module(raster_shader, ShaderModuleType::Vertex,</div>
 <div class="line">DZ_GLSL_VERSION + R<span class="stringliteral">&quot;(</span></div>
@@ -279,7 +284,11 @@ Shaders</h4>
 <div class="line"><span class="stringliteral">    outColor = vec4(1, 0, 0, 1);</span></div>
 <div class="line"><span class="stringliteral">}</span></div>
 <div class="line"><span class="stringliteral">)&quot;);</span></div>
-</div><!-- fragment --> </div></div><!-- PageDoc -->
+</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
+License</h1>
+<p>Almost all of the code in this repository is licensed under the MIT license.</p>
+<p>Dependencies and fonts may have their own license </p>
+</div></div><!-- PageDoc -->
 <a href="doxygen_crawl.html"></a>
 </div><!-- contents -->
 </div><!-- doc-content -->

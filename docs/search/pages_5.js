@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['on_20directz_0',['Getting hands on DirectZ',['../index.html#autotoc_md2',1,'']]]
+  ['license_0',['License',['../index.html#autotoc_md8',1,'']]]
 ];

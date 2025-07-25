@@ -3,7 +3,7 @@ var searchData=
   ['o_0',['O',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3af186217753c37b9b9f958d906208506e',1,'dz']]],
   ['o_1',['o',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ad95679752134a2d9eb61dbd7b91c4bcc',1,'dz']]],
   ['offset_2',['offset',['../structdz_1_1_key_value_stream_1_1_header_entry.html#a33c024a271d49dbf6c352561752cce72',1,'dz::KeyValueStream::HeaderEntry']]],
-  ['on_20directz_3',['Getting hands on DirectZ',['../index.html#autotoc_md2',1,'']]],
+  ['on_20directz_3',['Getting hands on DirectZ',['../index.html#autotoc_md3',1,'']]],
   ['one_4',['One',['../namespacedz.html#a085a9e8bcbf48c5cbde1bf4ae788375ca06c2cea18679d64399783748fa367bdd',1,'dz']]],
   ['oneminusconstantalpha_5',['OneMinusConstantAlpha',['../namespacedz.html#a085a9e8bcbf48c5cbde1bf4ae788375ca9a1874144125c69e93ec99f17e985e41',1,'dz']]],
   ['oneminusconstantcolor_6',['OneMinusConstantColor',['../namespacedz.html#a085a9e8bcbf48c5cbde1bf4ae788375ca13ab8deb1c606ab17745354b4e92f43a',1,'dz']]],

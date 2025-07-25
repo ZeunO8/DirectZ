@@ -53,11 +53,12 @@ var searchData=
   ['windowreflectablegroup_50',['WindowReflectableGroup',['../structdz_1_1_window_reflectable_group.html',1,'dz::WindowReflectableGroup'],['../structdz_1_1_window_reflectable_group.html#a9d3885960176ae81975e06182de5a9f4',1,'dz::WindowReflectableGroup::WindowReflectableGroup()']]],
   ['windows_5fpoll_5fevents_51',['windows_poll_events',['../namespacedz.html#a247efacd7bca0070e7b1b654b22cc2ad',1,'dz']]],
   ['windows_5frender_52',['windows_render',['../namespacedz.html#a18586501676a8c21774f1abe77605228',1,'dz']]],
-  ['with_20directz_53',['Building apps with DirectZ',['../index.html#autotoc_md3',1,'']]],
+  ['with_20directz_53',['Building apps with DirectZ',['../index.html#autotoc_md4',1,'']]],
   ['work_5fheight_54',['work_height',['../structdz_1_1_display_description.html#ac57c0497eb0015d78ae0b8b1a8839c86',1,'dz::DisplayDescription']]],
   ['work_5fwidth_55',['work_width',['../structdz_1_1_display_description.html#a48157f63962e5fcd216fdd26bc354216',1,'dz::DisplayDescription']]],
   ['work_5fx_56',['work_x',['../structdz_1_1_display_description.html#a7db5e3ce75c8e18760b7abe927cd7f42',1,'dz::DisplayDescription']]],
   ['work_5fy_57',['work_y',['../structdz_1_1_display_description.html#a02f5da05df04008240775eac94c1b6ca',1,'dz::DisplayDescription']]],
   ['write_58',['write',['../classdz_1_1_key_value_stream.html#a8a265a71ab48f3dbf65c5589c4052cff',1,'dz::KeyValueStream']]],
-  ['write_5fu64_59',['write_u64',['../namespacevlen.html#aedc061aea7330d8a5882d8c63056ea7d',1,'vlen']]]
+  ['write_5fu64_59',['write_u64',['../namespacevlen.html#aedc061aea7330d8a5882d8c63056ea7d',1,'vlen']]],
+  ['writing_20a_20raster_20pipeline_60',['Writing a raster pipeline',['../index.html#autotoc_md7',1,'']]]
 ];

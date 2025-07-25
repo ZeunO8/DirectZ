@@ -12,7 +12,7 @@ var searchData=
   ['blendstate_9',['BlendState',['../structdz_1_1_blend_state.html',1,'dz']]],
   ['blendstate_10',['blendState',['../structdz_1_1_framebuffer_info.html#aaf570e51d6978bf81c70675268a9f728',1,'dz::FramebufferInfo']]],
   ['borderless_11',['borderless',['../structdz_1_1_window_create_info.html#adfb9a47d8d85b3852dcc294260f3a946',1,'dz::WindowCreateInfo']]],
-  ['buffer_20groups_12',['Buffer Groups',['../index.html#autotoc_md4',1,'']]],
+  ['buffer_20groups_12',['Buffer Groups',['../index.html#autotoc_md5',1,'']]],
   ['buffer_5fgroup_13',['buffer_group',['../structdz_1_1_camera_1_1_camera_reflectable_group.html#a22d85eae541fbfb36ddf6ba0efaed7a6',1,'dz::Camera::CameraReflectableGroup::buffer_group'],['../structdz_1_1_e_c_s.html#a2370248981c2978d6eeb379a1bdd1e9a',1,'dz::ECS::buffer_group'],['../structdz_1_1ecs_1_1_color_component_1_1_color_component_reflectable_group.html#adb8bfde1300ea331dca018d950cd7738',1,'dz::ecs::ColorComponent::ColorComponentReflectableGroup::buffer_group'],['../structdz_1_1ecs_1_1_entity_1_1_entity_reflectable_group.html#a7901d126d8352c7cfe7120f2fe4beff3',1,'dz::ecs::Entity::EntityReflectableGroup::buffer_group'],['../structdz_1_1ecs_1_1_scene_1_1_scene_reflectable_group.html#a0ea9da17de85322e87417851d12fbd7f',1,'dz::ecs::Scene::SceneReflectableGroup::buffer_group']]],
   ['buffer_5fgroup_5fcreate_14',['buffer_group_create',['../namespacedz.html#a62e7fcc0dadcee5242e49cf95feb8ed9',1,'dz']]],
   ['buffer_5fgroup_5fdefine_5fimage_5f2d_15',['buffer_group_define_image_2D',['../namespacedz.html#a68b33b6c07a52de47ab9c185f13e00cb',1,'dz']]],
@@ -29,5 +29,5 @@ var searchData=
   ['buffer_5fsize_26',['buffer_size',['../structdz_1_1_e_c_s.html#a203bacf57f40e1ef54e08893db99d4fa',1,'dz::ECS']]],
   ['buffergroup_2ehpp_27',['BufferGroup.hpp',['../_buffer_group_8hpp.html',1,'']]],
   ['build_20status_28',['Build Status',['../index.html#autotoc_md1',1,'']]],
-  ['building_20apps_20with_20directz_29',['Building apps with DirectZ',['../index.html#autotoc_md3',1,'']]]
+  ['building_20apps_20with_20directz_29',['Building apps with DirectZ',['../index.html#autotoc_md4',1,'']]]
 ];

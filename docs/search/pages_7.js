@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['with_20directz_0',['Building apps with DirectZ',['../index.html#autotoc_md3',1,'']]]
+  ['pipeline_0',['Writing a raster pipeline',['../index.html#autotoc_md7',1,'']]]
 ];

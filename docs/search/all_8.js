@@ -2,7 +2,7 @@ var searchData=
 [
   ['h_0',['H',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ac1d9f50f86825a1a2302ec2449c17196',1,'dz']]],
   ['h_1',['h',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3a2510c39011c5be704182423e3a695e91',1,'dz']]],
-  ['hands_20on_20directz_2',['Getting hands on DirectZ',['../index.html#autotoc_md2',1,'']]],
+  ['hands_20on_20directz_2',['Getting hands on DirectZ',['../index.html#autotoc_md3',1,'']]],
   ['has_5fstate_3',['has_state',['../namespacedz.html#abf1c9147d3ae56ee9eaea49aedcc2e16',1,'dz']]],
   ['hashtag_4',['HASHTAG',['../namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3ac0cd4691ee439a0c7652e7f6002061aa',1,'dz']]],
   ['headerentry_5',['HeaderEntry',['../structdz_1_1_key_value_stream_1_1_header_entry.html',1,'dz::KeyValueStream']]],

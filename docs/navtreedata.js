@@ -25,6 +25,13 @@
 var NAVTREE =
 [
   [ "DirectZ", "index.html", [
+    [ "Documentation", "index.html#autotoc_md2", null ],
+    [ "Getting hands on DirectZ", "index.html#autotoc_md3", null ],
+    [ "Building apps with DirectZ", "index.html#autotoc_md4", [
+      [ "Buffer Groups", "index.html#autotoc_md5", null ],
+      [ "Shaders", "index.html#autotoc_md6", null ]
+    ] ],
+    [ "License", "index.html#autotoc_md8", null ],
     [ "Namespaces", "namespaces.html", [
       [ "Namespace List", "namespaces.html", "namespaces_dup" ],
       [ "Namespace Members", "namespacemembers.html", [
@@ -69,12 +76,12 @@ var NAVTREEINDEX =
 "_icons_font_awesome6_8h.html#aad0925443d1c91ff3c870b91d382eb46",
 "_icons_font_awesome6_8h.html#ad9f0a78279f7f8d34e00e76e6bf34ec2",
 "_scene_8hpp_source.html",
-"namespacedz.html#a502ef428449184b02a3e8ce6fb88b085",
-"namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3afbaedde498cdead4f2780217646e9ba1",
-"structdz_1_1_camera_draw_information.html#a7c862aa4af03f80b90e6cf8961da7e8f",
-"structdz_1_1_e_c_s_1_1_registered_component_entry.html#a03188046da10ddbbc9b34f3d369aa8f4",
-"structdz_1_1color__vec.html#ae02b5f6ce5a134a8fafddce4578c2c74",
-"structdz_1_1mat.html#aac5ed9c1785bdcf18fb1f901f041963a"
+"namespacedz.html#a438928016a2ba718dfab40d6441cd2a3",
+"namespacedz.html#afd06ebccef528e9b8775b1f392cb20d3af2a6c498fb90ee345d997f888fce3b18",
+"structdz_1_1_camera_draw_information.html",
+"structdz_1_1_e_c_s_1_1_provider_reflectable_group.html#ad9854eff7f8ed392c016e87ea45b6656",
+"structdz_1_1color__vec.html#ab9e594bb96b7f8b9ccf8d6320d5fc133",
+"structdz_1_1mat.html#a5b8d520dad06b68e76a6605c7b0966d5"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronization';
