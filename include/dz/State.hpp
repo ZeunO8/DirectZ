@@ -10,13 +10,6 @@
 namespace dz {
     struct WINDOW;
 
-    struct CIDGen {
-        inline static int Next() {
-            static int key_ints = CID_MIN;
-            return key_ints++;
-        }
-    };
-
     void track_static_state(
         int sid,
         const std::function<bool(Serial&)>& restore,
@@ -46,7 +39,6 @@ namespace dz {
         * @brief Returns the Constructor ID for this Restorable
         *
         * @note typename T should implement a unique constant value CID
-        * @note for simplicity use `inline static int T::CID = CIDGen::Next()`
         */
         template <typename T>
         inline static int GetCID() {
