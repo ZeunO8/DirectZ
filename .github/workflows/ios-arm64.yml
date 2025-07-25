@@ -39,9 +39,8 @@ jobs:
 
       - name: List Vulkan SDK
         run: |
-          ls -lah $VULKAN_SDK/..
-          ls -lah $VULKAN_SDK/../iOS
-          ls -lah $VULKAN_SDK/../iOS/lib
+          ls -lah $VULKAN_SDK
+          ls -lah $VULKAN_SDK/iOS
 
       - name: Set iOS Toolchain Variables
         id: toolchain

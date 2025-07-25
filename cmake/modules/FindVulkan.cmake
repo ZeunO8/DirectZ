@@ -245,7 +245,7 @@ if(DEFINED CMAKE_FIND_FRAMEWORK)
 endif()
 
 if(IOS)
-    get_filename_component(Vulkan_Target_SDK "$ENV{VULKAN_SDK}/.." REALPATH)
+    get_filename_component(Vulkan_Target_SDK "$ENV{VULKAN_SDK}" REALPATH)
     list(APPEND CMAKE_FRAMEWORK_PATH "${Vulkan_Target_SDK}/iOS/lib")
     set (CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH)
     set (CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
