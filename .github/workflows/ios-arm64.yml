@@ -40,10 +40,6 @@ jobs:
           export VULKAN_SDK=~/VulkanSDK
           echo "VULKAN_SDK=$VULKAN_SDK" >> "$GITHUB_ENV"
 
-      - name: LS VULKAN_SDK
-        run: |
-          ls -lah $VULKAN_SDK
-
       - name: Set iOS Toolchain Variables
         id: toolchain
         run: |
@@ -85,7 +81,6 @@ jobs:
       - name: Configure
         run: |
           source $VULKAN_SDK/iOS/setup-env.sh
-          ls -lah $VULKAN_SDK/../iOS
           cmake -G Ninja -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_OSX_ARCHITECTURES=$CMAKE_OSX_ARCHITECTURES \
