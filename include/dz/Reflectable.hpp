@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include <map>
 #include "GlobalUID.hpp"
 
 enum class ReflectableTypeHint {
@@ -64,6 +65,7 @@ struct ReflectableGroup {
     size_t id;
     int index = -1;
     bool is_child = false;
+    ReflectableGroup* parent_ptr = nullptr;
     virtual ~ReflectableGroup() = default;
     virtual GroupType GetGroupType() {
         return Generic;
@@ -77,10 +79,11 @@ struct ReflectableGroup {
         static std::vector<Reflectable*> dummy_reflectables = {};
         return dummy_reflectables;
     }
-    virtual const std::vector<ReflectableGroup*>& GetChildren() {
-        static std::vector<ReflectableGroup*> dummy_children = {};
+    virtual std::vector<std::shared_ptr<ReflectableGroup>>& GetChildren() {
+        static std::vector<std::shared_ptr<ReflectableGroup>> dummy_children = {};
         return dummy_children;
     }
+    virtual void UpdateChildren() {}
 };
 
 // Reflection helpers
@@ -90,7 +93,7 @@ struct ReflectableGroup {
 }
 
 #define DEF_GET_NAME(TYPE) std::string& GetName() override { \
-    return ComponentComponentName<TYPE>::string; \
+    return GetProviderName(); \
 }
 
 #define DEF_GET_PROPERTY_INDEX_BY_NAME(INDEXES) int GetPropertyIndexByName(const std::string& prop_name) override { \
@@ -104,18 +107,18 @@ struct ReflectableGroup {
     return NAMES; \
 }
 
-#define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
-    auto data = i->GetComponentDataVoid(index); \
-    auto index_it = INDEX_NAMES.find(prop_index); \
-    if (index_it == INDEX_NAMES.end()) \
-        return nullptr; \
-    auto& prop_name = index_it->second; \
-    auto it = NAME_INDEXES.find(prop_name); \
-    if (it == NAME_INDEXES.end()) \
-        return nullptr; \
-    auto offset = it->second.second; \
-    return ((char*)data) + offset; \
-}
+// #define DEF_GET_VOID_PROPERTY_BY_INDEX(NAME_INDEXES, INDEX_NAMES) void* GetVoidPropertyByIndex(int prop_index) override { \
+//     auto data = i->GetComponentDataVoid(index); \
+//     auto index_it = INDEX_NAMES.find(prop_index); \
+//     if (index_it == INDEX_NAMES.end()) \
+//         return nullptr; \
+//     auto& prop_name = index_it->second; \
+//     auto it = NAME_INDEXES.find(prop_name); \
+//     if (it == NAME_INDEXES.end()) \
+//         return nullptr; \
+//     auto offset = it->second.second; \
+//     return ((char*)data) + offset; \
+// }
 
 #define DEF_GET_VOID_PROPERTY_BY_NAME void* GetVoidPropertyByName(const std::string& prop_name) override { \
     auto prop_index = GetPropertyIndexByName(prop_name); \

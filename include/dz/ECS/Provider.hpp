@@ -8,6 +8,48 @@ namespace dz {
 
     template <typename T>
     struct Provider {
+        inline static constexpr size_t GetPID() {
+            if constexpr (requires { T::PID; }) {
+                return T::PID;
+            }
+            return 0;
+        }
+
+        inline static constexpr bool GetIsComponent() {
+            if constexpr (requires { T::IsComponent; }) {
+                return T::IsComponent;
+            }
+            return false;
+        }
+
+        inline static constexpr char GetComponentID() {
+            if constexpr (requires { T::ComponentID; }) {
+                return T::ComponentID;
+            }
+            return 0;
+        }
+
+        inline static constexpr bool GetIsDrawProvider() {
+            if constexpr (requires { T::IsDrawProvider; }) {
+                return T::IsDrawProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsCameraProvider() {
+            if constexpr (requires { T::IsCameraProvider; }) {
+                return T::IsCameraProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsSceneProvider() {
+            if constexpr (requires { T::IsSceneProvider; }) {
+                return T::IsSceneProvider;
+            }
+            return false;
+        }
+
         inline static float GetPriority() {
             if constexpr (requires { T::Priority; }) {
                 return T::Priority;
@@ -63,5 +105,49 @@ namespace dz {
                 return kEmptyPriorityVector;
             }
         }
+
+        inline static std::shared_ptr<ReflectableGroup> TryMakeGroup(BufferGroup* buffer_group) {
+            if constexpr (requires { T::MakeGroup; }) {
+                return T::MakeGroup(buffer_group);
+            }
+            throw std::runtime_error("Unable to make Provider ReflectableGroup");
+        }
+    };
+
+    template<typename T>
+    struct IsDrawProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsDrawProvider();
+    };
+
+    template<typename T>
+    struct IsCameraProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsCameraProvider();
+    };
+
+    template<typename T>
+    struct IsSceneProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsSceneProvider();
+    };
+
+    template<template<typename> class Trait, typename... Ts>
+    struct FirstMatchingOrDefault;
+
+    template<template<typename> class Trait, typename T, typename... Ts>
+    struct FirstMatchingOrDefault<Trait, T, Ts...>
+    {
+        using type = std::conditional_t<
+            Trait<T>::value,
+            T,
+            typename FirstMatchingOrDefault<Trait, Ts...>::type
+        >;
+    };
+
+    template<template<typename> class Trait>
+    struct FirstMatchingOrDefault<Trait>
+    {
+        using type = void; // or a custom "NotFound" type
     };
 }

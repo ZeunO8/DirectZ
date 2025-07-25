@@ -8,6 +8,7 @@ uint32_t default_vertex_count = 6;
 
 struct Material : Provider<Material> {
     vec<float, 4> color;
+    inline static constexpr size_t PID = 5;
     inline static float Priority = 2.5f;
     inline static std::string ProviderName = "Material";
     inline static std::string StructName = "Material";
@@ -25,7 +26,7 @@ struct StateSystem : Provider<StateSystem> {
 };
 
 // #define ENABLE_LIGHTS
-using ExampleECS = ECS<CID_MIN, Entity, Component, Shape, Camera
+using ExampleECS = ECS<CID_MIN, Scene, Entity, ColorComponent, Shape, Camera
 #ifdef ENABLE_LIGHTS
 , Light
 #endif
@@ -47,10 +48,10 @@ float ORIGINAL_WINDOW_HEIGHT = 768.f;
 ReflectableGroup* SelectedReflectableGroup = 0;
 int SelectedReflectableID = 0;
 
-void DrawEntityEntry(ExampleECS&, int, ExampleECS::EntityComponentReflectableGroup&);
-void DrawSceneReflectableGroup(ExampleECS&, int, ExampleECS::SceneReflectableGroup&);
-void DrawGenericEntry(int, ReflectableGroup& reflectable_group);
-void DrawWindowEntry(const std::string&, WindowReflectableGroup& window_reflectable_group);
+// void DrawEntityGroup(ExampleECS&, int, ExampleECS::EntityReflectableGroup&);
+// void DrawSceneReflectableGroup(ExampleECS&, int, ExampleECS::SceneReflectableGroup&);
+void DrawGenericGroup(ReflectableGroup&);
+void DrawWindowGroup(const std::string&, WindowReflectableGroup& window_reflectable_group);
 bool ReflectableGroupFilterCheck(ImGuiTextFilter&, ReflectableGroup&);
 bool WindowGraphFilterCheck(ImGuiTextFilter& WindowGraphFilter, const std::string& window_name);
 
@@ -66,20 +67,30 @@ PropertyEditor property_editor;
 
 WINDOW* window = nullptr;
 
-auto GetRegisterComponentsLambda() {
-    return [](auto& ecs) {
-        assert(ecs.template RegisterComponent<ColorComponent>());
-        return true;
-    };
+// auto GetRegisterComponentsLambda() {
+//     return [](auto& ecs) {
+//         assert(ecs.template RegisterComponent<ColorComponent>());
+//         return true;
+//     };
+// };
+
+int plane_shape_id = -1;
+int plane_shape_index = -1;
+int cube_shape_id = -1;
+int cube_shape_index = -1;
+
+auto set_pair_id_index(auto pair, auto& id, auto& index) {
+    id = pair.first;
+    index = pair.second;
 }
 
 int main() {
     ExampleECS::RegisterStateCID();
 
-    ExampleECS::SetComponentsRegisterFunction(GetRegisterComponentsLambda());
+    // ExampleECS::SetComponentsRegisterFunction(GetRegisterComponentsLambda());
 
-    const auto plane_shape_id = RegisterPlaneShape();
-    const auto cube_shape_id = RegisterCubeShape();
+    set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
+    set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
     std::filesystem::path ioPath("example.ecs");
 
@@ -103,11 +114,11 @@ int main() {
             .width = ORIGINAL_WINDOW_WIDTH,
             .height = ORIGINAL_WINDOW_HEIGHT,
             .borderless = true,
-            .vsync = true
+            .vsync = false
         });
         track_window_state(window);
         ecs_ptr = std::make_shared<ExampleECS>(window);
-        track_state(ecs_ptr.get());
+        // track_state(ecs_ptr.get());
     }
 
     auto& ecs = *ecs_ptr;
@@ -124,54 +135,70 @@ int main() {
         cube_shape.type = cube_shape_id;
         cube_shape.vertex_count = 36;
 
-        auto eids = ecs.AddEntitys(Entity{}, Entity{});
+        auto scene1_id = ecs.AddScene(Scene{});
 
-        auto e1_id = eids[0];
+        auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_child_ids = ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
+        auto e1_id = ecs.AddEntity(scene1_id, Entity{});
 
-        for (auto& child_id : e1_child_ids) {
-            auto e_ptr = ecs.GetEntity(child_id);
-            assert(e_ptr);
-            auto& e = *e_ptr;
-            e.shape_index = 1;
-            auto& e_color_component = ecs.ConstructComponent<ColorComponent>(e.id, {0.f, 1.f, 0.f, 1.f});
-        }
+        ecs.ConstructComponent(e1_id, ColorComponent{.color = {1.0f, 0.0f, 0.0f, 1.0f}});
 
-        auto e1_ptr = ecs.GetEntity(e1_id);
-        assert(e1_ptr);
-        auto& e1 = *e1_ptr;
-        e1.shape_index = 1;
-        e1.position = {0.5f, -0.5f, 1.f, 1.f};
-        auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
-        e1.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
-        e1.scale = {1.0f, 1.0f, 1.0f, 1.0f};
+        auto scene2_id = ecs.AddScene(Scene{});
 
-        auto e2_id = eids[1];
+        auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        // ecs.AddChildEntitys(e2_id, Entity{}, Entity{});
+        auto e2_id = ecs.AddEntity(scene2_id, Entity{});
 
-        auto e2_ptr = ecs.GetEntity(e2_id);
+        ecs.ConstructComponent(e2_id, ColorComponent{.color = {0.0f, 0.0f, 1.0f, 1.0f}});
 
-        assert(e2_ptr);
-        auto& e2 = *e2_ptr;
-        e2.position = {-0.5f, 0.5f, 1.f, 1.f};
-        auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
-        e2.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
-        e2.scale = {1.0f, 1.0f, 1.0f, 1.0f};
+        auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
+
+        // auto eids = ecs.AddEntitys(1, Entity{}, Entity{});
+
+        // auto e1_id = eids[0];
+
+        // auto e1_child_ids = ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
+
+        // for (auto& child_id : e1_child_ids) {
+        //     auto e_ptr = ecs.GetEntity(child_id);
+        //     assert(e_ptr);
+        //     auto& e = *e_ptr;
+        //     e.shape_index = cube_shape_index;
+        //     auto& e_color_component = ecs.ConstructComponent<ColorComponent>(e.id, {0.f, 1.f, 0.f, 1.f});
+        // }
+
+        // auto e1_ptr = ecs.GetEntity(e1_id);
+        // assert(e1_ptr);
+        // auto& e1 = *e1_ptr;
+        // e1.shape_index = cube_shape_index;
+        // e1.position = {0.5f, -0.5f, 1.f, 1.f};
+        // auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
+        // e1.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
+        // e1.scale = {1.0f, 1.0f, 1.0f, 1.0f};
+
+        // auto e2_id = eids[1];
+
+        // // ecs.AddChildEntitys(e2_id, Entity{}, Entity{});
+
+        // auto e2_ptr = ecs.GetEntity(e2_id);
+
+        // assert(e2_ptr);
+        // auto& e2 = *e2_ptr;
+        // e2.position = {-0.5f, 0.5f, 1.f, 1.f};
+        // auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
+        // e2.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
+        // e2.scale = {1.0f, 1.0f, 1.0f, 1.0f};
     }
 
 #ifdef ENABLE_LIGHTS
     if (buffer_group_get_buffer_element_count(ecs.buffer_group, "Lights") == 0) {
         auto ecs_scene_ids = ecs.GetSceneIDs();
-        ecs.AddLightToScene(ecs_scene_ids[0], Light::Directional);
-        ecs.AddLightToScene(ecs_scene_ids[0], Light::Spot);
+        // ecs.AddLight(ecs_scene_ids[0], Light::Directional);
+        // ecs.AddLight(ecs_scene_ids[0], Light::Spot);
     }
 #endif
 
     ecs.MarkReady();
-
-    auto frame_image = ecs.GetFramebufferImage(0);
     
     auto& window_width = *window_get_width_ref(window);
     auto& window_height = *window_get_height_ref(window);
@@ -354,11 +381,13 @@ int main() {
     });
 
     imgui.AddImmediateDrawFunction(2.0f, "Cameras", [&](auto& layer) mutable {
-        auto cameras_begin = ecs.GetCamerasBegin();
-        auto cameras_end = ecs.GetCamerasEnd();
+        auto cameras_begin = ecs.GetProviderBegin<Camera>();
+        auto cameras_end = ecs.GetProviderEnd<Camera>();
         for (auto camera_it = cameras_begin; camera_it != cameras_end; camera_it++) {
-            auto camera_index = camera_it->first;
-            auto& camera_group = camera_it->second;
+            auto camera_group_ptr = dynamic_cast<Camera::ReflectableGroup*>(camera_it->second);
+            if (!camera_group_ptr)
+                continue;
+            auto& camera_group = *camera_group_ptr;
             if (camera_group.open_in_editor) {
                 if (!ImGui::Begin(camera_group.imgui_name.c_str(), &camera_group.open_in_editor)) {
                     ImGui::End();
@@ -368,79 +397,69 @@ int main() {
                 auto panel_size = ImGui::GetContentRegionAvail();
 
                 ImGui::Image((ImTextureID)camera_group.frame_image_ds, panel_size, ImVec2(0, 1), ImVec2(1, 0));
-                ecs.ResizeFramebuffer(camera_index, panel_size.x, panel_size.y);
+                ecs.ResizeFramebuffer(camera_group.id, panel_size.x, panel_size.y);
 
-                auto reflectable_group_ptr = SelectedReflectableGroup;
-                auto entity_group_ptr = dynamic_cast<ExampleECS::EntityComponentReflectableGroup*>(reflectable_group_ptr);
-                if (entity_group_ptr) {
-                    auto& entity_group = *entity_group_ptr;
-                    auto entity_ptr = ecs.GetEntity(entity_group.id);
-                    assert(entity_ptr);
-                    auto& entity = *entity_ptr;
-                    try {
-                        static auto manipulate_type = ImGuizmo::TRANSLATE;
-                        if (ImGui::IsKeyPressed(ImGuiKey_T)) {
-                            manipulate_type = ImGuizmo::TRANSLATE;
-                        }
-                        else if (ImGui::IsKeyPressed(ImGuiKey_S)) {
-                            manipulate_type = ImGuizmo::SCALE;
-                        }
-                        else if (ImGui::IsKeyPressed(ImGuiKey_R)) {
-                            manipulate_type = ImGuizmo::ROTATE;
-                        }
-                        auto& entity_position = entity.position;
-                        auto& entity_rotation = entity.rotation;
-                        auto& entity_scale = entity.scale;
-                        auto& model = entity.model;
+                // auto reflectable_group_ptr = SelectedReflectableGroup;
+                // auto entity_group_ptr = dynamic_cast<Entity::ReflectableGroup*>(reflectable_group_ptr);
+                // if (entity_group_ptr) {
+                //     auto& entity_group = *entity_group_ptr;
+                //     auto entity_ptr = ecs.GetEntity(entity_group.id);
+                //     assert(entity_ptr);
+                //     auto& entity = *entity_ptr;
+                //     try {
+                //         static auto manipulate_type = ImGuizmo::TRANSLATE;
+                //         if (ImGui::IsKeyPressed(ImGuiKey_T)) {
+                //             manipulate_type = ImGuizmo::TRANSLATE;
+                //         }
+                //         else if (ImGui::IsKeyPressed(ImGuiKey_S)) {
+                //             manipulate_type = ImGuizmo::SCALE;
+                //         }
+                //         else if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+                //             manipulate_type = ImGuizmo::ROTATE;
+                //         }
+                //         auto& entity_position = entity.position;
+                //         auto& entity_rotation = entity.rotation;
+                //         auto& entity_scale = entity.scale;
+                //         auto& model = entity.model;
 
-                        // mat<float, 4, 4> scale_mat = mat<float, 4, 4>::scale_static(vec<float, 3>(entity_scale));
-                        // mat<float, 4, 4> rot_x = mat<float, 4, 4>::rotate_static(-entity_rotation[0], vec<float, 3>(1, 0, 0));
-                        // mat<float, 4, 4> rot_y = mat<float, 4, 4>::rotate_static(-entity_rotation[1], vec<float, 3>(0, 1, 0));
-                        // mat<float, 4, 4> rot_z = mat<float, 4, 4>::rotate_static(-entity_rotation[2], vec<float, 3>(0, 0, 1));
-                        // mat<float, 4, 4> translation_mat = mat<float, 4, 4>::translate_static(vec<float, 3>(entity_position));
-
-                        // // NOTE: order matters — typically scale * rotation * translation
-                        // mat<float, 4, 4> rotation_mat = rot_z * rot_y * rot_x;
-                        // mat<float, 4, 4> transform = translation_mat * rotation_mat * scale_mat;
-
-                        ImGuizmo::SetDrawlist();
-                        ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
-                        auto camera_ptr = ecs.GetCamera(camera_index);
-                        assert(camera_ptr);
-                        auto& camera = *camera_ptr;
-                        ImGuizmo::SetOrthographic(Camera::ProjectionType(camera.type) == Camera::Orthographic);
-                        auto& camera_view = camera.view;
-                        auto camera_projection = camera.projection;
+                //         ImGuizmo::SetDrawlist();
+                //         ImGuizmo::SetRect(panel_pos.x, panel_pos.y, panel_size.x, panel_size.y);
+                //         auto camera_ptr = ecs.GetCamera(camera_index);
+                //         assert(camera_ptr);
+                //         auto& camera = *camera_ptr;
+                //         ImGuizmo::SetOrthographic(Camera::ProjectionType(camera.type) == Camera::Orthographic);
+                //         auto& camera_view = camera.view;
+                //         auto camera_projection = camera.projection;
                         
-                        ImGuizmo::Manipulate(
-                            &camera_view[0][0],
-                            &camera_projection[0][0],
-                            manipulate_type,
-                            ImGuizmo::LOCAL,
-                            &model[0][0],
-                            nullptr
-                        );
-                        if (ImGuizmo::IsUsing())
-                        {
-                            float pos[3] = {0};
-                            float rot[3] = {0};
-                            float scale[3] = {0};
-                            ImGuizmo::DecomposeMatrixToComponents(&model[0][0], pos, rot, scale);
-                            entity_position[0] = pos[0];
-                            entity_position[1] = pos[1];
-                            entity_position[2] = pos[2];
-                            entity_scale[0] = scale[0];
-                            entity_scale[1] = scale[1];
-                            entity_scale[2] = scale[2];
-                            entity_rotation[0] = -radians(rot[0]);
-                            entity_rotation[1] = -radians(rot[1]);
-                            entity_rotation[2] = -radians(rot[2]);
-                            // std::cout << "rot[0]: " << entity_rotation[0] << ", rot[1]: " << entity_rotation[1] << ", rot[2]: " << entity_rotation[2] << std::endl;
-                        }
-                    }
-                    catch (...) { }
-                }
-                
+                //         ImGuizmo::Manipulate(
+                //             &camera_view[0][0],
+                //             &camera_projection[0][0],
+                //             manipulate_type,
+                //             ImGuizmo::LOCAL,
+                //             &model[0][0],
+                //             nullptr
+                //         );
+                //         if (ImGuizmo::IsUsing())
+                //         {
+                //             float pos[3] = {0};
+                //             float rot[3] = {0};
+                //             float scale[3] = {0};
+                //             ImGuizmo::DecomposeMatrixToComponents(&model[0][0], pos, rot, scale);
+                //             entity_position[0] = pos[0];
+                //             entity_position[1] = pos[1];
+                //             entity_position[2] = pos[2];
+                //             entity_scale[0] = scale[0];
+                //             entity_scale[1] = scale[1];
+                //             entity_scale[2] = scale[2];
+                //             entity_rotation[0] = -radians(rot[0]);
+                //             entity_rotation[1] = -radians(rot[1]);
+                //             entity_rotation[2] = -radians(rot[2]);
+                //             // std::cout << "rot[0]: " << entity_rotation[0] << ", rot[1]: " << entity_rotation[1] << ", rot[2]: " << entity_rotation[2] << std::endl;
+                //         }
+                //     }
+                //     catch (...) { }
+                // }
+            
                 ImGui::End();
             }
         }
@@ -473,7 +492,7 @@ int main() {
                     auto& window_reflectable_group = **it;
                     auto& window_name = window_reflectable_group.GetName();
                     if (WindowGraphFilterCheck(WindowGraphFilter, window_name))
-                        DrawWindowEntry(window_name, window_reflectable_group);
+                        DrawWindowGroup(window_name, window_reflectable_group);
                 }
                 // for (auto& [id, entity_group] : ecs.id_entity_groups)
                 ImGui::EndTable();
@@ -498,11 +517,9 @@ int main() {
             ImGui::PopItemFlag();
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg)) {
-                auto scenes_begin = ecs.GetScenesBegin();
-                auto scenes_end = ecs.GetScenesEnd();
-                for (auto scene_it = scenes_begin; scene_it != scenes_end; ++scene_it) {
-                    auto& [scene_id, scene_group] = *scene_it;
-                    DrawSceneReflectableGroup(ecs, scene_id, scene_group);
+                for (auto& reflectable_group_ptr : ecs.reflectable_group_root_vector) {
+                    auto& reflectable_group = *reflectable_group_ptr;
+                    DrawGenericGroup(reflectable_group);
                 }
                 ImGui::EndTable();
             }
@@ -740,206 +757,237 @@ int main() {
     }
 }
 
-void DrawEntityEntry(ExampleECS& ecs, int id, ExampleECS::EntityComponentReflectableGroup& entity_group)
-{
+// void DrawEntityGroup(ExampleECS& ecs, int id, ExampleECS::EntityReflectableGroup& entity_group)
+// {
+//     ImGui::TableNextRow();
+//     ImGui::TableNextColumn();
+//     ImGui::PushID(&entity_group);
+//     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+//     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
+//     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
+//     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
+//     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+//     if (&entity_group == SelectedReflectableGroup)
+//         tree_flags |= ImGuiTreeNodeFlags_Selected;
+//     if (entity_group.children.empty())
+//         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+//     if (entity_group.disabled)
+//         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+//     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", entity_group.name.c_str());
+//     if (entity_group.disabled)
+//         ImGui::PopStyleColor();
+//     if (ImGui::IsItemFocused()) {
+//         SelectedReflectableGroup = &entity_group;
+//         SelectedReflectableID = id;
+//         property_editor.is_open = true;
+//     }
+
+//     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+//         ImGui::OpenPopup("EntityContextMenu");
+//     }
+
+//     if (ImGui::BeginPopup("EntityContextMenu")) {
+//         if (ImGui::BeginMenu("Add Child")) {
+//             bool add = false;
+//             int shape_index = -1;
+//             if (ImGui::MenuItem("Plane")) {
+//                 add = true;
+//                 shape_index = plane_shape_index;
+//             }
+//             if (ImGui::MenuItem("Cube")) {
+//                 add = true;
+//                 shape_index = cube_shape_index;
+//             }
+//             if (ImGui::MenuItem("Monkey")) {
+//                 // ecs.AddEntityToScene(scene_id, "Monkey");
+//             }
+//             if (ImGui::MenuItem("Mesh")) {
+//                 // ecs.AddEntityToScene(scene_id, "Mesh");
+//             }
+//             if (add) {
+//                 // auto child_id = ecs.AddChildEntity(entity_group.id, Entity{});
+//                 // auto child_ptr = ecs.GetEntity(child_id);
+//                 // assert(child_ptr);
+//                 // auto& child = *child_ptr;
+//                 // child.shape_index = shape_index;
+//                 // ecs.ConstructComponent<ColorComponent>(child.id, {0.f, 1.f, 1.f, 1.f});
+//             }
+//             ImGui::EndMenu();
+//         }
+
+//         if (ImGui::MenuItem("Duplicate Entity")) {
+//             // ecs.DuplicateEntity(id);
+//         }
+//         if (ImGui::MenuItem("Delete Entity")) {
+//             // ecs.DeleteEntity(id);
+//         }
+
+//         ImGui::EndPopup();
+//     }
+
+//     if (node_open) {
+//         // for (auto& child_group_sh_ptr : entity_group.reflectable_children) {
+//         //     auto child_group_ptr = child_group_sh_ptr.get();
+//         //     if (ReflectableGroupFilterCheck(SceneGraphFilter, *child_group_ptr)) {
+//         //         auto entity_child_group_ptr = dynamic_cast<ExampleECS::EntityReflectableGroup*>(child_group_ptr);
+//         //         if (entity_child_group_ptr) {
+//         //             DrawEntityGroup(ecs, entity_child_group_ptr->id, *entity_child_group_ptr);
+//         //         }
+//         //     }
+//         // }
+//         ImGui::TreePop();
+//     }
+//     ImGui::PopID();
+// }
+
+// void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneReflectableGroup& scene_group) {
+//     ImGui::TableNextRow();
+//     ImGui::TableNextColumn();
+//     ImGui::PushID(&scene_group);
+//     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+//     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
+//     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
+//     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
+//     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+//     if (&scene_group == SelectedReflectableGroup)
+//         tree_flags |= ImGuiTreeNodeFlags_Selected;
+//     auto& scene_group_children = scene_group.GetChildren();
+//     if (scene_group_children.empty())
+//         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+//     if (scene_group.disabled)
+//         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+//     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", scene_group.name.c_str());
+//     if (scene_group.disabled)
+//         ImGui::PopStyleColor();
+//     if (ImGui::IsItemFocused()) {
+//         SelectedReflectableGroup = &scene_group;
+//         SelectedReflectableID = scene_id;
+//         property_editor.is_open = true;
+//     }
+
+//     if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+//         ImGui::OpenPopup("SceneContextMenu");
+//     }
+
+//     if (ImGui::BeginPopup("SceneContextMenu")) {
+//         if (ImGui::BeginMenu("Add Entity")) {
+//             if (ImGui::MenuItem("Plane")) {
+//                 // ecs.AddEntityToScene(scene_id, "Plane");
+//             }
+//             if (ImGui::MenuItem("Cube")) {
+//                 // ecs.AddEntityToScene(scene_id, "Cube");
+//             }
+//             if (ImGui::MenuItem("Monkey")) {
+//                 // ecs.AddEntityToScene(scene_id, "Monkey");
+//             }
+//             if (ImGui::MenuItem("Mesh")) {
+//                 // ecs.AddEntityToScene(scene_id, "Mesh");
+//             }
+//             ImGui::EndMenu();
+//         }
+
+//         if (ImGui::BeginMenu("Add Camera")) {
+//             if (ImGui::MenuItem("Perspective")) {
+//                 // ecs.AddCamera(scene_id, Camera::Perspective);
+//             }
+//             if (ImGui::MenuItem("Orthographic")) {
+//                 // ecs.AddCamera(scene_id, Camera::Orthographic);
+//             }
+//             ImGui::EndMenu();
+//         }
+
+//         if (ImGui::BeginMenu("Add Light")) {
+//             if (ImGui::MenuItem("Directional")) {
+//                 // ecs.AddLight(scene_id, Light::Directional);
+//             }
+//             if (ImGui::MenuItem("Spot")) {
+//                 // ecs.AddLight(scene_id, Light::Spot);
+//             }
+//             if (ImGui::MenuItem("Point")) {
+//                 // ecs.AddLight(scene_id, Light::Point);
+//             }
+//             ImGui::EndMenu();
+//         }
+
+//         ImGui::EndPopup();
+//     }
+
+//     if (node_open) {
+//         // for (auto& child_group_ptr : scene_group_children) {
+//         //     auto& child_group = *child_group_ptr;
+//         //     if (ReflectableGroupFilterCheck(SceneGraphFilter, child_group)) {
+//         //         switch (child_group.GetGroupType()) {
+//         //         case ReflectableGroup::Window:
+//         //             assert(false);
+//         //             break;
+//         //         case ReflectableGroup::Generic:
+//         //         case ReflectableGroup::Camera:
+//         //         case ReflectableGroup::Light:
+//         //         case ReflectableGroup::Provider:
+//         //             DrawGenericGroup(child_group.id, child_group);
+//         //             break;
+//         //         case ReflectableGroup::Scene:
+//         //             DrawSceneReflectableGroup(ecs, child_group.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_group));
+//         //             break;
+//         //         case ReflectableGroup::Entity: {
+//         //             auto& entity_group = dynamic_cast<ExampleECS::EntityReflectableGroup&>(child_group);
+//         //             if (!entity_group.is_child)
+//         //                 DrawEntityGroup(ecs, child_group.id, entity_group);
+//         //             break;
+//         //         }
+//         //         }
+//         //     }
+//         // }
+//         ImGui::TreePop();
+//     }
+//     ImGui::PopID();
+// }
+
+void DrawGenericGroup(ReflectableGroup& reflectable_group) {
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
-    ImGui::PushID(&entity_group);
-    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
-    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
-    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
-    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
-    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-    if (&entity_group == SelectedReflectableGroup)
-        tree_flags |= ImGuiTreeNodeFlags_Selected;
-    if (entity_group.children.empty())
-        tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-    if (entity_group.disabled)
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-    bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", entity_group.name.c_str());
-    if (entity_group.disabled)
-        ImGui::PopStyleColor();
-    if (ImGui::IsItemFocused()) {
-        SelectedReflectableGroup = &entity_group;
-        SelectedReflectableID = id;
-        property_editor.is_open = true;
-    }
 
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-        ImGui::OpenPopup("EntityContextMenu");
-    }
-
-    if (ImGui::BeginPopup("EntityContextMenu")) {
-        if (ImGui::BeginMenu("Add Child")) {
-            if (ImGui::MenuItem("Plane")) {
-                // ecs.AddEntityToScene(scene_id, "Plane");
-            }
-            if (ImGui::MenuItem("Cube")) {
-                // ecs.AddEntityToScene(scene_id, "Cube");
-            }
-            if (ImGui::MenuItem("Monkey")) {
-                // ecs.AddEntityToScene(scene_id, "Monkey");
-            }
-            if (ImGui::MenuItem("Mesh")) {
-                // ecs.AddEntityToScene(scene_id, "Mesh");
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::MenuItem("Duplicate Entity")) {
-            // ecs.DuplicateEntity(id);
-        }
-        if (ImGui::MenuItem("Delete Entity")) {
-            // ecs.DeleteEntity(id);
-        }
-
-        ImGui::EndPopup();
-    }
-
-    if (node_open) {
-        for (auto& child_id : entity_group.children) {
-            auto& child_group = ecs.id_entity_groups[child_id];
-            if (ReflectableGroupFilterCheck(SceneGraphFilter, child_group))
-                DrawEntityEntry(ecs, child_id, child_group);
-        }
-        ImGui::TreePop();
-    }
-    ImGui::PopID();
-}
-
-void DrawSceneReflectableGroup(ExampleECS& ecs, int scene_id, ExampleECS::SceneReflectableGroup& scene_group) {
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
-    ImGui::PushID(&scene_group);
-    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
-    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
-    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
-    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
-    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
-    if (&scene_group == SelectedReflectableGroup)
-        tree_flags |= ImGuiTreeNodeFlags_Selected;
-    auto& scene_group_children = scene_group.GetChildren();
-    if (scene_group_children.empty())
-        tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
-    if (scene_group.disabled)
-        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-    bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", scene_group.name.c_str());
-    if (scene_group.disabled)
-        ImGui::PopStyleColor();
-    if (ImGui::IsItemFocused()) {
-        SelectedReflectableGroup = &scene_group;
-        SelectedReflectableID = scene_id;
-        property_editor.is_open = true;
-    }
-
-    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-        ImGui::OpenPopup("SceneContextMenu");
-    }
-
-    if (ImGui::BeginPopup("SceneContextMenu")) {
-        if (ImGui::BeginMenu("Add Entity")) {
-            if (ImGui::MenuItem("Plane")) {
-                // ecs.AddEntityToScene(scene_id, "Plane");
-            }
-            if (ImGui::MenuItem("Cube")) {
-                // ecs.AddEntityToScene(scene_id, "Cube");
-            }
-            if (ImGui::MenuItem("Monkey")) {
-                // ecs.AddEntityToScene(scene_id, "Monkey");
-            }
-            if (ImGui::MenuItem("Mesh")) {
-                // ecs.AddEntityToScene(scene_id, "Mesh");
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Add Camera")) {
-            if (ImGui::MenuItem("Perspective")) {
-                ecs.AddCameraToScene(scene_id, Camera::Perspective);
-            }
-            if (ImGui::MenuItem("Orthographic")) {
-                ecs.AddCameraToScene(scene_id, Camera::Orthographic);
-            }
-            ImGui::EndMenu();
-        }
-
-        if (ImGui::BeginMenu("Add Light")) {
-            if (ImGui::MenuItem("Directional")) {
-                ecs.AddLightToScene(scene_id, Light::Directional);
-            }
-            if (ImGui::MenuItem("Spot")) {
-                ecs.AddLightToScene(scene_id, Light::Spot);
-            }
-            if (ImGui::MenuItem("Point")) {
-                ecs.AddLightToScene(scene_id, Light::Point);
-            }
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndPopup();
-    }
-
-    if (node_open) {
-        for (auto scene_group_child_group : scene_group_children) {
-            auto& child_group = *scene_group_child_group;
-            if (ReflectableGroupFilterCheck(SceneGraphFilter, child_group)) {
-                switch (child_group.GetGroupType()) {
-                case ReflectableGroup::Window:
-                    assert(false);
-                    break;
-                case ReflectableGroup::Generic:
-                case ReflectableGroup::Camera:
-                case ReflectableGroup::Light:
-                case ReflectableGroup::Provider:
-                    DrawGenericEntry(child_group.id, child_group);
-                    break;
-                case ReflectableGroup::Scene:
-                    DrawSceneReflectableGroup(ecs, child_group.id, dynamic_cast<ExampleECS::SceneReflectableGroup&>(child_group));
-                    break;
-                case ReflectableGroup::Entity: {
-                    auto& entity_group = dynamic_cast<ExampleECS::EntityComponentReflectableGroup&>(child_group);
-                    if (!entity_group.is_child)
-                        DrawEntityEntry(ecs, child_group.id, entity_group);
-                    break;
-                }
-                }
-            }
-        }
-        ImGui::TreePop();
-    }
-    ImGui::PopID();
-}
-
-void DrawGenericEntry(int generic_id, ReflectableGroup& reflectable_group) {
-    ImGui::TableNextRow();
-    ImGui::TableNextColumn();
     ImGui::PushID(&reflectable_group);
+
     ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
+
     tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
     tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
     tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
     tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+
     if (&reflectable_group == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
-    tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+
+    auto& group_children = reflectable_group.GetChildren();
+
+    if (group_children.empty())
+        tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+
     if (reflectable_group.disabled)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", reflectable_group.GetName().c_str());
+
     if (reflectable_group.disabled)
         ImGui::PopStyleColor();
+
     if (ImGui::IsItemFocused()) {
         SelectedReflectableGroup = &reflectable_group;
         SelectedReflectableID = reflectable_group.id;
         property_editor.is_open = true;
     }
-
     if (node_open) {
+        for (auto& reflectable_group_ptr : group_children) {
+            auto& reflectable_group = *reflectable_group_ptr;
+            DrawGenericGroup(reflectable_group);
+        }
         ImGui::TreePop();
     }
     ImGui::PopID();
 }
 
-void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {
+void DrawWindowGroup(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {
     auto id = window_reflectable_group.id;
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
@@ -968,7 +1016,7 @@ void DrawWindowEntry(const std::string& window_name, WindowReflectableGroup& win
         // for (auto& child_id : entity_group.children) {
         //     auto& child_group = ecs.id_entity_groups[child_id];
         //     if (ReflectableGroupFilterCheck(SceneGraphFilter, child_group))
-        //         DrawEntityEntry(ecs, child_id, child_group);
+        //         DrawEntityGroup(ecs, child_id, child_group);
         // }
         ImGui::TreePop();
     }

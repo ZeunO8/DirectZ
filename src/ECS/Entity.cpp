@@ -1,21 +1,21 @@
 #include <dz/ECS/Entity.hpp>
 using namespace dz::ecs;
 
-EntityTransformReflectable::EntityTransformReflectable(const std::function<Entity*()>& get_entity_function):
+Entity::EntityTransformReflectable::EntityTransformReflectable(const std::function<Entity*()>& get_entity_function):
     get_entity_function(get_entity_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Transform")
 {}
 
-int EntityTransformReflectable::GetID() {
+int Entity::EntityTransformReflectable::GetID() {
     return uid;
 }
 
-std::string& EntityTransformReflectable::GetName() {
+std::string& Entity::EntityTransformReflectable::GetName() {
     return name;
 }
 
-void* EntityTransformReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* Entity::EntityTransformReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto entity_ptr = get_entity_function();
     assert(entity_ptr);
     auto& entity = *entity_ptr;
@@ -27,4 +27,4 @@ void* EntityTransformReflectable::GetVoidPropertyByIndex(int prop_index) {
     }
 }
 
-void EntityTransformReflectable::NotifyChange(int prop_index) {}
+void Entity::EntityTransformReflectable::NotifyChange(int prop_index) {}

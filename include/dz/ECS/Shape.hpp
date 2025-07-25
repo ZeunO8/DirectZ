@@ -5,6 +5,7 @@ namespace dz::ecs {
     struct Shape : Provider<Shape> {
         int type = 0;
         int vertex_count = 0;
+        inline static constexpr size_t PID = 2;
         inline static float Priority = 1.0f;
         inline static std::string ProviderName = "Shape";
         inline static std::string StructName = "Shape";
@@ -40,12 +41,13 @@ vec3 GetShapeNormal(in Entity entity) {
         };
 
         inline static std::unordered_map<std::string, size_t> registered_shapes = {};
-        inline static int RegisterShape(
+        inline static std::pair<int, int> RegisterShape(
             const std::string& shape_name,
             const std::string& get_vertex_fn_string,
             const std::string& get_normal_fn_string
         ) {
             auto shape_id = GlobalUID::GetNew("ECS:Shape");
+            int shape_index = registered_shapes.size();
             registered_shapes[shape_name] = shape_id;
             auto& glsl_methods = GLSLMethods[ShaderModuleType::Vertex];
 
@@ -87,10 +89,10 @@ vec3 GetShapeNormal(in Entity entity) {
                 get_vertex_fn_string.begin(),
                 get_vertex_fn_string.end());
 
-            return int(shape_id);
+            return {int(shape_id), int(shape_index)};
         }
     };
 
-    int RegisterPlaneShape();
-    int RegisterCubeShape();
+    std::pair<int, int> RegisterPlaneShape();
+    std::pair<int, int> RegisterCubeShape();
 }

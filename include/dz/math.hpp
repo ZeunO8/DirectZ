@@ -1435,4 +1435,326 @@ namespace dz
             , max(max)
         {}
     };
+
+    /**
+    * @brief A quaternion class for representing rotations in 3D space.
+    *
+    * This struct inherits from vec<T, 4> and represents a quaternion with four components: w, x, y, z.
+    * It provides operations including construction, conjugation, inversion, quaternion multiplication,
+    * and rotation of a 3D vector.
+    *
+    * @tparam T Underlying scalar type (e.g., float, double).
+    */
+    template <typename T>
+    struct quat : public vec<T, 4>
+    {
+        using Base = vec<T, 4>;
+
+        using Base::data;
+        using Base::operator=;
+        using Base::operator+=;
+        using Base::operator-=;
+        using Base::operator*=;
+        using Base::operator/=;
+        using Base::operator+;
+        using Base::operator-;
+        using Base::operator*;
+        using Base::operator/;
+        using Base::operator[];
+        using Base::length;
+        using Base::normalize;
+
+        /**
+        * @brief Default constructor. Components are uninitialized.
+        */
+        quat() = default;
+
+        /**
+        * @brief Copy constructor.
+        * @param other The quaternion to copy.
+        */
+        quat(const quat&) = default;
+
+        /**
+        * @brief Copy assignment operator.
+        * @param other The quaternion to assign from.
+        * @return Reference to this quaternion.
+        */
+        quat& operator=(const quat&) = default;
+
+        /**
+        * @brief Move constructor.
+        * @param other The quaternion to move.
+        */
+        quat(quat&&) noexcept = default;
+
+        /**
+        * @brief Move assignment operator.
+        * @param other The quaternion to move from.
+        * @return Reference to this quaternion.
+        */
+        quat& operator=(quat&&) noexcept = default;
+
+        /**
+        * @brief Variadic constructor forwarding to vec<T, 4>.
+        * @tparam Args Variadic template arguments.
+        * @param args Values forwarded to base class constructor.
+        */
+        template <typename... Args>
+        quat(Args&&... args) : Base(std::forward<Args>(args)...) { }
+
+        /**
+        * @brief Construct quaternion from explicit components.
+        * @param w Scalar component.
+        * @param x X vector component.
+        * @param y Y vector component.
+        * @param z Z vector component.
+        */
+        quat(T w, T x, T y, T z)
+        {
+            data[0] = w;
+            data[1] = x;
+            data[2] = y;
+            data[3] = z;
+        }
+
+        /**
+        * @brief Returns the conjugate of the quaternion.
+        *
+        * The conjugate of (w, x, y, z) is (w, -x, -y, -z).
+        *
+        * @return Conjugated quaternion.
+        */
+        quat<T> conjugate() const
+        {
+            return quat<T>(data[0], -data[1], -data[2], -data[3]);
+        }
+
+        /**
+        * @brief Returns the inverse of the quaternion.
+        *
+        * The inverse is the conjugate divided by the squared norm.
+        *
+        * @return Inverse quaternion.
+        */
+        quat<T> inverse() const
+        {
+            quat<T> conj = conjugate();
+            T norm_sq = T(0);
+            for (size_t i = 0; i < 4; ++i)
+                norm_sq += data[i] * data[i];
+            return conj / norm_sq;
+        }
+
+        /**
+        * @brief Rotates a 3D vector using this quaternion.
+        *
+        * @param v The 3D vector to rotate.
+        * @return Rotated vector.
+        */
+        vec<T, 3> rotate(const vec<T, 3>& v) const
+        {
+            quat<T> qv(0, v[0], v[1], v[2]);
+            quat<T> result = (*this) * qv * inverse();
+            return vec<T, 3>(result[1], result[2], result[3]);
+        }
+
+        /**
+        * @brief Quaternion multiplication.
+        *
+        * Multiplies this quaternion by another.
+        *
+        * @param rhs The right-hand side quaternion.
+        * @return Result of multiplication.
+        */
+        quat<T> operator*(const quat<T>& rhs) const
+        {
+            T w = data[0] * rhs[0] - data[1] * rhs[1] - data[2] * rhs[2] - data[3] * rhs[3];
+            T x = data[0] * rhs[1] + data[1] * rhs[0] + data[2] * rhs[3] - data[3] * rhs[2];
+            T y = data[0] * rhs[2] - data[1] * rhs[3] + data[2] * rhs[0] + data[3] * rhs[1];
+            T z = data[0] * rhs[3] + data[1] * rhs[2] - data[2] * rhs[1] + data[3] * rhs[0];
+            return quat<T>(w, x, y, z);
+        }
+
+        /**
+        * @brief Constructs a quaternion from an axis-angle representation.
+        *
+        * @param axis The normalized axis of rotation.
+        * @param angle The angle of rotation in radians.
+        * @return Quaternion representing the rotation.
+        */
+        static quat<T> from_axis_angle(const vec<T, 3>& axis, T angle)
+        {
+            T half_angle = angle * T(0.5);
+            T s = std::sin(half_angle);
+            return quat<T>(std::cos(half_angle), axis[0] * s, axis[1] * s, axis[2] * s);
+        }
+
+        /**
+        * @brief Converts the quaternion to axis-angle representation.
+        *
+        * @param out_axis Normalized axis of rotation (output).
+        * @param out_angle Angle in radians (output).
+        */
+        void to_axis_angle(vec<T, 3>& out_axis, T& out_angle) const
+        {
+            quat<T> norm_q = this->normalize();
+            out_angle = T(2) * std::acos(norm_q[0]);
+            T s = std::sqrt(T(1) - norm_q[0] * norm_q[0]);
+            if (s < T(1e-6))
+            {
+                out_axis = vec<T, 3>(1, 0, 0);
+            }
+            else
+            {
+                out_axis = vec<T, 3>(norm_q[1] / s, norm_q[2] / s, norm_q[3] / s);
+            }
+        }
+
+        /**
+        * @brief Converts the quaternion to a 4x4 rotation matrix.
+        *
+        * @return 4x4 rotation matrix.
+        */
+        mat<T, 4, 4> to_mat4() const
+        {
+            T w = data[0], x = data[1], y = data[2], z = data[3];
+            T xx = x * x, yy = y * y, zz = z * z;
+            T xy = x * y, xz = x * z, yz = y * z;
+            T wx = w * x, wy = w * y, wz = w * z;
+
+            mat<T, 4, 4> m = {};
+            m[0][0] = T(1) - T(2) * (yy + zz);
+            m[0][1] = T(2) * (xy - wz);
+            m[0][2] = T(2) * (xz + wy);
+            m[0][3] = T(0);
+
+            m[1][0] = T(2) * (xy + wz);
+            m[1][1] = T(1) - T(2) * (xx + zz);
+            m[1][2] = T(2) * (yz - wx);
+            m[1][3] = T(0);
+
+            m[2][0] = T(2) * (xz - wy);
+            m[2][1] = T(2) * (yz + wx);
+            m[2][2] = T(1) - T(2) * (xx + yy);
+            m[2][3] = T(0);
+
+            m[3][0] = T(0);
+            m[3][1] = T(0);
+            m[3][2] = T(0);
+            m[3][3] = T(1);
+
+            return m;
+        }
+    };
+
+    // Convert a unit quaternion to a 3x3 rotation matrix
+    // Assumes quat is normalized
+    // R = (1 - 2yy - 2zz, 2xy - 2wz, 2xz + 2wy)
+    //     (2xy + 2wz, 1 - 2xx - 2zz, 2yz - 2wx)
+    //     (2xz - 2wy, 2yz + 2wx, 1 - 2xx - 2yy)
+    template <typename T>
+    mat<T, 3, 3> quat_to_mat3(const quat<T>& q)
+    {
+        T w = q[0];
+        T x = q[1];
+        T y = q[2];
+        T z = q[3];
+
+        T xx = x * x;
+        T yy = y * y;
+        T zz = z * z;
+        T xy = x * y;
+        T xz = x * z;
+        T yz = y * z;
+        T wx = w * x;
+        T wy = w * y;
+        T wz = w * z;
+
+        mat<T, 3, 3> result(T(1));
+        result[0][0] = T(1) - T(2) * (yy + zz);
+        result[0][1] = T(2) * (xy - wz);
+        result[0][2] = T(2) * (xz + wy);
+        result[1][0] = T(2) * (xy + wz);
+        result[1][1] = T(1) - T(2) * (xx + zz);
+        result[1][2] = T(2) * (yz - wx);
+        result[2][0] = T(2) * (xz - wy);
+        result[2][1] = T(2) * (yz + wx);
+        result[2][2] = T(1) - T(2) * (xx + yy);
+        return result;
+    }
+
+    /**
+    * @brief Spherical linear interpolation between two quaternions.
+    *
+    * @param a Start quaternion.
+    * @param b End quaternion.
+    * @param t Interpolation factor between 0 and 1.
+    * @return Interpolated quaternion.
+    */
+    template <typename T>
+    quat<T> slerp(const quat<T>& a, const quat<T>& b, T t)
+    {
+        quat<T> q1 = a.normalize();
+        quat<T> q2 = b.normalize();
+
+        T dot = T(0);
+        for (int i = 0; i < 4; ++i)
+            dot += q1[i] * q2[i];
+
+        if (dot < T(0))
+        {
+            dot = -dot;
+            q2 = q2 * T(-1);
+        }
+
+        const T DOT_THRESHOLD = T(0.9995);
+        if (dot > DOT_THRESHOLD)
+        {
+            quat<T> result = q1 + (q2 - q1) * t;
+            return result.normalize();
+        }
+
+        T theta_0 = std::acos(dot);
+        T theta = theta_0 * t;
+        T sin_theta = std::sin(theta);
+        T sin_theta_0 = std::sin(theta_0);
+
+        T s0 = std::cos(theta) - dot * sin_theta / sin_theta_0;
+        T s1 = sin_theta / sin_theta_0;
+
+        return (q1 * s0 + q2 * s1).normalize();
+    }
+
+    /**
+    * @brief Constructs a quaternion from an axis-angle representation.
+    *
+    * @param axis A normalized 3D axis.
+    * @param angle Angle in radians.
+    * @return Resulting quaternion.
+    */
+    template <typename T>
+    quat<T> quat_from_axis_angle(const vec<T, 3>& axis, T angle)
+    {
+        T half = angle * T(0.5);
+        T s = std::sin(half);
+        return quat<T>(std::cos(half), axis[0] * s, axis[1] * s, axis[2] * s);
+    }
+
+    /**
+    * @brief Converts a quaternion to a 4x4 rotation matrix.
+    *
+    * @param q A normalized quaternion.
+    * @return A 4x4 rotation matrix.
+    */
+    template <typename T>
+    mat<T, 4, 4> quat_to_mat4(const quat<T>& q)
+    {
+        mat<T, 4, 4> m(T(1));
+        mat<T, 3, 3> r = quat_to_mat3(q);
+        for (size_t i = 0; i < 3; ++i)
+            for (size_t j = 0; j < 3; ++j)
+                m[i][j] = r[i][j];
+        return m;
+    }
 }
