@@ -16,11 +16,11 @@ DirectZ provides:
 - GPU driven rendering
 
 ##### Build Status
-[![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=run-actions&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
-[![MacOS (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=run-actions&label=MacOS%20x86_64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml)
-[![Linux (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=run-actions&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
-[![Windows (AMD64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=run-actions&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
-[![Android (aarch64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=run-actions&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
+[![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=master&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
+[![MacOS (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=master&label=MacOS%20x86_64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml)
+[![Linux (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=master&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
+[![Windows (AMD64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=master&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
+[![Android (aarch64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=master&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
 
 ## Documentation
 
