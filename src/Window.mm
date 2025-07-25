@@ -1,6 +1,7 @@
 #if defined(MACOS)
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
+#include <ApplicationServices/ApplicationServices.h>
 #elif defined(IOS)
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -8,7 +9,6 @@
 #import <QuartzCore/CAMetalLayer.h>
 #import <TargetConditionals.h>
 #include <Metal/Metal.h>
-#include <ApplicationServices/ApplicationServices.h>
 #include <mach-o/dyld.h>
 #include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
