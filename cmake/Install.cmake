@@ -1,5 +1,4 @@
 
-
 set(DIRECTZ_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/DirectZ")
 
 set(DirectZ_TGTS 
