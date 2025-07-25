@@ -45,15 +45,18 @@ jobs:
           export CXX=$(xcrun --sdk iphoneos -f clang++)
           export AR=$(xcrun --sdk iphoneos -f ar)
           export RANLIB=$(xcrun --sdk iphoneos -f ranlib)
-          export CFLAGS="-isysroot $IOS_SDK -arch ${{ env.IOS_ARCH }} -mios-version-min=12.0"
-          export TARGET_DIR=$(pwd)/cross-build/iphoneos.${{ env.IOS_ARCH }}
+          export IOS_ARCH=arm64
+          export CFLAGS="-isysroot $SDKROOT -arch $IOS_ARCH -mios-version-min=12.0"
+          export TARGET_DIR=$(pwd)/cross-build/iphoneos.$IOS_ARCH
+
           echo "CC=$CC" >> "$GITHUB_ENV"
           echo "CXX=$CXX" >> "$GITHUB_ENV"
-          echo "CFLAGS=$CFLAGS" >> "$GITHUB_ENV"
           echo "AR=$AR" >> "$GITHUB_ENV"
           echo "RANLIB=$RANLIB" >> "$GITHUB_ENV"
           echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+          echo "CFLAGS=$CFLAGS" >> "$GITHUB_ENV"
           echo "TARGET_DIR=$TARGET_DIR" >> "$GITHUB_ENV"
+          echo "IOS_ARCH=$IOS_ARCH" >> "$GITHUB_ENV"
 
       - name: Build OpenSSL
         run: |
