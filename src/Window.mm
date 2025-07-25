@@ -54,6 +54,7 @@ namespace dz
 	}
 	void WINDOW::create_platform() {
 		@autoreleasepool {
+#if defined(MACOS)
 			if (NSApp == nil) {
 				[NSApplication sharedApplication];
 				[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -89,14 +90,56 @@ namespace dz
 			NSRect frame = NSMakeRect(0, 0, *width, *height);
 			metalView = [[MetalView alloc] initWithFrame:frame];
 			[dzWindow setContentView:(MetalView*)metalView];
+#elif defined(IOS)
+			UIWindowScene* windowScene = nullptr;
+
+			for (UIScene* scene in [UIApplication sharedApplication].connectedScenes)
+			{
+				if ([scene isKindOfClass:[UIWindowScene class]])
+				{
+					windowScene = (UIWindowScene*)scene;
+					break;
+				}
+			}
+
+			if (!windowScene)
+			{
+				NSLog(@"[DirectZ] No UIWindowScene available to create UIWindow");
+				return;
+			}
+
+			CGRect screenBounds = [UIScreen mainScreen].bounds;
+
+			UIWindow* window = [[UIWindow alloc] initWithFrame:screenBounds];
+			window.windowScene = windowScene;
+
+			UIViewController* rootViewController = [[UIViewController alloc] init];
+
+			MetalView* view = [[MetalView alloc] initWithFrame:screenBounds];
+			view->window_ptr = this;
+
+			rootViewController.view = view;
+
+			window.rootViewController = rootViewController;
+			[window makeKeyAndVisible];
+
+			this->nsWindow = (__bridge_retained void*)window;
+			this->metalView = (__bridge_retained void*)view;
+
+			// Save title for consistency, but iOS doesn’t show window titles
+			this->title = title;
+#endif
 		}
 	}
+#if defined(MACOS)
 	bool handle_macos_event(WINDOW& window, NSEvent* event);
+#endif
 	bool WINDOW::poll_events_platform() {
 		if (closed)
 			return false;
 		@autoreleasepool
 		{
+#if defined(MACOS)
 			NSEvent *event;
 			while ((event = [NSApp nextEventMatchingMask:NSEventMaskAny
 									untilDate:nil
@@ -106,6 +149,9 @@ namespace dz
 				[NSApp sendEvent:event];
 				[NSApp updateWindows];
 			}
+#elif defined(IOS)
+
+#endif
 		}
 		return true;
 	}
@@ -121,11 +167,10 @@ namespace dz
 #endif
 		nsWindow = nullptr;
 		nsView = nullptr;
-		nsImage = nullptr;
-		nsImageView = nullptr;
 		metalView = nullptr;
 	}
 
+#if defined(MACOS)
 	bool handle_macos_event(WINDOW& window, NSEvent* event) {
 		switch ([event type])
 		{
@@ -190,12 +235,17 @@ namespace dz
 		}
 		return true;
 	}
+#endif
 
 	void window_set_title(WINDOW* window_ptr, const std::string& new_title) {
 		@autoreleasepool
 		{
+#if defined(MACOS)
 			NSString* title_str = [NSString stringWithUTF8String:new_title.c_str()];
 			[(DZWindow*)window_ptr->nsWindow setTitle:title_str];
+#elif defined(IOS)
+
+#endif
 		}
 		window_ptr->title = new_title;
 	}
@@ -203,6 +253,7 @@ namespace dz
     void window_set_capture(WINDOW* window_ptr, bool should_capture) {
 		if (window_ptr->capture == should_capture)
 			return;
+#if defined(MACOS)
 		if (should_capture)
 		{
 			DZWindow* nsWindow = (DZWindow*)window_ptr->nsWindow;
@@ -219,6 +270,9 @@ namespace dz
 		{
 			CGAssociateMouseAndMouseCursorPosition(true);
 		}
+#elif defined(IOS)
+
+#endif
 		window_ptr->capture = should_capture;
 	}
 
@@ -307,12 +361,17 @@ namespace dz
 
 int dz::displays_get_count()
 {
+#if defined(MACOS)
 	return (int)[[NSScreen screens] count];
+#elif defined(IOS)
+	return 1;
+#endif
 }
 
 dz::DisplayDescription dz::displays_describe(int display_index)
 {
 	dz::DisplayDescription desc = {};
+#if defined(MACOS)
 	NSArray<NSScreen*>* screens = [NSScreen screens];
 	if (display_index < 0 || display_index >= [screens count]) return desc;
 
@@ -330,6 +389,21 @@ dz::DisplayDescription dz::displays_describe(int display_index)
 	desc.work_width = (int)visible.size.width;
 	desc.work_height = (int)visible.size.height;
 	desc.dpi_scale = (float)scale;
+#elif defined(IOS)
+	UIScreen* screen = [UIScreen mainScreen];
+	CGRect bounds = screen.bounds;
+	CGFloat scale = screen.scale;
+
+	desc.x = 0;
+	desc.y = 0;
+	desc.width = (int)bounds.size.width;
+	desc.height = (int)bounds.size.height;
+	desc.work_x = 0;
+	desc.work_y = 0;
+	desc.work_width = (int)bounds.size.width;
+	desc.work_height = (int)bounds.size.height;
+	desc.dpi_scale = (float)scale;
+#endif
 
 	return desc;
 }
