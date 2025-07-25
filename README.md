@@ -21,6 +21,7 @@ DirectZ provides:
 [![Linux (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=master&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
 [![Windows (AMD64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml/badge.svg?branch=master&label=Windows%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/windows.yml)
 [![Android (aarch64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml/badge.svg?branch=master&label=Android%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/android-aarch64.yml)
+[![iOS (ARM64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/ios-arm64.yml/badge.svg?branch=master&label=iOS%20ARM64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/ios-arm64.yml)
 
 ## Documentation
 
