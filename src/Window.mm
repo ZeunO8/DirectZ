@@ -1,9 +1,10 @@
 #if defined(MACOS)
 #include <AppKit/AppKit.h>
-#elif defined(IOS)
-#include <UIKit/UIKit.h>
-#endif
 #import <Cocoa/Cocoa.h>
+#elif defined(IOS)
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#endif
 #import <QuartzCore/CAMetalLayer.h>
 #import <TargetConditionals.h>
 #include <Metal/Metal.h>
