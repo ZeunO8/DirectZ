@@ -42,7 +42,7 @@ jobs:
           curl -LO https://github.com/KhronosGroup/MoltenVK/releases/download/v1.3.0/MoltenVK-ios.tar
           mkdir MVK
           tar -xf MoltenVK-ios.tar -C MVK
-          mv MVK/MoltenVK .
+          mv MVK/MoltenVK/MoltenVK .
           ls -lah .
           cd MoltenVK
           ls -lah .
