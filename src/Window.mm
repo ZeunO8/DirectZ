@@ -2,6 +2,8 @@
 #include <AppKit/AppKit.h>
 #import <Cocoa/Cocoa.h>
 #include <ApplicationServices/ApplicationServices.h>
+#include "WINDOWDelegateImpl.mm"
+#include "DZWindow.mm"
 #elif defined(IOS)
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -40,8 +42,6 @@ namespace dz
 		// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
 	}
 }
-#include "WINDOWDelegateImpl.mm"
-#include "DZWindow.mm"
 namespace dz
 {
 	#include "path.mm"
@@ -123,11 +123,8 @@ namespace dz
 			window.rootViewController = rootViewController;
 			[window makeKeyAndVisible];
 
-			this->nsWindow = (__bridge_retained void*)window;
-			this->metalView = (__bridge_retained void*)view;
-
-			// Save title for consistency, but iOS doesn’t show window titles
-			this->title = title;
+			this->nsWindow = window;
+			this->metalView = view;
 #endif
 		}
 	}

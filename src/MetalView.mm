@@ -26,9 +26,9 @@
 
 - (instancetype)initWithFrame:
 #if defined(MACOS)
-    NSRect
+    (NSRect)
 #elif defined(IOS)
-    CGRect
+    (CGRect)
 #endif
     frameRect
 {
@@ -39,7 +39,9 @@
         self.wantsLayer = YES;
 #endif
         CAMetalLayer *layer = [CAMetalLayer layer];
+#if defined(MACOS)
         self.layer = layer;
+#endif
         self.metalLayer = layer;
 
         self.device = MTLCreateSystemDefaultDevice();
