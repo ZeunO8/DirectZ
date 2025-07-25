@@ -31,21 +31,12 @@ jobs:
         run: |
           brew install ninja
 
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: 1.4.309.0
-          cache: true
-
-      - name: Get MoltenVK iOS
+      - name: retrieve VulkanSDK
+        if: steps.VulkanSDK.outputs.cache-hit != 'true'
         run: |
-          curl -LO https://github.com/KhronosGroup/MoltenVK/releases/download/v1.3.0/MoltenVK-ios.tar
-          mkdir MVK
-          tar -xf MoltenVK-ios.tar -C MVK
-          mv MVK/MoltenVK/MoltenVK .
-          ls -lah .
-          cd MoltenVK
-          ls -lah .
+          wget https://sdk.lunarg.com/sdk/download/1.4.304.1/mac/vulkansdk-macos-1.4.304.1.zip
+          unzip vulkansdk-macos-1.4.304.1.zip
+          sudo InstallVulkan-1.4.304.1.app/Contents/MacOS/InstallVulkan-1.4.304.1 --root ~/VulkanSDK --accept-licenses --default-answer --confirm-command install com.lunarg.vulkan.ios
 
       - name: LS VULKAN_SDK
         run: |
