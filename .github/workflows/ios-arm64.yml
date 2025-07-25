@@ -45,11 +45,32 @@ jobs:
           export CXX=$(xcrun --sdk iphoneos -f clang++)
           export AR=$(xcrun --sdk iphoneos -f ar)
           export RANLIB=$(xcrun --sdk iphoneos -f ranlib)
+          export CFLAGS="-isysroot $IOS_SDK -arch ${{ env.IOS_ARCH }} -mios-version-min=12.0"
+          export TARGET_DIR=$(pwd)/cross-build/iphoneos.${{ env.IOS_ARCH }}
           echo "CC=$CC" >> "$GITHUB_ENV"
           echo "CXX=$CXX" >> "$GITHUB_ENV"
+          echo "CFLAGS=$CFLAGS" >> "$GITHUB_ENV"
           echo "AR=$AR" >> "$GITHUB_ENV"
           echo "RANLIB=$RANLIB" >> "$GITHUB_ENV"
           echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
+          echo "TARGET_DIR=$TARGET_DIR" >> "$GITHUB_ENV"
+
+      - name: Build OpenSSL
+        run: |
+          curl -LO https://www.openssl.org/source/openssl-1.1.1w.tar.gz
+          tar -xf openssl-1.1.1w.tar.gz
+          cd openssl-1.1.1w
+
+          ./Configure ios64-cross no-shared no-dso \
+            --prefix=$TARGET_DIR/openssl \
+            CC="$CC" \
+            CPP="$CXX" \
+            CFLAGS="$CFLAGS" \
+            AR="$AR" \
+            RANLIB="$RANLIB"
+
+          make -j$(sysctl -n hw.logicalcpu)
+          make install_sw
 
       - name: Configure
         run: |
@@ -65,6 +86,7 @@ jobs:
             -DCMAKE_RANLIB=$RANLIB \
             -DVulkan_INCLUDE_DIR=$VULKAN_SDK/include \
             -DVulkan_LIBRARY=$VULKAN_SDK/lib/libMoltenVK.a \
+            -DOPENSSL_ROOT_DIR=$TARGET_DIR/openssl
 
       - name: fix_format_security
         run: python3 fix_format_security.py build
