@@ -667,13 +667,6 @@ namespace dz {
             return out_bool;
         }
 
-        template <typename T>
-        T* GetProviderValByID(int provider_val_id) {
-            if (!IsTAProvider<T>())
-                throw std::runtime_error("T is not a Provider");
-            
-        }
-
         void SetProviderCount(const std::string& buffer_name, int count) {
             auto buffer_size = buffer_group_get_buffer_element_count(buffer_group, buffer_name);
             if (count > buffer_size) {
