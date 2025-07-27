@@ -1,21 +1,20 @@
 #include <dz/ECS/components/ColorComponent.hpp>
-using namespace dz::ecs;
 
-ColorComponent::ColorComponentReflectable::ColorComponentReflectable(const std::function<ColorComponent*()>& get_color_component_function):
+dz::ecs::ColorComponent::ColorComponentReflectable::ColorComponentReflectable(const std::function<ColorComponent*()>& get_color_component_function):
     get_color_component_function(get_color_component_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Color")
 {}
 
-int ColorComponent::ColorComponentReflectable::GetID() {
+int dz::ecs::ColorComponent::ColorComponentReflectable::GetID() {
     return uid;
 }
 
-std::string& ColorComponent::ColorComponentReflectable::GetName() {
+std::string& dz::ecs::ColorComponent::ColorComponentReflectable::GetName() {
     return name;
 }
 
-void* ColorComponent::ColorComponentReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::ColorComponent::ColorComponentReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto color_component_ptr = get_color_component_function();
     assert(color_component_ptr);
     auto& color_component = *color_component_ptr;
@@ -25,4 +24,4 @@ void* ColorComponent::ColorComponentReflectable::GetVoidPropertyByIndex(int prop
     }
 }
 
-void ColorComponent::ColorComponentReflectable::NotifyChange(int prop_index) {}
+void dz::ecs::ColorComponent::ColorComponentReflectable::NotifyChange(int prop_index) {}

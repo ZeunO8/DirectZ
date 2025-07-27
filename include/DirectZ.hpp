@@ -24,7 +24,6 @@
 #include <dz/ECS/components/ColorComponent.hpp>
 #include <dz/ImGuiLayer.hpp>
 #include <dz/Reflectable.hpp>
-#include <dz/Camera.hpp>
 #include <dz/Displays.hpp>
 #include <dz/State.hpp>
 

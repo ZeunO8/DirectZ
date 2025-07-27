@@ -7,12 +7,11 @@
 #include "DrawListManager.hpp"
 #include "Window.hpp"
 #include "Shader.hpp"
-#include "Camera.hpp"
 #include "Util.hpp"
 #include "State.hpp"
+#include "ECS/Camera.hpp"
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
-#include "ECS/Component.hpp"
 #include "ECS/Entity.hpp"
 #include "ECS/Scene.hpp"
 #include <string>
@@ -73,40 +72,38 @@ namespace dz {
             }
         };
 
-        std::recursive_mutex e_mutex;
+        std::recursive_mutex e_mutex; // !
 
-        std::string buffer_name;
+        std::string buffer_name; // !
 
-        WINDOW* window_ptr = 0;
-        std::filesystem::path save_path;
-        bool loaded_from_io = false;
+        WINDOW* window_ptr = 0; // !
+        bool loaded_from_io = false; // !
 
-        std::vector<std::shared_ptr<ReflectableGroup>> reflectable_group_root_vector;
-        std::unordered_map<size_t, std::map<size_t, ReflectableGroup*>> provider_id_reflectable_maps;
-        std::unordered_map<size_t, std::vector<size_t>> provider_index_vectors;
+        std::vector<std::shared_ptr<ReflectableGroup>> reflectable_group_root_vector; // Y
+        std::map<size_t, std::vector<ReflectableGroup*>> pid_reflectable_vecs; // !
+        std::unordered_map<size_t, std::unordered_map<size_t, size_t>> pid_id_index_maps; // !
 
-        std::map<size_t, ProviderReflectableGroup> id_provider_groups;
-        std::map<float, std::vector<size_t>> prioritized_provider_ids;
+        std::unordered_map<size_t, std::function<std::shared_ptr<ReflectableGroup>(BufferGroup*, Serial&)>> pid_create_from_serial; // !
 
-        std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains;
+        std::map<size_t, ProviderReflectableGroup> pid_provider_groups; // !
+        std::map<float, std::vector<size_t>> prioritized_provider_ids; // !
+        std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains; // !
 
-        std::vector<std::string> restricted_keys{"Components"};
-        std::map<int, RegisteredComponentEntry> registered_component_map;
-        bool components_registered = false;
+        std::vector<std::string> restricted_keys; // !
+        std::map<int, RegisteredComponentEntry> registered_component_map; // !
+        bool components_registered = false; // !
 
         using DrawProviderT = typename FirstMatchingOrDefault<IsDrawProvider, TProviders...>::type;
         using CameraProviderT = typename FirstMatchingOrDefault<IsCameraProvider, TProviders...>::type;
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
-        DrawListManager<DrawProviderT> draw_mg;
+        DrawListManager<DrawProviderT> draw_mg; // !
 
-        BufferGroup* buffer_group = 0;
-        bool buffer_initialized = false;
-        int buffer_size = 0;
+        BufferGroup* buffer_group = 0; // !
+        bool buffer_initialized = false; // !
+        int buffer_size = 0; // !
         
-        Shader* main_shader = 0;
-        Shader* model_compute_shader = 0;
-
-        int constructed_component_count = 0;
+        Shader* main_shader = 0; // !
+        Shader* model_compute_shader = 0; // !
 
         auto GenerateEntitysDrawFunction() {
             return [&](auto buffer_group, auto& entity) -> DrawTuples {
@@ -234,16 +231,12 @@ namespace dz {
             std::lock_guard lock(e_mutex);
             if (!serial.canWrite())
                 return false;
-            // if (!SerializeGroups(serial, id_entity_groups))
-            //     return false;
-            // if (!SerializeGroups(serial, indexed_camera_groups))
-            //     return false;
-            // if (!SerializeGroups(serial, indexed_light_groups))
-            //     return false;
-            // if (!SerializeGroups(serial, id_scene_groups))
-            //     return false;
-            // if (!SerializeBuffers(serial))
-            //     return false;
+            if (!Backup_pid_reflectable_vecs_sizes(serial))
+                return false;
+            if (!BackupGroupVector(serial, reflectable_group_root_vector))
+                return false;
+            if (!BackupBuffers(serial))
+                return false;
             return true;
         }
 
@@ -251,118 +244,127 @@ namespace dz {
             std::lock_guard lock(e_mutex);
             if (!serial.canRead() || serial.getReadLength() == 0)
                 return false;
-            // if (!DeserializeGroups(serial, id_entity_groups))
-            //     return false;
-            // if (!DeserializeGroups(serial, indexed_camera_groups))
-            //     return false;
-            // if (!DeserializeGroups(serial, indexed_light_groups))
-            //     return false;
-            // if (!DeserializeGroups(serial, id_scene_groups))
-            //     return false;
-            // if (!DeserializeBuffers(serial))
-            //     return false;
-            // CheckDisabled();
-            // UpdateGroupsChildren(id_entity_groups);
-            // UpdateGroupsChildren(indexed_camera_groups);
-            // UpdateGroupsChildren(indexed_light_groups);
-            // UpdateGroupsChildren(id_scene_groups);
+            std::lock_guard cid_restore_lock(ReflectableGroup::cid_restore_mutex);
+            ReflectableGroup::cid_restore_map_ptr = &pid_create_from_serial;
+            ReflectableGroup::pid_reflectable_vecs_ptr = &pid_reflectable_vecs;
+            ReflectableGroup::pid_id_index_maps_ptr = &pid_id_index_maps;
+            if (!Restore_pid_reflectable_vecs_sizes(serial))
+                return false;
+            if (!RestoreGroupVector(serial, reflectable_group_root_vector, buffer_group))
+                return false;
+            if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
+                return false;
+            if (!RestoreBuffers(serial))
+                return false;
+            UpdateGroupsChildren();
             return true;
         }
 
-        // void CheckDisabled() {
-        //     CheckLightDisabled();
-        // }
+        bool Backup_pid_reflectable_vecs_sizes(Serial& serial) {
+            auto pid_reflectable_vecs_size = pid_reflectable_vecs.size();
+            serial << pid_reflectable_vecs_size;
+            for (auto& [pid, vec] : pid_reflectable_vecs) {
+                size_t vec_size = vec.size();
+                serial << pid << vec_size;
+            }
+            return true;
+        }
 
-        // void CheckLightDisabled() {
-        //     auto r_it = std::find(restricted_keys.begin(), restricted_keys.end(), "Lights");
-        //     // if (r_it == restricted_keys.end())
-        //     //     for (auto& [scene_id, scene_group] : id_scene_groups)
-        //     //         if (scene_group.indexed_reflectable_groups.size() > 0)
-        //     //             scene_group.indexed_reflectable_groups.clear();
-        // }
+        bool Restore_pid_reflectable_vecs_sizes(Serial& serial) {
+            auto pid_reflectable_vecs_size = pid_reflectable_vecs.size();
+            serial >> pid_reflectable_vecs_size;
+            for (size_t c = 1; c <= pid_reflectable_vecs_size; c++) {
+                size_t pid = 0;
+                size_t vec_size = 0;
+                serial >> pid >> vec_size;
+                pid_reflectable_vecs[pid].resize(vec_size);
+            }
+            return true;
+        }
 
-        // template <typename KeyT, typename GroupT>
-        // bool SerializeGroups(Serial& ioSerial, const std::map<KeyT, GroupT>& groups) {
-        //     ioSerial << groups.size();
-        //     for (auto& [id, group] : groups) {
-        //         ioSerial << id;
-        //         if (!group.serialize(*this, ioSerial))
-        //             return false;
-        //     }
-        //     return true;
-        // }
+        bool EnsureGroupVectorParentPtrs(std::vector<std::shared_ptr<ReflectableGroup>>& group_vector, ReflectableGroup* parent_ptr) {
+            try {
+                for (auto& group_sh_ptr : group_vector) {
+                    auto group_ptr = group_sh_ptr.get();
+                    if (!group_ptr)
+                        throw std::runtime_error("ReflectableGroup pointer is null");
+                    auto& group = *group_ptr;
+                    group.parent_ptr = parent_ptr;
+                    assert(group.cid);
+                    // provider_id_reflectable_maps[group.cid]
+                    if (!EnsureGroupVectorParentPtrs(group.GetChildren(), group_ptr))
+                        return false;
+                }
+                return true;
+            }
+            catch (...) {
+                return false;
+            }
+        }
 
-        // template <typename KeyT, typename GroupT>
-        // bool DeserializeGroups(Serial& ioSerial, std::map<KeyT, GroupT>& groups) {
-        //     auto size = groups.size();
-        //     ioSerial >> size;
-        //     for (size_t count = 1; count <= size; ++count) {
-        //         KeyT id;
-        //         ioSerial >> id;
-        //         auto& group = groups[id];
-        //         if (!group.deserialize(*this, ioSerial))
-        //             return false;
-        //         if constexpr (std::is_same_v<GroupT, CameraReflectableGroup>) {
-        //             auto& width = *window_get_width_ref(window_ptr);
-        //             auto& height = *window_get_height_ref(window_ptr);
-        //             group.InitFramebuffer(*this, width, height);
-        //         }
-        //     }
-        //     return true;
-        // }
+        void UpdateGroupsChildren() {
+            auto& width = *window_get_width_ref(window_ptr);
+            auto& height = *window_get_height_ref(window_ptr);
+            constexpr auto cam_pid = CameraProviderT::GetPID();
+            auto begin = pid_reflectable_vecs.rbegin();
+            auto end = pid_reflectable_vecs.rend();
+            for (auto it = begin; it != end; ++it) {
+                auto& pid = it->first;
+                auto& vec = it->second;
+                for (auto ptr : vec) {
+                    ptr->UpdateChildren();
+                    if (pid == cam_pid) {
+                        auto cam_ptr = dynamic_cast<typename CameraProviderT::ReflectableGroup*>(ptr);
+                        assert(cam_ptr);
+                        cam_ptr->InitFramebuffer(main_shader, width, height);
+                    }
+                }
+            }
+        }
 
-        // template <typename KeyT, typename GroupT>
-        // void UpdateGroupsChildren(std::map<KeyT, GroupT>& groups) {
-        //     for (auto& [id, group] : groups) {
-        //         group.UpdateChildren(*this);
-        //         if constexpr (std::is_same_v<GroupT, EntityReflectableGroup>)
-        //             group.UpdateReflectables();
-        //     }
-        // }
+        bool RestoreBuffers(Serial& serial) {
+            if (!buffer_group)
+                return false;
+            auto keys_size = restricted_keys.size();
+            serial >> keys_size;
+            for (size_t key_count = 1; key_count <= keys_size; ++key_count) {
+                std::string restricted_key;
+                serial >> restricted_key;
+                uint32_t element_count, element_size;
+                serial >> element_count >> element_size;
+                auto buffer_size = element_count * element_size;
+                auto r_key_it = std::find(restricted_keys.begin(), restricted_keys.end(), restricted_key);
+                if (r_key_it == restricted_keys.end()) {
+                    auto bytes = (char*)malloc(buffer_size);
+                    serial.readBytes((char*)bytes, buffer_size);
+                    free(bytes);
+                    continue;
+                }
+                buffer_group_set_buffer_element_count(buffer_group, restricted_key, element_count);
+                auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+                if (actual_element_size != element_size)
+                    throw std::runtime_error("Incompatible buffer element sizes");
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                serial.readBytes((char*)buffer_ptr.get(), buffer_size);
+            }
+            return true;
+        }
 
-        // bool DeserializeBuffers(Serial& ioSerial) {
-        //     if (!buffer_group)
-        //         return false;
-        //     auto keys_size = restricted_keys.size();
-        //     ioSerial >> keys_size;
-        //     for (size_t key_count = 1; key_count <= keys_size; ++key_count) {
-        //         std::string restricted_key;
-        //         ioSerial >> restricted_key;
-        //         uint32_t element_count, element_size;
-        //         ioSerial >> element_count >> element_size;
-        //         auto buffer_size = element_count * element_size;
-        //         auto r_key_it = std::find(restricted_keys.begin(), restricted_keys.end(), restricted_key);
-        //         if (r_key_it == restricted_keys.end()) {
-        //             auto bytes = (char*)malloc(buffer_size);
-        //             ioSerial.readBytes((char*)bytes, buffer_size);
-        //             free(bytes);
-        //             continue;
-        //         }
-        //         buffer_group_set_buffer_element_count(buffer_group, restricted_key, element_count);
-        //         auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
-        //         if (actual_element_size != element_size)
-        //             throw std::runtime_error("Incompatible buffer element sizes");
-        //         auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
-        //         ioSerial.readBytes((char*)buffer_ptr.get(), buffer_size);
-        //     }
-        //     return true;
-        // }
-
-        // bool SerializeBuffers(Serial& ioSerial) {
-        //     if (!buffer_group)
-        //         return false;
-        //     auto keys_size = restricted_keys.size();
-        //     ioSerial << keys_size;
-        //     for (auto& restricted_key : restricted_keys) {
-        //         ioSerial << restricted_key;
-        //         auto element_count = buffer_group_get_buffer_element_count(buffer_group, restricted_key);
-        //         auto element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
-        //         ioSerial << element_count << element_size;
-        //         auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
-        //         ioSerial.writeBytes((const char*)buffer_ptr.get(), element_count * element_size);
-        //     }
-        //     return true;
-        // }
+        bool BackupBuffers(Serial& serial) {
+            if (!buffer_group)
+                return false;
+            auto keys_size = restricted_keys.size();
+            serial << keys_size;
+            for (auto& restricted_key : restricted_keys) {
+                serial << restricted_key;
+                auto element_count = buffer_group_get_buffer_element_count(buffer_group, restricted_key);
+                auto element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+                serial << element_count << element_size;
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                serial.writeBytes((const char*)buffer_ptr.get(), element_count * element_size);
+            }
+            return true;
+        }
 
         void RegisterProviders() {
             (RegisterProvider<TProviders>(), ...);
@@ -379,8 +381,8 @@ namespace dz {
             auto& priority_glsl_main = TProvider::GetGLSLMain();
             constexpr auto pid = TProvider::GetPID();
             prioritized_provider_ids[priority].push_back(pid);
-            auto provider_index = id_provider_groups.size();
-            auto& provider_group = id_provider_groups[pid];
+            auto provider_index = pid_provider_groups.size();
+            auto& provider_group = pid_provider_groups[pid];
             provider_group.index = provider_index;
             provider_group.id = pid;
             provider_group.name = name;
@@ -397,6 +399,9 @@ namespace dz {
                 provider_group.component_id = int(TProvider::GetComponentID());
                 RegisterComponent<TProvider>();
             }
+            pid_create_from_serial[pid] = [](auto buffer_group, auto& serial) {
+                return TProvider::TryMakeGroupFromSerial(buffer_group, serial);
+            };
         }
 
         template<typename TRComponent>
@@ -447,38 +452,64 @@ namespace dz {
         void AddProviderSingle(int parent_id, size_t& id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector) {
             if (id)
                 return;
+
             if constexpr (!(std::is_same_v<TData, TProvider>))
                 return;
+
             constexpr auto pid = TProvider::GetPID();
+
             auto ecs_id = GlobalUID::GetNew("ECS:GID");
             auto pro_id = GlobalUID::GetNew(("ECS:PID:" + std::to_string(pid)));
+
             std::lock_guard lock(e_mutex);
+
             auto root_index = reflectable_group_vector.size();
+
             auto group_ptr = TProvider::TryMakeGroup(buffer_group);
+
             reflectable_group_vector.push_back(group_ptr);
+
             auto& group = *group_ptr;
+
+            group.cid = pid;
             group.id = ecs_id;
             group.GetName() += (" #" + std::to_string(pro_id));
-            auto& provider_group = id_provider_groups[pid];
-            provider_id_reflectable_maps[pid][ecs_id] = group_ptr.get();
+
+            auto& provider_group = pid_provider_groups[pid];
+            
             id = ecs_id;
-            provider_index_vectors[pid].push_back(id);
+            
             auto provider_index = buffer_group_get_buffer_element_count(buffer_group, provider_group.buffer_name);
+            
+            auto& prov_ptr_vec = pid_reflectable_vecs[pid];
+            assert(provider_index == prov_ptr_vec.size());
+
+            pid_id_index_maps[pid][id] = provider_index;
+            prov_ptr_vec.push_back(group_ptr.get());
+
             group.index = provider_index;
+
             if (provider_group.buffer_name == buffer_name)
                 Resize(provider_index + 1);
             else
                 buffer_group_set_buffer_element_count(buffer_group, provider_group.buffer_name, provider_index + 1);
+
             auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, provider_group.buffer_name);
+
             auto data_ptr = ((TData*)(buffer.get()));
+
             data_ptr[provider_index] = data;
+
             if constexpr (std::is_same_v<TData, DrawProviderT>) {
                 data_ptr[provider_index].id = ecs_id;
             }
+
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
+
             if (parent_group_ptr) {
                 group.parent_ptr = parent_group_ptr;
             }
+
             if constexpr (TProvider::GetIsComponent()) {
                 auto& parent_entity_group = GetGroup<DrawProviderT, typename DrawProviderT::ReflectableGroup>(parent_id);
 
@@ -487,7 +518,9 @@ namespace dz {
 
                 sparse_ptr[parent_entity_group.index] = provider_index;
             }
+
             group.UpdateChildren();
+
             if constexpr (std::is_same_v<TProvider, DrawProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
                 draw_mg.SetDirty();
             }
@@ -530,66 +563,69 @@ namespace dz {
         TReflectableGroup& GetGroupByIndex(size_t index) {
             assert(index >= 0);
             constexpr auto pid = TProvider::GetPID();
-            auto& id_vec = provider_index_vectors[pid];
-            if (index >= id_vec.size())
+
+            auto& reflectable_vec = pid_reflectable_vecs[pid];
+            
+            if (index >= reflectable_vec.size())
                 throw std::runtime_error("Index out of range");
-            auto id = id_vec[index];
-            assert(id);
-            return GetGroup<TProvider, TReflectableGroup>(id);
+
+            auto group_ptr = reflectable_vec[index];
+            auto t_group_ptr = dynamic_cast<TReflectableGroup*>(group_ptr);
+
+            if (!t_group_ptr)
+                throw std::runtime_error("group_ptr is not of type TReflectableGroup");
+
+            return *t_group_ptr;
         }
 
         template <typename TProvider, typename TReflectableGroup>
         TReflectableGroup& GetGroup(size_t id) {
             constexpr auto pid = TProvider::GetPID();
-            auto& ref_map = provider_id_reflectable_maps[pid];
+            auto& ref_map = pid_id_index_maps[pid];
             auto it = ref_map.find(id);
             if (it == ref_map.end())
                 throw std::runtime_error("Provider not found with id");
-            auto group_ptr = it->second;
-            auto cast_ptr = dynamic_cast<TReflectableGroup*>(group_ptr);
-            if (!cast_ptr)
-                throw std::runtime_error("Group is not of type TReflectableGroup");
-            return *cast_ptr;
+            auto group_index = it->second;
+            return GetGroupByIndex<TProvider, TReflectableGroup>(group_index);
         }
 
         ReflectableGroup* FindParentGroupPtr(int parent_id) {
             if (parent_id == -1)
                 return nullptr;
-            for (auto& [pid, ref_map] : provider_id_reflectable_maps) {
+            for (auto& [pid, ref_map] : pid_id_index_maps) {
                 auto it = ref_map.find(parent_id);
                 if (it == ref_map.end())
                     continue;
-                return it->second;
+                auto& ref_vec = pid_reflectable_vecs[pid];
+                auto index = it->second;
+                if (index >= 0 && index < ref_vec.size())
+                    return ref_vec[index];
             }
             return nullptr;
         }
 
         template <typename TProvider>
-        std::map<size_t, ReflectableGroup*>::iterator GetProviderBegin() {
+        std::vector<ReflectableGroup*>::iterator GetProviderBegin() {
             constexpr auto pid = TProvider::GetPID();
-            auto ref_map_it = provider_id_reflectable_maps.find(pid);
-            if (ref_map_it == provider_id_reflectable_maps.end())
+            auto ref_vec_it = pid_reflectable_vecs.find(pid);
+            if (ref_vec_it == pid_reflectable_vecs.end())
                 throw std::runtime_error("Provider not found");
-            return ref_map_it->second.begin();
+            return ref_vec_it->second.begin();
         }
 
         template <typename TProvider>
-        std::map<size_t, ReflectableGroup*>::iterator GetProviderEnd() {
+        std::vector<ReflectableGroup*>::iterator GetProviderEnd() {
             constexpr auto pid = TProvider::GetPID();
-            auto ref_map_it = provider_id_reflectable_maps.find(pid);
-            if (ref_map_it == provider_id_reflectable_maps.end())
+            auto ref_vec_it = pid_reflectable_vecs.find(pid);
+            if (ref_vec_it == pid_reflectable_vecs.end())
                 throw std::runtime_error("Provider not found");
-            return ref_map_it->second.end();
+            return ref_vec_it->second.end();
         }
 
         template <typename TProvider>
         TProvider& GetProviderData(size_t id) {
             constexpr auto pid = TProvider::GetPID();
-            auto& ref_map = provider_id_reflectable_maps[pid];
-            auto it = ref_map.find(id);
-            if (it == ref_map.end())
-                throw std::runtime_error("Provider not found with id");
-            auto index = it->second->index;
+            auto index = pid_id_index_maps[pid][id];
             auto provider_b_name = TProvider::GetStructName() + "s";
             auto p_buff = buffer_group_get_buffer_data_ptr(buffer_group, provider_b_name);
             auto p_ptr = ((TProvider*)p_buff.get());
@@ -682,7 +718,7 @@ namespace dz {
 
         BufferGroup* CreateBufferGroup() {
             auto buffer_group_ptr = buffer_group_create("ECS:Group");
-            for (auto& [provider_id, provider_group] : id_provider_groups) {
+            for (auto& [provider_id, provider_group] : pid_provider_groups) {
                 restricted_keys.push_back(provider_group.buffer_name);
                 if (provider_group.is_component)
                     restricted_keys.push_back(provider_group.sparse_name);
@@ -738,7 +774,7 @@ namespace dz {
             // Setup Structs
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
-                    auto& provider_group = id_provider_groups[provider_id];
+                    auto& provider_group = pid_provider_groups[provider_id];
                     shader_header += provider_group.glsl_struct;
                 }
             }
@@ -746,7 +782,7 @@ namespace dz {
             // Setup Buffers
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
-                    auto& provider_group = id_provider_groups[provider_id];
+                    auto& provider_group = pid_provider_groups[provider_id];
                     shader_header += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
     )" + provider_group.struct_name + R"( data[];
@@ -778,7 +814,7 @@ bool HasComponentWithType(in Entity entity, int entity_index, int type, out int 
 )";
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
-                    auto& provider_group = id_provider_groups[provider_id];
+                    auto& provider_group = pid_provider_groups[provider_id];
                     if (provider_group.is_component) {
                         shader_header += R"(
     case )" + std::to_string(provider_group.component_id) + R"(:

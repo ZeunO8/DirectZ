@@ -1,7 +1,6 @@
 #include <dz/ECS/Light.hpp>
-using namespace dz::ecs;
 
-LightMetaReflectable::LightMetaReflectable(
+dz::ecs::LightMetaReflectable::LightMetaReflectable(
     const std::function<Light*()>& get_light_function,
     const std::function<void()>& reset_reflectables_function
 ):
@@ -11,15 +10,15 @@ LightMetaReflectable::LightMetaReflectable(
     name("Light Type")
 {}
 
-int LightMetaReflectable::GetID() {
+int dz::ecs::LightMetaReflectable::GetID() {
     return uid;
 }
 
-std::string& LightMetaReflectable::GetName() {
+std::string& dz::ecs::LightMetaReflectable::GetName() {
     return name;
 }
 
-void* LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto light_ptr = get_light_function();
     if (!light_ptr)
         return nullptr;
@@ -37,7 +36,7 @@ void* LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
     }
 }
 
-void LightMetaReflectable::NotifyChange(int prop_index) {
+void dz::ecs::LightMetaReflectable::NotifyChange(int prop_index) {
     auto light_ptr = get_light_function();
     if (!light_ptr)
         return;

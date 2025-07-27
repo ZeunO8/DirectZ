@@ -118,7 +118,7 @@ int main() {
         });
         track_window_state(window);
         ecs_ptr = std::make_shared<ExampleECS>(window);
-        // track_state(ecs_ptr.get());
+        track_state(ecs_ptr.get());
     }
 
     auto& ecs = *ecs_ptr;
@@ -384,7 +384,7 @@ int main() {
         auto cameras_begin = ecs.GetProviderBegin<Camera>();
         auto cameras_end = ecs.GetProviderEnd<Camera>();
         for (auto camera_it = cameras_begin; camera_it != cameras_end; camera_it++) {
-            auto camera_group_ptr = dynamic_cast<Camera::ReflectableGroup*>(camera_it->second);
+            auto camera_group_ptr = dynamic_cast<Camera::ReflectableGroup*>(*camera_it);
             if (!camera_group_ptr)
                 continue;
             auto& camera_group = *camera_group_ptr;

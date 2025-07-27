@@ -98,17 +98,20 @@ vec4 GetEntityVertexColor(in Entity entity) {
         };
 
         struct EntityReflectableGroup : ReflectableGroup {
-            int parent_id = -1;
             BufferGroup* buffer_group = 0;
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             std::vector<std::shared_ptr<ReflectableGroup>> component_groups;
-            std::set<int> children;
             std::vector<Reflectable*> reflectables;
             EntityReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
-                name("Entity")    
+                name("Entity")
             {}
+            EntityReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+                buffer_group(buffer_group)
+            {
+                restore(serial);
+            }
             ~EntityReflectableGroup() {
                 ClearReflectables();
             }
@@ -149,52 +152,28 @@ vec4 GetEntityVertexColor(in Entity entity) {
                         reflectables.push_back(component_reflectable_ptr);
                 }
             }
-            bool serialize(Serial& ioSerial) const {
-                ioSerial << parent_id << name;
-                ioSerial << disabled << id << index << is_child;
-                // ioSerial << components.size();
-                // for (auto& [component_id, component_ptr] : components) {
-                //     ioSerial << component_id;
-                //     auto& root_data = ecs.GetComponentRootData(component_ptr->index);
-                //     ioSerial << root_data.type;
-                //     if (!component_ptr->serialize(ioSerial))
-                //         return false;
-                // }
-                ioSerial << children.size();
-                for (auto& child_id : children)
-                    ioSerial << child_id;
+            bool backup(Serial& serial) const override {
+                if (!backup_internal(serial))
+                    return false;
+                serial << name;
+                if (!BackupGroupVector(serial, reflectable_children))
+                    return false;
+                if (!BackupGroupVector(serial, component_groups))
+                    return false;
                 return true;
             }
-            bool deserialize(Serial& ioSerial) {
-                ioSerial >> parent_id >> name;
-                ioSerial >> disabled >> id >> index >> is_child;
-                // auto components_size = components.size();
-                // ioSerial >> components_size;
-                // for (size_t component_count = 1; component_count <= components_size; ++component_count) {
-                //     int component_id;
-                //     ioSerial >> component_id;
-                //     int component_type;
-                //     ioSerial >> component_type;
-                //     auto& component_reg = ecs.registered_component_map[component_type];
-                //     auto& component_ptr = (components[component_id] = component_reg.construct_component_fn());
-                //     if (!component_ptr->deserialize(ioSerial))
-                //         return false;
-                // }
-                auto children_size = children.size();
-                ioSerial >> children_size;
-                for (size_t child_count = 1; child_count <= children_size; ++child_count) {
-                    int child_id;
-                    ioSerial >> child_id;
-                    children.insert(child_id);
-                }
+            bool restore(Serial& serial) override {
+                if (!restore_internal(serial))
+                    return false;
+                serial >> name;
+                if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
+                    return false;
+                if (!RestoreGroupVector(serial, component_groups, buffer_group))
+                    return false;
                 return true;
             }
         };
 
         using ReflectableGroup = EntityReflectableGroup;
-
-        inline static std::shared_ptr<ReflectableGroup> MakeGroup(BufferGroup* buffer_group) {
-            return std::make_shared<EntityReflectableGroup>(buffer_group);
-        }
     };
 }

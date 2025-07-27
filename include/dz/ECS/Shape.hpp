@@ -91,6 +91,40 @@ vec3 GetShapeNormal(in Entity entity) {
 
             return {int(shape_id), int(shape_index)};
         }
+
+        struct ShapeReflectableGroup : ReflectableGroup {
+            BufferGroup* buffer_group = 0;
+            std::string name;
+            ShapeReflectableGroup(BufferGroup* buffer_group):
+                buffer_group(buffer_group),
+                name("Shape")
+            {}
+            ShapeReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+                buffer_group(buffer_group)
+            {
+                restore(serial);
+            }
+            GroupType GetGroupType() override {
+                return ReflectableGroup::Generic;
+            }
+            std::string& GetName() override {
+                return name;
+            }
+            bool backup(Serial& serial) const override {
+                if (!backup_internal(serial))
+                    return false;
+                serial << name;
+                return true;
+            }
+            bool restore(Serial& serial) override{
+                if (!restore_internal(serial))
+                    return false;
+                serial >> name;
+                return true;
+            }
+        };
+
+        using ReflectableGroup = ShapeReflectableGroup;
     };
 
     std::pair<int, int> RegisterPlaneShape();

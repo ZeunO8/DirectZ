@@ -1,5 +1,4 @@
 #pragma once
-#include "../Component.hpp"
 #include "../Provider.hpp"
 namespace dz::ecs {
     struct ColorComponent;
@@ -59,8 +58,14 @@ namespace dz::ecs {
             std::string name;
             std::vector<Reflectable*> reflectables;
             ColorComponentReflectableGroup(BufferGroup* buffer_group):
-                buffer_group(buffer_group)
+                buffer_group(buffer_group),
+                name("ColorComponent")
             {}
+            ColorComponentReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+                buffer_group(buffer_group)
+            {
+                restore(serial);
+            }
             ~ColorComponentReflectableGroup() {
                 ClearReflectables();
             }
@@ -88,22 +93,20 @@ namespace dz::ecs {
                     }));
                 }
             }
-            bool serialize(Serial& ioSerial) const {
-                ioSerial << name;
-                ioSerial << disabled << id << index << is_child;
+            bool backup(Serial& serial) const override {
+                if (!backup_internal(serial))
+                    return false;
+                serial << name;
                 return true;
             }
-            bool deserialize(Serial& ioSerial) {
-                ioSerial >> name;
-                ioSerial >> disabled >> id >> index >> is_child;
+            bool restore(Serial& serial) override {
+                if (!restore_internal(serial))
+                    return false;
+                serial >> name;
                 return true;
             }
         };
 
         using ReflectableGroup = ColorComponentReflectableGroup;
-
-        inline static std::shared_ptr<ReflectableGroup> MakeGroup(BufferGroup* buffer_group) {
-            return std::make_shared<ColorComponentReflectableGroup>(buffer_group);
-        }
     };
 }
