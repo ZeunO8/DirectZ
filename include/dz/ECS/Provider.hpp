@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <iostreams/Serial.hpp>
 
 namespace dz {
     inline static const std::string kEmptyString = "";
@@ -107,10 +108,11 @@ namespace dz {
         }
 
         inline static std::shared_ptr<ReflectableGroup> TryMakeGroup(BufferGroup* buffer_group) {
-            if constexpr (requires { T::MakeGroup; }) {
-                return T::MakeGroup(buffer_group);
-            }
-            throw std::runtime_error("Unable to make Provider ReflectableGroup");
+            return std::make_shared<typename T::ReflectableGroup>(buffer_group);
+        }
+
+        inline static std::shared_ptr<ReflectableGroup> TryMakeGroupFromSerial(BufferGroup* buffer_group, Serial& serial) {
+            return std::make_shared<typename T::ReflectableGroup>(buffer_group, serial);
         }
     };
 

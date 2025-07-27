@@ -1,11 +1,11 @@
 #pragma once
 
-#include "ECS/Provider.hpp"
-#include "Framebuffer.hpp"
-#include "Shader.hpp"
-#include "math.hpp"
+#include "Provider.hpp"
+#include "../Framebuffer.hpp"
+#include "../Shader.hpp"
+#include "../math.hpp"
 
-namespace dz {
+namespace dz::ecs {
     struct Camera : Provider<Camera> {
         inline static std::string CamerasBufferName = "Cameras";
         enum ProjectionType : int32_t {
@@ -226,8 +226,15 @@ struct Camera {
 
             CameraReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
-                name("Camera")    
+                name("Camera")
             {}
+
+            CameraReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+                buffer_group(buffer_group)
+            {
+                restore(serial);
+            }
+
             ~CameraReflectableGroup() {
                 ClearReflectables();
             }
@@ -247,7 +254,6 @@ struct Camera {
             const std::vector<Reflectable*>& GetReflectables() override {
                 return reflectables;
             }
-            void UpdateReflectables() { }
             void ClearReflectables() {
                 for (auto& reflectable : reflectables)
                     delete reflectable;
@@ -299,16 +305,6 @@ struct Camera {
                 default: break;
                 }
             }
-            bool serialize(Serial& ioSerial) const {
-                ioSerial << parent_id << name;
-                ioSerial << disabled << id << index << is_child;
-                return true;
-            }
-            bool deserialize(Serial& ioSerial) {
-                ioSerial >> parent_id >> name;
-                ioSerial >> disabled >> id >> index >> is_child;
-                return true;
-            }
             void InitFramebuffer(Shader* shader, float width, float height) {
                 // Initialize camera framebuffer
                 fb_color_image = image_create({
@@ -344,13 +340,21 @@ struct Camera {
 
                 shader_set_render_pass(shader, framebuffer);
             }
+            bool backup(Serial& serial) const override {
+                if (!backup_internal(serial))
+                    return false;
+                serial << name << imgui_name;
+                return true;
+            }
+            bool restore(Serial& serial) override {
+                if (!restore_internal(serial))
+                    return false;
+                serial >> name >> imgui_name;
+                return true;
+            }
         };
 
         using ReflectableGroup = CameraReflectableGroup;
-
-        inline static std::shared_ptr<ReflectableGroup> MakeGroup(BufferGroup* buffer_group) {
-            return std::make_shared<CameraReflectableGroup>(buffer_group);
-        }
     };
 
     void CameraInit(

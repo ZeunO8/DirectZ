@@ -23,8 +23,13 @@ struct Scene {
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             SceneReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
-                name("Scene")    
+                name("Scene")
             {}
+            SceneReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+                buffer_group(buffer_group)
+            {
+                restore(serial);
+            }
             GroupType GetGroupType() override {
                 return ReflectableGroup::Scene;
             }
@@ -34,23 +39,24 @@ struct Scene {
             std::vector<std::shared_ptr<ReflectableGroup>>& GetChildren() override {
                 return reflectable_children;
             }
-            void UpdateReflectables() { }
-            bool serialize(Serial& ioSerial) const {
-                ioSerial << parent_id << name;
-                ioSerial << disabled << id << index << is_child;
+            bool backup(Serial& serial) const override {
+                if (!backup_internal(serial))
+                    return false;
+                serial << name;
+                if (!BackupGroupVector(serial, reflectable_children))
+                    return false;
                 return true;
             }
-            bool deserialize(Serial& ioSerial) {
-                ioSerial >> parent_id >> name;
-                ioSerial >> disabled >> id >> index >> is_child;
+            bool restore(Serial& serial) override{
+                if (!restore_internal(serial))
+                    return false;
+                serial >> name;
+                if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
+                    return false;
                 return true;
             }
         };
 
         using ReflectableGroup = SceneReflectableGroup;
-
-        inline static std::shared_ptr<ReflectableGroup> MakeGroup(BufferGroup* buffer_group) {
-            return std::make_shared<SceneReflectableGroup>(buffer_group);
-        }
     };
 }

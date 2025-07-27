@@ -1,5 +1,5 @@
-#include <dz/Camera.hpp>
-void dz::CameraInit(
+#include <dz/ECS/Camera.hpp>
+void dz::ecs::CameraInit(
     Camera& camera,
     vec<float, 3> position,
     vec<float, 3> center,
@@ -24,7 +24,7 @@ void dz::CameraInit(
     camera.orthoHeight = height;
     CameraInit(camera);
 }
-void dz::CameraInit(
+void dz::ecs::CameraInit(
     Camera& camera,
     vec<float, 3> position,
     vec<float, 3> center,
@@ -47,7 +47,7 @@ void dz::CameraInit(
     CameraInit(camera);
 }
 
-void dz::CameraInit(Camera& camera) {
+void dz::ecs::CameraInit(Camera& camera) {
     switch(Camera::ProjectionType(camera.type))
     {
     case Camera::Perspective:
@@ -62,7 +62,7 @@ void dz::CameraInit(Camera& camera) {
     }
 }
 
-Camera::CameraTypeReflectable::CameraTypeReflectable(
+dz::ecs::Camera::CameraTypeReflectable::CameraTypeReflectable(
     const std::function<Camera*()>& get_camera_function,
     const std::function<void()>& reset_reflectables_function
 ):
@@ -72,15 +72,15 @@ Camera::CameraTypeReflectable::CameraTypeReflectable(
     name("Camera Type")
 {}
 
-int Camera::CameraTypeReflectable::GetID() {
+int dz::ecs::Camera::CameraTypeReflectable::GetID() {
     return uid;
 }
 
-std::string& Camera::CameraTypeReflectable::GetName() {
+std::string& dz::ecs::Camera::CameraTypeReflectable::GetName() {
     return name;
 }
 
-void* Camera::CameraTypeReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Camera::CameraTypeReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return nullptr;
@@ -92,7 +92,7 @@ void* Camera::CameraTypeReflectable::GetVoidPropertyByIndex(int prop_index) {
     }
 }
 
-void Camera::CameraTypeReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Camera::CameraTypeReflectable::NotifyChange(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return;
@@ -105,21 +105,21 @@ void Camera::CameraTypeReflectable::NotifyChange(int prop_index) {
     }
 }
 
-Camera::CameraViewReflectable::CameraViewReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraViewReflectable::CameraViewReflectable(const std::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("View Transform")
 {}
 
-int Camera::CameraViewReflectable::GetID() {
+int dz::ecs::Camera::CameraViewReflectable::GetID() {
     return uid;
 }
 
-std::string& Camera::CameraViewReflectable::GetName() {
+std::string& dz::ecs::Camera::CameraViewReflectable::GetName() {
     return name;
 }
 
-void* Camera::CameraViewReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Camera::CameraViewReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return nullptr;
@@ -139,7 +139,7 @@ void* Camera::CameraViewReflectable::GetVoidPropertyByIndex(int prop_index) {
     }
 }
 
-void Camera::CameraViewReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Camera::CameraViewReflectable::NotifyChange(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return;
@@ -151,21 +151,21 @@ void Camera::CameraViewReflectable::NotifyChange(int prop_index) {
     }
 }
 
-Camera::CameraPerspectiveReflectable::CameraPerspectiveReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraPerspectiveReflectable::CameraPerspectiveReflectable(const std::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Perspective")
 {}
 
-int Camera::CameraPerspectiveReflectable::GetID() {
+int dz::ecs::Camera::CameraPerspectiveReflectable::GetID() {
     return uid;
 }
 
-std::string& Camera::CameraPerspectiveReflectable::GetName() {
+std::string& dz::ecs::Camera::CameraPerspectiveReflectable::GetName() {
     return name;
 }
 
-void* Camera::CameraPerspectiveReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Camera::CameraPerspectiveReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return nullptr;
@@ -179,7 +179,7 @@ void* Camera::CameraPerspectiveReflectable::GetVoidPropertyByIndex(int prop_inde
     }
 }
 
-void Camera::CameraPerspectiveReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Camera::CameraPerspectiveReflectable::NotifyChange(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return;
@@ -191,21 +191,21 @@ void Camera::CameraPerspectiveReflectable::NotifyChange(int prop_index) {
     }
 }
 
-Camera::CameraOrthographicReflectable::CameraOrthographicReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraOrthographicReflectable::CameraOrthographicReflectable(const std::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Orthographic")
 {}
 
-int Camera::CameraOrthographicReflectable::GetID() {
+int dz::ecs::Camera::CameraOrthographicReflectable::GetID() {
     return uid;
 }
 
-std::string& Camera::CameraOrthographicReflectable::GetName() {
+std::string& dz::ecs::Camera::CameraOrthographicReflectable::GetName() {
     return name;
 }
 
-void* Camera::CameraOrthographicReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Camera::CameraOrthographicReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return nullptr;
@@ -219,7 +219,7 @@ void* Camera::CameraOrthographicReflectable::GetVoidPropertyByIndex(int prop_ind
     }
 }
 
-void Camera::CameraOrthographicReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Camera::CameraOrthographicReflectable::NotifyChange(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return;

@@ -3,8 +3,16 @@
 #include <string>
 #include <vector>
 #include <typeinfo>
+#include <unordered_map>
+#include <mutex>
+#include <functional>
 #include <map>
 #include "GlobalUID.hpp"
+#include <iostreams/Serial.hpp>
+
+namespace dz {
+    struct BufferGroup;
+}
 
 enum class ReflectableTypeHint {
     FLOAT,
@@ -56,10 +64,12 @@ struct ReflectableGroup {
         Light,
         Provider
     };
+    size_t cid = 0;
     bool disabled = false;
     size_t id;
     int index = -1;
     bool is_child = false;
+    int parent_id = -1;
     ReflectableGroup* parent_ptr = nullptr;
     virtual ~ReflectableGroup() = default;
     virtual GroupType GetGroupType() {
@@ -79,7 +89,40 @@ struct ReflectableGroup {
         return dummy_children;
     }
     virtual void UpdateChildren() {}
+    bool backup_internal(Serial& serial) const {
+        serial << cid << disabled << id << index << is_child << parent_id;
+        return true;
+    }
+    virtual bool backup(Serial& serial) const {
+        if (!backup_internal(serial))
+            return false;
+        return true;
+    }
+    bool restore_internal(Serial& serial) {
+        serial >> cid >> disabled >> id >> index >> is_child >> parent_id;
+        return true;
+    }
+    virtual bool restore(Serial& serial) {
+        if (!restore_internal(serial))
+            return false;
+        return true;
+    }
+
+    inline static std::recursive_mutex cid_restore_mutex = {};
+    inline static std::unordered_map<size_t, std::function<std::shared_ptr<ReflectableGroup>(dz::BufferGroup*, Serial&)>>* cid_restore_map_ptr = nullptr;
+    inline static std::map<size_t, std::vector<ReflectableGroup*>>* pid_reflectable_vecs_ptr = nullptr;
+    inline static std::unordered_map<size_t, std::unordered_map<size_t, size_t>>* pid_id_index_maps_ptr = nullptr;
 };
+
+bool BackupGroupVector(Serial& serial, const std::vector<std::shared_ptr<ReflectableGroup>>& group_vector);
+
+bool RestoreGroupVector(
+    Serial& serial,
+    std::vector<std::shared_ptr<ReflectableGroup>>& group_vector,
+    dz::BufferGroup* buffer_group
+);
+
+
 
 // Reflection helpers
 

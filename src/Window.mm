@@ -147,7 +147,8 @@ namespace dz
 				[NSApp updateWindows];
 			}
 #elif defined(IOS)
-
+		if (closed)
+			return false;
 #endif
 		}
 		return true;
