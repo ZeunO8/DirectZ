@@ -575,7 +575,8 @@ int main() {
             ImGui::PopItemFlag();
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg)) {
-                for (auto& reflectable_group_ptr : ecs.reflectable_group_root_vector) {
+                for (size_t i = 0; i < ecs.reflectable_group_root_vector.size(); ++i) {
+                    auto& reflectable_group_ptr = ecs.reflectable_group_root_vector[i];
                     auto& reflectable_group = *reflectable_group_ptr;
                     DrawGenericGroup(reflectable_group);
                 }
