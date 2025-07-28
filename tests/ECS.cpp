@@ -1001,6 +1001,8 @@ int main() {
 //     ImGui::PopID();
 // }
 
+void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_group, float y_distance);
+
 void DrawGenericGroup(ReflectableGroup& reflectable_group)
 {
     ImGui::TableNextRow();
@@ -1014,81 +1016,129 @@ void DrawGenericGroup(ReflectableGroup& reflectable_group)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
 
     auto& group_children = reflectable_group.GetChildren();
-    if (group_children.empty())
+    bool is_leaf = group_children.empty();
+    if (is_leaf) {
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+    }
 
     if (reflectable_group.disabled)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 
+    auto& is_open = reflectable_group.tree_node_open;
+    if (is_open)
+        ImGui::SetNextItemOpen(is_open);
+
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", reflectable_group.GetName().c_str());
+
+    if (node_open != is_open)
+        is_open = node_open;
 
     if (reflectable_group.disabled)
         ImGui::PopStyleColor();
 
-    // DRAG SOURCE
-    if (ImGui::BeginDragDropSource())
-    {
-        auto reflectable_group_ptr = &reflectable_group;
+    if (ImGui::IsItemFocused()) {
+        SelectedReflectableGroup = &reflectable_group;
+        SelectedReflectableID = reflectable_group.id;
+        property_editor.is_open = true;
+    }
+
+    // Handle drag and drop source
+    if (ImGui::BeginDragDropSource()) {
+        ReflectableGroup* reflectable_group_ptr = &reflectable_group;
         ImGui::SetDragDropPayload("REFLECTABLE_GROUP", &reflectable_group_ptr, sizeof(ReflectableGroup*));
         ImGui::TextUnformatted(reflectable_group.GetName().c_str());
         ImGui::EndDragDropSource();
     }
 
-    // DROP TARGET
-    if (ImGui::BeginDragDropTarget())
-    {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP"))
-        {
-            if (payload->DataSize == sizeof(ReflectableGroup*))
-            {
-                ReflectableGroup* dragged_group = *static_cast<ReflectableGroup* const*>(payload->Data);
-
-                if (dragged_group != &reflectable_group && !reflectable_group.IsDescendantOf(dragged_group))
-                {
-                    // Remove from old parent
-                    ReflectableGroup* old_parent = dragged_group->parent_ptr;
-                    std::vector<std::shared_ptr<ReflectableGroup>>* siblings_ptr = nullptr;
-                    if (old_parent)
-                    {
-                        siblings_ptr = &(old_parent->GetChildren());
-                    }
-                    else
-                    {
-                        // Top-level reordering
-                        siblings_ptr = &(ecs_ptr->reflectable_group_root_vector);
-                    }
-                    auto& siblings = *siblings_ptr;
-                    auto group_it = std::find_if(siblings.begin(), siblings.end(), [&](auto& ptr) {
-                        return ptr.get() == dragged_group;
-                    });
-                    auto ptr = *group_it;
-                    siblings.erase(group_it);
-                    reflectable_group.GetChildren().emplace_back(ptr);
-                    dragged_group->parent_ptr = &reflectable_group;
-                    ecs_ptr->SetDirty();
+    // Target drop handler on top of this node (for insert or reparent)
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP")) {
+            if (payload->DataSize == sizeof(ReflectableGroup*)) {
+                ReflectableGroup* dragged = *static_cast<ReflectableGroup* const*>(payload->Data);
+                if (dragged != &reflectable_group && !reflectable_group.IsDescendantOf(dragged)) {
+                    DrawDropTarget(reflectable_group, dragged, 0.0f);
                 }
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    if (ImGui::IsItemFocused())
-    {
-        SelectedReflectableGroup = &reflectable_group;
-        SelectedReflectableID = reflectable_group.id;
-        property_editor.is_open = true;
-    }
-
-    if (node_open)
-    {
-        for (auto& child_ptr : group_children)
-        {
-            DrawGenericGroup(*child_ptr);
+    if (node_open) {
+        for (size_t i = 0; i < group_children.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            DrawGenericGroup(*group_children[i]);
+            ImGui::PopID();
         }
         ImGui::TreePop();
     }
 
+    // Add dummy drop zone if this node is leaf and can hold children
+    bool can_hold_children = (reflectable_group.cid != Camera::PID);
+    if (is_leaf && can_hold_children && ImGui::GetDragDropPayload() != nullptr) {
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        float distance = fabs(cursor.y - mouse.y);
+        if (distance < 20.0f) {
+            ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, 4.0f));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP")) {
+                    if (payload->DataSize == sizeof(ReflectableGroup*)) {
+                        ReflectableGroup* dragged = *static_cast<ReflectableGroup* const*>(payload->Data);
+                        DrawDropTarget(reflectable_group, dragged, -1.0f);
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+        }
+    }
+
     ImGui::PopID();
+}
+
+void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_group, float y_distance)
+{
+    if (dragged_group == nullptr || dragged_group == &target_group || target_group.IsDescendantOf(dragged_group))
+        return;
+
+    ReflectableGroup* old_parent = dragged_group->parent_ptr;
+    std::vector<std::shared_ptr<ReflectableGroup>>* old_siblings = old_parent ? &old_parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+    auto it = std::find_if(old_siblings->begin(), old_siblings->end(), [&](auto& ptr) {
+        return ptr.get() == dragged_group;
+    });
+    if (it == old_siblings->end())
+        return;
+
+    std::shared_ptr<ReflectableGroup> dragged_ptr = *it;
+    old_siblings->erase(it);
+
+    if (y_distance >= 0.0f && y_distance < 8.0f) {
+        // Insert before
+        ReflectableGroup* parent = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
+            return ptr.get() == &target_group;
+        });
+        if (pos != siblings->end())
+            siblings->insert(pos, dragged_ptr);
+        dragged_group->parent_ptr = parent;
+    }
+    else if (y_distance >= 24.0f) {
+        // Insert after
+        ReflectableGroup* parent = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
+            return ptr.get() == &target_group;
+        });
+        if (pos != siblings->end())
+            siblings->insert(pos + 1, dragged_ptr);
+        dragged_group->parent_ptr = parent;
+    } else {
+        // Drop into
+        target_group.GetChildren().push_back(dragged_ptr);
+        dragged_group->parent_ptr = &target_group;
+    }
+
+    ecs_ptr->SetDirty();
 }
 
 void DrawWindowGroup(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {
