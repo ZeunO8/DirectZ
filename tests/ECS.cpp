@@ -606,7 +606,7 @@ int main() {
                 if (ImGui::InputText("Name", reflectable_group_name.data(), reflectable_group_name.size())) {
                     reflectable_group.NotifyNameChanged();
                 }
-                ImGui::TextDisabled("ID: 0x%08X", SelectedReflectableID);
+                ImGui::TextDisabled("GID: 0x%08X", SelectedReflectableID);
                 ImGui::Spacing();
 
                 auto& reflectables = reflectable_group.GetReflectables();
