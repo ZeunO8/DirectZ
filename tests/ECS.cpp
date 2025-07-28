@@ -78,7 +78,7 @@ int main() {
     set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
     set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
-    std::filesystem::path ioPath("example.ecs");
+    std::filesystem::path ioPath("ECS-Test.dat");
 
     set_state_file_path(ioPath);
 
