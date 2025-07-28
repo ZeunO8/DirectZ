@@ -1000,24 +1000,19 @@ int main() {
 //     ImGui::PopID();
 // }
 
-void DrawGenericGroup(ReflectableGroup& reflectable_group) {
+void DrawGenericGroup(ReflectableGroup& reflectable_group)
+{
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
     ImGui::PushID(&reflectable_group);
 
-    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
-
-    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
-    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
-    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
-    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_NavLeftJumpsToParent | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_DrawLinesToNodes;
 
     if (&reflectable_group == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
 
     auto& group_children = reflectable_group.GetChildren();
-
     if (group_children.empty())
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
 
@@ -1029,18 +1024,69 @@ void DrawGenericGroup(ReflectableGroup& reflectable_group) {
     if (reflectable_group.disabled)
         ImGui::PopStyleColor();
 
-    if (ImGui::IsItemFocused()) {
+    // DRAG SOURCE
+    if (ImGui::BeginDragDropSource())
+    {
+        auto reflectable_group_ptr = &reflectable_group;
+        ImGui::SetDragDropPayload("REFLECTABLE_GROUP", &reflectable_group_ptr, sizeof(ReflectableGroup*));
+        ImGui::TextUnformatted(reflectable_group.GetName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // DROP TARGET
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP"))
+        {
+            if (payload->DataSize == sizeof(ReflectableGroup*))
+            {
+                ReflectableGroup* dragged_group = *static_cast<ReflectableGroup* const*>(payload->Data);
+
+                if (dragged_group != &reflectable_group && !reflectable_group.IsDescendantOf(dragged_group))
+                {
+                    // Remove from old parent
+                    ReflectableGroup* old_parent = dragged_group->parent_ptr;
+                    std::vector<std::shared_ptr<ReflectableGroup>>* siblings_ptr = nullptr;
+                    if (old_parent)
+                    {
+                        siblings_ptr = &(old_parent->GetChildren());
+                    }
+                    else
+                    {
+                        // Top-level reordering
+                        siblings_ptr = &(ecs_ptr->reflectable_group_root_vector);
+                    }
+                    auto& siblings = *siblings_ptr;
+                    auto group_it = std::find_if(siblings.begin(), siblings.end(), [&](auto& ptr) {
+                        return ptr.get() == dragged_group;
+                    });
+                    auto ptr = *group_it;
+                    siblings.erase(group_it);
+                    reflectable_group.GetChildren().emplace_back(ptr);
+                    dragged_group->parent_ptr = &reflectable_group;
+                    ecs_ptr->SetDirty();
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    if (ImGui::IsItemFocused())
+    {
         SelectedReflectableGroup = &reflectable_group;
         SelectedReflectableID = reflectable_group.id;
         property_editor.is_open = true;
     }
-    if (node_open) {
-        for (auto& reflectable_group_ptr : group_children) {
-            auto& reflectable_group = *reflectable_group_ptr;
-            DrawGenericGroup(reflectable_group);
+
+    if (node_open)
+    {
+        for (auto& child_ptr : group_children)
+        {
+            DrawGenericGroup(*child_ptr);
         }
         ImGui::TreePop();
     }
+
     ImGui::PopID();
 }
 
