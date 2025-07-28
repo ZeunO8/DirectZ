@@ -71,6 +71,7 @@ struct ReflectableGroup {
     bool is_child = false;
     int parent_id = -1;
     ReflectableGroup* parent_ptr = nullptr;
+    bool tree_node_open = false;
     virtual ~ReflectableGroup() = default;
     virtual GroupType GetGroupType() {
         return Generic;
@@ -90,7 +91,7 @@ struct ReflectableGroup {
     }
     virtual void UpdateChildren() {}
     bool backup_internal(Serial& serial) const {
-        serial << cid << disabled << id << index << is_child << parent_id;
+        serial << cid << disabled << id << index << is_child << parent_id << tree_node_open;
         return true;
     }
     virtual bool backup(Serial& serial) const {
@@ -99,7 +100,7 @@ struct ReflectableGroup {
         return true;
     }
     bool restore_internal(Serial& serial) {
-        serial >> cid >> disabled >> id >> index >> is_child >> parent_id;
+        serial >> cid >> disabled >> id >> index >> is_child >> parent_id >> tree_node_open;
         return true;
     }
     virtual bool restore(Serial& serial) {
