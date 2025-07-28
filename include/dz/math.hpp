@@ -378,6 +378,15 @@ namespace dz
             }
             return result;
         }
+        
+        bool all(T what) {
+            for (size_t i = 0; i < N; ++i) {
+                if (data[i] != what) {
+                    return false;
+                }
+            }
+            return true;
+        }
     };
 
     template <typename T, size_t N>

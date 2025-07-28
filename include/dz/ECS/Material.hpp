@@ -1,48 +1,73 @@
 #pragma once
-#include "../Provider.hpp"
-namespace dz::ecs {
-    struct ColorComponent;
-}
+#include "Provider.hpp" 
 
 namespace dz::ecs {
-    struct ColorComponent : Provider<ColorComponent> {
-        color_vec<float, 4> color;
+    struct Material : Provider<Material> {
+        vec<float, 4> atlas_pack = {-1.0f, -1.0f, -1.0f, -1.0f};
+        vec<float, 4> albedo = {1.0f, 1.0f, 1.0f, 1.0f};
 
-        inline static constexpr bool IsComponent = true;
-        inline static constexpr size_t PID = 1000;
-        inline static constexpr char ComponentID = 1;
+        inline static constexpr size_t PID = 5;
         inline static float Priority = 2.5f;
-        inline static std::string ProviderName = "Color";
-        inline static std::string StructName = "ColorComponent";
+        inline static std::string ProviderName = "Material";
+        inline static std::string StructName = "Material";
         inline static std::string GLSLStruct = R"(
-#define ColorComponent vec4
-)";
+    struct Material {
+        vec4 atlas_pack;
+        vec4 albedo;
+    };
+    )";
+        inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
+            { ShaderModuleType::Vertex, R"(
+vec4 GetMaterialBaseColor(in Entity entity) {
+    bool not_what = true;
+    for (int i = 0; i < 4; i++) {
+        if (Materials.data[entity.material_index].atlas_pack[i] != -1.0) {
+            not_what = false;
+            break;
+        }
+    }
+    if (not_what)
+        return Materials.data[entity.material_index].albedo;
+    return vec4(1.0, 0.0, 1.0, 1.0);
+}
+)" }
+        };
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {1.5f, "    final_color = colorcomponent;\n", ShaderModuleType::Vertex}
+            {0.5f, R"(
+    final_color = GetMaterialBaseColor(entity);
+)", ShaderModuleType::Vertex}
         };
         
-        struct ColorComponentReflectable : Reflectable {
+        struct MaterialReflectable : Reflectable {
 
         private:
-            std::function<ColorComponent*()> get_color_component_function;
+            std::function<Material*()> get_material_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"color", {0, 0}}
+                {"atlasImageSize", {0, 0}},
+                {"atlasPackedRect", {1, 0}},
+                {"albedo", {2, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "color"}
+                {0, "atlasImageSize"},
+                {1, "atlasPackedRect"},
+                {2, "albedo"}
             };
             inline static std::vector<std::string> prop_names = {
-                "color"
+                "atlasImageSize",
+                "atlasPackedRect",
+                "albedo"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
+                &typeid(vec<float, 2>),
+                &typeid(vec<float, 2>),
                 &typeid(color_vec<float, 4>)
             };
 
         public:
-            ColorComponentReflectable(const std::function<ColorComponent*()>& get_color_component_function);
+            MaterialReflectable(const std::function<Material*()>& get_material_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -53,21 +78,18 @@ namespace dz::ecs {
             void NotifyChange(int prop_index) override;
         };
 
-        struct ColorComponentReflectableGroup : ReflectableGroup {
+        struct MaterialReflectableGroup : ReflectableGroup {
             BufferGroup* buffer_group = 0;
             std::string name;
             std::vector<Reflectable*> reflectables;
-            ColorComponentReflectableGroup(BufferGroup* buffer_group):
+            MaterialReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
-                name("ColorComponent")
+                name("Material")
             {}
-            ColorComponentReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+            MaterialReflectableGroup(BufferGroup* buffer_group, Serial& serial):
                 buffer_group(buffer_group)
             {
                 restore(serial);
-            }
-            ~ColorComponentReflectableGroup() {
-                ClearReflectables();
             }
             GroupType GetGroupType() override {
                 return ReflectableGroup::Generic;
@@ -87,9 +109,9 @@ namespace dz::ecs {
             }
             void UpdateChildren() override {
                 if (reflectables.empty()) {
-                    reflectables.push_back(new ColorComponentReflectable([&]() {
-                        auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, "ColorComponents");
-                        return ((struct ColorComponent*)(buffer.get())) + index;
+                    reflectables.push_back(new MaterialReflectable([&]() {
+                        auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, "Materials");
+                        return ((struct Material*)(buffer.get())) + index;
                     }));
                 }
             }
@@ -99,14 +121,15 @@ namespace dz::ecs {
                 serial << name;
                 return true;
             }
-            bool restore(Serial& serial) override {
+            bool restore(Serial& serial) override{
                 if (!restore_internal(serial))
                     return false;
                 serial >> name;
                 return true;
             }
+
         };
 
-        using ReflectableGroup = ColorComponentReflectableGroup;
+        using ReflectableGroup = MaterialReflectableGroup;
     };
 }

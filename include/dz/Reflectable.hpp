@@ -107,6 +107,27 @@ struct ReflectableGroup {
             return false;
         return true;
     }
+    bool IsDescendantOf(ReflectableGroup* other)
+    {
+        if (other == nullptr || other == this)
+            return false;
+
+        std::function<bool(ReflectableGroup*)> recurse;
+        recurse = [&](ReflectableGroup* current) -> bool
+        {
+            for (auto& child_ptr : current->GetChildren())
+            {
+                ReflectableGroup* child = child_ptr.get();
+                if (child == this)
+                    return true;
+                if (recurse(child))
+                    return true;
+            }
+            return false;
+        };
+
+        return recurse(other);
+    }
 
     inline static std::recursive_mutex cid_restore_mutex = {};
     inline static std::unordered_map<size_t, std::function<std::shared_ptr<ReflectableGroup>(dz::BufferGroup*, Serial&)>>* cid_restore_map_ptr = nullptr;

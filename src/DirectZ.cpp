@@ -92,7 +92,7 @@ namespace dz
 #include "ECS/Entity.cpp"
 #include "ECS/Shape.cpp"
 #include "ECS/Light.cpp"
-#include "ECS/components/ColorComponent.cpp"
+#include "ECS/Material.cpp"
 #include "State.cpp"
 #include "Reflectable.cpp"
 #include "runtime.cpp"

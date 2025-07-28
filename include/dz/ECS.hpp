@@ -14,6 +14,7 @@
 #include "ECS/Light.hpp"
 #include "ECS/Entity.hpp"
 #include "ECS/Scene.hpp"
+#include "ECS/Material.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -80,6 +81,7 @@ namespace dz {
         bool loaded_from_io = false; // !
 
         std::vector<std::shared_ptr<ReflectableGroup>> reflectable_group_root_vector; // Y
+        std::vector<std::shared_ptr<ReflectableGroup>> material_group_vector; // Y
         std::map<size_t, std::vector<ReflectableGroup*>> pid_reflectable_vecs; // !
         std::unordered_map<size_t, std::unordered_map<size_t, size_t>> pid_id_index_maps; // !
 
@@ -104,6 +106,8 @@ namespace dz {
         
         Shader* main_shader = 0; // !
         Shader* model_compute_shader = 0; // !
+
+        bool material_browser_open = true;
 
         auto GenerateEntitysDrawFunction() {
             return [&](auto buffer_group, auto& entity) -> DrawTuples {
@@ -235,6 +239,8 @@ namespace dz {
                 return false;
             if (!BackupGroupVector(serial, reflectable_group_root_vector))
                 return false;
+            if (!BackupGroupVector(serial, material_group_vector))
+                return false;
             if (!BackupBuffers(serial))
                 return false;
             return true;
@@ -251,6 +257,8 @@ namespace dz {
             if (!Restore_pid_reflectable_vecs_sizes(serial))
                 return false;
             if (!RestoreGroupVector(serial, reflectable_group_root_vector, buffer_group))
+                return false;
+            if (!RestoreGroupVector(serial, material_group_vector, buffer_group))
                 return false;
             if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
                 return false;
@@ -449,7 +457,7 @@ namespace dz {
         }
 
         template <typename TData, typename TProvider>
-        void AddProviderSingle(int parent_id, size_t& id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector) {
+        void AddProviderSingle(int parent_id, size_t& id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector, int& out_index) {
             if (id)
                 return;
 
@@ -487,7 +495,7 @@ namespace dz {
             pid_id_index_maps[pid][id] = provider_index;
             prov_ptr_vec.push_back(group_ptr.get());
 
-            group.index = provider_index;
+            out_index = group.index = provider_index;
 
             if (provider_group.buffer_name == buffer_name)
                 Resize(provider_index + 1);
@@ -499,10 +507,6 @@ namespace dz {
             auto data_ptr = ((TData*)(buffer.get()));
 
             data_ptr[provider_index] = data;
-
-            if constexpr (std::is_same_v<TData, DrawProviderT>) {
-                data_ptr[provider_index].id = ecs_id;
-            }
 
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
 
@@ -522,14 +526,14 @@ namespace dz {
             group.UpdateChildren();
 
             if constexpr (std::is_same_v<TProvider, DrawProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
-                draw_mg.SetDirty();
+                SetDirty();
             }
         }
 
         template <typename TData>
-        size_t AddProvider(int parent_id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector) {
+        size_t AddProvider(int parent_id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector, int& out_index) {
             size_t id = 0;
-            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector), ...);
+            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index), ...);
             if (!id)
                 throw std::runtime_error("Unable to find Provider supporting TData");
             return id;
@@ -538,8 +542,9 @@ namespace dz {
         template <typename TEntity>
         size_t AddEntity(int parent_id, const TEntity& entity_data) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            int out_index = -1;
             return AddProvider<TEntity>(parent_id, entity_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
         }
 
         template <typename TEntity>
@@ -550,13 +555,19 @@ namespace dz {
         template <typename TScene>
         size_t AddScene(int parent_id, const TScene& entity_data) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            int out_index = -1;
             return AddProvider<TScene>(parent_id, entity_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
         }
 
         template <typename TScene>
         size_t AddScene(const TScene& entity_data) {
             return AddScene<TScene>(-1, entity_data);
+        }
+
+        template <typename TMaterial>
+        size_t AddMaterial(const TMaterial& material_data, int& out_index) {
+            return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index);
         }
 
         template <typename TProvider, typename TReflectableGroup>
@@ -639,8 +650,9 @@ namespace dz {
         template <typename TCamera>
         size_t AddCamera(size_t parent_id, const TCamera& camera_data, TCamera::ProjectionType projectionType) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            int out_index = -1;
             auto camera_id = AddProvider<TCamera>(parent_id, camera_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
 
             auto& camera = GetCamera(camera_id);
             auto& camera_group = GetGroup<TCamera, typename TCamera::ReflectableGroup>(camera_id);
@@ -682,7 +694,8 @@ namespace dz {
             int mask = 1 << (component_type_id - 1);
             if (entity.enabled_components & mask)
                 throw std::runtime_error("Component already exists");
-            auto component_id = AddProvider<TComponent>(entity_id, data, entity_group.component_groups);
+            int out_index = -1;
+            auto component_id = AddProvider<TComponent>(entity_id, data, entity_group.component_groups, out_index);
             auto& component = GetProviderData<TComponent>(component_id);
             entity.enabled_components |= mask;
             entity_group.UpdateChildren();
@@ -1076,5 +1089,8 @@ void main() {
             return true;
         }
 
+        void SetDirty() {
+            draw_mg.SetDirty();
+        }
     };
 }
