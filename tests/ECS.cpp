@@ -6,29 +6,21 @@ using namespace dz::ecs;
 
 uint32_t default_vertex_count = 6;
 
-struct Material : Provider<Material> {
-    vec<float, 4> color;
-    inline static constexpr size_t PID = 5;
-    inline static float Priority = 2.5f;
-    inline static std::string ProviderName = "Material";
-    inline static std::string StructName = "Material";
-    inline static std::string GLSLStruct = R"(
-struct Material {
-    vec4 color;
-};
-)";
-    inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {};
-};
-
 struct StateSystem : Provider<StateSystem> {
     int id;
     virtual ~StateSystem() = default;
 };
 
 // #define ENABLE_LIGHTS
-using ExampleECS = ECS<CID_MIN, Scene, Entity, ColorComponent, Shape, Camera
+using ExampleECS = ECS<
+    CID_MIN,
+    Scene,
+    Entity,
+    Material,
+    Shape,
+    Camera
 #ifdef ENABLE_LIGHTS
-, Light
+    , Light
 #endif
 >;
 
@@ -67,12 +59,6 @@ PropertyEditor property_editor;
 
 WINDOW* window = nullptr;
 
-// auto GetRegisterComponentsLambda() {
-//     return [](auto& ecs) {
-//         assert(ecs.template RegisterComponent<ColorComponent>());
-//         return true;
-//     };
-// };
 
 int plane_shape_id = -1;
 int plane_shape_index = -1;
@@ -92,7 +78,7 @@ int main() {
     set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
     set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
-    std::filesystem::path ioPath("example.ecs");
+    std::filesystem::path ioPath("ECS-Test.dat");
 
     set_state_file_path(ioPath);
 
@@ -135,59 +121,35 @@ int main() {
         cube_shape.type = cube_shape_id;
         cube_shape.vertex_count = 36;
 
+        int mat1_index = -1;
+        auto mat1_id = ecs.AddMaterial(Material{
+            .albedo = {1.0f, 0.0f, 0.0f, 1.0f}
+        }, mat1_index);
+
+        int mat2_index = -1;
+        auto mat2_id = ecs.AddMaterial(Material{
+            .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
+        }, mat2_index);
+
         auto scene1_id = ecs.AddScene(Scene{});
 
         auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_id = ecs.AddEntity(scene1_id, Entity{});
-
-        ecs.ConstructComponent(e1_id, ColorComponent{.color = {1.0f, 0.0f, 0.0f, 1.0f}});
+        auto e1_id = ecs.AddEntity(scene1_id, Entity{
+            .material_index = mat1_index,
+            .shape_index = plane_shape_index
+        });
 
         auto scene2_id = ecs.AddScene(Scene{});
 
         auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e2_id = ecs.AddEntity(scene2_id, Entity{});
-
-        ecs.ConstructComponent(e2_id, ColorComponent{.color = {0.0f, 0.0f, 1.0f, 1.0f}});
+        auto e2_id = ecs.AddEntity(scene2_id, Entity{
+            .material_index = mat2_index,
+            .shape_index = cube_shape_index
+        });
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
-
-        // auto eids = ecs.AddEntitys(1, Entity{}, Entity{});
-
-        // auto e1_id = eids[0];
-
-        // auto e1_child_ids = ecs.AddChildEntitys(e1_id, Entity{}, Entity{}, Entity{});
-
-        // for (auto& child_id : e1_child_ids) {
-        //     auto e_ptr = ecs.GetEntity(child_id);
-        //     assert(e_ptr);
-        //     auto& e = *e_ptr;
-        //     e.shape_index = cube_shape_index;
-        //     auto& e_color_component = ecs.ConstructComponent<ColorComponent>(e.id, {0.f, 1.f, 0.f, 1.f});
-        // }
-
-        // auto e1_ptr = ecs.GetEntity(e1_id);
-        // assert(e1_ptr);
-        // auto& e1 = *e1_ptr;
-        // e1.shape_index = cube_shape_index;
-        // e1.position = {0.5f, -0.5f, 1.f, 1.f};
-        // auto& e1_color_component = ecs.ConstructComponent<ColorComponent>(e1.id, {0.f, 0.f, 1.f, 1.f});
-        // e1.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
-        // e1.scale = {1.0f, 1.0f, 1.0f, 1.0f};
-
-        // auto e2_id = eids[1];
-
-        // // ecs.AddChildEntitys(e2_id, Entity{}, Entity{});
-
-        // auto e2_ptr = ecs.GetEntity(e2_id);
-
-        // assert(e2_ptr);
-        // auto& e2 = *e2_ptr;
-        // e2.position = {-0.5f, 0.5f, 1.f, 1.f};
-        // auto& e2_color_component = ecs.ConstructComponent<ColorComponent>(e2.id, {1.f, 0.f, 0.f, 1.f});
-        // e2.rotation = {0.0f, 0.0f, 0.0f, 1.0f};
-        // e2.scale = {1.0f, 1.0f, 1.0f, 1.0f};
     }
 
 #ifdef ENABLE_LIGHTS
@@ -465,6 +427,103 @@ int main() {
         }
     });
 
+    imgui.AddImmediateDrawFunction(2.1f, "Materials", [&](auto& layer) mutable
+    {
+        if (!ImGui::Begin("Material Browser", &ecs.material_browser_open))
+        {
+            ImGui::End();
+            return;
+        }
+
+        float padding = 24.0f;
+        float item_size = 84.0f;
+        float label_height = ImGui::GetFontSize();
+        float full_item_height = item_size + label_height + 8.0f;
+        float cell_size = item_size + padding;
+        float panel_width = ImGui::GetContentRegionAvail().x;
+        int columns = (int)(panel_width / cell_size);
+        if (columns < 1)
+            columns = 1;
+
+        int item_index = 0;
+
+        ImGui::BeginChild("MaterialGrid", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+
+        auto materials_begin = ecs.GetProviderBegin<Material>();
+        auto materials_end = ecs.GetProviderEnd<Material>();
+
+        for (auto material_it = materials_begin; material_it != materials_end; material_it++, item_index++)
+        {
+            auto material_group_ptr = dynamic_cast<Material::ReflectableGroup*>(*material_it);
+            if (!material_group_ptr)
+                continue;
+            auto& material_group = *material_group_ptr;
+            auto& material = ecs.GetProviderData<Material>(material_group.id);
+
+            ImGui::PushID(item_index);
+
+            ImGui::BeginGroup();
+            {
+                ImVec2 group_start = ImGui::GetCursorScreenPos();
+
+                ImVec2 cursor = ImGui::GetCursorScreenPos();
+                ImVec2 rect_min = cursor;
+                ImVec2 rect_max = ImVec2(cursor.x + item_size, cursor.y + item_size);
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+                bool has_texture = !material.atlas_pack.all(-1.f);
+
+                if (has_texture)
+                {
+                    // Future support for image
+                }
+                else
+                {
+                    ImU32 color = ImGui::ColorConvertFloat4ToU32(ImVec4(
+                        material.albedo[0],
+                        material.albedo[1],
+                        material.albedo[2],
+                        material.albedo[3]
+                    ));
+
+                    draw_list->AddRectFilled(rect_min, rect_max, color, 6.0f);
+                    draw_list->AddRect(rect_min, rect_max, IM_COL32_WHITE, 6.0f);
+                    ImGui::Dummy(ImVec2(item_size, item_size));
+                }
+
+                ImVec2 text_size = ImGui::CalcTextSize(material_group.name.c_str());
+                float text_x = cursor.x + (item_size - text_size.x) * 0.5f;
+                ImGui::SetCursorScreenPos(ImVec2(text_x, cursor.y + item_size + 2.0f));
+                ImGui::TextUnformatted(material_group.name.c_str());
+
+                ImGui::Dummy(ImVec2(item_size, 0));
+            }
+            ImGui::EndGroup();
+
+            ImVec2 group_min = ImGui::GetItemRectMin();
+            ImVec2 group_max = ImGui::GetItemRectMax();
+
+            if (ImGui::IsMouseHoveringRect(group_min, group_max))
+            {
+                ImGui::SetTooltip("Material: %s", material_group.name.c_str());
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+                {
+                    SelectedReflectableGroup = material_group_ptr;
+                    SelectedReflectableID = material_group.id;
+                    property_editor.is_open = true;
+                }
+            }
+
+            ImGui::PopID();
+
+            if ((item_index + 1) % columns != 0)
+                ImGui::SameLine();
+        }
+
+        ImGui::EndChild();
+        ImGui::End();
+    });
+
     imgui.AddImmediateDrawFunction(3.0f, "Window Graph", [&](auto& layer) mutable {
         static bool window_graph_open = true;
         if (window_graph_open) {
@@ -494,7 +553,6 @@ int main() {
                     if (WindowGraphFilterCheck(WindowGraphFilter, window_name))
                         DrawWindowGroup(window_name, window_reflectable_group);
                 }
-                // for (auto& [id, entity_group] : ecs.id_entity_groups)
                 ImGui::EndTable();
             }
             ImGui::End();
@@ -517,7 +575,8 @@ int main() {
             ImGui::PopItemFlag();
 
             if (ImGui::BeginTable("##bg", 1, ImGuiTableFlags_RowBg)) {
-                for (auto& reflectable_group_ptr : ecs.reflectable_group_root_vector) {
+                for (size_t i = 0; i < ecs.reflectable_group_root_vector.size(); ++i) {
+                    auto& reflectable_group_ptr = ecs.reflectable_group_root_vector[i];
                     auto& reflectable_group = *reflectable_group_ptr;
                     DrawGenericGroup(reflectable_group);
                 }
@@ -548,7 +607,7 @@ int main() {
                 if (ImGui::InputText("Name", reflectable_group_name.data(), reflectable_group_name.size())) {
                     reflectable_group.NotifyNameChanged();
                 }
-                ImGui::TextDisabled("ID: 0x%08X", SelectedReflectableID);
+                ImGui::TextDisabled("GID: 0x%08X", SelectedReflectableID);
                 ImGui::Spacing();
 
                 auto& reflectables = reflectable_group.GetReflectables();
@@ -810,7 +869,6 @@ int main() {
 //                 // assert(child_ptr);
 //                 // auto& child = *child_ptr;
 //                 // child.shape_index = shape_index;
-//                 // ecs.ConstructComponent<ColorComponent>(child.id, {0.f, 1.f, 1.f, 1.f});
 //             }
 //             ImGui::EndMenu();
 //         }
@@ -943,31 +1001,37 @@ int main() {
 //     ImGui::PopID();
 // }
 
-void DrawGenericGroup(ReflectableGroup& reflectable_group) {
+void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_group, float y_distance);
+
+void DrawGenericGroup(ReflectableGroup& reflectable_group)
+{
     ImGui::TableNextRow();
     ImGui::TableNextColumn();
 
     ImGui::PushID(&reflectable_group);
 
-    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_None;
-
-    tree_flags |= ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;// Standard opening mode as we are likely to want to add selection afterwards
-    tree_flags |= ImGuiTreeNodeFlags_NavLeftJumpsToParent;  // Left arrow support
-    tree_flags |= ImGuiTreeNodeFlags_SpanFullWidth;         // Span full width for easier mouse reach
-    tree_flags |= ImGuiTreeNodeFlags_DrawLinesToNodes;      // Always draw hierarchy outlines
+    ImGuiTreeNodeFlags tree_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick | ImGuiTreeNodeFlags_NavLeftJumpsToParent | ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_DrawLinesToNodes;
 
     if (&reflectable_group == SelectedReflectableGroup)
         tree_flags |= ImGuiTreeNodeFlags_Selected;
 
     auto& group_children = reflectable_group.GetChildren();
-
-    if (group_children.empty())
+    bool is_leaf = group_children.empty();
+    if (is_leaf) {
         tree_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+    }
 
     if (reflectable_group.disabled)
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
 
+    auto& is_open = reflectable_group.tree_node_open;
+    if (is_open)
+        ImGui::SetNextItemOpen(is_open);
+
     bool node_open = ImGui::TreeNodeEx("", tree_flags, "%s", reflectable_group.GetName().c_str());
+
+    if (node_open != is_open)
+        is_open = node_open;
 
     if (reflectable_group.disabled)
         ImGui::PopStyleColor();
@@ -977,14 +1041,104 @@ void DrawGenericGroup(ReflectableGroup& reflectable_group) {
         SelectedReflectableID = reflectable_group.id;
         property_editor.is_open = true;
     }
+
+    // Handle drag and drop source
+    if (ImGui::BeginDragDropSource()) {
+        ReflectableGroup* reflectable_group_ptr = &reflectable_group;
+        ImGui::SetDragDropPayload("REFLECTABLE_GROUP", &reflectable_group_ptr, sizeof(ReflectableGroup*));
+        ImGui::TextUnformatted(reflectable_group.GetName().c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // Target drop handler on top of this node (for insert or reparent)
+    if (ImGui::BeginDragDropTarget()) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP")) {
+            if (payload->DataSize == sizeof(ReflectableGroup*)) {
+                ReflectableGroup* dragged = *static_cast<ReflectableGroup* const*>(payload->Data);
+                if (dragged != &reflectable_group && !reflectable_group.IsDescendantOf(dragged)) {
+                    DrawDropTarget(reflectable_group, dragged, 0.0f);
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
     if (node_open) {
-        for (auto& reflectable_group_ptr : group_children) {
-            auto& reflectable_group = *reflectable_group_ptr;
-            DrawGenericGroup(reflectable_group);
+        for (size_t i = 0; i < group_children.size(); ++i) {
+            ImGui::PushID(static_cast<int>(i));
+            DrawGenericGroup(*group_children[i]);
+            ImGui::PopID();
         }
         ImGui::TreePop();
     }
+
+    // Add dummy drop zone if this node is leaf and can hold children
+    bool can_hold_children = (reflectable_group.cid != Camera::PID);
+    if (is_leaf && can_hold_children && ImGui::GetDragDropPayload() != nullptr) {
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        ImVec2 mouse = ImGui::GetIO().MousePos;
+        float distance = fabs(cursor.y - mouse.y);
+        if (distance < 20.0f) {
+            ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, 4.0f));
+            if (ImGui::BeginDragDropTarget()) {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("REFLECTABLE_GROUP")) {
+                    if (payload->DataSize == sizeof(ReflectableGroup*)) {
+                        ReflectableGroup* dragged = *static_cast<ReflectableGroup* const*>(payload->Data);
+                        DrawDropTarget(reflectable_group, dragged, -1.0f);
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+        }
+    }
+
     ImGui::PopID();
+}
+
+void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_group, float y_distance)
+{
+    if (dragged_group == nullptr || dragged_group == &target_group || target_group.IsDescendantOf(dragged_group))
+        return;
+
+    ReflectableGroup* old_parent = dragged_group->parent_ptr;
+    std::vector<std::shared_ptr<ReflectableGroup>>* old_siblings = old_parent ? &old_parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+    auto it = std::find_if(old_siblings->begin(), old_siblings->end(), [&](auto& ptr) {
+        return ptr.get() == dragged_group;
+    });
+    if (it == old_siblings->end())
+        return;
+
+    std::shared_ptr<ReflectableGroup> dragged_ptr = *it;
+    old_siblings->erase(it);
+
+    if (y_distance >= 0.0f && y_distance < 8.0f) {
+        // Insert before
+        ReflectableGroup* parent = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
+            return ptr.get() == &target_group;
+        });
+        if (pos != siblings->end())
+            siblings->insert(pos, dragged_ptr);
+        dragged_group->parent_ptr = parent;
+    }
+    else if (y_distance >= 24.0f) {
+        // Insert after
+        ReflectableGroup* parent = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
+            return ptr.get() == &target_group;
+        });
+        if (pos != siblings->end())
+            siblings->insert(pos + 1, dragged_ptr);
+        dragged_group->parent_ptr = parent;
+    } else {
+        // Drop into
+        target_group.GetChildren().push_back(dragged_ptr);
+        dragged_group->parent_ptr = &target_group;
+    }
+
+    ecs_ptr->SetDirty();
 }
 
 void DrawWindowGroup(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {

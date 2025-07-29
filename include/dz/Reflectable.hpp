@@ -71,6 +71,7 @@ struct ReflectableGroup {
     bool is_child = false;
     int parent_id = -1;
     ReflectableGroup* parent_ptr = nullptr;
+    bool tree_node_open = false;
     virtual ~ReflectableGroup() = default;
     virtual GroupType GetGroupType() {
         return Generic;
@@ -90,7 +91,7 @@ struct ReflectableGroup {
     }
     virtual void UpdateChildren() {}
     bool backup_internal(Serial& serial) const {
-        serial << cid << disabled << id << index << is_child << parent_id;
+        serial << cid << disabled << id << index << is_child << parent_id << tree_node_open;
         return true;
     }
     virtual bool backup(Serial& serial) const {
@@ -99,13 +100,34 @@ struct ReflectableGroup {
         return true;
     }
     bool restore_internal(Serial& serial) {
-        serial >> cid >> disabled >> id >> index >> is_child >> parent_id;
+        serial >> cid >> disabled >> id >> index >> is_child >> parent_id >> tree_node_open;
         return true;
     }
     virtual bool restore(Serial& serial) {
         if (!restore_internal(serial))
             return false;
         return true;
+    }
+    bool IsDescendantOf(ReflectableGroup* other)
+    {
+        if (other == nullptr || other == this)
+            return false;
+
+        std::function<bool(ReflectableGroup*)> recurse;
+        recurse = [&](ReflectableGroup* current) -> bool
+        {
+            for (auto& child_ptr : current->GetChildren())
+            {
+                ReflectableGroup* child = child_ptr.get();
+                if (child == this)
+                    return true;
+                if (recurse(child))
+                    return true;
+            }
+            return false;
+        };
+
+        return recurse(other);
     }
 
     inline static std::recursive_mutex cid_restore_mutex = {};

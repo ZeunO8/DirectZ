@@ -7,14 +7,14 @@
 #define ECS_MAX_COMPONENTS 8
 namespace dz::ecs {
     struct Entity : Provider<Entity> {
-        int id = 0;
-        int shape_index;
+        int material_index = -1;
+        int shape_index = -1;
         int parent_index = -1;
         int enabled_components = 0;
         vec<float, 4> position = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);
         vec<float, 4> rotation = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);;
         vec<float, 4> scale = vec<float, 4>(1.0f, 1.0f, 1.0f, 1.0f);;
-        mat<float, 4, 4> model;
+        mat<float, 4, 4> model = mat<float, 4, 4>(1.0f);
         
         inline static constexpr size_t PID = 1;
         inline static float Priority = 0.5f;
@@ -23,7 +23,7 @@ namespace dz::ecs {
         inline static std::string StructName = "Entity";
         inline static std::string GLSLStruct = R"(
 struct Entity {
-    int id;
+    int material_index;
     int shape_index;
     int parent_index;
     int enabled_components;
@@ -44,7 +44,6 @@ vec4 GetEntityVertexColor(in Entity entity) {
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     vec4 vertex_position = vec4(shape_vertex, 1.0);
-    final_color = GetEntityVertexColor(entity);
 )", ShaderModuleType::Vertex}
         };
 
@@ -102,6 +101,7 @@ vec4 GetEntityVertexColor(in Entity entity) {
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             std::vector<std::shared_ptr<ReflectableGroup>> component_groups;
+            std::vector<std::shared_ptr<ReflectableGroup>> material_groups;
             std::vector<Reflectable*> reflectables;
             EntityReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
@@ -151,6 +151,11 @@ vec4 GetEntityVertexColor(in Entity entity) {
                     for (auto& component_reflectable_ptr : component_group.GetReflectables()) 
                         reflectables.push_back(component_reflectable_ptr);
                 }
+                for (auto& material_group_ptr : material_groups) {
+                    auto& material_group = *material_group_ptr;
+                    for (auto& material_reflectable_ptr : material_group.GetReflectables()) 
+                        reflectables.push_back(material_reflectable_ptr);
+                }
             }
             bool backup(Serial& serial) const override {
                 if (!backup_internal(serial))
@@ -159,6 +164,8 @@ vec4 GetEntityVertexColor(in Entity entity) {
                 if (!BackupGroupVector(serial, reflectable_children))
                     return false;
                 if (!BackupGroupVector(serial, component_groups))
+                    return false;
+                if (!BackupGroupVector(serial, material_groups))
                     return false;
                 return true;
             }
@@ -169,6 +176,8 @@ vec4 GetEntityVertexColor(in Entity entity) {
                 if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
                     return false;
                 if (!RestoreGroupVector(serial, component_groups, buffer_group))
+                    return false;
+                if (!RestoreGroupVector(serial, material_groups, buffer_group))
                     return false;
                 return true;
             }

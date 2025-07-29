@@ -17,7 +17,6 @@ struct Scene {
 )";
 
         struct SceneReflectableGroup : ReflectableGroup {
-            int parent_id = -1;
             BufferGroup* buffer_group = 0;
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;

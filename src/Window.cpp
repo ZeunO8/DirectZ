@@ -224,13 +224,8 @@ namespace dz {
 		{
 			std::chrono::nanoseconds steady_duration_ns = now - window->lastFrame;
 			std::chrono::duration<double> steady_duration_seconds = steady_duration_ns;
-			auto& float_frametime = *window->float_frametime;
-			float_frametime = *window->double_frametime = steady_duration_seconds.count();
+			*window->float_frametime = *window->double_frametime = steady_duration_seconds.count();
 			window->lastFrame = now;
-			auto framerate = (1.f / float_frametime);
-			auto& io = ImGui::GetIO();
-			io.Framerate = framerate;
-			io.DeltaTime = float_frametime;
 		}
 		if (!poll_continue)
 		{

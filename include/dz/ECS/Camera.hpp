@@ -212,7 +212,6 @@ struct Camera {
         };
 
         struct CameraReflectableGroup : ReflectableGroup {
-            int parent_id = -1;
             BufferGroup* buffer_group = 0;
             std::string name;
             std::string imgui_name;

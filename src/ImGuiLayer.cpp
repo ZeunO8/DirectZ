@@ -276,6 +276,10 @@ namespace dz {
         }
 
         if (root_window) {
+            auto& float_frametime = *window.float_frametime;
+            auto framerate = (1.f / float_frametime);
+            io.Framerate = framerate;
+            io.DeltaTime = float_frametime;
 
             ImGui_ImplVulkan_NewFrame();
             ImGui::NewFrame();
