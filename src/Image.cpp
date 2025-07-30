@@ -17,7 +17,7 @@ namespace dz {
         VkSampler sampler = VK_NULL_HANDLE;
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkSampleCountFlagBits multisampling;
-        void* data;
+        std::shared_ptr<void> data;
     };
 
     struct ImageCreateInfoInternal
@@ -93,6 +93,14 @@ namespace dz {
         return image_create_internal(internal_info);
     }
 
+    void image_cpy_data(Image* image, void* data) {
+        if (!data)
+            return;
+        auto image_byte_size = image->width * image->height * image->depth * 4 * sizeof(char);
+        image->data = std::shared_ptr<void>(malloc(image_byte_size), free);
+        memcpy(image->data.get(), data, image_byte_size);
+    }
+
     Image* image_create_internal(const ImageCreateInfoInternal& info) {
         Image* result = new Image{
             .width = info.width,
@@ -104,9 +112,10 @@ namespace dz {
             .view_type = info.view_type,
             .tiling = info.tiling,
             .memory_properties = info.memory_properties,
-            .multisampling = info.multisampling,
-            .data = info.data
+            .multisampling = info.multisampling
         };
+
+        image_cpy_data(result, info.data);
 
         image_init(result);
 
@@ -159,7 +168,7 @@ namespace dz {
         }
         image_free_internal(image);
         image_pre_resize_2D_internal(image, width, height);
-        image->data = data;
+        image_cpy_data(image, data);
         image_init(image);
     }
 
@@ -188,7 +197,7 @@ namespace dz {
         }
         image_free_internal(image);
         image_pre_resize_3D_internal(image, width, height, depth);
-        image->data = data;
+        image_cpy_data(image, data);
         image_init(image);
     }
 
@@ -318,7 +327,7 @@ namespace dz {
 
         void* mapped_data;
         vkMapMemory(dr.device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
-        memcpy(mapped_data, image.data, static_cast<size_t>(image_size));
+        memcpy(mapped_data, image.data.get(), static_cast<size_t>(image_size));
         vkUnmapMemory(dr.device, staging_buffer_memory);
 
         VkCommandBuffer command_buffer = begin_single_time_commands();
@@ -466,5 +475,52 @@ namespace dz {
         dr.layout_queue.push(layout);
 
         return {layout, descriptorSet};
+    }
+    
+    std::pair<int, size_t> image_get_channels_size_of_t(Image* image) {
+        int channels = 0;
+        size_t sizeoftype = 0;
+        switch (image->format)
+        {
+        case VK_FORMAT_R8_UNORM:
+            channels = 1;
+            sizeoftype = sizeof(unsigned char);
+            break;
+        case VK_FORMAT_R8G8_UNORM:
+            channels = 2;
+            sizeoftype = sizeof(unsigned char);
+            break;
+        case VK_FORMAT_R8G8B8_UNORM:
+            channels = 3;
+            sizeoftype = sizeof(unsigned char);
+            break;
+        case VK_FORMAT_R8G8B8A8_UNORM:
+            channels = 4;
+            sizeoftype = sizeof(unsigned char);
+            break;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            channels = 4;
+            sizeoftype = sizeof(float);
+            break;
+        case VK_FORMAT_D32_SFLOAT:
+            channels = 1;
+            sizeoftype = sizeof(float);
+            break;
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+            channels = 1;
+            sizeoftype = sizeof(float);
+            break;
+        case VK_FORMAT_R8_UINT:
+            channels = 1;
+            sizeoftype = sizeof(unsigned int);
+            break;
+        default:
+            break;
+        }
+        return {channels, sizeoftype};
+    }
+
+    void image_upload_data(Image* image, void* data) {
+        
     }
 }

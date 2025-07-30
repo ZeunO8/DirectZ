@@ -32,6 +32,13 @@ namespace dz
     Image* image_create(const ImageCreateInfo&);
 
     /**
+    * @brief Uploads new data to an Image
+    *
+    * @note data must contain the bytes in the correct format
+    */
+    void image_upload_data(Image* image, void* data);
+
+    /**
      * @brief Resizes a 2D image to the specified dimensions.
      * 
      * @param image Pointer to the Image structure.
@@ -63,4 +70,9 @@ namespace dz
     * @returns a pair containing the SetLayout and Set for usage
     */
     std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image);
+
+    /**
+    * @brief Gets the Channels and Size Of Type as a pair
+    */
+    std::pair<int, size_t> image_get_channels_size_of_t(Image* image);
 }

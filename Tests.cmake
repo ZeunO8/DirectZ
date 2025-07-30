@@ -1,13 +1,7 @@
 include(CTest)
 function(add_dz_test TEST_NAME TEST_SRC)
     add_executable(${TEST_NAME} ${TEST_SRC})
-    target_include_directories(${TEST_NAME} PRIVATE
-        include
-        ${Vulkan_INCLUDE_DIRS}
-        ${imgui_SOURCE_DIR}
-	    ${imguizmo_SOURCE_DIR}
-	    ${iostreams_SOURCE_DIR}/include
-    )
+    target_include_directories(${TEST_NAME} PRIVATE ${DIRECTZ_INCLUDE_DIRS})
     target_link_libraries(${TEST_NAME} PRIVATE DirectZ)
     if(ANDROID)
         target_link_libraries(${TEST_NAME} PRIVATE android log)
@@ -31,3 +25,5 @@ add_dz_test(DZ_LineGrid tests/LineGrid.cpp)
 add_dz_test(DZ_D7Stream tests/D7Stream.cpp)
 add_dz_test(DZ_ImGuiTest tests/ImGui.cpp)
 add_dz_test(DZ_ECSTest tests/ECS.cpp)
+file(COPY images/Suzuho-Ueda.bmp DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY images/hi.bmp DESTINATION ${CMAKE_BINARY_DIR})

@@ -15,6 +15,7 @@
 #include "ECS/Entity.hpp"
 #include "ECS/Scene.hpp"
 #include "ECS/Material.hpp"
+#include "ImagePack.hpp"
 #include <string>
 #include <vector>
 #include <functional>
@@ -32,6 +33,7 @@ namespace dz {
 
     inline static const std::string cameras_buffer_name = "Cameras";
     inline static const std::string lights_buffer_name = "Lights";
+    inline static std::string Atlas_Str = "Atlas";
     
     template<int TCID, typename... TProviders>
     struct ECS : Restorable {
@@ -61,6 +63,7 @@ namespace dz {
             std::string sparse_name;
             std::string glsl_struct;
             std::unordered_map<ShaderModuleType, std::string> glsl_methods;
+            std::unordered_map<ShaderModuleType, std::vector<std::string>> glsl_layouts;
             std::string glsl_main;
             bool is_component = false;
             int component_id = 0;
@@ -91,16 +94,17 @@ namespace dz {
         std::map<float, std::vector<size_t>> prioritized_provider_ids; // !
         std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains; // !
 
-        std::vector<std::string> restricted_keys; // !
+        std::vector<std::string> restricted_keys{Atlas_Str}; // !
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
         bool components_registered = false; // !
 
         using DrawProviderT = typename FirstMatchingOrDefault<IsDrawProvider, TProviders...>::type;
         using CameraProviderT = typename FirstMatchingOrDefault<IsCameraProvider, TProviders...>::type;
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
+        using MaterialProviderT = typename FirstMatchingOrDefault<IsMaterialProvider, TProviders...>::type;
         DrawListManager<DrawProviderT> draw_mg; // !
 
-        BufferGroup* buffer_group = 0; // !
+        BufferGroup* buffer_group = nullptr; // !
         bool buffer_initialized = false; // !
         int buffer_size = 0; // !
         
@@ -108,6 +112,9 @@ namespace dz {
         Shader* model_compute_shader = 0; // !
 
         bool material_browser_open = true;
+
+        bool atlas_dirty = false;
+        ImagePack atlas_pack;
 
         auto GenerateEntitysDrawFunction() {
             return [&](auto buffer_group, auto& entity) -> DrawTuples {
@@ -225,9 +232,32 @@ namespace dz {
         }
 
         void MarkReady() {
+            UpdateAtlas();
+            auto atlas = atlas_pack.getAtlas();
+            shader_use_image(main_shader, Atlas_Str, atlas);
+            shader_use_image(model_compute_shader, Atlas_Str, atlas);
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
+            }
+            shader_update_descriptor_sets(main_shader);
+        }
+
+        void UpdateAtlas() {
+            atlas_pack.check();
+            for (auto& material_group_sh_ptr : material_group_vector) {
+                auto generic_group_ptr = material_group_sh_ptr.get();
+                auto material_group_ptr = dynamic_cast<typename MaterialProviderT::ReflectableGroup*>(generic_group_ptr);
+                auto& material_group = *material_group_ptr;
+                if (!material_group.image)
+                    continue;
+                auto& material = GetMaterial(material_group.id);
+                auto& atlasImageSize = *(vec<float, 2>*)&material.atlas_pack[0];
+                auto& atlasPackedRect = *(vec<float, 2>*)&material.atlas_pack[2];
+                auto& packed_rect = atlas_pack.findPackedRect(material_group.image);
+                atlasImageSize = {packed_rect.w, packed_rect.h};
+                atlasPackedRect = {packed_rect.x, packed_rect.y};
+                continue;
             }
         }
 
@@ -386,6 +416,7 @@ namespace dz {
             auto& struct_name = TProvider::GetStructName();
             auto& glsl_struct = TProvider::GetGLSLStruct();
             auto& glsl_methods = TProvider::GetGLSLMethods();
+            auto& glsl_layouts = TProvider::GetGLSLLayouts();
             auto& priority_glsl_main = TProvider::GetGLSLMain();
             constexpr auto pid = TProvider::GetPID();
             prioritized_provider_ids[priority].push_back(pid);
@@ -398,6 +429,7 @@ namespace dz {
             provider_group.buffer_name = (struct_name + "s");
             provider_group.glsl_struct = glsl_struct;
             provider_group.glsl_methods = glsl_methods;
+            provider_group.glsl_layouts = glsl_layouts;
             provider_group.is_component = TProvider::GetIsComponent();
             for (auto& [main_priority, main_string, module_type] : priority_glsl_main) {
                 priority_glsl_mains[module_type][main_priority].push_back(main_string);
@@ -526,7 +558,7 @@ namespace dz {
             group.UpdateChildren();
 
             if constexpr (std::is_same_v<TProvider, DrawProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
-                SetDirty();
+                MarkDirty();
             }
         }
 
@@ -568,6 +600,18 @@ namespace dz {
         template <typename TMaterial>
         size_t AddMaterial(const TMaterial& material_data, int& out_index) {
             return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index);
+        }
+
+        MaterialProviderT& GetMaterial(size_t material_id) {
+            return GetProviderData<MaterialProviderT>(material_id);
+        }
+
+        void SetMaterialImage(size_t material_id, Image* image) {
+            auto& material_group = GetGroup<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
+            material_group.image = image;
+            atlas_pack.addImage(material_group.image);
+            if (buffer_initialized)
+                UpdateAtlas();
         }
 
         template <typename TProvider, typename TReflectableGroup>
@@ -784,6 +828,8 @@ namespace dz {
 
             auto binding_index = 0;
 
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D Atlas;\n";
+
             // Setup Structs
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
@@ -875,6 +921,35 @@ bool HasComponentWithType(in Entity entity, int entity_index, int type, out int 
             return shader_main;
         }
 
+        std::string GenerateShaderLayout(ShaderModuleType moduleType, int& in_location, int& out_location) {
+            std::string shader_layouts;
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = pid_provider_groups[provider_id];
+                    auto& glsl_layouts = provider_group.glsl_layouts;
+                    auto& layouts_vec = glsl_layouts[moduleType];
+                    for (auto layout_str : layouts_vec) {
+                        static std::string IN_STR = "@IN@";
+                        static std::string OUT_STR = "@OUT@";
+                        static auto replace_str = [](const auto& STR, auto& layout_str, auto& binding) {
+                            auto pos = layout_str.find(STR);
+                            if (pos != std::string::npos) {
+                                auto layout_str_it = layout_str.begin();
+                                layout_str.erase(layout_str_it + pos, layout_str_it + pos + STR.size());
+                                auto binding_str = std::to_string(binding++);
+                                layout_str_it = layout_str.begin();
+                                layout_str.insert(layout_str_it + pos, binding_str.begin(), binding_str.end());
+                            }
+                        };
+                        replace_str(IN_STR, layout_str, in_location);
+                        replace_str(OUT_STR, layout_str, out_location);
+                        shader_layouts += ("\n" + layout_str + "\n");
+                    }
+                }
+            }
+            return shader_layouts;
+        }
+
         std::string GenerateMainVertexShaderCode() {
             std::string shader_string = R"(
 #version 450
@@ -883,7 +958,13 @@ layout(location = 1) out vec4 outColor;
 layout(location = 2) out vec4 outPosition;
 layout(location = 3) out vec3 outNormal;
 layout(location = 4) out vec3 outViewPosition;
+layout(location = 5) out vec2 outUV2;
+)";
+            int out_location = 6;
+            int in_location = 0;
+            shader_string += GenerateShaderLayout(ShaderModuleType::Vertex, in_location, out_location);
 
+            shader_string += R"(
 layout(push_constant) uniform PushConstants {
     int camera_index;
 } pc;
@@ -909,6 +990,7 @@ void main() {
     outPosition = entity.model * vertex_position;
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
+    outUV2 = shape_uv2;
 }
 )";
 
@@ -923,8 +1005,15 @@ layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec4 inPosition;
 layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec3 inViewPosition;
+layout(location = 5) in vec2 inUV2;
 
 layout(location = 0) out vec4 FragColor;
+)";
+            int in_location = 6;
+            int out_location = 1;
+            shader_string += GenerateShaderLayout(ShaderModuleType::Fragment, in_location, out_location);
+
+            shader_string += R"(
 
 layout(push_constant) uniform PushConstants {
     int camera_index;
@@ -1089,8 +1178,8 @@ void main() {
             return true;
         }
 
-        void SetDirty() {
-            draw_mg.SetDirty();
+        void MarkDirty() {
+            draw_mg.MarkDirty();
         }
     };
 }

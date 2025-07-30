@@ -1,6 +1,7 @@
 #include <DirectZ.hpp>
 #include <fstream>
 using namespace dz::ecs;
+using namespace dz::loaders;
 
 #include <typeinfo>
 
@@ -70,6 +71,8 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
     index = pair.second;
 }
 
+using TL = TypeLoader<STB_Image_Loader>;
+
 int main() {
     ExampleECS::RegisterStateCID();
 
@@ -122,14 +125,23 @@ int main() {
         cube_shape.vertex_count = 36;
 
         int mat1_index = -1;
-        auto mat1_id = ecs.AddMaterial(Material{
-            .albedo = {1.0f, 0.0f, 0.0f, 1.0f}
-        }, mat1_index);
+        auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
+        Image* im_1 = TL::Load<STB_Image_Loader::ptr_type, STB_Image_Loader::info_type>({
+            .path = "hi.bmp"
+        });
+        ecs.SetMaterialImage(mat1_id, im_1);
 
         int mat2_index = -1;
         auto mat2_id = ecs.AddMaterial(Material{
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
         }, mat2_index);
+
+        int mat3_index = -1;
+        auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
+        Image* suzuho = TL::Load<STB_Image_Loader::ptr_type, STB_Image_Loader::info_type>({
+            .path = "Suzuho-Ueda.bmp"
+        });
+        ecs.SetMaterialImage(mat3_id, suzuho);
 
         auto scene1_id = ecs.AddScene(Scene{});
 
@@ -139,12 +151,17 @@ int main() {
             .material_index = mat1_index,
             .shape_index = plane_shape_index
         });
+        auto e2_id = ecs.AddEntity(scene1_id, Entity{
+            .material_index = mat3_index,
+            .shape_index = plane_shape_index,
+            .position = {1.f, 1.f, 0.f, 1.f}
+        });
 
         auto scene2_id = ecs.AddScene(Scene{});
 
         auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e2_id = ecs.AddEntity(scene2_id, Entity{
+        auto e3_id = ecs.AddEntity(scene2_id, Entity{
             .material_index = mat2_index,
             .shape_index = cube_shape_index
         });
@@ -1138,7 +1155,7 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
         dragged_group->parent_ptr = &target_group;
     }
 
-    ecs_ptr->SetDirty();
+    ecs_ptr->MarkDirty();
 }
 
 void DrawWindowGroup(const std::string& window_name, WindowReflectableGroup& window_reflectable_group) {

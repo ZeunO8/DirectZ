@@ -212,7 +212,7 @@ struct Camera {
         };
 
         struct CameraReflectableGroup : ReflectableGroup {
-            BufferGroup* buffer_group = 0;
+            BufferGroup* buffer_group = nullptr;
             std::string name;
             std::string imgui_name;
             std::vector<Reflectable*> reflectables;

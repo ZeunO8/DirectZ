@@ -1,5 +1,6 @@
 #pragma once
-#include "Provider.hpp" 
+#include "Provider.hpp"
+#include "../Image.hpp"
 
 namespace dz::ecs {
     struct Material : Provider<Material> {
@@ -8,6 +9,7 @@ namespace dz::ecs {
 
         inline static constexpr size_t PID = 5;
         inline static float Priority = 2.5f;
+        inline static constexpr bool IsMaterialProvider = true;
         inline static std::string ProviderName = "Material";
         inline static std::string StructName = "Material";
         inline static std::string GLSLStruct = R"(
@@ -28,15 +30,46 @@ vec4 GetMaterialBaseColor(in Entity entity) {
     }
     if (not_what)
         return Materials.data[entity.material_index].albedo;
+    outIsTexture = 1;
     return vec4(1.0, 0.0, 1.0, 1.0);
 }
+)" },
+            { ShaderModuleType::Fragment, R"(
+void EnsureMaterialFragColor(in Entity entity, inout vec4 current_color) {
+    if (inIsTexture != 1)
+        return;
+    vec2 uv = inUV2;
+    Material material = Materials.data[entity.material_index];
+    vec2 atlas_image_size = material.atlas_pack.xy;
+    vec2 atlas_packed_rect = material.atlas_pack.zw;
+
+    vec2 atlas_resolution = vec2(textureSize(Atlas, 0));
+    vec2 offset_uv = atlas_packed_rect / atlas_resolution;
+    vec2 scale_uv = atlas_image_size / atlas_resolution;
+    vec2 packed_uv = offset_uv + uv * scale_uv;
+
+    vec4 tex_color = texture(Atlas, packed_uv);
+    current_color = tex_color;
+}
 )" }
+        };
+
+        inline static std::unordered_map<ShaderModuleType, std::vector<std::string>> GLSLLayouts = {
+            { ShaderModuleType::Vertex, {
+                "layout(location = @OUT@) out int outIsTexture;"
+            } },
+            { ShaderModuleType::Fragment, {
+                "layout(location = @IN@) in flat int inIsTexture;"
+            } }
         };
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     final_color = GetMaterialBaseColor(entity);
-)", ShaderModuleType::Vertex}
+)", ShaderModuleType::Vertex},
+            {0.5f, R"(
+    EnsureMaterialFragColor(entity, current_color);
+)", ShaderModuleType::Fragment}
         };
         
         struct MaterialReflectable : Reflectable {
@@ -79,9 +112,10 @@ vec4 GetMaterialBaseColor(in Entity entity) {
         };
 
         struct MaterialReflectableGroup : ReflectableGroup {
-            BufferGroup* buffer_group = 0;
+            BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;
+            Image* image = nullptr;
             MaterialReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
                 name("Material")
