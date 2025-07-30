@@ -37,14 +37,13 @@ void ImagePack::repack()
 	auto rect_vec_data = rect_vec.data();
 
 	std::transform(std::execution::par_unseq, image_vec_data, image_vec_data + image_vec_size, rect_vec_data,
-		[](Image* image_ptr)
+		[&](Image* image_ptr) -> rect_type
 		{
-			auto& image = *image_ptr;
 			rect_type rect;
 			rect.x = 0;
 			rect.y = 0;
-			rect.h = image.height + 2 * padding; // <--- add vertical padding
-			rect.w = image.width + 2 * padding; // <--- add horizontal padding
+			rect.h = image_ptr->height + 2 * padding; // <--- add vertical padding
+			rect.w = image_ptr->width + 2 * padding; // <--- add horizontal padding
 			return rect;
 		});
 
