@@ -36,7 +36,7 @@ void ImagePack::repack()
 	auto image_vec_data = image_vec.data();
 	auto rect_vec_data = rect_vec.data();
 
-	std::transform(std::execution::par_unseq, image_vec_data, image_vec_data + image_vec_size, rect_vec_data,
+	std::transform(image_vec_data, image_vec_data + image_vec_size, rect_vec_data,
 		[&](Image* image_ptr) -> rect_type
 		{
 			rect_type rect;
