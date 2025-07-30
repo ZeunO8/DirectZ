@@ -76,6 +76,7 @@ namespace dz
 
 #include "env.cpp"
 #include "path.cpp"
+
 #include "FileHandle.cpp"
 #include "AssetPack.cpp"
 #include "Renderer.cpp"
@@ -88,13 +89,19 @@ namespace dz
 #include "D7Stream.cpp"
 #include "ImGuiLayer.cpp"
 #include "Displays.cpp"
+
 #include "ECS/Camera.cpp"
 #include "ECS/Entity.cpp"
 #include "ECS/Shape.cpp"
 #include "ECS/Light.cpp"
 #include "ECS/Material.cpp"
+
 #include "State.cpp"
 #include "Reflectable.cpp"
+#include "ImagePack.cpp"
+
+#include "Loaders/STB_Image_Loader.cpp"
+
 #include "runtime.cpp"
 
 template<typename T>

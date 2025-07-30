@@ -19,6 +19,7 @@ include(CMakePackageConfigHelpers)
 
 include(cmake/PlatformDefinitions.cmake)
 include(cmake/InstallPaths.cmake)
+include(cmake/Dependencies.cmake)
 
 set(DZ_SOURCES src/DirectZ.cpp)
 
@@ -39,50 +40,22 @@ set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
 target_compile_features(DirectZ PRIVATE cxx_std_20)
 target_compile_features(dzp PRIVATE cxx_std_20)
 
-if(ANDROID)
-    set(VULKAN_LIB_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${ANDROID_TRIPLET}/${ANDROID_PLATFORM_LEVEL}/libvulkan.so")
-    set(VULKAN_INCLUDE_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")
-    add_library(Vulkan::Vulkan SHARED IMPORTED GLOBAL)
-    set_target_properties(Vulkan::Vulkan PROPERTIES
-        IMPORTED_LOCATION "${VULKAN_LIB_PATH}"
-        INTERFACE_INCLUDE_DIRECTORIES "${VULKAN_INCLUDE_PATH}"
-    )
-    set(Vulkan_FOUND TRUE)
-elseif(IOS)
-	list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
-	find_package(Vulkan REQUIRED COMPONENTS MoltenVK)
-else()
-	find_package(Vulkan REQUIRED)
-endif()
-
-message(STATUS "Vulkan_INCLUDE_DIRS: ${Vulkan_INCLUDE_DIRS}")
-
-set(FETCHCONTENT_QUIET OFF)
-include(FetchContent)
-
-include(cmake/SwiftShader.cmake)
-include(cmake/GLSL.cmake)
-include(cmake/ImGui.cmake)
-include(cmake/iostreams.cmake)
-
 include(cmake/dz-targets.cmake)
 
-target_include_directories(DirectZ PRIVATE
+set(DIRECTZ_INCLUDE_DIRS
 	include
 	${Vulkan_INCLUDE_DIRS}
 	${spirv_reflect_SOURCE_DIR}
 	${imgui_SOURCE_DIR}
 	${imguizmo_SOURCE_DIR}
 	${iostreams_SOURCE_DIR}/include
+	${rectpack_SOURCE_DIR}/src
+	${stb_SOURCE_DIR}
 )
 
-target_include_directories(dzp PRIVATE
-	include
-	${Vulkan_INCLUDE_DIRS}
-	${imgui_SOURCE_DIR}
-	${imguizmo_SOURCE_DIR}
-	${iostreams_SOURCE_DIR}/include
-)
+target_include_directories(DirectZ PRIVATE ${DIRECTZ_INCLUDE_DIRS})
+
+target_include_directories(dzp PRIVATE ${DIRECTZ_INCLUDE_DIRS})
 
 target_link_libraries(DirectZ PRIVATE
 	Vulkan::Vulkan

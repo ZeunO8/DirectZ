@@ -25,6 +25,8 @@
 #include <dz/Reflectable.hpp>
 #include <dz/Displays.hpp>
 #include <dz/State.hpp>
+#include <dz/TypeLoader.hpp>
+#include <dz/Loaders/STB_Image_Loader.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)

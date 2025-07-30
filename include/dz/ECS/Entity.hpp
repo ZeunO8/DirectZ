@@ -97,7 +97,7 @@ vec4 GetEntityVertexColor(in Entity entity) {
         };
 
         struct EntityReflectableGroup : ReflectableGroup {
-            BufferGroup* buffer_group = 0;
+            BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             std::vector<std::shared_ptr<ReflectableGroup>> component_groups;

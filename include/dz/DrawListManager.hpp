@@ -186,7 +186,7 @@ namespace dz
             return drawInformation;
         }
 
-        void SetDirty() {
+        void MarkDirty() {
             draw_list_dirty = true;
         }
     };
