@@ -7,7 +7,8 @@ set(SHADERC_ENABLE_WERROR_COMPILE OFF)
 message(STATUS "FetchContent: shaderc")
 FetchContent_Declare(shaderc
     GIT_REPOSITORY https://github.com/google/shaderc.git
-    GIT_TAG main)
+    GIT_TAG main
+    GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(shaderc)
 
 set_target_properties(shaderc PROPERTIES DEBUG_POSTFIX "d")
@@ -27,7 +28,8 @@ set(SPIRV_REFLECT_STATIC_LIB ON)
 set(SPIRV_REFLECT_INSTALL OFF)
 FetchContent_Declare(spirv_reflect
     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Reflect.git
-    GIT_TAG main)
+    GIT_TAG main
+    GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(spirv_reflect)
 
 set_target_properties(spirv-reflect-static PROPERTIES DEBUG_POSTFIX "d")
