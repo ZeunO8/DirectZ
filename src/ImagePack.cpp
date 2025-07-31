@@ -76,7 +76,6 @@ void ImagePack::repack()
 			auto image_data = (char*)image.data.get();
 			auto& rect = rect_vec_data[index];
 
-			// Ensure sizes match (excluding padding)
 			if (image.width != rect.w - 2 * padding || image.height != rect.h - 2 * padding)
 			{
 				continue;
@@ -94,28 +93,46 @@ void ImagePack::repack()
 
 					switch (format)
 					{
-					case VK_FORMAT_R8_UNORM:
-						dst_pixel[0] = *(const uint8_t*)src_pixel;
-						dst_pixel[1] = 0;
-						dst_pixel[2] = 0;
-						dst_pixel[3] = 255;
-						break;
-					case VK_FORMAT_R8G8_UNORM:
-						dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
-						dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
-						dst_pixel[2] = 0;
-						dst_pixel[3] = 255;
-						break;
-					case VK_FORMAT_R8G8B8_UNORM:
-						dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
-						dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
-						dst_pixel[2] = ((const uint8_t*)src_pixel)[2];
-						dst_pixel[3] = 255;
-						break;
-					case VK_FORMAT_R8G8B8A8_UNORM:
-						std::memcpy(dst_pixel, src_pixel, 4);
-						break;
-					case VK_FORMAT_R32G32B32A32_SFLOAT:
+						case VK_FORMAT_R8_UNORM:
+						case VK_FORMAT_R8_UINT:
+						case VK_FORMAT_R8_SNORM:
+						case VK_FORMAT_R8_SINT:
+						case VK_FORMAT_S8_UINT:
+							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
+							dst_pixel[1] = dst_pixel[2] = 0;
+							dst_pixel[3] = 255;
+							break;
+
+						case VK_FORMAT_R8G8_UNORM:
+						case VK_FORMAT_R8G8_UINT:
+						case VK_FORMAT_R8G8_SNORM:
+						case VK_FORMAT_R8G8_SINT:
+							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
+							dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
+							dst_pixel[2] = 0;
+							dst_pixel[3] = 255;
+							break;
+
+						case VK_FORMAT_R8G8B8_UNORM:
+						case VK_FORMAT_R8G8B8_UINT:
+						case VK_FORMAT_R8G8B8_SNORM:
+						case VK_FORMAT_R8G8B8_SINT:
+							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
+							dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
+							dst_pixel[2] = ((const uint8_t*)src_pixel)[2];
+							dst_pixel[3] = 255;
+							break;
+
+						case VK_FORMAT_R8G8B8A8_UNORM:
+						case VK_FORMAT_R8G8B8A8_UINT:
+						case VK_FORMAT_R8G8B8A8_SNORM:
+						case VK_FORMAT_R8G8B8A8_SINT:
+						case VK_FORMAT_B8G8R8A8_UNORM:
+						case VK_FORMAT_B8G8R8A8_SRGB:
+							std::memcpy(dst_pixel, src_pixel, 4);
+							break;
+
+						case VK_FORMAT_R32G32B32A32_SFLOAT:
 						{
 							const float* fp = (const float*)src_pixel;
 							dst_pixel[0] = static_cast<uint8_t>(std::clamp(fp[0], 0.0f, 1.0f) * 255.0f);
@@ -124,40 +141,59 @@ void ImagePack::repack()
 							dst_pixel[3] = static_cast<uint8_t>(std::clamp(fp[3], 0.0f, 1.0f) * 255.0f);
 							break;
 						}
-					case VK_FORMAT_D32_SFLOAT:
+
+						case VK_FORMAT_D32_SFLOAT:
 						{
 							float d = *(const float*)src_pixel;
-							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = static_cast<uint8_t>(std::clamp(d, 0.0f, 1.0f) * 255.0f);
+							uint8_t gray = static_cast<uint8_t>(std::clamp(d, 0.0f, 1.0f) * 255.0f);
+							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = gray;
 							dst_pixel[3] = 255;
 							break;
 						}
-					case VK_FORMAT_R8_UINT:
+
+						case VK_FORMAT_D32_SFLOAT_S8_UINT:
 						{
-							uint8_t s = *(const uint8_t*)src_pixel;
-							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = s;
-							dst_pixel[3] = 255;
-							break;
-						}
-					case VK_FORMAT_D32_SFLOAT_S8_UINT:
-						{
-							uint32_t packed = *(const uint32_t*)src_pixel;
-							float depth = *((float*)&packed);
-							dst_pixel[0] = packed & 0xFF;
+							float depth = *(const float*)src_pixel;
+							const uint8_t* s8 = (const uint8_t*)(src_pixel + sizeof(float));
+							dst_pixel[0] = *s8;
 							dst_pixel[1] = dst_pixel[2] = static_cast<uint8_t>(std::clamp(depth, 0.0f, 1.0f) * 255.0f);
 							dst_pixel[3] = 255;
 							break;
 						}
-					// case VK_FORMAT_R32_UINT:
-					// 	{
-					// 		uint32_t val = *(const unsigned int32_t*)src_pixel;
-					// 		dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = static_cast<uint8_t>(std::clamp(val, 0, 255));
-					// 		dst_pixel[3] = 255;
-					// 		break;
-					// 	}
-					default:
-						dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = 0;
-						dst_pixel[3] = 255;
-						break;
+
+						case VK_FORMAT_R32_UINT:
+						{
+							uint32_t val = *(const uint32_t*)src_pixel;
+							uint8_t clamped = static_cast<uint8_t>(std::clamp<int>(val, 0, 255));
+							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = clamped;
+							dst_pixel[3] = 255;
+							break;
+						}
+
+						case VK_FORMAT_R5G6B5_UNORM_PACK16:
+						{
+							uint16_t p = *(const uint16_t*)src_pixel;
+							dst_pixel[0] = ((p >> 11) & 0x1F) << 3;
+							dst_pixel[1] = ((p >> 5) & 0x3F) << 2;
+							dst_pixel[2] = (p & 0x1F) << 3;
+							dst_pixel[3] = 255;
+							break;
+						}
+
+						case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
+						{
+							uint16_t p = *(const uint16_t*)src_pixel;
+							dst_pixel[0] = ((p >> 10) & 0x1F) << 3;
+							dst_pixel[1] = ((p >> 5) & 0x1F) << 3;
+							dst_pixel[2] = (p & 0x1F) << 3;
+							dst_pixel[3] = (p & 0x8000) ? 255 : 0;
+							break;
+						}
+
+						default:
+							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = 0;
+							dst_pixel[3] = 255;
+							break;
 					}
 				}
 			}
