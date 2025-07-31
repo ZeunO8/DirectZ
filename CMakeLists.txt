@@ -108,8 +108,6 @@ include(./Tests.cmake)
 
 include(./cmake/Install.cmake)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-macro-redefined")
-
 include(./cmake/Package.cmake)
 
 set(DZ_COMPONENTS Core)
