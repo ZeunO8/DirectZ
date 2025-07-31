@@ -477,50 +477,176 @@ namespace dz {
         return {layout, descriptorSet};
     }
     
-    std::pair<int, size_t> image_get_channels_size_of_t(Image* image) {
+    std::vector<float> image_get_channels_size_of_t(Image* image)
+    {
         int channels = 0;
-        size_t sizeoftype = 0;
+        float sizeoftype = 0;
+
         switch (image->format)
         {
-        case VK_FORMAT_R8_UNORM:
-            channels = 1;
-            sizeoftype = sizeof(unsigned char);
-            break;
-        case VK_FORMAT_R8G8_UNORM:
-            channels = 2;
-            sizeoftype = sizeof(unsigned char);
-            break;
-        case VK_FORMAT_R8G8B8_UNORM:
-            channels = 3;
-            sizeoftype = sizeof(unsigned char);
-            break;
-        case VK_FORMAT_R8G8B8A8_UNORM:
-            channels = 4;
-            sizeoftype = sizeof(unsigned char);
-            break;
-        case VK_FORMAT_R32G32B32A32_SFLOAT:
-            channels = 4;
-            sizeoftype = sizeof(float);
-            break;
-        case VK_FORMAT_D32_SFLOAT:
-            channels = 1;
-            sizeoftype = sizeof(float);
-            break;
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            channels = 1;
-            sizeoftype = sizeof(float);
-            break;
-        case VK_FORMAT_R8_UINT:
-            channels = 1;
-            sizeoftype = sizeof(unsigned int);
-            break;
-        default:
-            break;
+            case VK_FORMAT_R4G4_UNORM_PACK8:
+                channels = 2;
+                sizeoftype = 0.5;
+                break;
+
+            case VK_FORMAT_R4G4B4A4_UNORM_PACK16:
+            case VK_FORMAT_B4G4R4A4_UNORM_PACK16:
+            case VK_FORMAT_A4R4G4B4_UNORM_PACK16_EXT:
+            case VK_FORMAT_A4B4G4R4_UNORM_PACK16_EXT:
+                channels = 4;
+                sizeoftype = 0.5;
+                break;
+
+            case VK_FORMAT_R5G6B5_UNORM_PACK16:
+            case VK_FORMAT_B5G6R5_UNORM_PACK16:
+                channels = 3;
+                sizeoftype = 2;
+                break;
+
+            case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
+            case VK_FORMAT_B5G5R5A1_UNORM_PACK16:
+            case VK_FORMAT_A1R5G5B5_UNORM_PACK16:
+                channels = 4;
+                sizeoftype = 2;
+                break;
+
+            case VK_FORMAT_R8_UNORM:
+            case VK_FORMAT_R8_SRGB:
+            case VK_FORMAT_R8_UINT:
+            case VK_FORMAT_S8_UINT:
+            case VK_FORMAT_R8_SNORM:
+            case VK_FORMAT_R8_USCALED:
+            case VK_FORMAT_R8_SSCALED:
+            case VK_FORMAT_R8_SINT:
+                channels = 1;
+                sizeoftype = sizeof(uint8_t);
+                break;
+
+            case VK_FORMAT_R8G8_UNORM:
+            case VK_FORMAT_R8G8_UINT:
+            case VK_FORMAT_R8G8_SRGB:
+            case VK_FORMAT_R8G8_SNORM:
+            case VK_FORMAT_R8G8_SINT:
+                channels = 2;
+                sizeoftype = sizeof(uint8_t);
+                break;
+
+            case VK_FORMAT_R8G8B8_UNORM:
+            case VK_FORMAT_R8G8B8_UINT:
+            case VK_FORMAT_R8G8B8_SRGB:
+            case VK_FORMAT_R8G8B8_SNORM:
+            case VK_FORMAT_R8G8B8_SINT:
+                channels = 3;
+                sizeoftype = sizeof(uint8_t);
+                break;
+
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_R8G8B8A8_UINT:
+            case VK_FORMAT_R8G8B8A8_SRGB:
+            case VK_FORMAT_R8G8B8A8_SNORM:
+            case VK_FORMAT_R8G8B8A8_SINT:
+            case VK_FORMAT_B8G8R8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_SRGB:
+                channels = 4;
+                sizeoftype = sizeof(uint8_t);
+                break;
+
+            case VK_FORMAT_R16_UNORM:
+            case VK_FORMAT_R16_UINT:
+            case VK_FORMAT_R16_SFLOAT:
+                channels = 1;
+                sizeoftype = sizeof(uint16_t);
+                break;
+
+            case VK_FORMAT_R16G16_UNORM:
+            case VK_FORMAT_R16G16_UINT:
+            case VK_FORMAT_R16G16_SFLOAT:
+                channels = 2;
+                sizeoftype = sizeof(uint16_t);
+                break;
+
+            case VK_FORMAT_R16G16B16_UNORM:
+            case VK_FORMAT_R16G16B16_UINT:
+            case VK_FORMAT_R16G16B16_SFLOAT:
+                channels = 3;
+                sizeoftype = sizeof(uint16_t);
+                break;
+
+            case VK_FORMAT_R16G16B16A16_UNORM:
+            case VK_FORMAT_R16G16B16A16_UINT:
+            case VK_FORMAT_R16G16B16A16_SFLOAT:
+                channels = 4;
+                sizeoftype = sizeof(uint16_t);
+                break;
+
+            case VK_FORMAT_R32_UINT:
+            case VK_FORMAT_R32_SFLOAT:
+                channels = 1;
+                sizeoftype = sizeof(uint32_t);
+                break;
+
+            case VK_FORMAT_R32G32_UINT:
+            case VK_FORMAT_R32G32_SFLOAT:
+                channels = 2;
+                sizeoftype = sizeof(uint32_t);
+                break;
+
+            case VK_FORMAT_R32G32B32_UINT:
+            case VK_FORMAT_R32G32B32_SFLOAT:
+                channels = 3;
+                sizeoftype = sizeof(uint32_t);
+                break;
+
+            case VK_FORMAT_R32G32B32A32_UINT:
+            case VK_FORMAT_R32G32B32A32_SFLOAT:
+                channels = 4;
+                sizeoftype = sizeof(uint32_t);
+                break;
+
+            case VK_FORMAT_D16_UNORM:
+                channels = 1;
+                sizeoftype = sizeof(uint16_t);
+                break;
+
+            case VK_FORMAT_D24_UNORM_S8_UINT:
+                return { 3, 1 };
+
+            case VK_FORMAT_D32_SFLOAT:
+                channels = 1;
+                sizeoftype = sizeof(float);
+                break;
+
+            case VK_FORMAT_D32_SFLOAT_S8_UINT:
+                return { sizeof(float), sizeof(uint8_t) };
+
+            case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+                return { 4 };
+
+            case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+                return { 4 };
+
+            default:
+                break;
         }
-        return {channels, sizeoftype};
+
+        std::vector<float> vec;
+        vec.reserve(channels);
+        for (int i = 0; i < channels; ++i)
+        {
+            vec.push_back(sizeoftype);
+        }
+
+        return vec;
     }
 
     void image_upload_data(Image* image, void* data) {
         
+    }
+
+    size_t image_get_sizeof_channels(const std::vector<float>& channels) {
+        float size = 0;
+        for (auto& c : channels)
+            size += c;
+        return size_t(size);
     }
 }

@@ -74,5 +74,12 @@ namespace dz
     /**
     * @brief Gets the Channels and Size Of Type as a pair
     */
-    std::pair<int, size_t> image_get_channels_size_of_t(Image* image);
+    std::vector<float> image_get_channels_size_of_t(Image* image);
+
+    /**
+    * @brief Computes the total size of a channels vector
+    *
+    * @returns the channels pixel stride in bytes
+    */
+    size_t image_get_sizeof_channels(const std::vector<float>& channels);
 }
