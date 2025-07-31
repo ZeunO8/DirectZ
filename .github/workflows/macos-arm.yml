@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  configure-build-and-package-macos-arm:
+  build-macos-arm:
     runs-on: macos-latest
     steps:
 

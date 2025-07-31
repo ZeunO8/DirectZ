@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  configure-build-and-package-ubuntu:
+  build-ubuntu-x86_64:
     runs-on: ubuntu-latest
     steps:
       - name: Maximize build space
