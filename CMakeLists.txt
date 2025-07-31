@@ -53,6 +53,7 @@ set(DIRECTZ_INCLUDE_DIRS
 	${iostreams_SOURCE_DIR}/include
 	${rectpack_SOURCE_DIR}/src
 	${stb_SOURCE_DIR}
+	${assimp_SOURCE_DIR}/include
 )
 
 target_include_directories(DirectZ PRIVATE ${DIRECTZ_INCLUDE_DIRS})
@@ -71,6 +72,7 @@ target_link_libraries(DirectZ PRIVATE
 	SPIRV-Tools-opt
 	iostreams
 	archive_static
+	assimp
 )
 
 target_link_libraries(dzp PRIVATE DirectZ)

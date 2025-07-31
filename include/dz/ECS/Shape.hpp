@@ -41,7 +41,7 @@ vec2 GetShapeUV2(in Entity entity) {
 )" }
         };
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {0.0, R"(
+            {0.0f, R"(
     vec3 shape_vertex = GetShapeVertex(entity);
     vec3 shape_normal = GetShapeNormal(entity);
     vec2 shape_uv2 = GetShapeUV2(entity);
@@ -156,4 +156,5 @@ vec2 GetShapeUV2(in Entity entity) {
 
     std::pair<int, int> RegisterPlaneShape();
     std::pair<int, int> RegisterCubeShape();
+    std::pair<int, int> RegisterMeshShape();
 }

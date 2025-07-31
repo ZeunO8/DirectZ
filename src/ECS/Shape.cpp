@@ -106,4 +106,34 @@ vec2 GetCubeUV2(in Entity entity) {
     );
 }
 
+std::pair<int, int> ecs::RegisterMeshShape() {
+    return Shape::RegisterShape(
+        "Mesh",
+        R"(
+vec3 GetMeshVertex(in Entity entity) {
+    if (entity.mesh_index == -1)
+        return vec3(0.0);
+    int position_offset = Meshs.data[entity.mesh_index].position_offset;
+    return VertexPositions.data[position_offset + gl_VertexIndex].xyz;
+}
+)",
+        R"(
+vec3 GetMeshNormal(in Entity entity) {
+    if (entity.mesh_index == -1)
+        return vec3(0.0);
+    int normal_offset = Meshs.data[entity.mesh_index].normal_offset;
+    return VertexNormals.data[normal_offset + gl_VertexIndex].xyz;
+}
+)",
+        R"(
+vec2 GetMeshUV2(in Entity entity) {
+    if (entity.mesh_index == -1)
+        return vec2(0.0);
+    int uv2_offset = Meshs.data[entity.mesh_index].uv2_offset;
+    return VertexUV2s.data[uv2_offset + gl_VertexIndex];
+}
+)"
+    );
+}
+
 } // namespace dz

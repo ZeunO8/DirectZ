@@ -95,6 +95,7 @@ namespace dz
 #include "ECS/Shape.cpp"
 #include "ECS/Light.cpp"
 #include "ECS/Material.cpp"
+#include "ECS/Mesh.cpp"
 
 #include "State.cpp"
 #include "Reflectable.cpp"

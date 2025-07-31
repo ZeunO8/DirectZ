@@ -1,16 +1,20 @@
 #pragma once
 #include "Provider.hpp"
 #include "Shape.hpp"
+#include "Mesh.hpp"
 #include "../math.hpp"
 #include <set>
 
-#define ECS_MAX_COMPONENTS 8
 namespace dz::ecs {
     struct Entity : Provider<Entity> {
         int material_index = -1;
         int shape_index = -1;
         int parent_index = -1;
+        int parent_cid = 0;
         int enabled_components = 0;
+        int mesh_index = -1;
+        int padding2 = 0;
+        int padding3 = 0;
         vec<float, 4> position = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);
         vec<float, 4> rotation = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);;
         vec<float, 4> scale = vec<float, 4>(1.0f, 1.0f, 1.0f, 1.0f);;
@@ -18,7 +22,7 @@ namespace dz::ecs {
         
         inline static constexpr size_t PID = 1;
         inline static float Priority = 0.5f;
-        inline static constexpr bool IsDrawProvider = true;
+        inline static constexpr bool IsEntityProvider = true;
         inline static std::string ProviderName = "Entity";
         inline static std::string StructName = "Entity";
         inline static std::string GLSLStruct = R"(
@@ -26,19 +30,62 @@ struct Entity {
     int material_index;
     int shape_index;
     int parent_index;
+    int parent_cid;
     int enabled_components;
+    int mesh_index;
+    int padding2;
+    int padding3;
     vec4 position;
     vec4 rotation;
     vec4 scale;
     mat4 model;
 };
 )";
+
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
             { ShaderModuleType::Vertex, R"(
 vec4 GetEntityVertexColor(in Entity entity) {
     return vec4(0, 0, 1, 0.8);
 }
-)" }
+)" },
+            { ShaderModuleType::Compute, R"(
+void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, out int parent_cid) {
+    Entity entity = GetEntityData(entity_index);
+
+    mat4 model = mat4(1.0);
+    model[3] = vec4(entity.position.xyz, 1.0);
+
+    mat4 scale = mat4(1.0);
+    scale[0].xyz *= entity.scale.x;
+    scale[1].xyz *= entity.scale.y;
+    scale[2].xyz *= entity.scale.z;
+
+    mat4 rotX = mat4(1.0);
+    rotX[1][1] =  cos(entity.rotation.x);
+    rotX[1][2] = -sin(entity.rotation.x);
+    rotX[2][1] =  sin(entity.rotation.x);
+    rotX[2][2] =  cos(entity.rotation.x);
+
+    mat4 rotY = mat4(1.0);
+    rotY[0][0] =  cos(entity.rotation.y);
+    rotY[0][2] =  sin(entity.rotation.y);
+    rotY[2][0] = -sin(entity.rotation.y);
+    rotY[2][2] =  cos(entity.rotation.y);
+
+    mat4 rotZ = mat4(1.0);
+    rotZ[0][0] =  cos(entity.rotation.z);
+    rotZ[0][1] = -sin(entity.rotation.z);
+    rotZ[1][0] =  sin(entity.rotation.z);
+    rotZ[1][1] =  cos(entity.rotation.z);
+
+    mat4 rot = rotZ * rotY * rotX;
+
+    out_model = model * rot * scale;
+
+    parent_index = entity.parent_index;
+    parent_cid = entity.parent_cid;
+}
+)"}
         };
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
@@ -48,11 +95,13 @@ vec4 GetEntityVertexColor(in Entity entity) {
         };
 
         uint32_t GetVertexCount(BufferGroup* buffer_group, Entity& entity) {
-            auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Shapes");
-            auto& shape = *(Shape*)(buffer_ptr.get() + (sizeof(Shape) * entity.shape_index));
-            if (shape.vertex_count == -1 /* && mesh */)
+            auto shape_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Shapes");
+            auto& shape = *(Shape*)(shape_buffer_sh_ptr.get() + (sizeof(Shape) * entity.shape_index));
+            if (shape.type == 1) // mesh
             {
-                // Lookup mesh?
+                auto mesh_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Meshs");
+                auto& mesh = *(Mesh*)(mesh_buffer_sh_ptr.get() + (sizeof(Mesh) * entity.mesh_index));
+                return mesh.vertex_count;
             }
             return shape.vertex_count;
         }

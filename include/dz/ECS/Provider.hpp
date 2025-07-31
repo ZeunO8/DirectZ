@@ -30,9 +30,9 @@ namespace dz {
             return 0;
         }
 
-        inline static constexpr bool GetIsDrawProvider() {
-            if constexpr (requires { T::IsDrawProvider; }) {
-                return T::IsDrawProvider;
+        inline static constexpr bool GetIsEntityProvider() {
+            if constexpr (requires { T::IsEntityProvider; }) {
+                return T::IsEntityProvider;
             }
             return false;
         }
@@ -54,6 +54,13 @@ namespace dz {
         inline static constexpr bool GetIsMaterialProvider() {
             if constexpr (requires { T::IsMaterialProvider; }) {
                 return T::IsMaterialProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsMeshProvider() {
+            if constexpr (requires { T::IsMeshProvider; }) {
+                return T::IsMeshProvider;
             }
             return false;
         }
@@ -120,9 +127,9 @@ namespace dz {
     };
 
     template<typename T>
-    struct IsDrawProvider
+    struct IsEntityProvider
     {
-        static constexpr bool value = Provider<T>::GetIsDrawProvider();
+        static constexpr bool value = Provider<T>::GetIsEntityProvider();
     };
 
     template<typename T>
@@ -141,6 +148,12 @@ namespace dz {
     struct IsMaterialProvider
     {
         static constexpr bool value = Provider<T>::GetIsMaterialProvider();
+    };
+
+    template<typename T>
+    struct IsMeshProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsMeshProvider();
     };
 
     template<template<typename> class Trait, typename... Ts>

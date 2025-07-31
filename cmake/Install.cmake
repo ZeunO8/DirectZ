@@ -8,7 +8,10 @@ set(DirectZ_TGTS
     SPIRV SPIRV-Tools-static SPIRV-Tools-opt
     imgui imguizmo
 	iostreams
-	archive_static)
+	archive_static
+    assimp
+    zlibstatic
+)
 
 function(set_output_dir TGT)
     message(STATUS "Setting ${TGT} to ${CMAKE_BINARY_DIR}")

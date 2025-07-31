@@ -27,6 +27,7 @@
 #include <dz/State.hpp>
 #include <dz/TypeLoader.hpp>
 #include <dz/Loaders/STB_Image_Loader.hpp>
+#include <dz/Loaders/Mesh_Entity_Loader.hpp>
 
 #ifdef _WIN32
 #define DZ_EXPORT extern "C" __declspec(dllexport)
