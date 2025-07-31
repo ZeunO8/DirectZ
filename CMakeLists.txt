@@ -35,6 +35,8 @@ endif()
 
 add_executable(dzp src/DZP.cpp)
 
+list(APPEND DirectZ_EXES dzp)
+
 set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
 
 target_compile_features(DirectZ PRIVATE cxx_std_20)
