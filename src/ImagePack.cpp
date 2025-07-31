@@ -70,9 +70,10 @@ void ImagePack::repack()
 		{
 			auto& image_ptr = image_vec_data[index];
 			auto& image = *image_ptr;
-			auto [channels, sizeoftype] = image_get_channels_size_of_t(image_ptr);
+			auto channels = image_get_channels_size_of_t(image_ptr);
+			auto sizeof_channels = image_get_sizeof_channels(channels);
 			auto format = image.format;
-			auto* image_data = (char*)image.data.get();
+			auto image_data = (char*)image.data.get();
 			auto& rect = rect_vec_data[index];
 
 			// Ensure sizes match (excluding padding)
@@ -83,13 +84,13 @@ void ImagePack::repack()
 
 			for (int y = 0; y < image.height; ++y)
 			{
-				uint8_t* dst_row = &rgba[((rect.y + padding + y) * atlas_width + (rect.x + padding)) * 4];
-				const char* src_row = &image_data[(y * image.width) * channels * sizeoftype];
+				auto dst_row = &rgba[((rect.y + padding + y) * atlas_width + (rect.x + padding)) * 4];
+				const auto src_row = &image_data[(y * image.width) * sizeof_channels];
 
 				for (int x = 0; x < image.width; ++x)
 				{
-					const char* src_pixel = src_row + x * channels * sizeoftype;
-					uint8_t* dst_pixel = dst_row + x * 4;
+					const auto src_pixel = src_row + x * sizeof_channels;
+					auto dst_pixel = dst_row + x * 4;
 
 					switch (format)
 					{
