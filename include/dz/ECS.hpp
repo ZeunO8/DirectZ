@@ -98,11 +98,11 @@ namespace dz {
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
         bool components_registered = false; // !
 
-        using DrawProviderT = typename FirstMatchingOrDefault<IsDrawProvider, TProviders...>::type;
+        using EntityProviderT = typename FirstMatchingOrDefault<IsEntityProvider, TProviders...>::type;
         using CameraProviderT = typename FirstMatchingOrDefault<IsCameraProvider, TProviders...>::type;
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
         using MaterialProviderT = typename FirstMatchingOrDefault<IsMaterialProvider, TProviders...>::type;
-        DrawListManager<DrawProviderT> draw_mg; // !
+        DrawListManager<EntityProviderT> draw_mg; // !
 
         BufferGroup* buffer_group = nullptr; // !
         bool buffer_initialized = false; // !
@@ -155,7 +155,7 @@ namespace dz {
                     for (auto& ref_group_sh_ptr : *node_ptr) {
                         auto ref_group_ptr = ref_group_sh_ptr.get();
                         assert(ref_group_ptr);
-                        auto e_group_ptr = dynamic_cast<DrawProviderT::ReflectableGroup*>(ref_group_ptr);
+                        auto e_group_ptr = dynamic_cast<EntityProviderT::ReflectableGroup*>(ref_group_ptr);
                         if (e_group_ptr) {
                             visible.push_back(e_group_ptr->index);
                             add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit);
@@ -181,17 +181,17 @@ namespace dz {
         }
 
         template <typename TqProvider>
-        void IsDrawProviderName(std::string& out_string) {
+        void IsEntityProviderName(std::string& out_string) {
             if (!out_string.empty())
                 return;
-            if (TqProvider::GetIsDrawProvider()) {
+            if (TqProvider::GetIsEntityProvider()) {
                 out_string = (TqProvider::GetStructName() + "s");
             }
         }
 
         std::string FindBufferNameFromProviders() {
             std::string out_string;
-            (IsDrawProviderName<TProviders>(out_string), ...);
+            (IsEntityProviderName<TProviders>(out_string), ...);
             return out_string;
         }
 
@@ -547,7 +547,7 @@ namespace dz {
             }
 
             if constexpr (TProvider::GetIsComponent()) {
-                auto& parent_entity_group = GetGroup<DrawProviderT, typename DrawProviderT::ReflectableGroup>(parent_id);
+                auto& parent_entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(parent_id);
 
                 auto sparse = buffer_group_get_buffer_data_ptr(buffer_group, provider_group.sparse_name);
                 auto sparse_ptr = ((int*)(sparse.get()));
@@ -687,8 +687,8 @@ namespace dz {
             return p_ptr[index];
         }
 
-        DrawProviderT& GetEntity(size_t entity_id) {
-            return GetProviderData<DrawProviderT>(entity_id);
+        EntityProviderT& GetEntity(size_t entity_id) {
+            return GetProviderData<EntityProviderT>(entity_id);
         }
 
         template <typename TCamera>
@@ -733,7 +733,7 @@ namespace dz {
         template <typename TComponent>
         size_t ConstructComponent(size_t entity_id, const TComponent& data) {
             auto& entity = GetEntity(entity_id);
-            auto& entity_group = GetGroup<DrawProviderT, typename DrawProviderT::ReflectableGroup>(entity_id);
+            auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
             constexpr auto component_type_id = TComponent::GetComponentID();
             int mask = 1 << (component_type_id - 1);
             if (entity.enabled_components & mask)
