@@ -17,10 +17,10 @@ using ExampleECS = ECS<
     CID_MIN,
     Scene,
     Entity,
-    Material,
-    Shape,
+    Mesh,
+    SubMesh,
     Camera,
-    Mesh
+    Material
 #ifdef ENABLE_LIGHTS
     , Light
 #endif
@@ -54,12 +54,12 @@ PropertyEditor property_editor;
 
 WINDOW* window = nullptr;
 
-int mesh_shape_id = -1;
-int mesh_shape_index = -1;
-int plane_shape_id = -1;
-int plane_shape_index = -1;
-int cube_shape_id = -1;
-int cube_shape_index = -1;
+// int mesh_shape_id = -1;
+// int mesh_shape_index = -1;
+// int plane_shape_id = -1;
+// int plane_shape_index = -1;
+// int cube_shape_id = -1;
+// int cube_shape_index = -1;
 
 auto set_pair_id_index(auto pair, auto& id, auto& index) {
     id = pair.first;
@@ -68,14 +68,14 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
 
 using TL = TypeLoader<STB_Image_Loader>;
 
-std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs);
+std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
 
 int main() {
     ExampleECS::RegisterStateCID();
 
-    set_pair_id_index(RegisterMeshShape(), mesh_shape_id, mesh_shape_index);
-    set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
-    set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
+    // set_pair_id_index(RegisterMeshShape(), mesh_shape_id, mesh_shape_index);
+    // set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
+    // set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
     std::filesystem::path ioPath("ECS-Test.dat");
 
@@ -109,22 +109,20 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        ecs.SetProviderCount("Shapes", 3);
-        auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
+        // ecs.SetProviderCount("Shapes", 3);
+        // auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
-        auto& mesh_shape = shapes_ptr[0];
-        mesh_shape.type = mesh_shape_id;
-        mesh_shape.vertex_count = -1;
+        // auto& mesh_shape = shapes_ptr[0];
+        // mesh_shape.type = mesh_shape_id;
+        // mesh_shape.vertex_count = -1;
 
-        auto& plane_shape = shapes_ptr[1];
-        plane_shape.type = plane_shape_id;
-        plane_shape.vertex_count = 6;
+        // auto& plane_shape = shapes_ptr[1];
+        // plane_shape.type = plane_shape_id;
+        // plane_shape.vertex_count = 6;
 
-        auto& cube_shape = shapes_ptr[2];
-        cube_shape.type = cube_shape_id;
-        cube_shape.vertex_count = 36;
-
-        auto [mesh1_id, mesh1_index] = AddPyramidMesh(ecs);
+        // auto& cube_shape = shapes_ptr[2];
+        // cube_shape.type = cube_shape_id;
+        // cube_shape.vertex_count = 36;
 
         int mat1_index = -1;
         auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
@@ -138,6 +136,8 @@ int main() {
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
         }, mat2_index);
 
+        auto [mesh1_id, mesh1_index] = AddPyramidMesh(ecs, mat2_index);
+
         int mat3_index = -1;
         auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
         auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
@@ -149,30 +149,30 @@ int main() {
 
         auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_id = ecs.AddEntity(scene1_id, Entity{
-            .material_index = mat1_index,
-            .shape_index = plane_shape_index
-        });
-        auto e2_id = ecs.AddEntity(scene1_id, Entity{
-            .material_index = mat3_index,
-            .shape_index = plane_shape_index,
-            .position = {1.f, 1.f, 0.f, 1.f}
-        });
+        // auto e1_id = ecs.AddEntity(scene1_id, Entity{
+        //     .material_index = mat1_index//,
+        //     // .shape_index = plane_shape_index
+        // });
+        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
+        //     .material_index = mat3_index,
+        //     // .shape_index = plane_shape_index,
+        //     .position = {1.f, 1.f, 0.f, 1.f}
+        // });
 
         auto scene2_id = ecs.AddScene(Scene{});
 
         auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e3_id = ecs.AddEntity(scene2_id, Entity{
-            .material_index = mat2_index,
-            .shape_index = cube_shape_index
-        });
+        // auto e3_id = ecs.AddEntity(scene2_id, Entity{
+        //     .material_index = mat2_index//,
+        //     // .shape_index = cube_shape_index
+        // });
         auto e4_id = ecs.AddEntity(scene2_id, Entity{
-            .material_index = mat2_index,
-            .shape_index = mesh_shape_index,
-            .mesh_index = mesh1_index,
+            // .material_index = mat2_index,
+            // .shape_index = mesh_shape_index,
+            // .mesh_index = mesh1_index,
             .position = {-2.f, 1.f, 0.f, 1.f}
-        });
+        }, {mesh1_index});
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
     }
@@ -833,7 +833,7 @@ int main() {
     }
 }
 
-std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs)
+std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index)
 {
     std::vector<vec<float, 4>> positions = {
         // Base triangle 1
@@ -886,7 +886,7 @@ std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs)
     };
 
     int mesh_index = -1;
-    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, mesh_index);
+    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
     return { mesh_id, mesh_index };
 }
 

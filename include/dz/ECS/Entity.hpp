@@ -1,40 +1,30 @@
 #pragma once
 #include "Provider.hpp"
-#include "Shape.hpp"
-#include "Mesh.hpp"
 #include "../math.hpp"
 #include <set>
 
 namespace dz::ecs {
     struct Entity : Provider<Entity> {
-        int material_index = -1;
-        int shape_index = -1;
         int parent_index = -1;
         int parent_cid = 0;
         int enabled_components = 0;
-        int mesh_index = -1;
-        int padding2 = 0;
-        int padding3 = 0;
+        int padding = 0;
         vec<float, 4> position = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);
         vec<float, 4> rotation = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);;
         vec<float, 4> scale = vec<float, 4>(1.0f, 1.0f, 1.0f, 1.0f);;
         mat<float, 4, 4> model = mat<float, 4, 4>(1.0f);
         
-        inline static constexpr size_t PID = 1;
+        inline static constexpr size_t PID = 2;
         inline static float Priority = 0.5f;
         inline static constexpr bool IsEntityProvider = true;
         inline static std::string ProviderName = "Entity";
         inline static std::string StructName = "Entity";
         inline static std::string GLSLStruct = R"(
 struct Entity {
-    int material_index;
-    int shape_index;
     int parent_index;
     int parent_cid;
     int enabled_components;
-    int mesh_index;
-    int padding2;
-    int padding3;
+    int padding;
     vec4 position;
     vec4 rotation;
     vec4 scale;
@@ -44,9 +34,6 @@ struct Entity {
 
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
             { ShaderModuleType::Vertex, R"(
-vec4 GetEntityVertexColor(in Entity entity) {
-    return vec4(0, 0, 1, 0.8);
-}
 )" },
             { ShaderModuleType::Compute, R"(
 void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, out int parent_cid) {
@@ -90,21 +77,9 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
-    vec4 vertex_position = vec4(shape_vertex, 1.0);
+    vec4 vertex_position = vec4(mesh_vertex, 1.0);
 )", ShaderModuleType::Vertex}
         };
-
-        uint32_t GetVertexCount(BufferGroup* buffer_group, Entity& entity) {
-            auto shape_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Shapes");
-            auto& shape = *(Shape*)(shape_buffer_sh_ptr.get() + (sizeof(Shape) * entity.shape_index));
-            if (shape.type == 1) // mesh
-            {
-                auto mesh_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, "Meshs");
-                auto& mesh = *(Mesh*)(mesh_buffer_sh_ptr.get() + (sizeof(Mesh) * entity.mesh_index));
-                return mesh.vertex_count;
-            }
-            return shape.vertex_count;
-        }
         
         struct EntityTransformReflectable : Reflectable {
 
@@ -151,6 +126,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             std::vector<std::shared_ptr<ReflectableGroup>> component_groups;
             std::vector<std::shared_ptr<ReflectableGroup>> material_groups;
+            std::vector<std::shared_ptr<ReflectableGroup>> submesh_groups;
             std::vector<Reflectable*> reflectables;
             EntityReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
@@ -205,6 +181,11 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                     for (auto& material_reflectable_ptr : material_group.GetReflectables()) 
                         reflectables.push_back(material_reflectable_ptr);
                 }
+                for (auto& submesh_group_ptr : submesh_groups) {
+                    auto& submesh_group = *submesh_group_ptr;
+                    for (auto& submesh_reflectable_ptr : submesh_group.GetReflectables()) 
+                        reflectables.push_back(submesh_reflectable_ptr);
+                }
             }
             bool backup(Serial& serial) const override {
                 if (!backup_internal(serial))
@@ -215,6 +196,8 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                 if (!BackupGroupVector(serial, component_groups))
                     return false;
                 if (!BackupGroupVector(serial, material_groups))
+                    return false;
+                if (!BackupGroupVector(serial, submesh_groups))
                     return false;
                 return true;
             }
@@ -227,6 +210,8 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                 if (!RestoreGroupVector(serial, component_groups, buffer_group))
                     return false;
                 if (!RestoreGroupVector(serial, material_groups, buffer_group))
+                    return false;
+                if (!RestoreGroupVector(serial, submesh_groups, buffer_group))
                     return false;
                 return true;
             }

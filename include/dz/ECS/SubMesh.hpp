@@ -1,89 +1,65 @@
 #pragma once
 #include "Provider.hpp"
+#include "Mesh.hpp"
 
 namespace dz::ecs {
-    struct Mesh : Provider<Mesh> {
-        int vertex_count = 0;
-        int position_offset = -1;
-        int uv2_offset = -1;
-        int normal_offset = -1;
+    inline static std::string Meshs_Str = "Meshs";
+    struct SubMesh : Provider<SubMesh> {
+        int parent_index = -1;
+        int mesh_index = -1;
+        int material_index = -1;
+        int padding = 0;
 
-        inline static constexpr size_t PID = 3;
+        inline static constexpr size_t PID = 4;
         inline static float Priority = 0.5f;
-        inline static constexpr bool IsMeshProvider = true;
-        inline static std::string ProviderName = "Mesh";
-        inline static std::string StructName = "Mesh";
+        inline static constexpr bool IsDrawProvider = true;
+        inline static constexpr bool IsSubMeshProvider = true;
+        inline static std::string ProviderName = "SubMesh";
+        inline static std::string StructName = "SubMesh";
         inline static std::string GLSLStruct = R"(
-struct Mesh {
-    int vertex_count;
-    int position_offset;
-    int uv2_offset;
-    int normal_offset;
+struct SubMesh {
+    int parent_index;
+    int mesh_index;
+    int material_index;
+    int padding;
 };
 )";
-        inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
-            { ShaderModuleType::Vertex, R"(
-vec3 GetMeshVertex(in Mesh mesh) {
-    if (mesh.position_offset == -1)
-        return vec3(0.0);
-    return VertexPositions.data[mesh.position_offset + gl_VertexIndex].xyz;
-}
-vec3 GetMeshNormal(in Mesh mesh) {
-    if (mesh.normal_offset == -1)
-        return vec3(0.0);
-    return VertexNormals.data[mesh.normal_offset + gl_VertexIndex].xyz;
-}
-vec2 GetMeshUV2(in Mesh mesh) {
-    if (mesh.uv2_offset == -1)
-        return vec2(0.0);
-    return VertexUV2s.data[mesh.uv2_offset + gl_VertexIndex];
-}
-)" },
-            { ShaderModuleType::Fragment, R"(
-)" }
-        };
 
-        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {0.0f, R"(
-    vec3 mesh_vertex = GetMeshVertex(mesh);
-    vec3 mesh_normal = GetMeshNormal(mesh);
-    vec2 mesh_uv2 = GetMeshUV2(mesh);
-)", ShaderModuleType::Vertex}
-        };
+        uint32_t GetVertexCount(BufferGroup* buffer_group, SubMesh& submesh) {
+                auto mesh_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, Meshs_Str);
+                auto& mesh = *(Mesh*)(mesh_buffer_sh_ptr.get() + (sizeof(Mesh) * submesh.mesh_index));
+                return mesh.vertex_count;
+        }
         
-        struct MeshReflectable : Reflectable {
+        struct SubMeshReflectable : Reflectable {
 
         private:
-            std::function<Mesh*()> get_mesh_function;
+            std::function<SubMesh*()> get_submesh_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"vertex_count", {0, 0}},
-                {"position_offset", {1, 0}},
-                {"uv2_offset", {2, 0}},
-                {"normal_offset", {3, 0}}
+                {"parent_index", {0, 0}},
+                {"mesh_index", {1, 0}},
+                {"material_index", {2, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "vertex_count"},
-                {1, "position_offset"},
-                {2, "uv2_offset"},
-                {3, "normal_offset"}
+                {0, "parent_index"},
+                {1, "mesh_index"},
+                {2, "material_index"}
             };
             inline static std::vector<std::string> prop_names = {
-                "vertex_count",
-                "position_offset",
-                "uv2_offset",
-                "normal_offset"
+                "parent_index",
+                "mesh_index",
+                "material_index"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(int),
                 &typeid(int),
                 &typeid(int),
                 &typeid(int)
             };
 
         public:
-            MeshReflectable(const std::function<Mesh*()>& get_mesh_function);
+            SubMeshReflectable(const std::function<SubMesh*()>& get_submesh_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -94,18 +70,17 @@ vec2 GetMeshUV2(in Mesh mesh) {
             void NotifyChange(int prop_index) override;
         };
 
-        struct MeshReflectableGroup : ReflectableGroup {
+        struct SubMeshReflectableGroup : ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
-            int material_index = -1;
             Image* image = nullptr;
-            MeshReflectableGroup(BufferGroup* buffer_group):
+            SubMeshReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
-                name("Mesh")
+                name("SubMesh")
             {}
-            MeshReflectableGroup(BufferGroup* buffer_group, Serial& serial):
+            SubMeshReflectableGroup(BufferGroup* buffer_group, Serial& serial):
                 buffer_group(buffer_group)
             {
                 restore(serial);
@@ -131,16 +106,16 @@ vec2 GetMeshUV2(in Mesh mesh) {
             }
             void UpdateChildren() override {
                 if (reflectables.empty()) {
-                    reflectables.push_back(new MeshReflectable([&]() {
-                        auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, "Meshs");
-                        return ((struct Mesh*)(buffer.get())) + index;
+                    reflectables.push_back(new SubMeshReflectable([&]() {
+                        auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, "SubMeshs");
+                        return ((struct SubMesh*)(buffer.get())) + index;
                     }));
                 }
             }
             bool backup(Serial& serial) const override {
                 if (!backup_internal(serial))
                     return false;
-                serial << name << material_index;
+                serial << name;
                 if (!BackupGroupVector(serial, reflectable_children))
                     return false;
                 return true;
@@ -148,7 +123,7 @@ vec2 GetMeshUV2(in Mesh mesh) {
             bool restore(Serial& serial) override{
                 if (!restore_internal(serial))
                     return false;
-                serial >> name >> material_index;
+                serial >> name;
                 if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
                     return false;
                 return true;
@@ -156,6 +131,6 @@ vec2 GetMeshUV2(in Mesh mesh) {
 
         };
 
-        using ReflectableGroup = MeshReflectableGroup;
+        using ReflectableGroup = SubMeshReflectableGroup;
     };
 }

@@ -29,7 +29,7 @@ namespace dz::ecs {
         int padding1 = 0;
         int padding2 = 0;
         inline static constexpr bool IsCameraProvider = true;
-        inline static constexpr size_t PID = 3;
+        inline static constexpr size_t PID = 5;
         inline static float Priority = 0.5f;
         inline static std::string ProviderName = "Camera";
         inline static std::string StructName = "Camera";

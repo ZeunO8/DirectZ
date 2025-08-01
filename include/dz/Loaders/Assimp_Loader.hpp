@@ -19,7 +19,7 @@ namespace dz::loaders {
         size_t bytes_length = 0;
     };
     struct Assimp_Loader {
-        using value_type = Mesh_Pair;
+        using value_type = MeshPair;
         using info_type = Assimp_Info;
         static value_type Load(const info_type& info);
     };

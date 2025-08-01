@@ -1,4 +1,4 @@
-#include <dz/Loaders/Mesh_Loader.hpp>
+#include <dz/Loaders/Assimp_Loader.hpp>
 #include "../Assimp/Assimp.hpp"
 
 namespace dz::loaders::assimp_loader {
@@ -47,7 +47,7 @@ namespace dz::loaders::assimp_loader {
         return ProcessNode(context, info.scene_ptr->mRootNode);
     }
 }
-dz::loaders::Mesh_Loader::value_type dz::loaders::Load(const info_type& info) {
+dz::loaders::MeshPair dz::loaders::Assimp_Loader::Load(const info_type& info) {
     using namespace dz::loaders::assimp_loader;
     AssimpContext context;
     InitContext(context, info);

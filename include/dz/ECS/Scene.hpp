@@ -6,7 +6,7 @@ namespace dz::ecs {
         int parent_index = -1;
         int parent_cid = 0;
         
-        inline static constexpr size_t PID = 6;
+        inline static constexpr size_t PID = 1;
         inline static float Priority = 0.5f;
         inline static constexpr bool IsSceneProvider = true;
         inline static std::string ProviderName = "Scene";

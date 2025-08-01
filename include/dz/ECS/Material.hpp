@@ -7,7 +7,7 @@ namespace dz::ecs {
         vec<float, 4> atlas_pack = {-1.0f, -1.0f, -1.0f, -1.0f};
         vec<float, 4> albedo = {1.0f, 1.0f, 1.0f, 1.0f};
 
-        inline static constexpr size_t PID = 5;
+        inline static constexpr size_t PID = 6;
         inline static float Priority = 2.5f;
         inline static constexpr bool IsMaterialProvider = true;
         inline static std::string ProviderName = "Material";
@@ -20,26 +20,26 @@ namespace dz::ecs {
     )";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
             { ShaderModuleType::Vertex, R"(
-vec4 GetMaterialBaseColor(in Entity entity) {
+vec4 GetMaterialBaseColor(in SubMesh submesh) {
     bool not_what = true;
     for (int i = 0; i < 4; i++) {
-        if (Materials.data[entity.material_index].atlas_pack[i] != -1.0) {
+        if (Materials.data[submesh.material_index].atlas_pack[i] != -1.0) {
             not_what = false;
             break;
         }
     }
     if (not_what)
-        return Materials.data[entity.material_index].albedo;
+        return Materials.data[submesh.material_index].albedo;
     outIsTexture = 1;
     return vec4(1.0, 0.0, 1.0, 1.0);
 }
 )" },
             { ShaderModuleType::Fragment, R"(
-void EnsureMaterialFragColor(in Entity entity, inout vec4 current_color) {
+void EnsureMaterialFragColor(in SubMesh submesh, inout vec4 current_color) {
     if (inIsTexture != 1)
         return;
     vec2 uv = inUV2;
-    Material material = Materials.data[entity.material_index];
+    Material material = Materials.data[submesh.material_index];
     vec2 atlas_image_size = material.atlas_pack.xy;
     vec2 atlas_packed_rect = material.atlas_pack.zw;
 
@@ -65,10 +65,10 @@ void EnsureMaterialFragColor(in Entity entity, inout vec4 current_color) {
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
-    final_color = GetMaterialBaseColor(entity);
+    final_color = GetMaterialBaseColor(submesh);
 )", ShaderModuleType::Vertex},
             {0.5f, R"(
-    EnsureMaterialFragColor(entity, current_color);
+    EnsureMaterialFragColor(submesh, current_color);
 )", ShaderModuleType::Fragment}
         };
         

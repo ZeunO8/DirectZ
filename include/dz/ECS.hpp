@@ -9,13 +9,14 @@
 #include "Shader.hpp"
 #include "Util.hpp"
 #include "State.hpp"
-#include "ECS/Camera.hpp"
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
-#include "ECS/Entity.hpp"
 #include "ECS/Scene.hpp"
-#include "ECS/Material.hpp"
+#include "ECS/Entity.hpp"
 #include "ECS/Mesh.hpp"
+#include "ECS/SubMesh.hpp"
+#include "ECS/Camera.hpp"
+#include "ECS/Material.hpp"
 #include "ImagePack.hpp"
 #include <string>
 #include <vector>
@@ -103,12 +104,14 @@ namespace dz {
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
         bool components_registered = false; // !
 
+        using DrawProviderT = typename FirstMatchingOrDefault<IsDrawProvider, TProviders...>::type;
+        using SubMeshProviderT = typename FirstMatchingOrDefault<IsSubMeshProvider, TProviders...>::type;
         using EntityProviderT = typename FirstMatchingOrDefault<IsEntityProvider, TProviders...>::type;
         using CameraProviderT = typename FirstMatchingOrDefault<IsCameraProvider, TProviders...>::type;
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
         using MaterialProviderT = typename FirstMatchingOrDefault<IsMaterialProvider, TProviders...>::type;
         using MeshProviderT = typename FirstMatchingOrDefault<IsMeshProvider, TProviders...>::type;
-        DrawListManager<EntityProviderT> draw_mg; // !
+        DrawListManager<DrawProviderT> draw_mg; // !
 
         BufferGroup* buffer_group = nullptr; // !
         bool buffer_initialized = false; // !
@@ -124,9 +127,9 @@ namespace dz {
         ImagePack atlas_pack;
 
         auto GenerateEntitysDrawFunction() {
-            return [&](auto buffer_group, auto& entity) -> DrawTuples {
+            return [&](auto buffer_group, auto& draw_object) -> DrawTuples {
                 return {
-                    {main_shader, entity.GetVertexCount(buffer_group, entity)}
+                    {main_shader, draw_object.GetVertexCount(buffer_group, draw_object)}
                 };
             };
         }
@@ -164,7 +167,8 @@ namespace dz {
                         assert(ref_group_ptr);
                         auto e_group_ptr = dynamic_cast<EntityProviderT::ReflectableGroup*>(ref_group_ptr);
                         if (e_group_ptr) {
-                            visible.push_back(e_group_ptr->index);
+                            for (auto& submesh_group_sh_ptr : e_group_ptr->submesh_groups)
+                                visible.push_back(submesh_group_sh_ptr->index);
                             add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit);
                             continue;
                         }
@@ -187,18 +191,18 @@ namespace dz {
             };
         }
 
-        template <typename TqProvider>
-        void IsEntityProviderName(std::string& out_string) {
+        template <typename TProvider>
+        void IsDrawProviderName(std::string& out_string) {
             if (!out_string.empty())
                 return;
-            if (TqProvider::GetIsEntityProvider()) {
-                out_string = (TqProvider::GetStructName() + "s");
+            if (TProvider::GetIsDrawProvider()) {
+                out_string = (TProvider::GetStructName() + "s");
             }
         }
 
         std::string FindBufferNameFromProviders() {
             std::string out_string;
-            (IsEntityProviderName<TProviders>(out_string), ...);
+            (IsDrawProviderName<TProviders>(out_string), ...);
             return out_string;
         }
 
@@ -598,16 +602,28 @@ namespace dz {
         }
 
         template <typename TEntity>
-        size_t AddEntity(int parent_id, const TEntity& entity_data) {
+        size_t AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
-            return AddProvider<TEntity>(parent_id, entity_data,
+            auto entity_id = AddProvider<TEntity>(parent_id, entity_data,
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
+            auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
+            for (auto& mesh_index : mesh_indexes) {
+                auto& mesh_group = GetGroupByIndex<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_index);
+                int submesh_index = -1;
+                SubMeshProviderT submesh_data{
+                    .parent_index = out_index,
+                    .mesh_index = mesh_index,
+                    .material_index = mesh_group.material_index
+                };
+                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.submesh_groups, submesh_index);
+            }
+            return entity_id;
         }
 
         template <typename TEntity>
-        size_t AddEntity(const TEntity& entity_data) {
-            return AddEntity<TEntity>(-1, entity_data);
+        size_t AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
+            return AddEntity<TEntity>(-1, entity_data, mesh_indexes);
         }
 
         template <typename TScene>
@@ -649,6 +665,7 @@ namespace dz {
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
             const std::vector<vec<float, 4>>& normals,
+            int material_index,
             int& out_index
         ) {
             MeshProviderT mesh_data;
@@ -696,6 +713,9 @@ namespace dz {
                 memcpy((void*)&normals_ptr[mesh_data.normal_offset], normals.data(), normals.size() * sizeof(vec<float, 4>));
             }
 
+            auto& mesh_group = GetGroupByID<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_id);
+            mesh_group.material_index = material_index;
+
             return mesh_id;
         }
 
@@ -703,9 +723,10 @@ namespace dz {
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
             const std::vector<vec<float, 4>>& normals,
+            int material_index,
             int& out_index
         ) {
-            return AddMesh(-1, positions, uv2s, normals, out_index);
+            return AddMesh(-1, positions, uv2s, normals, material_index, out_index);
         }
 
         ReflectableGroup& GetGenericGroupByID(size_t id) {
@@ -847,11 +868,11 @@ namespace dz {
             return component_id;
         }
 
-        template <typename T, typename TqProvider>
+        template <typename T, typename TProvider>
         void IsTThisProvider(bool& out_bool) {
             if (out_bool)
                 return;
-            out_bool = std::is_same_v<T, TqProvider>;
+            out_bool = std::is_same_v<T, TProvider>;
         }
 
         template <typename T>
@@ -1102,8 +1123,10 @@ layout(push_constant) uniform PushConstants {
             // Main
             shader_string += R"(
 void main() {
-    int entity_index = outID = gl_InstanceIndex;
-    Entity entity = GetEntityData(entity_index);
+    int submesh_index = outID = gl_InstanceIndex;
+    SubMesh submesh = GetSubMeshData(submesh_index);
+    Mesh mesh = GetMeshData(submesh.mesh_index);
+    Entity entity = GetEntityData(submesh.parent_index);
     vec4 final_color;
     int t_component_index = -1;
 )";
@@ -1112,13 +1135,13 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * shape_normal);
+    vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * mesh_normal);
     gl_Position = clip_position;
     outColor = final_color;
     outPosition = entity.model * vertex_position;
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
-    outUV2 = shape_uv2;
+    outUV2 = mesh_uv2;
 }
 )";
 
@@ -1151,8 +1174,9 @@ layout(push_constant) uniform PushConstants {
 
             shader_string += R"(
 void main() {
-    int entity_index = inID;
-    Entity entity = GetEntityData(entity_index);
+    int submesh_index = inID;
+    SubMesh submesh = GetSubMeshData(submesh_index);
+    Entity entity = GetEntityData(submesh.parent_index);
     int t_component_index = -1;
     vec4 current_color = inColor;
 )";
