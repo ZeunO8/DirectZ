@@ -60,7 +60,7 @@ namespace dz
 			if (NSApp == nil) {
 				[NSApplication sharedApplication];
 				[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-				gApplicationDelegate  = [[ApplicationDelegate alloc] initWithWindow:window];
+				gApplicationDelegate  = [[ApplicationDelegate alloc] initWithWindow:this];
 				[NSApp setDelegate:gApplicationDelegate ];
 			}
 
