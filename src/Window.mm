@@ -10,7 +10,7 @@
 #import <Cocoa/Cocoa.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include "DZWindow.mm"
-#include "ApplicationDelegateImpl.mm"
+#include "ApplicationDelegate.mm"
 #include "WINDOWDelegateImpl.mm"
 #elif defined(IOS)
 #import <UIKit/UIKit.h>
