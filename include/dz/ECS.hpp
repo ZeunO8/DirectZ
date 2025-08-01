@@ -611,16 +611,16 @@ namespace dz {
         }
 
         template <typename TScene>
-        size_t AddScene(int parent_id, const TScene& entity_data) {
+        size_t AddScene(int parent_id, const TScene& scene_data) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
-            return AddProvider<TScene>(parent_id, entity_data,
+            return AddProvider<TScene>(parent_id, scene_data,
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
         }
 
         template <typename TScene>
-        size_t AddScene(const TScene& entity_data) {
-            return AddScene<TScene>(-1, entity_data);
+        size_t AddScene(const TScene& scene_data) {
+            return AddScene<TScene>(-1, scene_data);
         }
 
         SceneProviderT& GetScene(size_t scene_id) {
@@ -645,6 +645,7 @@ namespace dz {
         }
 
         size_t AddMesh(
+            size_t parent_id,
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
             const std::vector<vec<float, 4>>& normals,
@@ -664,7 +665,9 @@ namespace dz {
             if (!normals.empty())
                 mesh_data.normal_offset = normal_index;
 
-            auto mesh_id = AddProvider<MeshProviderT>(-1, mesh_data, mesh_group_vector, out_index);
+            auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            auto mesh_id = AddProvider<MeshProviderT>(parent_id, mesh_data,
+                parent_group_ptr ? parent_group_ptr->GetChildren() : mesh_group_vector, out_index);
             
             if (mesh_data.position_offset != -1) {
                 buffer_group_set_buffer_element_count(buffer_group, VertexPositions_Str, mesh_data.position_offset + positions.size());
@@ -694,6 +697,15 @@ namespace dz {
             }
 
             return mesh_id;
+        }
+
+        size_t AddMesh(
+            const std::vector<vec<float, 4>>& positions,
+            const std::vector<vec<float, 2>>& uv2s,
+            const std::vector<vec<float, 4>>& normals,
+            int& out_index
+        ) {
+            return AddMesh(-1, positions, uv2s, normals, out_index);
         }
 
         ReflectableGroup& GetGenericGroupByID(size_t id) {

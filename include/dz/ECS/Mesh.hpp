@@ -82,6 +82,7 @@ struct Mesh {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;
+            std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             Image* image = nullptr;
             MeshReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
@@ -100,6 +101,9 @@ struct Mesh {
             }
             const std::vector<Reflectable*>& GetReflectables() override {
                 return reflectables;
+            }
+            std::vector<std::shared_ptr<ReflectableGroup>>& GetChildren() override {
+                return reflectable_children;
             }
             void ClearReflectables() {
                 if (reflectables.empty()) {
@@ -120,12 +124,16 @@ struct Mesh {
                 if (!backup_internal(serial))
                     return false;
                 serial << name;
+                if (!BackupGroupVector(serial, reflectable_children))
+                    return false;
                 return true;
             }
             bool restore(Serial& serial) override{
                 if (!restore_internal(serial))
                     return false;
                 serial >> name;
+                if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
+                    return false;
                 return true;
             }
 
