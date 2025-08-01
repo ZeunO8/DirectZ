@@ -10,6 +10,7 @@
 #import <Cocoa/Cocoa.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include "DZWindow.mm"
+#include "ApplicationDelegateImpl.mm"
 #include "WINDOWDelegateImpl.mm"
 #elif defined(IOS)
 #import <UIKit/UIKit.h>
@@ -52,12 +53,15 @@ namespace dz
 		return WINDOW_TYPE_IOS;
 #endif
 	}
+	static id gApplicationDelegate = nil;
 	void WINDOW::create_platform() {
 		@autoreleasepool {
 #if defined(MACOS)
 			if (NSApp == nil) {
 				[NSApplication sharedApplication];
 				[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+				gApplicationDelegate  = [[ApplicationDelegate alloc] initWithWindow:window];
+				[NSApp setDelegate:gApplicationDelegate ];
 			}
 
 			int32_t windowX = x == -1 ? 128 : x;
