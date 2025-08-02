@@ -1223,7 +1223,7 @@ void DrawGenericGroup(ReflectableGroup& reflectable_group)
     }
 
     // Add dummy drop zone if this node is leaf and can hold children
-    bool can_hold_children = (reflectable_group.cid != Camera::PID);
+    bool can_hold_children = (reflectable_group.cid != Camera::PID && reflectable_group.cid != SubMesh::PID);
     if (is_leaf && can_hold_children && ImGui::GetDragDropPayload() != nullptr) {
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImVec2 mouse = ImGui::GetIO().MousePos;
