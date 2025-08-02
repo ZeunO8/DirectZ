@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  configure-build-and-package-windows:
+  build-windows-AMD64:
     runs-on: windows-2025
     steps:
 
