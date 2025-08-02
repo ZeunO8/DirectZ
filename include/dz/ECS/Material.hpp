@@ -116,6 +116,7 @@ void EnsureMaterialFragColor(in SubMesh submesh, inout vec4 current_color) {
             std::string name;
             std::vector<Reflectable*> reflectables;
             Image* image = nullptr;
+            VkDescriptorSet frame_image_ds = VK_NULL_HANDLE;
             MaterialReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
                 name("Material")

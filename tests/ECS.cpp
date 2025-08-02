@@ -454,6 +454,7 @@ int main() {
 
         float padding = 24.0f;
         float item_size = 84.0f;
+        ImVec2 item_size_vec(item_size, item_size);
         float label_height = ImGui::GetFontSize();
         float full_item_height = item_size + label_height + 8.0f;
         float cell_size = item_size + padding;
@@ -487,12 +488,30 @@ int main() {
                 ImVec2 rect_min = cursor;
                 ImVec2 rect_max = ImVec2(cursor.x + item_size, cursor.y + item_size);
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                static float rounding = 6.0f;
 
                 bool has_texture = !material.atlas_pack.all(-1.f);
 
                 if (has_texture)
                 {
-                    // Future support for image
+                    draw_list->AddImageRounded(
+                        (ImTextureID)material_group.frame_image_ds,
+                        rect_min,
+                        rect_max,
+                        ImVec2(0, 0),
+                        ImVec2(1, 1),
+                        IM_COL32_WHITE,
+                        rounding
+                    );
+                    draw_list->AddRect(
+                        rect_min,
+                        rect_max,
+                        IM_COL32_WHITE,
+                        rounding,
+                        0,
+                        1.0f
+                    );
+                    ImGui::Dummy(item_size_vec);
                 }
                 else
                 {
@@ -503,9 +522,9 @@ int main() {
                         material.albedo[3]
                     ));
 
-                    draw_list->AddRectFilled(rect_min, rect_max, color, 6.0f);
-                    draw_list->AddRect(rect_min, rect_max, IM_COL32_WHITE, 6.0f);
-                    ImGui::Dummy(ImVec2(item_size, item_size));
+                    draw_list->AddRectFilled(rect_min, rect_max, color, rounding);
+                    draw_list->AddRect(rect_min, rect_max, IM_COL32_WHITE, rounding);
+                    ImGui::Dummy(item_size_vec);
                 }
 
                 ImVec2 text_size = ImGui::CalcTextSize(material_group.name.c_str());

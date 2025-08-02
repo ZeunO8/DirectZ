@@ -655,6 +655,10 @@ namespace dz {
         void SetMaterialImage(size_t material_id, Image* image) {
             auto& material_group = GetGroupByID<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
             material_group.image = image;
+            
+            auto frame_ds_pair = image_create_descriptor_set(image);
+            material_group.frame_image_ds = frame_ds_pair.second;
+
             atlas_pack.addImage(material_group.image);
             if (buffer_initialized)
                 UpdateAtlas();
