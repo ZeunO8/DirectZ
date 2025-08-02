@@ -6,9 +6,9 @@ namespace dz::ecs {
     inline static std::string Meshs_Str = "Meshs";
     struct SubMesh : Provider<SubMesh> {
         int parent_index = -1;
+        int parent_cid = 0;
         int mesh_index = -1;
         int material_index = -1;
-        int padding = 0;
 
         inline static constexpr size_t PID = 4;
         inline static float Priority = 0.5f;
@@ -19,9 +19,9 @@ namespace dz::ecs {
         inline static std::string GLSLStruct = R"(
 struct SubMesh {
     int parent_index;
+    int parent_cid;
     int mesh_index;
     int material_index;
-    int padding;
 };
 )";
 
@@ -39,20 +39,24 @@ struct SubMesh {
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
                 {"parent_index", {0, 0}},
-                {"mesh_index", {1, 0}},
-                {"material_index", {2, 0}}
+                {"parent_cid", {1, 0}},
+                {"mesh_index", {2, 0}},
+                {"material_index", {3, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
                 {0, "parent_index"},
-                {1, "mesh_index"},
-                {2, "material_index"}
+                {1, "parent_cid"},
+                {2, "mesh_index"},
+                {3, "material_index"}
             };
             inline static std::vector<std::string> prop_names = {
                 "parent_index",
+                "parent_cid",
                 "mesh_index",
                 "material_index"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
+                &typeid(int),
                 &typeid(int),
                 &typeid(int),
                 &typeid(int)

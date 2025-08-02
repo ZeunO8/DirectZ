@@ -125,8 +125,6 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             std::vector<std::shared_ptr<ReflectableGroup>> component_groups;
-            std::vector<std::shared_ptr<ReflectableGroup>> material_groups;
-            std::vector<std::shared_ptr<ReflectableGroup>> submesh_groups;
             std::vector<Reflectable*> reflectables;
             EntityReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
@@ -176,16 +174,6 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                     for (auto& component_reflectable_ptr : component_group.GetReflectables()) 
                         reflectables.push_back(component_reflectable_ptr);
                 }
-                for (auto& material_group_ptr : material_groups) {
-                    auto& material_group = *material_group_ptr;
-                    for (auto& material_reflectable_ptr : material_group.GetReflectables()) 
-                        reflectables.push_back(material_reflectable_ptr);
-                }
-                for (auto& submesh_group_ptr : submesh_groups) {
-                    auto& submesh_group = *submesh_group_ptr;
-                    for (auto& submesh_reflectable_ptr : submesh_group.GetReflectables()) 
-                        reflectables.push_back(submesh_reflectable_ptr);
-                }
             }
             bool backup(Serial& serial) const override {
                 if (!backup_internal(serial))
@@ -194,10 +182,6 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                 if (!BackupGroupVector(serial, reflectable_children))
                     return false;
                 if (!BackupGroupVector(serial, component_groups))
-                    return false;
-                if (!BackupGroupVector(serial, material_groups))
-                    return false;
-                if (!BackupGroupVector(serial, submesh_groups))
                     return false;
                 return true;
             }
@@ -208,10 +192,6 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                 if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
                     return false;
                 if (!RestoreGroupVector(serial, component_groups, buffer_group))
-                    return false;
-                if (!RestoreGroupVector(serial, material_groups, buffer_group))
-                    return false;
-                if (!RestoreGroupVector(serial, submesh_groups, buffer_group))
                     return false;
                 return true;
             }
