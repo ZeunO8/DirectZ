@@ -167,8 +167,12 @@ namespace dz {
                         assert(ref_group_ptr);
                         auto e_group_ptr = dynamic_cast<EntityProviderT::ReflectableGroup*>(ref_group_ptr);
                         if (e_group_ptr) {
-                            for (auto& submesh_group_sh_ptr : e_group_ptr->submesh_groups)
-                                visible.push_back(submesh_group_sh_ptr->index);
+                            for (auto& submesh_group_sh_ptr : e_group_ptr->reflectable_children) {
+                                auto& group = *submesh_group_sh_ptr;
+                                if (group.cid != SubMeshProviderT::PID)
+                                    continue;
+                                visible.push_back(group.index);
+                            }
                             add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit);
                             continue;
                         }
@@ -580,6 +584,10 @@ namespace dz {
                     auto& scene = GetScene(id);
                     SetWhoParent(scene, &parent_group);
                 }
+                if constexpr (std::is_same_v<TProvider, SubMeshProviderT>) {
+                    auto& submesh = GetSubMesh(id);
+                    SetWhoParent(submesh, &parent_group);
+                }
             }
 
             if constexpr (std::is_same_v<TProvider, EntityProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
@@ -616,7 +624,7 @@ namespace dz {
                     .mesh_index = mesh_index,
                     .material_index = mesh_group.material_index
                 };
-                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.submesh_groups, submesh_index);
+                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.reflectable_children, submesh_index);
             }
             return entity_id;
         }
@@ -655,6 +663,10 @@ namespace dz {
         void SetMaterialImage(size_t material_id, Image* image) {
             auto& material_group = GetGroupByID<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
             material_group.image = image;
+            
+            auto frame_ds_pair = image_create_descriptor_set(image);
+            material_group.frame_image_ds = frame_ds_pair.second;
+
             atlas_pack.addImage(material_group.image);
             if (buffer_initialized)
                 UpdateAtlas();
@@ -811,6 +823,10 @@ namespace dz {
 
         EntityProviderT& GetEntity(size_t entity_id) {
             return GetProviderData<EntityProviderT>(entity_id);
+        }
+
+        SubMeshProviderT& GetSubMesh(size_t submesh_id) {
+            return GetProviderData<SubMeshProviderT>(submesh_id);
         }
 
         template <typename TCamera>

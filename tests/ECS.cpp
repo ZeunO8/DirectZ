@@ -54,13 +54,6 @@ PropertyEditor property_editor;
 
 WINDOW* window = nullptr;
 
-// int mesh_shape_id = -1;
-// int mesh_shape_index = -1;
-// int plane_shape_id = -1;
-// int plane_shape_index = -1;
-// int cube_shape_id = -1;
-// int cube_shape_index = -1;
-
 auto set_pair_id_index(auto pair, auto& id, auto& index) {
     id = pair.first;
     index = pair.second;
@@ -69,13 +62,11 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
 using TL = TypeLoader<STB_Image_Loader>;
 
 std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
+std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index);
+std::pair<size_t, int> AddCubeMesh(ExampleECS& ecs, int material_index);
 
 int main() {
     ExampleECS::RegisterStateCID();
-
-    // set_pair_id_index(RegisterMeshShape(), mesh_shape_id, mesh_shape_index);
-    // set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
-    // set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
     std::filesystem::path ioPath("ECS-Test.dat");
 
@@ -109,21 +100,6 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        // ecs.SetProviderCount("Shapes", 3);
-        // auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
-
-        // auto& mesh_shape = shapes_ptr[0];
-        // mesh_shape.type = mesh_shape_id;
-        // mesh_shape.vertex_count = -1;
-
-        // auto& plane_shape = shapes_ptr[1];
-        // plane_shape.type = plane_shape_id;
-        // plane_shape.vertex_count = 6;
-
-        // auto& cube_shape = shapes_ptr[2];
-        // cube_shape.type = cube_shape_id;
-        // cube_shape.vertex_count = 36;
-
         int mat1_index = -1;
         auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
         auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
@@ -131,12 +107,14 @@ int main() {
         });
         ecs.SetMaterialImage(mat1_id, im_1);
 
-        int mat2_index = -1;
+        int blue_material = -1;
         auto mat2_id = ecs.AddMaterial(Material{
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
-        }, mat2_index);
+        }, blue_material);
 
-        auto [mesh1_id, mesh1_index] = AddPyramidMesh(ecs, mat2_index);
+        auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
+        auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
+        auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
 
         int mat3_index = -1;
         auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
@@ -149,30 +127,19 @@ int main() {
 
         auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        // auto e1_id = ecs.AddEntity(scene1_id, Entity{
-        //     .material_index = mat1_index//,
-        //     // .shape_index = plane_shape_index
-        // });
-        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
-        //     .material_index = mat3_index,
-        //     // .shape_index = plane_shape_index,
-        //     .position = {1.f, 1.f, 0.f, 1.f}
-        // });
+        auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
+        auto e2_id = ecs.AddEntity(scene1_id, Entity{
+            .position = {1.f, 1.f, 0.f, 1.f}
+        }, {plane_mesh_index});
 
         auto scene2_id = ecs.AddScene(Scene{});
 
         auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        // auto e3_id = ecs.AddEntity(scene2_id, Entity{
-        //     .material_index = mat2_index//,
-        //     // .shape_index = cube_shape_index
-        // });
+        auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
         auto e4_id = ecs.AddEntity(scene2_id, Entity{
-            // .material_index = mat2_index,
-            // .shape_index = mesh_shape_index,
-            // .mesh_index = mesh1_index,
             .position = {-2.f, 1.f, 0.f, 1.f}
-        }, {mesh1_index});
+        }, {pyramid_mesh_index});
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
     }
@@ -454,6 +421,7 @@ int main() {
 
         float padding = 24.0f;
         float item_size = 84.0f;
+        ImVec2 item_size_vec(item_size, item_size);
         float label_height = ImGui::GetFontSize();
         float full_item_height = item_size + label_height + 8.0f;
         float cell_size = item_size + padding;
@@ -487,12 +455,30 @@ int main() {
                 ImVec2 rect_min = cursor;
                 ImVec2 rect_max = ImVec2(cursor.x + item_size, cursor.y + item_size);
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                static float rounding = 6.0f;
 
                 bool has_texture = !material.atlas_pack.all(-1.f);
 
                 if (has_texture)
                 {
-                    // Future support for image
+                    draw_list->AddImageRounded(
+                        (ImTextureID)material_group.frame_image_ds,
+                        rect_min,
+                        rect_max,
+                        ImVec2(0, 0),
+                        ImVec2(1, 1),
+                        IM_COL32_WHITE,
+                        rounding
+                    );
+                    draw_list->AddRect(
+                        rect_min,
+                        rect_max,
+                        IM_COL32_WHITE,
+                        rounding,
+                        0,
+                        1.0f
+                    );
+                    ImGui::Dummy(item_size_vec);
                 }
                 else
                 {
@@ -503,9 +489,9 @@ int main() {
                         material.albedo[3]
                     ));
 
-                    draw_list->AddRectFilled(rect_min, rect_max, color, 6.0f);
-                    draw_list->AddRect(rect_min, rect_max, IM_COL32_WHITE, 6.0f);
-                    ImGui::Dummy(ImVec2(item_size, item_size));
+                    draw_list->AddRectFilled(rect_min, rect_max, color, rounding);
+                    draw_list->AddRect(rect_min, rect_max, IM_COL32_WHITE, rounding);
+                    ImGui::Dummy(item_size_vec);
                 }
 
                 ImVec2 text_size = ImGui::CalcTextSize(material_group.name.c_str());
@@ -890,6 +876,96 @@ std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index)
     return { mesh_id, mesh_index };
 }
 
+std::pair<size_t, int> AddCubeMesh(ExampleECS& ecs, int material_index)
+{
+    std::vector<vec<float, 4>> positions = {
+        { 0.5,  0.5,  0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0},
+        {-0.5, -0.5,  0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0},
+
+        {-0.5,  0.5, -0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0},
+        { 0.5, -0.5, -0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0},
+
+        {-0.5,  0.5,  0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0},
+        {-0.5, -0.5, -0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0},
+
+        { 0.5,  0.5, -0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0},
+        { 0.5, -0.5,  0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0},
+
+        { 0.5,  0.5, -0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0},
+        {-0.5,  0.5,  0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0},
+
+        { 0.5, -0.5,  0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0},
+        {-0.5, -0.5, -0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0}
+    };
+
+    std::vector<vec<float, 2>> uv2s = {
+        {1.0, 1.0}, {0.0, 1.0}, {0.0, 0.0},
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0},
+
+        {0.0, 1.0}, {1.0, 1.0}, {1.0, 0.0},
+        {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0},
+
+        {0.0, 1.0}, {0.0, 1.0}, {0.0, 0.0},
+        {0.0, 0.0}, {0.0, 0.0}, {0.0, 1.0},
+
+        {1.0, 1.0}, {1.0, 1.0}, {1.0, 0.0},
+        {1.0, 0.0}, {1.0, 0.0}, {1.0, 1.0},
+
+        {1.0, 1.0}, {0.0, 1.0}, {0.0, 1.0},
+        {0.0, 1.0}, {1.0, 1.0}, {1.0, 1.0},
+
+        {1.0, 0.0}, {0.0, 0.0}, {0.0, 0.0},
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}
+    };
+
+    std::vector<vec<float, 4>> normals = {
+        {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0},
+        {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0},
+        {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0},
+        {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0},
+        {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0},
+        {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}
+    };
+
+    int mesh_index = -1;
+    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
+    return { mesh_id, mesh_index };
+}
+
+std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index)
+{
+    std::vector<vec<float, 4>> positions = {
+        { 0.5,  0.5, 0, 1},
+        {-0.5,  0.5, 0, 1},
+        {-0.5, -0.5, 0, 1},
+        {-0.5, -0.5, 0, 1},
+        { 0.5, -0.5, 0, 1},
+        { 0.5,  0.5, 0, 1}
+    };
+
+    std::vector<vec<float, 2>> uv2s = {
+        {1.0, 0.0},
+        {0.0, 0.0},
+        {0.0, 1.0},
+        {0.0, 1.0},
+        {1.0, 1.0},
+        {1.0, 0.0}
+    };
+
+    std::vector<vec<float, 4>> normals = {
+        {0.0, 0.0, 1.0, 1},
+        {0.0, 0.0, 1.0, 1},
+        {0.0, 0.0, 1.0, 1},
+        {0.0, 0.0, 1.0, 1},
+        {0.0, 0.0, 1.0, 1},
+        {0.0, 0.0, 1.0, 1}
+    };
+
+    int mesh_index = -1;
+    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
+    return { mesh_id, mesh_index };
+}
+
 // void DrawEntityGroup(ExampleECS& ecs, int id, ExampleECS::EntityReflectableGroup& entity_group)
 // {
 //     ImGui::TableNextRow();
@@ -1147,7 +1223,7 @@ void DrawGenericGroup(ReflectableGroup& reflectable_group)
     }
 
     // Add dummy drop zone if this node is leaf and can hold children
-    bool can_hold_children = (reflectable_group.cid != Camera::PID);
+    bool can_hold_children = (reflectable_group.cid != Camera::PID && reflectable_group.cid != SubMesh::PID);
     if (is_leaf && can_hold_children && ImGui::GetDragDropPayload() != nullptr) {
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImVec2 mouse = ImGui::GetIO().MousePos;
@@ -1227,6 +1303,11 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
     case Scene::PID: {
         auto& scene = ecs_ptr->GetScene(dragged_group->id);
         ExampleECS::SetWhoParent(scene, new_parent_ptr);
+        break;
+    }
+    case SubMesh::PID: {
+        auto& submesh = ecs_ptr->GetSubMesh(dragged_group->id);
+        ExampleECS::SetWhoParent(submesh, new_parent_ptr);
         break;
     }
     }
