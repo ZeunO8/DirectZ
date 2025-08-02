@@ -1,4 +1,6 @@
 #include <dz/ECS/Camera.hpp>
+#include <dz/GlobalUID.hpp>
+
 void dz::ecs::CameraInit(
     Camera& camera,
     vec<float, 3> position,

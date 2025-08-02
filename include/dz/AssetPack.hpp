@@ -4,6 +4,7 @@
  */
 #pragma once
 #include "FileHandle.hpp"
+#include "size_ptr.hpp"
 
 namespace dz
 {

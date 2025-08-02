@@ -1,6 +1,7 @@
 #pragma once
 #include "Provider.hpp"
 #include "Mesh.hpp"
+#include "Material.hpp"
 
 namespace dz::ecs {
     inline static std::string Meshs_Str = "Meshs";
@@ -38,28 +39,16 @@ struct SubMesh {
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"parent_index", {0, 0}},
-                {"parent_cid", {1, 0}},
-                {"mesh_index", {2, 0}},
-                {"material_index", {3, 0}}
+                {"Material", {0, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "parent_index"},
-                {1, "parent_cid"},
-                {2, "mesh_index"},
-                {3, "material_index"}
+                {0, "Material"}
             };
             inline static std::vector<std::string> prop_names = {
-                "parent_index",
-                "parent_cid",
-                "mesh_index",
-                "material_index"
+                "Material"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(int),
-                &typeid(int),
-                &typeid(int),
-                &typeid(int)
+                &typeid(MaterialIndexReflectable)
             };
 
         public:

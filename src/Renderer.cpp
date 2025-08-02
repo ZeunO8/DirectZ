@@ -1,3 +1,5 @@
+#include "RendererImpl.hpp"
+
 namespace dz {
 	struct QueueFamilyIndices
 	{

@@ -1,4 +1,5 @@
 #include <dz/ECS/Entity.hpp>
+#include <dz/GlobalUID.hpp>
 
 dz::ecs::Entity::EntityTransformReflectable::EntityTransformReflectable(const std::function<Entity*()>& get_entity_function):
     get_entity_function(get_entity_function),

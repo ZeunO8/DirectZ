@@ -1,3 +1,5 @@
+#include <dz/FileHandle.hpp>
+
 namespace dz {
     std::shared_ptr<std::iostream> FileHandle::open(std::ios_base::openmode ios)
     {

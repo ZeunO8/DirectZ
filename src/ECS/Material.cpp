@@ -1,4 +1,5 @@
 #include <dz/ECS/Material.hpp>
+#include <dz/GlobalUID.hpp>
 
 dz::ecs::Material::MaterialReflectable::MaterialReflectable(const std::function<Material*()>& get_material_function):
     get_material_function(get_material_function),

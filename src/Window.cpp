@@ -1,3 +1,5 @@
+#include "Directz.cpp.hpp"
+
 namespace dz {
 	
     WindowReflectableGroup::WindowReflectableGroup(WINDOW* window_ptr):

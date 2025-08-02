@@ -1,3 +1,5 @@
+#include <dz/D7Stream.hpp>
+
 namespace dz {
     size_t* D7Stream::addStreamPoint(const StreamPoint& point)
     {

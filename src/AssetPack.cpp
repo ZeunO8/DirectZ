@@ -1,3 +1,6 @@
+#include <dz/AssetPack.hpp>
+#include <dz/KeyValueStream.hpp>
+
 namespace dz {
     struct AssetPack
     {

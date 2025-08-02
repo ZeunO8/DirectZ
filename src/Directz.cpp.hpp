@@ -1,3 +1,4 @@
+#pragma once
 #include <dz/Shader.hpp>
 using namespace dz;
 #include <atomic>
@@ -15,6 +16,7 @@ using namespace dz;
 #include <array>
 #include <chrono>
 #include <set>
+#include <queue>
 #include <dz/GlobalUID.hpp>
 #include <spirv_reflect.h>
 #include <shaderc/shaderc.hpp>
@@ -45,6 +47,15 @@ namespace dz {
     * @brief Creates a Window given a Serial interface
     */
     WINDOW* window_create_from_serial(Serial& serial);
+
+    void set_env(const std::string& key, const std::string& value);
+    std::string get_env(const std::string& key);
+    void append_vk_icd_filename(const std::string& swiftshader_icd_path);
+
+    std::filesystem::path getUserDirectoryPath();
+    std::filesystem::path getProgramDirectoryPath();
+    std::filesystem::path getProgramDataPath();
+    std::filesystem::path getExecutableName();
 }
 static std::unordered_map<ShaderModuleType, shaderc_shader_kind> stageEShaderc = {
 	{ShaderModuleType::Vertex, shaderc_vertex_shader},
@@ -106,7 +117,7 @@ struct DirectRegistry
     bool swiftshader_fallback = false;
     std::atomic<uint32_t> window_count = 0;
 	ImGuiLayer imguiLayer;
-    std::queue<VkDescriptorSetLayout> layout_queue;
+    std::queue<VkDescriptorSetLayout> layoutQueue;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif
@@ -115,10 +126,29 @@ struct DirectRegistry
     AConfiguration* android_config = 0;
 #endif
 };
-struct DirectRegistry;
 namespace dz
 {
+    struct Renderer;
+    struct WINDOW;
+    Renderer* renderer_init(WINDOW* window);
+    void renderer_render(Renderer* renderer);
+    void renderer_free(Renderer* renderer);
+    void create_surface(Renderer* renderer);
+    bool create_swap_chain(Renderer* renderer);
+    void create_image_views(Renderer* renderer);
+    void create_framebuffers(Renderer* renderer);
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
+    VkCommandBuffer begin_single_time_commands();
+    void end_single_time_commands(VkCommandBuffer command_buffer);
+    struct ShaderBuffer;
+    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
+    std::vector<WINDOW*>::iterator dr_get_windows_begin();
+    std::vector<WINDOW*>::iterator dr_get_windows_end();
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_begin();
+    std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_end();
     bool vk_check(const char* fn, VkResult result);
     void vk_log(const char* fn, VkResult result);
     bool recreate_swap_chain(Renderer* renderer);
 }
+extern "C" DirectRegistry* dr_ptr;
+extern "C" DirectRegistry& dr;

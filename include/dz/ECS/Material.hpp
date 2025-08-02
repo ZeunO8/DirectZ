@@ -3,6 +3,11 @@
 #include "../Image.hpp"
 
 namespace dz::ecs {
+
+    struct MaterialIndexReflectable {
+        int material_index = 0;
+    };
+
     struct Material : Provider<Material> {
         vec<float, 4> atlas_pack = {-1.0f, -1.0f, -1.0f, -1.0f};
         vec<float, 4> albedo = {1.0f, 1.0f, 1.0f, 1.0f};
