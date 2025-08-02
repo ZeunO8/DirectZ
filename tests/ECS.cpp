@@ -707,7 +707,7 @@ int main() {
 
                                     if (*type_info == typeid(float))
                                     {
-                                        auto& value = reflectable.GetPropertyByIndex<float>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<float>(prop_index);
                                         ImGui::PushID(prop_index);
                                         if (ImGui::InputFloat("##input", &value, 0.1f, 1.0f, "%.3f")) {
                                             reflectable.NotifyChange(prop_index);
@@ -716,7 +716,7 @@ int main() {
                                         ImGui::PopID();
                                     }
                                     else if (*type_info == typeid(int)) {
-                                        auto& value = reflectable.GetPropertyByIndex<int>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<int>(prop_index);
                                         ImGui::PushID(prop_index);
                                         if (ImGui::InputInt("##input", &value)) {
                                             reflectable.NotifyChange(prop_index);
@@ -725,7 +725,7 @@ int main() {
                                         ImGui::PopID();
                                     }
                                     else if (*type_info == typeid(Light::LightType)) {
-                                        auto& value = reflectable.GetPropertyByIndex<Light::LightType>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<Light::LightType>(prop_index);
                                         static const char* projection_types[] = { "Directional", "Spot", "Point" };
                                         int current_index = static_cast<int>(value);
                                         if (ImGui::Combo("##lightType", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
@@ -735,7 +735,7 @@ int main() {
                                         }
                                     }
                                     else if (*type_info == typeid(Camera::ProjectionType)) {
-                                        auto& value = reflectable.GetPropertyByIndex<Camera::ProjectionType>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<Camera::ProjectionType>(prop_index);
                                         static const char* projection_types[] = { "Perspective", "Orthographic" };
                                         int current_index = static_cast<int>(value);
                                         if (ImGui::Combo("##proj", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
@@ -745,7 +745,7 @@ int main() {
                                         }
                                     }
                                     else if (*type_info == typeid(std::string)) {
-                                        auto& value = reflectable.GetPropertyByIndex<std::string>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<std::string>(prop_index);
                                         if (value.capacity() < 128) value.reserve(128);
                                         ImGui::PushID(prop_index);
                                         if (ImGui::InputText("##s", value.data(), value.capacity() + 1)) {
@@ -755,42 +755,42 @@ int main() {
                                         ImGui::PopID();
                                     }
                                     else if (*type_info == typeid(vec<float, 2>)) {
-                                        auto& value = reflectable.GetPropertyByIndex<vec<float, 2>>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 2>>(prop_index);
                                         if (ImGui::DragFloat2("##vec2", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                             reflectable.NotifyChange(prop_index);
                                             update_iterators();
                                         }
                                     }
                                     else if (*type_info == typeid(vec<float, 3>)) {
-                                        auto& value = reflectable.GetPropertyByIndex<vec<float, 3>>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 3>>(prop_index);
                                         if (ImGui::DragFloat3("##vec3", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                             reflectable.NotifyChange(prop_index);
                                             update_iterators();
                                         }
                                     }
                                     else if (*type_info == typeid(vec<float, 4>)) {
-                                        auto& value = reflectable.GetPropertyByIndex<vec<float, 4>>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 4>>(prop_index);
                                         if (ImGui::DragFloat4("##vec4", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
                                             reflectable.NotifyChange(prop_index);
                                             update_iterators();
                                         }
                                     }
                                     else if (*type_info == typeid(color_vec<float, 3>)) {
-                                        auto& value = reflectable.GetPropertyByIndex<color_vec<float, 3>>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 3>>(prop_index);
                                         if (ImGui::ColorEdit3("##rgb", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
                                             reflectable.NotifyChange(0);
                                             update_iterators();
                                         }
                                     }
                                     else if (*type_info == typeid(color_vec<float, 4>)) {
-                                        auto& value = reflectable.GetPropertyByIndex<color_vec<float, 4>>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 4>>(prop_index);
                                         if (ImGui::ColorEdit4("##rgba", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
                                             reflectable.NotifyChange(0);
                                             update_iterators();
                                         }
                                     }
                                     else if (*type_info == typeid(MaterialIndexReflectable)) {
-                                        auto& value = reflectable.GetPropertyByIndex<MaterialIndexReflectable>(prop_index);
+                                        auto& value = reflectable.template GetPropertyByIndex<MaterialIndexReflectable>(prop_index);
                                         auto& material_group = ecs.GetGroupByIndex<Material, Material::ReflectableGroup>(value.material_index);
                                         ImGui::EndDisabled();
                                         ImGui::PopID();
