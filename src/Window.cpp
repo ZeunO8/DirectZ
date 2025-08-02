@@ -431,16 +431,15 @@ namespace dz {
 			setDPIAware = true;
 		}
 		hInstance = GetModuleHandle(NULL);
-		WNDCLASSEXW wc = {0};
+		WNDCLASSEXA wc = {0};
 		// wc.cbSize = sizeof(WNDCLASS);
-		wc.cbSize = sizeof(WNDCLASSEXW);
+		wc.cbSize = sizeof(WNDCLASSEXA);
 		wc.style = CS_VREDRAW | CS_HREDRAW;
 		wc.lpfnWndProc = wndproc;
 		wc.hInstance = hInstance;
-		auto wtitle = string_to_wstring(title);
-		wc.lpszClassName = wtitle.c_str();
+		wc.lpszClassName = title.c_str();
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-		RegisterClassExW(&wc);
+		RegisterClassExA(&wc);
 		dpiScale = 1.0f;
 		HDC screen = GetDC(NULL);
 		int32_t dpi = GetDeviceCaps(screen, LOGPIXELSX);
@@ -453,10 +452,10 @@ namespace dz {
 		AdjustWindowRectEx(&desiredRect, wsStyle, FALSE, exStyle);
 		adjustedWidth = desiredRect.right - desiredRect.left;
 		adjustedHeight = desiredRect.bottom - desiredRect.top;
-		hwnd = CreateWindowExW(
+		hwnd = CreateWindowExA(
 			exStyle,
-			wtitle.c_str(),
-			wtitle.c_str(),
+			title.c_str(),
+			title.c_str(),
 			wsStyle,
 			x == -1 ? CW_USEDEFAULT : x,
 			y == -1 ? CW_USEDEFAULT : y,
