@@ -11,6 +11,7 @@
 
 namespace dz
 {
+    struct Renderer;
     enum class ShaderModuleType
     {
         Vertex = 1,   /**< Vertex shader module. */
@@ -28,7 +29,6 @@ namespace dz
         TriangleFan = 5
     };
 
-    struct Renderer;
     struct Shader;
     struct Framebuffer;
 

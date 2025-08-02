@@ -12,6 +12,8 @@
 #include "Directz.cpp.hpp"
 #include "Shader.cpp.hpp"
 #include "Framebuffer.cpp.hpp"
+#include "Image.cpp.hpp"
+#include <dz/DrawList.hpp>
 
 namespace dz {
 

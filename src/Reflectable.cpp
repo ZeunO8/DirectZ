@@ -1,4 +1,6 @@
 #include <dz/Reflectable.hpp>
+#include <cassert>
+#include <iostream>
 
 bool BackupGroupVector(Serial& serial, const std::vector<std::shared_ptr<ReflectableGroup>>& group_vector) {
     auto group_vector_size = group_vector.size();
