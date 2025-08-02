@@ -1,16 +1,7 @@
+#include "RendererImpl.hpp"
+#include "Directz.cpp.hpp"
+
 namespace dz {
-	struct QueueFamilyIndices
-	{
-		int32_t graphicsAndComputeFamily = -1;
-		int32_t presentFamily = -1;
-		bool isComplete() { return graphicsAndComputeFamily > -1 && presentFamily > -1; };
-	};
-	struct SwapChainSupportDetails
-	{
-		VkSurfaceCapabilitiesKHR capabilities;
-		std::vector<VkSurfaceFormatKHR> formats;
-		std::vector<VkPresentModeKHR> presentModes;
-	};
 	#ifndef NDEBUG
 	bool check_validation_layers_support();
 	VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
@@ -21,27 +12,6 @@ namespace dz {
 	);
 	void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 	#endif
-	VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer);
-	void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer);
-	uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
-	bool is_device_suitable(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
-	QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
-	void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer);
-	SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device);
-	VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-	VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<VkPresentModeKHR>& availablePresentModes);
-	VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities);
-	void ensure_command_pool(Renderer* renderer);
-	void ensure_command_buffers(Renderer* renderer);
-	void ensure_render_pass(Renderer* renderer);
-	void create_sync_objects(Renderer* renderer);
-	void pre_begin_render_pass(Renderer* renderer);
-	void begin_render_pass(Renderer* renderer);
-	void post_render_pass(Renderer* renderer);
-	bool swap_buffers(Renderer* renderer);
-	void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands);
-	void renderer_destroy(Renderer* renderer);
-	void destroy_swap_chain(Renderer* renderer);
 	Renderer* renderer_init(WINDOW* window)
 	{
 		auto renderer = new Renderer{
@@ -1082,7 +1052,6 @@ _aquire:
 		}
 		throw std::runtime_error("failed to find suitable memory type!");
 	}
-
 
 	void createBuffer(Renderer* renderer,
 		VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,

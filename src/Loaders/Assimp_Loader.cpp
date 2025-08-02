@@ -1,5 +1,6 @@
 #include <dz/Loaders/Assimp_Loader.hpp>
 #include "../Assimp/Assimp.hpp"
+#include <iostream>
 
 namespace dz::loaders::assimp_loader {
     Assimp::Importer importer;
@@ -9,11 +10,12 @@ namespace dz::loaders::assimp_loader {
     };
     void InitContext(AssimpContext& context, const Assimp_Info& info) {
         if (!info.path.empty()) {
-            const aiScene *scene_ptr = importer.ReadFile(info.path.c_str(), aiProcess_Triangulate | aiProcessPreset_TargetRealtime_Fast | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+            auto info_path_string = info.path.string();
+            const aiScene *scene_ptr = importer.ReadFile(info_path_string.c_str(), aiProcess_Triangulate | aiProcessPreset_TargetRealtime_Fast | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
             if (!scene_ptr || scene_ptr->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene_ptr->mRootNode)
             {
                 std::cerr << importer.GetErrorString() << std::endl;
-                return nullptr;
+                return;
             }
             context.scene_ptr = scene_ptr;
         }
@@ -22,7 +24,7 @@ namespace dz::loaders::assimp_loader {
             if (!scene_ptr || scene_ptr->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene_ptr->mRootNode)
             {
                 std::cerr << importer.GetErrorString() << std::endl;
-                return nullptr;
+                return;
             }
             context.scene_ptr = scene_ptr;
         }
@@ -34,7 +36,7 @@ namespace dz::loaders::assimp_loader {
         context.totalNodes++;
         for (uint32_t i = 0; i < node->mNumChildren; i++)
         {
-            totalNodes(context, node->mChildren[i]);
+            CountNodes(context, node->mChildren[i]);
         }
     }
 
@@ -43,8 +45,8 @@ namespace dz::loaders::assimp_loader {
     }
 
     dz::loaders::MeshPair AssimpLoad(AssimpContext& context, const Assimp_Info& info) {
-        CountNodes(context, info.scene_ptr->mRootNode);
-        return ProcessNode(context, info.scene_ptr->mRootNode);
+        CountNodes(context, context.scene_ptr->mRootNode);
+        return ProcessNode(context, context.scene_ptr->mRootNode);
     }
 }
 dz::loaders::MeshPair dz::loaders::Assimp_Loader::Load(const info_type& info) {

@@ -1,3 +1,5 @@
+#include "Directz.cpp.hpp"
+
 namespace dz {
 	
     WindowReflectableGroup::WindowReflectableGroup(WINDOW* window_ptr):
@@ -123,13 +125,12 @@ namespace dz {
 
 		if (dr.window_ptrs.size() == 1) {
 			ImGuiViewport* main_viewport = ImGui::GetMainViewport();
-			main_viewport->PlatformUserData = main_viewport->PlatformHandleRaw = window_get_native_handle(window);
+			main_viewport->PlatformHandleRaw = window_get_native_handle(window);
 			main_viewport->PlatformHandle = window;
 			main_viewport->Pos.x = window->x;
 			main_viewport->Pos.y = window->y;
 			main_viewport->Size.x = width;
 			main_viewport->Size.y = height;
-			main_viewport->PlatformWindowCreated = false;
 			window->imguiViewport = main_viewport;
 #ifdef _WIN32
 			dr.hwnd_root = window->hwnd;
@@ -188,7 +189,7 @@ namespace dz {
             vp.PlatformHandleRaw = nullptr;
 			if (!destroy_remaining)
 	            vp.RendererUserData = nullptr;
-            vp.PlatformUserData = nullptr;
+			vp.PlatformUserData = nullptr;
 		}
 		window->destroy_platform();
 		auto& event_interface = *window->event_interface; 
@@ -433,15 +434,15 @@ namespace dz {
 			setDPIAware = true;
 		}
 		hInstance = GetModuleHandle(NULL);
-		WNDCLASSEX wc = {0};
+		WNDCLASSEXA wc = {0};
 		// wc.cbSize = sizeof(WNDCLASS);
-		wc.cbSize = sizeof(WNDCLASSEX);
+		wc.cbSize = sizeof(WNDCLASSEXA);
 		wc.style = CS_VREDRAW | CS_HREDRAW;
 		wc.lpfnWndProc = wndproc;
 		wc.hInstance = hInstance;
 		wc.lpszClassName = title.c_str();
 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-		RegisterClassEx(&wc);
+		RegisterClassExA(&wc);
 		dpiScale = 1.0f;
 		HDC screen = GetDC(NULL);
 		int32_t dpi = GetDeviceCaps(screen, LOGPIXELSX);
@@ -454,7 +455,7 @@ namespace dz {
 		AdjustWindowRectEx(&desiredRect, wsStyle, FALSE, exStyle);
 		adjustedWidth = desiredRect.right - desiredRect.left;
 		adjustedHeight = desiredRect.bottom - desiredRect.top;
-		hwnd = CreateWindowEx(
+		hwnd = CreateWindowExA(
 			exStyle,
 			title.c_str(),
 			title.c_str(),

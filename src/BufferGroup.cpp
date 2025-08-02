@@ -1,6 +1,10 @@
-namespace dz {
-    void buffer_group_destroy(BufferGroup* bg);
+#include <dz/BufferGroup.hpp>
+#include <memory>
+#include "BufferGroup.cpp.hpp"
+#include "Directz.cpp.hpp"
+#include "Shader.cpp.hpp"
 
+namespace dz {
     BufferGroup* buffer_group_create(const std::string& group_name) {
         auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
             new BufferGroup{
@@ -15,7 +19,7 @@ namespace dz {
     }
 
     void buffer_group_initialize(BufferGroup* buffer_group) {
-        for (auto& sp: buffer_group->shaders) {
+        for (auto& sp : buffer_group->shaders) {
             auto shader = sp.first;
             shader->bound_buffer_groups.push_back(buffer_group);
             shader_initialize(shader);
@@ -91,8 +95,6 @@ namespace dz {
         for (auto& key : restruct_keys)
             buffer_group->restricted_to_keys[key] = true;
     }
-
-    bool buffer_group_resize_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
 
     /**
     * @brief For dynamic SSBOs, sets the number of elements the buffer should hold.

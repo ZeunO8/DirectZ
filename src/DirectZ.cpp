@@ -1,7 +1,5 @@
 #include <DirectZ.hpp>
 #include "Directz.cpp.hpp"
-extern "C" DirectRegistry* dr_ptr;
-extern "C" DirectRegistry& dr;
 namespace dz
 {
     DirectRegistry*& get_direct_registry()
@@ -27,9 +25,9 @@ namespace dz
     void free_direct_registry()
     {
         ImGuiLayer::Shutdown(dr);
-        while (!dr.layout_queue.empty()) {
-            auto layout = dr.layout_queue.front();
-            dr.layout_queue.pop();
+        while (!dr.layoutQueue.empty()) {
+            auto layout = dr.layoutQueue.front();
+            dr.layoutQueue.pop();
             vkDestroyDescriptorSetLayout(dr.device, layout, 0);
         }
 #ifdef __ANDROID__
@@ -46,20 +44,6 @@ namespace dz
         auto direct_registry = get_direct_registry();
         delete direct_registry;
     }
-    struct Renderer;
-    struct WINDOW;
-    Renderer* renderer_init(WINDOW* window);
-    void renderer_render(Renderer* renderer);
-    void renderer_free(Renderer* renderer);
-    void create_surface(Renderer* renderer);
-    bool create_swap_chain(Renderer* renderer);
-    void create_image_views(Renderer* renderer);
-    void create_framebuffers(Renderer* renderer);
-    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
-    VkCommandBuffer begin_single_time_commands();
-    void end_single_time_commands(VkCommandBuffer command_buffer);
-    struct ShaderBuffer;
-    void buffer_group_make_gpu_buffer(const std::string& name, ShaderBuffer& buffer);
     std::vector<WINDOW*>::iterator dr_get_windows_begin() {
         return dr.window_ptrs.begin();
     }
@@ -90,6 +74,7 @@ namespace dz
 #include "ImGuiLayer.cpp"
 #include "Displays.cpp"
 
+#include "ECS/Scene.cpp"
 #include "ECS/Entity.cpp"
 #include "ECS/Mesh.cpp"
 #include "ECS/SubMesh.cpp"

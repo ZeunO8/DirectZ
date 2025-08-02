@@ -1,5 +1,6 @@
 #include <dz/State.hpp>
 #include <dz/ECS.hpp>
+#include "Directz.cpp.hpp"
 
 void dz::track_static_state(
     int sid,

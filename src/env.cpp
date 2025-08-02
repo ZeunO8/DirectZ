@@ -1,3 +1,5 @@
+#include "Directz.cpp.hpp"
+
 namespace dz {
     void set_env(const std::string& key, const std::string& value)
     {

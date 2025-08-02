@@ -1,4 +1,8 @@
+#include <dz/ImGuiLayer.hpp>
 #include "fa-solid-900-ttf.c"
+#include "WindowImpl.hpp"
+#include "RendererImpl.hpp"
+
 namespace dz {
     VkDescriptorPool CreateImGuiDescriptorPool(VkDevice device)
     {

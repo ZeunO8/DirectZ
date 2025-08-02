@@ -1,4 +1,5 @@
 #include <dz/ECS/Light.hpp>
+#include <dz/GlobalUID.hpp>
 
 dz::ecs::LightMetaReflectable::LightMetaReflectable(
     const std::function<Light*()>& get_light_function,

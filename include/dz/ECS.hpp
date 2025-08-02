@@ -137,9 +137,10 @@ namespace dz {
         auto GenerateCamerasDrawFunction() {
             return [&](auto buffer_group, auto camera_index) -> CameraTuple {
                 auto& camera_group = GetGroupByIndex<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_index);
+                auto& camera = GetCamera(camera_group.id);
                 return {camera_index, camera_group.framebuffer, [&, camera_index]() {
                     shader_update_push_constant(main_shader, 0, (void*)&camera_index, sizeof(uint32_t));
-                }};
+                }, !camera.is_active};
             };
         }
 
@@ -216,7 +217,8 @@ namespace dz {
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
                 Cameras_Str, GenerateCamerasDrawFunction(),
-                GenerateCameraVisibilityFunction()
+                GenerateCameraVisibilityFunction(),
+                false
             )
         {
             RegisterProviders();
@@ -236,7 +238,8 @@ namespace dz {
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
                 Cameras_Str, GenerateCamerasDrawFunction(),
-                GenerateCameraVisibilityFunction()
+                GenerateCameraVisibilityFunction(),
+                false
             )
         {
             RegisterProviders();
@@ -376,6 +379,9 @@ namespace dz {
                         auto cam_ptr = dynamic_cast<typename CameraProviderT::ReflectableGroup*>(ptr);
                         assert(cam_ptr);
                         cam_ptr->InitFramebuffer(main_shader, width, height);
+                        cam_ptr->update_draw_list_fn = [&]() {
+                            draw_mg.MarkDirty();
+                        };
                     }
                 }
             }
@@ -838,6 +844,9 @@ namespace dz {
 
             auto& camera = GetCamera(camera_id);
             auto& camera_group = GetGroupByID<TCamera, typename TCamera::ReflectableGroup>(camera_id);
+            camera_group.update_draw_list_fn = [&]() {
+                draw_mg.MarkDirty();
+            };
 
             auto& width = *window_get_width_ref(window_ptr);
             auto& height = *window_get_height_ref(window_ptr);

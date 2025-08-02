@@ -16,10 +16,10 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #endif
+#include "WindowImpl.hpp"
+#include "RendererImpl.hpp"
 namespace dz
 {
-	#include "WindowImpl.hpp"
-	#include "RendererImpl.hpp"
 
 	void create_surface(Renderer* renderer) {
 		auto& window = *renderer->window;

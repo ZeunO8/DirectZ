@@ -8,7 +8,7 @@ namespace dz::ecs {
         int parent_index = -1;
         int parent_cid = 0;
         int enabled_components = 0;
-        int padding = 0;
+        int transform_dirty = 1;
         vec<float, 4> position = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);
         vec<float, 4> rotation = vec<float, 4>(0.0f, 0.0f, 0.0f, 1.0f);;
         vec<float, 4> scale = vec<float, 4>(1.0f, 1.0f, 1.0f, 1.0f);;
@@ -24,7 +24,7 @@ struct Entity {
     int parent_index;
     int parent_cid;
     int enabled_components;
-    int padding;
+    int transform_dirty;
     vec4 position;
     vec4 rotation;
     vec4 scale;
@@ -38,6 +38,13 @@ struct Entity {
             { ShaderModuleType::Compute, R"(
 void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, out int parent_cid) {
     Entity entity = GetEntityData(entity_index);
+
+    if (entity.transform_dirty == 0) {
+        out_model = entity.model;
+        parent_index = entity.parent_index;
+        parent_cid = entity.parent_cid;
+        return;
+    }
 
     mat4 model = mat4(1.0);
     model[3] = vec4(entity.position.xyz, 1.0);
@@ -71,6 +78,8 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
 
     parent_index = entity.parent_index;
     parent_cid = entity.parent_cid;
+
+    entity.transform_dirty = 0;
 }
 )"}
         };

@@ -1,4 +1,6 @@
 #include <dz/ECS/Mesh.hpp>
+#include <dz/GlobalUID.hpp>
+#include <cassert>
 
 dz::ecs::Mesh::MeshReflectable::MeshReflectable(const std::function<Mesh*()>& get_mesh_function):
     get_mesh_function(get_mesh_function),

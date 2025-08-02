@@ -13,7 +13,7 @@ namespace dz {
         * @param base_ptr A pointer to the start of the struct element's data in the buffer.
         * @param struct_def The ReflectedStruct definition for this element.
         */
-        ReflectedStructView(uint8_t* base_ptr, const ReflectedStruct& struct_def);
+        explicit ReflectedStructView(uint8_t* base_ptr, const ReflectedStruct& struct_def);
 
         /**
         * @brief Sets the value of a member within the struct.

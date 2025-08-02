@@ -11,6 +11,7 @@
 
 namespace dz
 {
+    struct Renderer;
     enum class ShaderModuleType
     {
         Vertex = 1,   /**< Vertex shader module. */
@@ -28,7 +29,6 @@ namespace dz
         TriangleFan = 5
     };
 
-    struct Renderer;
     struct Shader;
     struct Framebuffer;
 
@@ -46,6 +46,7 @@ namespace dz
     */
     void shader_set_render_pass(Shader*, Framebuffer*);
 
+    struct AssetPack;
     /**
      * @brief Sets the include path to an asset_pack for include lookup
      */
@@ -68,6 +69,7 @@ namespace dz
      */
     void shader_add_module_from_file(Shader*, const std::filesystem::path& file_path);
 
+    struct BufferGroup;
     /**
      * @brief Binds a BufferGroup to the shader.
      * 

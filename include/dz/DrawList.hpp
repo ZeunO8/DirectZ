@@ -55,7 +55,7 @@ namespace dz
     /**
     * @brief A CameraTuple is the information required to draw from a cameras perspective
     */
-    using CameraTuple = std::tuple<int, Framebuffer*, std::function<void()>>;
+    using CameraTuple = std::tuple<int, Framebuffer*, std::function<void()>, bool>;
 
     /**
     * @brief Information for a single Camera draw
@@ -65,6 +65,7 @@ namespace dz
         Framebuffer* framebuffer;
         std::function<void()> pre_render_fn;
         ShaderDrawList shaderDrawList;
+        bool inactive = false;
     };
 
     /**
