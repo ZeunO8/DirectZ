@@ -584,6 +584,10 @@ namespace dz {
                     auto& scene = GetScene(id);
                     SetWhoParent(scene, &parent_group);
                 }
+                if constexpr (std::is_same_v<TProvider, SubMeshProviderT>) {
+                    auto& submesh = GetSubMesh(id);
+                    SetWhoParent(submesh, &parent_group);
+                }
             }
 
             if constexpr (std::is_same_v<TProvider, EntityProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
