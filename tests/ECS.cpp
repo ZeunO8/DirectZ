@@ -1305,6 +1305,11 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
         ExampleECS::SetWhoParent(scene, new_parent_ptr);
         break;
     }
+    case SubMesh::PID: {
+        auto& submesh = ecs_ptr->GetSubMesh(dragged_group->id);
+        ExampleECS::SetWhoParent(submesh, new_parent_ptr);
+        break;
+    }
     }
 
     ecs_ptr->MarkDirty();
