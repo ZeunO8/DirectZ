@@ -48,6 +48,8 @@ namespace dz
         DrawInformation drawInformation;
         bool draw_list_dirty = true;
     public:
+        bool enable_global_camera_if_cameras_empty;
+
         /**
          * @brief Constructs a DrawListManager with a draw key and logic function.
          * 
@@ -57,12 +59,14 @@ namespace dz
         DrawListManager(
             const std::string& draw_key, const Determine_DrawT_DrawTuples_Function& fn_determine_DrawT_DrawTuples,
             const std::string& camera_key = "", const Determine_CameraTuple_Function& fn_determine_CameraTuple = {},
-            const Determine_VisibleDraws_Function& fn_get_visible_draws = {}
+            const Determine_VisibleDraws_Function& fn_get_visible_draws = {},
+            bool enable_global_camera_if_cameras_empty = true
         ):
             fn_determine_DrawT_DrawTuples(fn_determine_DrawT_DrawTuples),
             fn_determine_CameraTuple(fn_determine_CameraTuple),
             draw_key(draw_key),
-            camera_key(camera_key)
+            camera_key(camera_key),
+            enable_global_camera_if_cameras_empty(enable_global_camera_if_cameras_empty)
         {
             if (fn_get_visible_draws) {
                 this->fn_get_visible_draws = fn_get_visible_draws;
@@ -99,19 +103,22 @@ namespace dz
             {
                 const size_t camera_elements = buffer_group_get_buffer_element_count(buffer_group, camera_key);
 
+                drawInformation.cameraDrawInfos.resize(camera_elements);
+                auto cameraDrawInfos_data = drawInformation.cameraDrawInfos.data();
+
                 for (size_t i = 0; i < camera_elements; ++i)
                 {
-                    auto [camera_index, framebuffer, camera_pre_render_fn] = fn_determine_CameraTuple(buffer_group, i);
-                    CameraDrawInformation cameraDrawInfo{
+                    auto [camera_index, framebuffer, camera_pre_render_fn, inactive] = fn_determine_CameraTuple(buffer_group, i);
+                    cameraDrawInfos_data[i] = CameraDrawInformation{
                         .camera_index = camera_index,
                         .framebuffer = framebuffer,
-                        .pre_render_fn = camera_pre_render_fn
+                        .pre_render_fn = camera_pre_render_fn,
+                        .inactive = inactive
                     };
-                    drawInformation.cameraDrawInfos.push_back(cameraDrawInfo);
                 }
             }
 
-            if (drawInformation.cameraDrawInfos.empty())
+            if (enable_global_camera_if_cameras_empty && drawInformation.cameraDrawInfos.empty())
             {
                 CameraDrawInformation cameraDrawInfo{
                     .camera_index = -1,
@@ -134,6 +141,8 @@ namespace dz
             };
 
             for (auto& cameraDrawInfo : drawInformation.cameraDrawInfos) {
+                if (cameraDrawInfo.inactive)
+                    continue;
                 auto camera_index = cameraDrawInfo.camera_index;
                 auto visible_entity_indices = fn_get_visible_draws(buffer_group, camera_index);
                 auto visible_entity_indices_data = visible_entity_indices.data();

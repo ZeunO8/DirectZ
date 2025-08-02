@@ -74,6 +74,7 @@ namespace dz
 #include "ImGuiLayer.cpp"
 #include "Displays.cpp"
 
+#include "ECS/Scene.cpp"
 #include "ECS/Entity.cpp"
 #include "ECS/Mesh.cpp"
 #include "ECS/SubMesh.cpp"

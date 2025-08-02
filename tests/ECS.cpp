@@ -724,6 +724,16 @@ int main() {
                                         }
                                         ImGui::PopID();
                                     }
+                                    else if (*type_info == typeid(bool)) {
+                                        auto& value = reflectable.template GetPropertyByIndex<bool>(prop_index);
+                                        ImGui::PushID(prop_index);
+                                        if (ImGui::Checkbox("##checkbox", &value))
+                                        {
+                                            reflectable.NotifyChange(prop_index);
+                                            update_iterators();
+                                        }
+                                        ImGui::PopID();
+                                    }
                                     else if (*type_info == typeid(Light::LightType)) {
                                         auto& value = reflectable.template GetPropertyByIndex<Light::LightType>(prop_index);
                                         static const char* projection_types[] = { "Directional", "Spot", "Point" };

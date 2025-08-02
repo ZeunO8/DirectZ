@@ -1,5 +1,6 @@
 #include <dz/ECS/Entity.hpp>
 #include <dz/GlobalUID.hpp>
+#include <cassert>
 
 dz::ecs::Entity::EntityTransformReflectable::EntityTransformReflectable(const std::function<Entity*()>& get_entity_function):
     get_entity_function(get_entity_function),
@@ -27,4 +28,14 @@ void* dz::ecs::Entity::EntityTransformReflectable::GetVoidPropertyByIndex(int pr
     }
 }
 
-void dz::ecs::Entity::EntityTransformReflectable::NotifyChange(int prop_index) {}
+void dz::ecs::Entity::EntityTransformReflectable::NotifyChange(int prop_index) {
+    auto entity_ptr = get_entity_function();
+    if (!entity_ptr)
+        return;
+    auto& entity = *entity_ptr;
+    switch (prop_index) {
+    default:
+        entity.transform_dirty = 1;
+        break;
+    }
+}

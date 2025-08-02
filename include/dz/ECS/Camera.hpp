@@ -26,8 +26,8 @@ namespace dz::ecs {
         float orthoHeight;
         int parent_index = -1;
         int parent_cid = 0;
-        int padding1 = 0;
-        int padding2 = 0;
+        int transform_dirty = 1;
+        int is_active = 1;
         inline static constexpr bool IsCameraProvider = true;
         inline static constexpr size_t PID = 5;
         inline static float Priority = 0.5f;
@@ -49,8 +49,8 @@ struct Camera {
     float orthoHeight;
     int parent_index;
     int parent_cid;
-    int padding1;
-    int padding2;
+    int transform_dirty;
+    int is_active;
 };
 )";
 
@@ -71,6 +71,13 @@ struct Camera {
             { ShaderModuleType::Compute, R"(
 void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, out int parent_cid) {
     Camera camera = GetCameraData(camera_index);
+
+    if (camera.transform_dirty == 0) {
+        out_model = inverse(camera.view);
+        parent_index = camera.parent_index;
+        parent_cid = camera.parent_cid;
+        return;
+    }
 
     vec3 eye = camera.position;
     vec3 center = camera.center;
@@ -112,12 +119,14 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
 
     parent_index = camera.parent_index;
     parent_cid = camera.parent_cid;
+
+    camera.transform_dirty = 0;
 }
 )"}
         };
 
         
-        struct CameraTypeReflectable : Reflectable {
+        struct CameraMetaReflectable : Reflectable {
             
         private:
             std::function<Camera*()> get_camera_function;
@@ -125,20 +134,24 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"type", {0, 0}}
+                {"type", {0, 0}},
+                {"is_active", {1, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "type"}
+                {0, "type"},
+                {1, "is_active"}
             };
             inline static std::vector<std::string> prop_names = {
-                "type"
+                "type",
+                "is_active"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(Camera::ProjectionType)
+                &typeid(Camera::ProjectionType),
+                &typeid(bool)
             };
 
         public:
-            CameraTypeReflectable(
+            CameraMetaReflectable(
                 const std::function<Camera*()>& get_camera_function,
                 const std::function<void()>& reset_reflectables_function
             );
@@ -281,6 +294,8 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             VkDescriptorSet frame_image_ds = VK_NULL_HANDLE;
             bool open_in_editor = true;
 
+            std::function<void()> update_draw_list_fn;
+
             CameraReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
                 name("Camera")
@@ -316,14 +331,16 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                     delete reflectable;
                 reflectables.clear();
             }
+
             void UpdateChildren() override {
                 if (reflectables.size() == 0) {
-                    reflectables.push_back(new CameraTypeReflectable([&]() mutable {
+                    reflectables.push_back(new CameraMetaReflectable([&]() mutable {
                         auto camera_buff = buffer_group_get_buffer_data_ptr(buffer_group, CamerasBufferName);
                         auto cameras_ptr = (struct Camera*)(camera_buff.get());
                         return &cameras_ptr[index];
                     }, [&]() mutable {
                         UpdateChildren();
+                        update_draw_list_fn();
                     }));
                     reflectables.push_back(new CameraViewReflectable([&]() mutable {
                         auto camera_buff = buffer_group_get_buffer_data_ptr(buffer_group, CamerasBufferName);
@@ -362,6 +379,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                 default: break;
                 }
             }
+
             void InitFramebuffer(Shader* shader, float width, float height) {
                 // Initialize camera framebuffer
                 fb_color_image = image_create({

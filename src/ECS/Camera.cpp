@@ -64,37 +64,37 @@ void dz::ecs::CameraInit(Camera& camera) {
     }
 }
 
-dz::ecs::Camera::CameraTypeReflectable::CameraTypeReflectable(
+dz::ecs::Camera::CameraMetaReflectable::CameraMetaReflectable(
     const std::function<Camera*()>& get_camera_function,
     const std::function<void()>& reset_reflectables_function
 ):
     get_camera_function(get_camera_function),
     reset_reflectables_function(reset_reflectables_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
-    name("Camera Type")
+    name("Camera Meta")
 {}
 
-int dz::ecs::Camera::CameraTypeReflectable::GetID() {
+int dz::ecs::Camera::CameraMetaReflectable::GetID() {
     return uid;
 }
 
-std::string& dz::ecs::Camera::CameraTypeReflectable::GetName() {
+std::string& dz::ecs::Camera::CameraMetaReflectable::GetName() {
     return name;
 }
 
-void* dz::ecs::Camera::CameraTypeReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Camera::CameraMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return nullptr;
     auto& camera = *camera_ptr;
     switch (prop_index) {
-    case 0:
-        return &camera.type;
+    case 0: return &camera.type;
+    case 1: return &camera.is_active;
     default: return nullptr;
     }
 }
 
-void dz::ecs::Camera::CameraTypeReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Camera::CameraMetaReflectable::NotifyChange(int prop_index) {
     auto camera_ptr = get_camera_function();
     if (!camera_ptr)
         return;
@@ -149,6 +149,7 @@ void dz::ecs::Camera::CameraViewReflectable::NotifyChange(int prop_index) {
     switch (prop_index) {
     default:
         CameraInit(camera);
+        camera.transform_dirty = 1;
         break;
     }
 }

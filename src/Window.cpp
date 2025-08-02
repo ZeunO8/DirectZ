@@ -187,6 +187,9 @@ namespace dz {
 			auto& vp = *window->imguiViewport;
             vp.PlatformHandle = nullptr;
             vp.PlatformHandleRaw = nullptr;
+			if (!destroy_remaining)
+	            vp.RendererUserData = nullptr;
+			vp.PlatformUserData = nullptr;
 		}
 		window->destroy_platform();
 		auto& event_interface = *window->event_interface; 
