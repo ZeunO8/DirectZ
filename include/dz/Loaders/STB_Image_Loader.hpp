@@ -11,8 +11,8 @@ namespace dz::loaders {
         size_t bytes_length = 0;
     };
     struct STB_Image_Loader {
-        using ptr_type = Image;
+        using value_type = Image*;
         using info_type = STB_Image_Info;
-        static ptr_type* Load(const info_type& info);
+        static value_type Load(const info_type& info);
     };
 }

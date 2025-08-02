@@ -9,11 +9,13 @@
 #include "Shader.hpp"
 #include "Util.hpp"
 #include "State.hpp"
-#include "ECS/Camera.hpp"
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
-#include "ECS/Entity.hpp"
 #include "ECS/Scene.hpp"
+#include "ECS/Entity.hpp"
+#include "ECS/Mesh.hpp"
+#include "ECS/SubMesh.hpp"
+#include "ECS/Camera.hpp"
 #include "ECS/Material.hpp"
 #include "ImagePack.hpp"
 #include <string>
@@ -25,15 +27,13 @@
 #include <fstream>
 #include <mutex>
 
-#define ID_ENTITY_MIN 0
-#define ID_CAMERA_MIN 357913941
-#define ID_LIGHT_MIN 715827882
-
 namespace dz {
 
-    inline static const std::string cameras_buffer_name = "Cameras";
-    inline static const std::string lights_buffer_name = "Lights";
+    inline static std::string Cameras_Str = "Cameras";
     inline static std::string Atlas_Str = "Atlas";
+    inline static std::string VertexPositions_Str = "VertexPositions";
+    inline static std::string VertexUV2s_Str = "VertexUV2s";
+    inline static std::string VertexNormals_Str = "VertexNormals";
     
     template<int TCID, typename... TProviders>
     struct ECS : Restorable {
@@ -85,6 +85,7 @@ namespace dz {
 
         std::vector<std::shared_ptr<ReflectableGroup>> reflectable_group_root_vector; // Y
         std::vector<std::shared_ptr<ReflectableGroup>> material_group_vector; // Y
+        std::vector<std::shared_ptr<ReflectableGroup>> mesh_group_vector; // Y
         std::map<size_t, std::vector<ReflectableGroup*>> pid_reflectable_vecs; // !
         std::unordered_map<size_t, std::unordered_map<size_t, size_t>> pid_id_index_maps; // !
 
@@ -94,22 +95,31 @@ namespace dz {
         std::map<float, std::vector<size_t>> prioritized_provider_ids; // !
         std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains; // !
 
-        std::vector<std::string> restricted_keys{Atlas_Str}; // !
+        std::vector<std::string> restricted_keys{
+            Atlas_Str,
+            VertexPositions_Str,
+            VertexUV2s_Str,
+            VertexNormals_Str
+        }; // !
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
         bool components_registered = false; // !
 
         using DrawProviderT = typename FirstMatchingOrDefault<IsDrawProvider, TProviders...>::type;
+        using SubMeshProviderT = typename FirstMatchingOrDefault<IsSubMeshProvider, TProviders...>::type;
+        using EntityProviderT = typename FirstMatchingOrDefault<IsEntityProvider, TProviders...>::type;
         using CameraProviderT = typename FirstMatchingOrDefault<IsCameraProvider, TProviders...>::type;
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
         using MaterialProviderT = typename FirstMatchingOrDefault<IsMaterialProvider, TProviders...>::type;
+        using MeshProviderT = typename FirstMatchingOrDefault<IsMeshProvider, TProviders...>::type;
         DrawListManager<DrawProviderT> draw_mg; // !
 
         BufferGroup* buffer_group = nullptr; // !
         bool buffer_initialized = false; // !
         int buffer_size = 0; // !
         
-        Shader* main_shader = 0; // !
-        Shader* model_compute_shader = 0; // !
+        Shader* main_shader = nullptr; // !
+        Shader* model_compute_shader = nullptr; // !
+        Shader* camera_mat_compute_shader = nullptr; // !
 
         bool material_browser_open = true;
 
@@ -117,9 +127,9 @@ namespace dz {
         ImagePack atlas_pack;
 
         auto GenerateEntitysDrawFunction() {
-            return [&](auto buffer_group, auto& entity) -> DrawTuples {
+            return [&](auto buffer_group, auto& draw_object) -> DrawTuples {
                 return {
-                    {main_shader, entity.GetVertexCount(buffer_group, entity)}
+                    {main_shader, draw_object.GetVertexCount(buffer_group, draw_object)}
                 };
             };
         }
@@ -155,9 +165,10 @@ namespace dz {
                     for (auto& ref_group_sh_ptr : *node_ptr) {
                         auto ref_group_ptr = ref_group_sh_ptr.get();
                         assert(ref_group_ptr);
-                        auto e_group_ptr = dynamic_cast<DrawProviderT::ReflectableGroup*>(ref_group_ptr);
+                        auto e_group_ptr = dynamic_cast<EntityProviderT::ReflectableGroup*>(ref_group_ptr);
                         if (e_group_ptr) {
-                            visible.push_back(e_group_ptr->index);
+                            for (auto& submesh_group_sh_ptr : e_group_ptr->submesh_groups)
+                                visible.push_back(submesh_group_sh_ptr->index);
                             add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit);
                             continue;
                         }
@@ -180,12 +191,12 @@ namespace dz {
             };
         }
 
-        template <typename TqProvider>
+        template <typename TProvider>
         void IsDrawProviderName(std::string& out_string) {
             if (!out_string.empty())
                 return;
-            if (TqProvider::GetIsDrawProvider()) {
-                out_string = (TqProvider::GetStructName() + "s");
+            if (TProvider::GetIsDrawProvider()) {
+                out_string = (TProvider::GetStructName() + "s");
             }
         }
 
@@ -200,7 +211,7 @@ namespace dz {
             window_ptr(state_get_ptr<WINDOW>(CID_WINDOW)),
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
-                "Cameras", GenerateCamerasDrawFunction(),
+                Cameras_Str, GenerateCamerasDrawFunction(),
                 GenerateCameraVisibilityFunction()
             )
         {
@@ -209,6 +220,7 @@ namespace dz {
             assert(buffer_group);
             main_shader = GenerateMainShader();
             model_compute_shader = GenerateModelComputeShader();
+            camera_mat_compute_shader = GenerateCameraMatComputeShader();
             EnableDrawInWindow(window_ptr);
             restore(serial);
             loaded_from_io = true;
@@ -219,7 +231,7 @@ namespace dz {
             window_ptr(initial_window_ptr),
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
-                "Cameras", GenerateCamerasDrawFunction(),
+                Cameras_Str, GenerateCamerasDrawFunction(),
                 GenerateCameraVisibilityFunction()
             )
         {
@@ -228,6 +240,7 @@ namespace dz {
             assert(buffer_group);
             main_shader = GenerateMainShader();
             model_compute_shader = GenerateModelComputeShader();
+            camera_mat_compute_shader = GenerateCameraMatComputeShader();
             EnableDrawInWindow(window_ptr);
         }
 
@@ -236,6 +249,7 @@ namespace dz {
             auto atlas = atlas_pack.getAtlas();
             shader_use_image(main_shader, Atlas_Str, atlas);
             shader_use_image(model_compute_shader, Atlas_Str, atlas);
+            shader_use_image(camera_mat_compute_shader, Atlas_Str, atlas);
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
@@ -271,6 +285,8 @@ namespace dz {
                 return false;
             if (!BackupGroupVector(serial, material_group_vector))
                 return false;
+            if (!BackupGroupVector(serial, mesh_group_vector))
+                return false;
             if (!BackupBuffers(serial))
                 return false;
             return true;
@@ -289,6 +305,8 @@ namespace dz {
             if (!RestoreGroupVector(serial, reflectable_group_root_vector, buffer_group))
                 return false;
             if (!RestoreGroupVector(serial, material_group_vector, buffer_group))
+                return false;
+            if (!RestoreGroupVector(serial, mesh_group_vector, buffer_group))
                 return false;
             if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
                 return false;
@@ -329,7 +347,6 @@ namespace dz {
                     auto& group = *group_ptr;
                     group.parent_ptr = parent_ptr;
                     assert(group.cid);
-                    // provider_id_reflectable_maps[group.cid]
                     if (!EnsureGroupVectorParentPtrs(group.GetChildren(), group_ptr))
                         return false;
                 }
@@ -457,14 +474,6 @@ namespace dz {
             return true;
         }
 
-        bool RegisterComponents(const std::function<bool(ECS&)>& register_all_components_fn) {
-            std::lock_guard lock(e_mutex);
-            if (register_all_components_fn) {
-                return register_all_components_fn(*this);
-            }
-            return false;
-        }
-
         void Resize(int n) {
             std::lock_guard lock(e_mutex);
             buffer_group_set_buffer_element_count(buffer_group, buffer_name, n);
@@ -547,7 +556,7 @@ namespace dz {
             }
 
             if constexpr (TProvider::GetIsComponent()) {
-                auto& parent_entity_group = GetGroup<DrawProviderT, typename DrawProviderT::ReflectableGroup>(parent_id);
+                auto& parent_entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(parent_id);
 
                 auto sparse = buffer_group_get_buffer_data_ptr(buffer_group, provider_group.sparse_name);
                 auto sparse_ptr = ((int*)(sparse.get()));
@@ -557,9 +566,30 @@ namespace dz {
 
             group.UpdateChildren();
 
-            if constexpr (std::is_same_v<TProvider, DrawProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
+            if (parent_id != -1) {
+                auto& parent_group = GetGenericGroupByID(parent_id);
+                if constexpr (std::is_same_v<TProvider, EntityProviderT>) {
+                    auto& entity = GetEntity(id);
+                    SetWhoParent(entity, &parent_group);
+                }
+                if constexpr (std::is_same_v<TProvider, CameraProviderT>) {
+                    auto& camera = GetCamera(id);
+                    SetWhoParent(camera, &parent_group);
+                }
+                if constexpr (std::is_same_v<TProvider, SceneProviderT>) {
+                    auto& scene = GetScene(id);
+                    SetWhoParent(scene, &parent_group);
+                }
+            }
+
+            if constexpr (std::is_same_v<TProvider, EntityProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
                 MarkDirty();
             }
+        }
+
+        static auto SetWhoParent(auto& who, auto new_parent_ptr) {
+            who.parent_index = new_parent_ptr ? new_parent_ptr->index : -1;
+            who.parent_cid = new_parent_ptr ? new_parent_ptr->cid : 0;
         }
 
         template <typename TData>
@@ -572,29 +602,45 @@ namespace dz {
         }
 
         template <typename TEntity>
-        size_t AddEntity(int parent_id, const TEntity& entity_data) {
+        size_t AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
-            return AddProvider<TEntity>(parent_id, entity_data,
+            auto entity_id = AddProvider<TEntity>(parent_id, entity_data,
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
+            auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
+            for (auto& mesh_index : mesh_indexes) {
+                auto& mesh_group = GetGroupByIndex<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_index);
+                int submesh_index = -1;
+                SubMeshProviderT submesh_data{
+                    .parent_index = out_index,
+                    .mesh_index = mesh_index,
+                    .material_index = mesh_group.material_index
+                };
+                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.submesh_groups, submesh_index);
+            }
+            return entity_id;
         }
 
         template <typename TEntity>
-        size_t AddEntity(const TEntity& entity_data) {
-            return AddEntity<TEntity>(-1, entity_data);
+        size_t AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
+            return AddEntity<TEntity>(-1, entity_data, mesh_indexes);
         }
 
         template <typename TScene>
-        size_t AddScene(int parent_id, const TScene& entity_data) {
+        size_t AddScene(int parent_id, const TScene& scene_data) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
-            return AddProvider<TScene>(parent_id, entity_data,
+            return AddProvider<TScene>(parent_id, scene_data,
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
         }
 
         template <typename TScene>
-        size_t AddScene(const TScene& entity_data) {
-            return AddScene<TScene>(-1, entity_data);
+        size_t AddScene(const TScene& scene_data) {
+            return AddScene<TScene>(-1, scene_data);
+        }
+
+        SceneProviderT& GetScene(size_t scene_id) {
+            return GetProviderData<SceneProviderT>(scene_id);
         }
 
         template <typename TMaterial>
@@ -607,11 +653,87 @@ namespace dz {
         }
 
         void SetMaterialImage(size_t material_id, Image* image) {
-            auto& material_group = GetGroup<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
+            auto& material_group = GetGroupByID<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
             material_group.image = image;
             atlas_pack.addImage(material_group.image);
             if (buffer_initialized)
                 UpdateAtlas();
+        }
+
+        size_t AddMesh(
+            size_t parent_id,
+            const std::vector<vec<float, 4>>& positions,
+            const std::vector<vec<float, 2>>& uv2s,
+            const std::vector<vec<float, 4>>& normals,
+            int material_index,
+            int& out_index
+        ) {
+            MeshProviderT mesh_data;
+            auto position_index = buffer_group_get_buffer_element_count(buffer_group, VertexPositions_Str);
+            auto uv2_index = buffer_group_get_buffer_element_count(buffer_group, VertexUV2s_Str);
+            auto normal_index = buffer_group_get_buffer_element_count(buffer_group, VertexNormals_Str);
+
+            if (!positions.empty()) {
+                mesh_data.vertex_count = positions.size();
+                mesh_data.position_offset = position_index;
+            }
+            if (!uv2s.empty())
+                mesh_data.uv2_offset = uv2_index;
+            if (!normals.empty())
+                mesh_data.normal_offset = normal_index;
+
+            auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            auto mesh_id = AddProvider<MeshProviderT>(parent_id, mesh_data,
+                parent_group_ptr ? parent_group_ptr->GetChildren() : mesh_group_vector, out_index);
+            
+            if (mesh_data.position_offset != -1) {
+                buffer_group_set_buffer_element_count(buffer_group, VertexPositions_Str, mesh_data.position_offset + positions.size());
+
+                auto positions_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, VertexPositions_Str);
+                auto positions_ptr = (vec<float, 4>*)(positions_sh_ptr.get());
+
+                memcpy((void*)&positions_ptr[mesh_data.position_offset], positions.data(), positions.size() * sizeof(vec<float, 4>));
+            }
+
+            if (mesh_data.uv2_offset != -1) {
+                buffer_group_set_buffer_element_count(buffer_group, VertexUV2s_Str, mesh_data.uv2_offset + uv2s.size());
+
+                auto uv2s_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, VertexUV2s_Str);
+                auto uv2s_ptr = (vec<float, 2>*)(uv2s_sh_ptr.get());
+
+                memcpy((void*)&uv2s_ptr[mesh_data.uv2_offset], uv2s.data(), uv2s.size() * sizeof(vec<float, 2>));
+            }
+
+            if (mesh_data.normal_offset != -1) {
+                buffer_group_set_buffer_element_count(buffer_group, VertexNormals_Str, mesh_data.normal_offset + normals.size());
+
+                auto normals_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, VertexNormals_Str);
+                auto normals_ptr = (vec<float, 4>*)(normals_sh_ptr.get());
+
+                memcpy((void*)&normals_ptr[mesh_data.normal_offset], normals.data(), normals.size() * sizeof(vec<float, 4>));
+            }
+
+            auto& mesh_group = GetGroupByID<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_id);
+            mesh_group.material_index = material_index;
+
+            return mesh_id;
+        }
+
+        size_t AddMesh(
+            const std::vector<vec<float, 4>>& positions,
+            const std::vector<vec<float, 2>>& uv2s,
+            const std::vector<vec<float, 4>>& normals,
+            int material_index,
+            int& out_index
+        ) {
+            return AddMesh(-1, positions, uv2s, normals, material_index, out_index);
+        }
+
+        ReflectableGroup& GetGenericGroupByID(size_t id) {
+            auto ptr = FindParentGroupPtr(id);
+            if (ptr)
+                return *ptr;
+            throw std::runtime_error("Unable to find group with id");
         }
 
         template <typename TProvider, typename TReflectableGroup>
@@ -634,7 +756,7 @@ namespace dz {
         }
 
         template <typename TProvider, typename TReflectableGroup>
-        TReflectableGroup& GetGroup(size_t id) {
+        TReflectableGroup& GetGroupByID(size_t id) {
             constexpr auto pid = TProvider::GetPID();
             auto& ref_map = pid_id_index_maps[pid];
             auto it = ref_map.find(id);
@@ -687,8 +809,8 @@ namespace dz {
             return p_ptr[index];
         }
 
-        DrawProviderT& GetEntity(size_t entity_id) {
-            return GetProviderData<DrawProviderT>(entity_id);
+        EntityProviderT& GetEntity(size_t entity_id) {
+            return GetProviderData<EntityProviderT>(entity_id);
         }
 
         template <typename TCamera>
@@ -699,7 +821,7 @@ namespace dz {
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
 
             auto& camera = GetCamera(camera_id);
-            auto& camera_group = GetGroup<TCamera, typename TCamera::ReflectableGroup>(camera_id);
+            auto& camera_group = GetGroupByID<TCamera, typename TCamera::ReflectableGroup>(camera_id);
 
             auto& width = *window_get_width_ref(window_ptr);
             auto& height = *window_get_height_ref(window_ptr);
@@ -733,7 +855,7 @@ namespace dz {
         template <typename TComponent>
         size_t ConstructComponent(size_t entity_id, const TComponent& data) {
             auto& entity = GetEntity(entity_id);
-            auto& entity_group = GetGroup<DrawProviderT, typename DrawProviderT::ReflectableGroup>(entity_id);
+            auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
             constexpr auto component_type_id = TComponent::GetComponentID();
             int mask = 1 << (component_type_id - 1);
             if (entity.enabled_components & mask)
@@ -746,11 +868,11 @@ namespace dz {
             return component_id;
         }
 
-        template <typename T, typename TqProvider>
+        template <typename T, typename TProvider>
         void IsTThisProvider(bool& out_bool) {
             if (out_bool)
                 return;
-            out_bool = std::is_same_v<T, TqProvider>;
+            out_bool = std::is_same_v<T, TProvider>;
         }
 
         template <typename T>
@@ -787,7 +909,6 @@ namespace dz {
         Shader* GenerateMainShader() {
             auto shader_ptr = shader_create();
 
-            shader_set_define(shader_ptr, "ECS_MAX_COMPONENTS", std::to_string(ECS_MAX_COMPONENTS));
 
             shader_add_buffer_group(shader_ptr, buffer_group);
 
@@ -800,7 +921,8 @@ namespace dz {
         Shader* GenerateModelComputeShader() {
             auto shader_ptr = shader_create();
 
-            shader_set_define(shader_ptr, "ECS_MAX_COMPONENTS", std::to_string(ECS_MAX_COMPONENTS));
+            for (auto& [provider_id, provider_group] : pid_provider_groups)
+                shader_set_define(shader_ptr, "CID_" + provider_group.name, std::to_string(provider_id));
 
             shader_add_buffer_group(shader_ptr, buffer_group);
 
@@ -808,6 +930,23 @@ namespace dz {
 
             window_register_compute_dispatch(window_ptr, 0.0f, shader_ptr, [&]() {
                 return buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+            });
+
+            return shader_ptr;
+        }
+
+        Shader* GenerateCameraMatComputeShader() {
+            auto shader_ptr = shader_create();
+
+            for (auto& [provider_id, provider_group] : pid_provider_groups)
+                shader_set_define(shader_ptr, "CID_" + provider_group.name, std::to_string(provider_id));
+
+            shader_add_buffer_group(shader_ptr, buffer_group);
+
+            shader_add_module(shader_ptr, ShaderModuleType::Compute, GenerateCameraMatComputeShaderCode());
+
+            window_register_compute_dispatch(window_ptr, -10.0f, shader_ptr, [&]() {
+                return buffer_group_get_buffer_element_count(buffer_group, Cameras_Str);
             });
 
             return shader_ptr;
@@ -837,6 +976,23 @@ namespace dz {
                     shader_header += provider_group.glsl_struct;
                 }
             }
+
+            // Mesh Buffers
+            shader_header += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer VertexPositionsBuffer {
+    vec4 data[];
+} VertexPositions;
+)";
+            shader_header += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer VertexUV2sBuffer {
+    vec2 data[];
+} VertexUV2s;
+)";
+            shader_header += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer VertexNormalsBuffer {
+    vec4 data[];
+} VertexNormals;
+)";
 
             // Setup Buffers
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
@@ -889,13 +1045,6 @@ bool HasComponentWithType(in Entity entity, int entity_index, int type, out int 
     return true;
 }
 )";
-
-            // TComponent
-//             shader_header += R"(
-// layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer ComponentBuffer {
-//     Component data[];
-// } Components;
-// )";
             return shader_header;
         }
 
@@ -974,8 +1123,10 @@ layout(push_constant) uniform PushConstants {
             // Main
             shader_string += R"(
 void main() {
-    int entity_index = outID = gl_InstanceIndex;
-    Entity entity = GetEntityData(entity_index);
+    int submesh_index = outID = gl_InstanceIndex;
+    SubMesh submesh = GetSubMeshData(submesh_index);
+    Mesh mesh = GetMeshData(submesh.mesh_index);
+    Entity entity = GetEntityData(submesh.parent_index);
     vec4 final_color;
     int t_component_index = -1;
 )";
@@ -984,13 +1135,13 @@ void main() {
 
             // Main Output
             shader_string += R"(
-    vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * shape_normal);
+    vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * mesh_normal);
     gl_Position = clip_position;
     outColor = final_color;
     outPosition = entity.model * vertex_position;
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
-    outUV2 = shape_uv2;
+    outUV2 = mesh_uv2;
 }
 )";
 
@@ -1023,8 +1174,9 @@ layout(push_constant) uniform PushConstants {
 
             shader_string += R"(
 void main() {
-    int entity_index = inID;
-    Entity entity = GetEntityData(entity_index);
+    int submesh_index = inID;
+    SubMesh submesh = GetSubMeshData(submesh_index);
+    Entity entity = GetEntityData(submesh.parent_index);
     int t_component_index = -1;
     vec4 current_color = inColor;
 )";
@@ -1046,53 +1198,28 @@ layout(local_size_x = 1) in;
             shader_string += GenerateShaderHeader(ShaderModuleType::Compute);
 
             shader_string += R"(
-void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index) {
-    Entity entity = GetEntityData(entity_index);
-
-    mat4 model = mat4(1.0);
-    model[3] = vec4(entity.position.xyz, 1.0);
-
-    mat4 scale = mat4(1.0);
-    scale[0].xyz *= entity.scale.x;
-    scale[1].xyz *= entity.scale.y;
-    scale[2].xyz *= entity.scale.z;
-
-    mat4 rotX = mat4(1.0);
-    rotX[1][1] =  cos(entity.rotation.x);
-    rotX[1][2] = -sin(entity.rotation.x);
-    rotX[2][1] =  sin(entity.rotation.x);
-    rotX[2][2] =  cos(entity.rotation.x);
-
-    mat4 rotY = mat4(1.0);
-    rotY[0][0] =  cos(entity.rotation.y);
-    rotY[0][2] =  sin(entity.rotation.y);
-    rotY[2][0] = -sin(entity.rotation.y);
-    rotY[2][2] =  cos(entity.rotation.y);
-
-    mat4 rotZ = mat4(1.0);
-    rotZ[0][0] =  cos(entity.rotation.z);
-    rotZ[0][1] = -sin(entity.rotation.z);
-    rotZ[1][0] =  sin(entity.rotation.z);
-    rotZ[1][1] =  cos(entity.rotation.z);
-
-    mat4 rot = rotZ * rotY * rotX;
-
-    out_model = model * rot * scale;
-
-    parent_index = entity.parent_index;
-}
-
 void main() {
     int entity_index = int(gl_GlobalInvocationID.x);
     if (entity_index >= Entitys.data.length()) return;
     
     int current_index = entity_index;
+    int current_cid = CID_Entity;
 
     mat4 final_model = mat4(1.0);
 
     while (current_index != -1) {
         mat4 current_model = mat4(1.0);
-        GetEntityModel(current_index, current_model, current_index);
+        switch (current_cid) {
+        case CID_Entity:
+            GetEntityModel(current_index, current_model, current_index, current_cid);
+            break;
+        case CID_Camera:
+            GetCameraModel(current_index, current_model, current_index, current_cid);
+            break;
+        case CID_Scene:
+            GetSceneModel(current_index, current_model, current_index, current_cid);
+            break;
+        }
         final_model = current_model * final_model;
     }
 
@@ -1102,48 +1229,51 @@ void main() {
             return shader_string;
         }
 
-        // std::vector<size_t> GetSceneIDs() {
-        //     std::vector<size_t> ids(id_scene_groups.size(), 0);
-        //     size_t i = 0;
-        //     for (auto& [id, entry] : id_scene_groups)
-        //         ids[i++] = id;
-        //     return ids;
-        // }
+        std::string GenerateCameraMatComputeShaderCode() {
+            std::string shader_string = R"(
+#version 450
+layout(local_size_x = 1) in;
+)";
+            shader_string += GenerateShaderHeader(ShaderModuleType::Compute);
 
-        // std::map<size_t, SceneReflectableGroup>::iterator GetScenesBegin() {
-        //     return id_scene_groups.begin();
-        // }
+            shader_string += R"(
 
-        // std::map<size_t, SceneReflectableGroup>::iterator GetScenesEnd() {
-        //     return id_scene_groups.end();
-        // }
+void main() {
+    int camera_index = int(gl_GlobalInvocationID.x);
+    if (camera_index >= Cameras.data.length()) return;
+    
+    int current_index = camera_index;
+    int current_cid = CID_Camera;
 
-        // std::map<int, CameraReflectableGroup>::iterator GetCamerasBegin(size_t scene_id) {
-        //     auto scene_group_it = id_scene_groups.find(scene_id);
-        //     if (scene_group_it == id_scene_groups.end())
-        //         throw std::runtime_error("scene group not found with scene_id");
-        //     return scene_group_it->second.indexed_camera_groups.begin();
-        // }
+    int scene_count = 0;
 
-        // std::map<int, CameraReflectableGroup>::iterator GetCamerasEnd(size_t scene_id) {
-        //     auto scene_group_it = id_scene_groups.find(scene_id);
-        //     if (scene_group_it == id_scene_groups.end())
-        //         throw std::runtime_error("scene group not found with scene_id");
-        //     return scene_group_it->second.indexed_camera_groups.end();
-        // }
+    mat4 final_model = mat4(1.0);
 
-        // Image* GetFramebufferImage(size_t camera_index) {
-        //     for (auto& [scene_id, scene_group] : id_scene_groups) {
-        //         auto camera_it = scene_group.indexed_camera_groups.find(camera_index);
-        //         if (camera_it == scene_group.indexed_camera_groups.end())
-        //             continue;
-        //         return camera_it->second.fb_color_image;
-        //     }
-        //     return nullptr;
-        // }
+    while (current_index != -1) {
+        mat4 current_model = mat4(1.0);
+        switch (current_cid) {
+        case CID_Entity:
+            GetEntityModel(current_index, current_model, current_index, current_cid);
+            break;
+        case CID_Camera:
+            GetCameraModel(current_index, current_model, current_index, current_cid);
+            break;
+        case CID_Scene:
+            GetSceneModel(current_index, current_model, current_index, current_cid);
+            break;
+        }
+        final_model = current_model * final_model;
+    }
+
+    Cameras.data[camera_index].view = inverse(final_model);
+}
+)";
+
+            return shader_string;
+        }
 
         bool ResizeFramebuffer(size_t camera_id, uint32_t width, uint32_t height) {
-            auto& camera_group = GetGroup<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_id);
+            auto& camera_group = GetGroupByID<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_id);
             auto fb_resized = framebuffer_resize(camera_group.framebuffer, width, height);
             if (!fb_resized)
                 return false;
@@ -1158,7 +1288,7 @@ void main() {
         }
 
         bool FramebufferChanged(size_t camera_id) {
-            auto& camera_group = GetGroup<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_id);
+            auto& camera_group = GetGroupByID<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_id);
             return framebuffer_changed(camera_group.framebuffer);
         }
 

@@ -35,6 +35,8 @@ endif()
 
 add_executable(dzp src/DZP.cpp)
 
+list(APPEND DirectZ_EXES dzp)
+
 set_target_properties(DirectZ PROPERTIES DEBUG_POSTFIX "d")
 
 target_compile_features(DirectZ PRIVATE cxx_std_20)
@@ -51,6 +53,7 @@ set(DIRECTZ_INCLUDE_DIRS
 	${iostreams_SOURCE_DIR}/include
 	${rectpack_SOURCE_DIR}/src
 	${stb_SOURCE_DIR}
+	${assimp_SOURCE_DIR}/include
 )
 
 target_include_directories(DirectZ PRIVATE ${DIRECTZ_INCLUDE_DIRS})
@@ -69,6 +72,7 @@ target_link_libraries(DirectZ PRIVATE
 	SPIRV-Tools-opt
 	iostreams
 	archive_static
+	assimp
 )
 
 target_link_libraries(dzp PRIVATE DirectZ)
@@ -105,8 +109,6 @@ endif()
 include(./Tests.cmake)
 
 include(./cmake/Install.cmake)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-macro-redefined")
 
 include(./cmake/Package.cmake)
 

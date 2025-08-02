@@ -16,6 +16,19 @@ function(add_dz_test TEST_NAME TEST_SRC)
         target_link_libraries(${TEST_NAME} PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
     endif()
     target_compile_features(${TEST_NAME} PRIVATE cxx_std_20)
+    set_target_properties(${TEST_NAME} PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Static libs (.a, .lib)
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Shared libs (.so, .dylib)
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Executables (.exe) or Windows DLLs
+
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+    )
     add_test(NAME ${TEST_NAME} COMMAND $<TARGET_FILE_DIR:${TEST_NAME}>/${TEST_NAME}${TEST_EXT})
 endfunction()
 add_dz_test(DZ_ShaderReflect tests/ShaderReflect.cpp)

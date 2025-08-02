@@ -2376,5 +2376,7 @@ namespace dz {
             case ShaderModuleType::Fragment: return VK_SHADER_STAGE_FRAGMENT_BIT;
             case ShaderModuleType::Compute:  return VK_SHADER_STAGE_COMPUTE_BIT;
         }
+        assert(false);
+        return (VkShaderStageFlags)0;
     }
 }

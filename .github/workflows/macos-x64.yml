@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 jobs:
-  configure-build-and-package-macos-x64:
+  build-macos-x64:
     runs-on: macos-13
     steps:
 

@@ -24,8 +24,12 @@ namespace dz::ecs {
         float orthoWidth;
         vec<float, 3> up;
         float orthoHeight;
+        int parent_index = -1;
+        int parent_cid = 0;
+        int padding1 = 0;
+        int padding2 = 0;
         inline static constexpr bool IsCameraProvider = true;
-        inline static constexpr size_t PID = 3;
+        inline static constexpr size_t PID = 5;
         inline static float Priority = 0.5f;
         inline static std::string ProviderName = "Camera";
         inline static std::string StructName = "Camera";
@@ -43,6 +47,10 @@ struct Camera {
     float orthoWidth;
     vec3 up;
     float orthoHeight;
+    int parent_index;
+    int parent_cid;
+    int padding1;
+    int padding2;
 };
 )";
 
@@ -58,6 +66,56 @@ struct Camera {
     vec4 clip_position = camera.projection * view_position;
 )", ShaderModuleType::Vertex}
         };
+
+        inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
+            { ShaderModuleType::Compute, R"(
+void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, out int parent_cid) {
+    Camera camera = GetCameraData(camera_index);
+
+    vec3 eye = camera.position;
+    vec3 center = camera.center;
+    vec3 up = camera.up;
+
+    vec3 f = (center - eye);
+    float f_len = sqrt(f.x * f.x + f.y * f.y + f.z * f.z);
+    f /= f_len;
+
+    vec3 up_n = up;
+    float up_len = sqrt(up.x * up.x + up.y * up.y + up.z * up.z);
+    up_n /= up_len;
+
+    vec3 s = vec3(
+        f.y * up_n.z - f.z * up_n.y,
+        f.z * up_n.x - f.x * up_n.z,
+        f.x * up_n.y - f.y * up_n.x
+    );
+    float s_len = sqrt(s.x * s.x + s.y * s.y + s.z * s.z);
+    s /= s_len;
+
+    vec3 u = vec3(
+        s.y * f.z - s.z * f.y,
+        s.z * f.x - s.x * f.z,
+        s.x * f.y - s.y * f.x
+    );
+
+    mat4 result = mat4(1.0);
+
+    result[0][0] = s.x;  result[1][0] = s.y;  result[2][0] = s.z;
+    result[0][1] = u.x;  result[1][1] = u.y;  result[2][1] = u.z;
+    result[0][2] = -f.x; result[1][2] = -f.y; result[2][2] = -f.z;
+
+    result[3][0] = - (s.x * eye.x + s.y * eye.y + s.z * eye.z);
+    result[3][1] = - (u.x * eye.x + u.y * eye.y + u.z * eye.z);
+    result[3][2] = + (f.x * eye.x + f.y * eye.y + f.z * eye.z);
+
+    out_model = inverse(result);
+
+    parent_index = camera.parent_index;
+    parent_cid = camera.parent_cid;
+}
+)"}
+        };
+
         
         struct CameraTypeReflectable : Reflectable {
             

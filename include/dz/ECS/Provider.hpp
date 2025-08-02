@@ -37,6 +37,13 @@ namespace dz {
             return false;
         }
 
+        inline static constexpr bool GetIsEntityProvider() {
+            if constexpr (requires { T::IsEntityProvider; }) {
+                return T::IsEntityProvider;
+            }
+            return false;
+        }
+
         inline static constexpr bool GetIsCameraProvider() {
             if constexpr (requires { T::IsCameraProvider; }) {
                 return T::IsCameraProvider;
@@ -54,6 +61,20 @@ namespace dz {
         inline static constexpr bool GetIsMaterialProvider() {
             if constexpr (requires { T::IsMaterialProvider; }) {
                 return T::IsMaterialProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsMeshProvider() {
+            if constexpr (requires { T::IsMeshProvider; }) {
+                return T::IsMeshProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsSubMeshProvider() {
+            if constexpr (requires { T::IsSubMeshProvider; }) {
+                return T::IsSubMeshProvider;
             }
             return false;
         }
@@ -126,6 +147,12 @@ namespace dz {
     };
 
     template<typename T>
+    struct IsEntityProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsEntityProvider();
+    };
+
+    template<typename T>
     struct IsCameraProvider
     {
         static constexpr bool value = Provider<T>::GetIsCameraProvider();
@@ -141,6 +168,18 @@ namespace dz {
     struct IsMaterialProvider
     {
         static constexpr bool value = Provider<T>::GetIsMaterialProvider();
+    };
+
+    template<typename T>
+    struct IsMeshProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsMeshProvider();
+    };
+
+    template<typename T>
+    struct IsSubMeshProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsSubMeshProvider();
     };
 
     template<template<typename> class Trait, typename... Ts>

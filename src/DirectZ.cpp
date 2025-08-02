@@ -90,11 +90,12 @@ namespace dz
 #include "ImGuiLayer.cpp"
 #include "Displays.cpp"
 
-#include "ECS/Camera.cpp"
 #include "ECS/Entity.cpp"
-#include "ECS/Shape.cpp"
-#include "ECS/Light.cpp"
+#include "ECS/Mesh.cpp"
+#include "ECS/SubMesh.cpp"
 #include "ECS/Material.cpp"
+#include "ECS/Camera.cpp"
+#include "ECS/Light.cpp"
 
 #include "State.cpp"
 #include "Reflectable.cpp"

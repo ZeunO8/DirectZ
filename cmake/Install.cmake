@@ -8,22 +8,34 @@ set(DirectZ_TGTS
     SPIRV SPIRV-Tools-static SPIRV-Tools-opt
     imgui imguizmo
 	iostreams
-	archive_static)
+	archive_static
+    assimp
+    zlibstatic
+)
+
+function(set_output_dir TGT)
+    message(STATUS "Setting ${TGT} to ${CMAKE_BINARY_DIR}")
+    set_target_properties(${TGT} PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Static libs (.a, .lib)
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Shared libs (.so, .dylib)
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Executables (.exe) or Windows DLLs
+
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+    )
+endfunction()
 
 foreach(TGT ${DirectZ_TGTS})
-    set_target_properties(${TGT} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"      # Static libs (.a, .lib)
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"      # Shared libs (.so, .dylib)
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"      # Executables (.exe) or Windows DLLs
+    set_output_dir(${TGT})
+endforeach()
 
-        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/lib/Debug"
-        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/lib/Debug"
-        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin/Debug"
-
-        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/lib/Release"
-        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/lib/Release"
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release"
-    )
+foreach(TGT ${DirectZ_EXES})
+    set_output_dir(${TGT})
 endforeach()
 
 # Export targets
@@ -51,13 +63,9 @@ foreach(TGT ${DirectZ_TGTS})
         set(TGT "SPIRV-Tools")
     endif()
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-        set(OUT_DIR "${CMAKE_BINARY_DIR}/lib/Debug")
         set(POSTFIX "d")
-    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-        set(OUT_DIR "${CMAKE_BINARY_DIR}/lib/Release")
-    else()
-        set(OUT_DIR "${CMAKE_BINARY_DIR}/lib")
     endif()
+    set(OUT_DIR "${CMAKE_BINARY_DIR}")
     set(LOCATION "${OUT_DIR}/${DZ_LIB_PREFIX}${TGT}${POSTFIX}${STATIC_DZ_LIB_SUFFIX}")
     list(APPEND TGT_LOCATIONS ${LOCATION})
 endforeach()

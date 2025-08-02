@@ -52,11 +52,11 @@ void dz::ecs::CameraInit(Camera& camera) {
     {
     case Camera::Perspective:
         camera.projection = perspective(camera.fov, camera.aspect, camera.nearPlane, camera.farPlane);
-        camera.view = lookAt(camera.position, camera.center, camera.up);
+        // camera.view = lookAt(camera.position, camera.center, camera.up);
         break;
     case Camera::Orthographic:
         camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.nearPlane, camera.farPlane);
-        camera.view = lookAt(camera.position, camera.center, camera.up);
+        // camera.view = lookAt(camera.position, camera.center, camera.up);
         break;
     default: break;
     }

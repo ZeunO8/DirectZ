@@ -17,9 +17,10 @@ using ExampleECS = ECS<
     CID_MIN,
     Scene,
     Entity,
-    Material,
-    Shape,
-    Camera
+    Mesh,
+    SubMesh,
+    Camera,
+    Material
 #ifdef ENABLE_LIGHTS
     , Light
 #endif
@@ -27,13 +28,6 @@ using ExampleECS = ECS<
 
 
 std::shared_ptr<ExampleECS> ecs_ptr;
-
-// struct RotationComponent : Component {
-//     float yaw;
-//     float pitch;
-//     float roll;
-    
-// };
 
 float ORIGINAL_WINDOW_WIDTH = 1280.f;
 float ORIGINAL_WINDOW_HEIGHT = 768.f;
@@ -60,11 +54,12 @@ PropertyEditor property_editor;
 
 WINDOW* window = nullptr;
 
-
-int plane_shape_id = -1;
-int plane_shape_index = -1;
-int cube_shape_id = -1;
-int cube_shape_index = -1;
+// int mesh_shape_id = -1;
+// int mesh_shape_index = -1;
+// int plane_shape_id = -1;
+// int plane_shape_index = -1;
+// int cube_shape_id = -1;
+// int cube_shape_index = -1;
 
 auto set_pair_id_index(auto pair, auto& id, auto& index) {
     id = pair.first;
@@ -73,13 +68,14 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
 
 using TL = TypeLoader<STB_Image_Loader>;
 
+std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
+
 int main() {
     ExampleECS::RegisterStateCID();
 
-    // ExampleECS::SetComponentsRegisterFunction(GetRegisterComponentsLambda());
-
-    set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
-    set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
+    // set_pair_id_index(RegisterMeshShape(), mesh_shape_id, mesh_shape_index);
+    // set_pair_id_index(RegisterPlaneShape(), plane_shape_id, plane_shape_index);
+    // set_pair_id_index(RegisterCubeShape(), cube_shape_id, cube_shape_index);
 
     std::filesystem::path ioPath("ECS-Test.dat");
 
@@ -113,20 +109,24 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        ecs.SetProviderCount("Shapes", 2);
-        auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
+        // ecs.SetProviderCount("Shapes", 3);
+        // auto shapes_ptr = ecs.GetProviderData<Shape>("Shapes");
 
-        auto& plane_shape = shapes_ptr[0];
-        plane_shape.type = plane_shape_id;
-        plane_shape.vertex_count = 6;
+        // auto& mesh_shape = shapes_ptr[0];
+        // mesh_shape.type = mesh_shape_id;
+        // mesh_shape.vertex_count = -1;
 
-        auto& cube_shape = shapes_ptr[1];
-        cube_shape.type = cube_shape_id;
-        cube_shape.vertex_count = 36;
+        // auto& plane_shape = shapes_ptr[1];
+        // plane_shape.type = plane_shape_id;
+        // plane_shape.vertex_count = 6;
+
+        // auto& cube_shape = shapes_ptr[2];
+        // cube_shape.type = cube_shape_id;
+        // cube_shape.vertex_count = 36;
 
         int mat1_index = -1;
         auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
-        Image* im_1 = TL::Load<STB_Image_Loader::ptr_type, STB_Image_Loader::info_type>({
+        auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
             .path = "hi.bmp"
         });
         ecs.SetMaterialImage(mat1_id, im_1);
@@ -136,9 +136,11 @@ int main() {
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
         }, mat2_index);
 
+        auto [mesh1_id, mesh1_index] = AddPyramidMesh(ecs, mat2_index);
+
         int mat3_index = -1;
         auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
-        Image* suzuho = TL::Load<STB_Image_Loader::ptr_type, STB_Image_Loader::info_type>({
+        auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
             .path = "Suzuho-Ueda.bmp"
         });
         ecs.SetMaterialImage(mat3_id, suzuho);
@@ -147,35 +149,33 @@ int main() {
 
         auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_id = ecs.AddEntity(scene1_id, Entity{
-            .material_index = mat1_index,
-            .shape_index = plane_shape_index
-        });
-        auto e2_id = ecs.AddEntity(scene1_id, Entity{
-            .material_index = mat3_index,
-            .shape_index = plane_shape_index,
-            .position = {1.f, 1.f, 0.f, 1.f}
-        });
+        // auto e1_id = ecs.AddEntity(scene1_id, Entity{
+        //     .material_index = mat1_index//,
+        //     // .shape_index = plane_shape_index
+        // });
+        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
+        //     .material_index = mat3_index,
+        //     // .shape_index = plane_shape_index,
+        //     .position = {1.f, 1.f, 0.f, 1.f}
+        // });
 
         auto scene2_id = ecs.AddScene(Scene{});
 
         auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e3_id = ecs.AddEntity(scene2_id, Entity{
-            .material_index = mat2_index,
-            .shape_index = cube_shape_index
-        });
+        // auto e3_id = ecs.AddEntity(scene2_id, Entity{
+        //     .material_index = mat2_index//,
+        //     // .shape_index = cube_shape_index
+        // });
+        auto e4_id = ecs.AddEntity(scene2_id, Entity{
+            // .material_index = mat2_index,
+            // .shape_index = mesh_shape_index,
+            // .mesh_index = mesh1_index,
+            .position = {-2.f, 1.f, 0.f, 1.f}
+        }, {mesh1_index});
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
     }
-
-#ifdef ENABLE_LIGHTS
-    if (buffer_group_get_buffer_element_count(ecs.buffer_group, "Lights") == 0) {
-        auto ecs_scene_ids = ecs.GetSceneIDs();
-        // ecs.AddLight(ecs_scene_ids[0], Light::Directional);
-        // ecs.AddLight(ecs_scene_ids[0], Light::Spot);
-    }
-#endif
 
     ecs.MarkReady();
     
@@ -833,6 +833,63 @@ int main() {
     }
 }
 
+std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index)
+{
+    std::vector<vec<float, 4>> positions = {
+        // Base triangle 1
+        { -1.0f, 0.0f, -1.0f, 1.0f },
+        {  1.0f, 0.0f, -1.0f, 1.0f },
+        {  1.0f, 0.0f,  1.0f, 1.0f },
+
+        // Base triangle 2
+        {  1.0f, 0.0f,  1.0f, 1.0f },
+        { -1.0f, 0.0f,  1.0f, 1.0f },
+        { -1.0f, 0.0f, -1.0f, 1.0f },
+
+        // Side 1
+        {  1.0f, 0.0f, -1.0f, 1.0f },
+        { -1.0f, 0.0f, -1.0f, 1.0f },
+        {  0.0f, 1.0f,  0.0f, 1.0f },
+
+        // Side 2
+        {  1.0f, 0.0f,  1.0f, 1.0f },
+        {  1.0f, 0.0f, -1.0f, 1.0f },
+        {  0.0f, 1.0f,  0.0f, 1.0f },
+
+        // Side 3
+        { -1.0f, 0.0f,  1.0f, 1.0f },
+        {  1.0f, 0.0f,  1.0f, 1.0f },
+        {  0.0f, 1.0f,  0.0f, 1.0f },
+
+        // Side 4
+        { -1.0f, 0.0f, -1.0f, 1.0f },
+        { -1.0f, 0.0f,  1.0f, 1.0f },
+        {  0.0f, 1.0f,  0.0f, 1.0f }
+    };
+
+    std::vector<vec<float, 2>> uv2s = {
+        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f },
+        { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f },
+        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
+        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
+        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
+        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f }
+    };
+
+    std::vector<vec<float, 4>> normals = {
+        { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f },
+        { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f },
+        { 0.0f, 0.707f, -0.707f, 0.0f }, { 0.0f, 0.707f, -0.707f, 0.0f }, { 0.0f, 0.707f, -0.707f, 0.0f },
+        { 0.707f, 0.707f, 0.0f, 0.0f }, { 0.707f, 0.707f, 0.0f, 0.0f }, { 0.707f, 0.707f, 0.0f, 0.0f },
+        { 0.0f, 0.707f, 0.707f, 0.0f }, { 0.0f, 0.707f, 0.707f, 0.0f }, { 0.0f, 0.707f, 0.707f, 0.0f },
+        { -0.707f, 0.707f, 0.0f, 0.0f }, { -0.707f, 0.707f, 0.0f, 0.0f }, { -0.707f, 0.707f, 0.0f, 0.0f }
+    };
+
+    int mesh_index = -1;
+    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
+    return { mesh_id, mesh_index };
+}
+
 // void DrawEntityGroup(ExampleECS& ecs, int id, ExampleECS::EntityReflectableGroup& entity_group)
 // {
 //     ImGui::TableNextRow();
@@ -1128,31 +1185,50 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
     std::shared_ptr<ReflectableGroup> dragged_ptr = *it;
     old_siblings->erase(it);
 
+    ReflectableGroup* new_parent_ptr = nullptr;
     if (y_distance >= 0.0f && y_distance < 8.0f) {
         // Insert before
-        ReflectableGroup* parent = target_group.parent_ptr;
-        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        new_parent_ptr = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = new_parent_ptr ? &new_parent_ptr->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
         auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
             return ptr.get() == &target_group;
         });
         if (pos != siblings->end())
             siblings->insert(pos, dragged_ptr);
-        dragged_group->parent_ptr = parent;
     }
     else if (y_distance >= 24.0f) {
         // Insert after
-        ReflectableGroup* parent = target_group.parent_ptr;
-        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = parent ? &parent->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
+        new_parent_ptr = target_group.parent_ptr;
+        std::vector<std::shared_ptr<ReflectableGroup>>* siblings = new_parent_ptr ? &new_parent_ptr->GetChildren() : &ecs_ptr->reflectable_group_root_vector;
         auto pos = std::find_if(siblings->begin(), siblings->end(), [&](auto& ptr) {
             return ptr.get() == &target_group;
         });
         if (pos != siblings->end())
             siblings->insert(pos + 1, dragged_ptr);
-        dragged_group->parent_ptr = parent;
     } else {
         // Drop into
         target_group.GetChildren().push_back(dragged_ptr);
-        dragged_group->parent_ptr = &target_group;
+        new_parent_ptr = &target_group;
+    }
+    dragged_group->parent_ptr = new_parent_ptr;
+
+
+    switch (dragged_group->cid) {
+    case Entity::PID: {
+        auto& entity = ecs_ptr->GetEntity(dragged_group->id);
+        ExampleECS::SetWhoParent(entity, new_parent_ptr);
+        break;
+    }
+    case Camera::PID: {
+        auto& camera = ecs_ptr->GetCamera(dragged_group->id);
+        ExampleECS::SetWhoParent(camera, new_parent_ptr);
+        break;
+    }
+    case Scene::PID: {
+        auto& scene = ecs_ptr->GetScene(dragged_group->id);
+        ExampleECS::SetWhoParent(scene, new_parent_ptr);
+        break;
+    }
     }
 
     ecs_ptr->MarkDirty();
