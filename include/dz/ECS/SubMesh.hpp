@@ -39,15 +39,19 @@ struct SubMesh {
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"Material", {0, 0}}
+                {"Material Index", {0, 0}},
+                {"Material", {1, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "Material"}
+                {0, "Material Index"},
+                {1, "Material"}
             };
             inline static std::vector<std::string> prop_names = {
+                "Material Index",
                 "Material"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
+                &typeid(int),
                 &typeid(MaterialIndexReflectable)
             };
 

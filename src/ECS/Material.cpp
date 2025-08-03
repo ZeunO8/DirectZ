@@ -20,9 +20,7 @@ void* dz::ecs::Material::MaterialReflectable::GetVoidPropertyByIndex(int prop_in
     assert(material_ptr);
     auto& material = *material_ptr;
     switch (prop_index) {
-    case 0: return &material.atlas_pack[0];
-    case 1: return &material.atlas_pack[2];
-    case 2: return &material.albedo;
+    case 0: return &material.albedo;
     default: return nullptr;
     }
 }

@@ -3,10 +3,6 @@
 #include "Image.cpp.hpp"
 
 namespace dz {
-
-    void upload_image_data(Image* image);
-
-    Image* image_create_internal(const ImageCreateInfoInternal& info);
     
     void image_pre_resize_2D_internal(Image* image_ptr, uint32_t width, uint32_t height) {
         auto& image = *image_ptr;
@@ -203,10 +199,12 @@ namespace dz {
         vkBindImageMemory(dr.device, image.image, image.memory, 0);
 
         // Upload data if provided
-        if (image.data)
+        if (!image.data)
         {
-            upload_image_data(image_ptr);
+            init_empty_image_data(image_ptr);
         }
+
+        upload_image_data(image_ptr);
 
         // Create ImageView
         VkImageViewCreateInfo viewInfo{};
@@ -214,27 +212,7 @@ namespace dz {
         viewInfo.image = image.image;
         viewInfo.viewType = image.view_type;
         viewInfo.format = image.format;
-        switch (image.format) {
-        case VK_FORMAT_R8_UNORM:
-        case VK_FORMAT_R8G8_UNORM:
-        case VK_FORMAT_R8G8B8_UNORM:
-        case VK_FORMAT_R8G8B8A8_UNORM:
-        case VK_FORMAT_R32G32B32A32_SFLOAT:
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            break;
-        case VK_FORMAT_D32_SFLOAT:
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-            break;
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            viewInfo.subresourceRange.aspectMask =
-                VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-            break;
-        case VK_FORMAT_R8_UINT:
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
-            break;
-        default:
-            break;
-        }
+        viewInfo.subresourceRange.aspectMask = image_get_aspect_mask(image_ptr);
         viewInfo.subresourceRange.baseMipLevel = 0;
         viewInfo.subresourceRange.levelCount = 1;
         viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -266,11 +244,46 @@ namespace dz {
             vkCreateSampler(dr.device, &samplerInfo, nullptr, &image.sampler);
         }
     }
+    
+    void init_empty_image_data(Image* image_ptr) {
+        auto& image = *image_ptr;
+        auto channels = image_get_channels_size_of_t(image_ptr);
+        auto pixel_stride = image_get_sizeof_channels(channels);
+        auto image_size = image.width * image.height * image.depth * pixel_stride;
+        image.data = std::shared_ptr<char>((char*)malloc(image_size), free);
+        memset(image.data.get(), 0, image_size);
+    }
+
+    uint32_t image_get_aspect_mask(Image* image_ptr) {
+        switch (image_ptr->format) {
+        case VK_FORMAT_R8_UNORM:
+        case VK_FORMAT_R8G8_UNORM:
+        case VK_FORMAT_R8G8B8_UNORM:
+        case VK_FORMAT_R8G8B8A8_UNORM:
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return VK_IMAGE_ASPECT_COLOR_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+            break;
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+            break;
+        case VK_FORMAT_R8_UINT:
+            return VK_IMAGE_ASPECT_STENCIL_BIT;
+            break;
+        default:
+            break;
+        }
+        return 0;
+    }
 
     void upload_image_data(Image* image_ptr)
     {
         auto& image = *image_ptr;
-        VkDeviceSize image_size = image.width * image.height * image.depth * 4; // Assuming 4 bytes per texel (e.g., RGBA8)
+        auto channels = image_get_channels_size_of_t(image_ptr);
+        auto pixel_stride = image_get_sizeof_channels(channels);
+        VkDeviceSize image_size = image.width * image.height * image.depth * pixel_stride;
 
         VkBuffer staging_buffer;
         VkDeviceMemory staging_buffer_memory;
@@ -310,7 +323,7 @@ namespace dz {
         barrier_to_transfer.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier_to_transfer.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier_to_transfer.image = image.image;
-        barrier_to_transfer.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier_to_transfer.subresourceRange.aspectMask = image_get_aspect_mask(image_ptr);
         barrier_to_transfer.subresourceRange.baseMipLevel = 0;
         barrier_to_transfer.subresourceRange.levelCount = 1;
         barrier_to_transfer.subresourceRange.baseArrayLayer = 0;
@@ -334,7 +347,7 @@ namespace dz {
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.aspectMask = image_get_aspect_mask(image_ptr);
         region.imageSubresource.mipLevel = 0;
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;

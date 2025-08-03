@@ -59,11 +59,12 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
     index = pair.second;
 }
 
-using TL = TypeLoader<STB_Image_Loader>;
+using TL = TypeLoader<STB_Image_Loader, Assimp_Loader>;
 
 std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
 std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index);
 std::pair<size_t, int> AddCubeMesh(ExampleECS& ecs, int material_index);
+void RenderReflectables(ReflectableGroup& what_reflectable_group);
 
 int main() {
     ExampleECS::RegisterStateCID();
@@ -100,48 +101,73 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        int mat1_index = -1;
-        auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
-        auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
-            .path = "hi.bmp"
-        });
-        ecs.SetMaterialImage(mat1_id, im_1);
+        // int mat1_index = -1;
+        // auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
+        // auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
+        //     .path = "images/hi.bmp"
+        // });
+        // ecs.SetMaterialImage(mat1_id, im_1);
 
         int blue_material = -1;
         auto mat2_id = ecs.AddMaterial(Material{
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
         }, blue_material);
 
-        auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
-        auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
-        auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
+        // auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
+        // auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
+        // auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
 
-        int mat3_index = -1;
-        auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
-        auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
-            .path = "Suzuho-Ueda.bmp"
-        });
-        ecs.SetMaterialImage(mat3_id, suzuho);
+        // int mat3_index = -1;
+        // auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
+        // auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
+        //     .path = "images/Suzuho-Ueda.bmp"
+        // });
+        // ecs.SetMaterialImage(mat3_id, suzuho);
 
-        auto scene1_id = ecs.AddScene(Scene{});
+        // auto scene1_id = ecs.AddScene(Scene{});
 
-        auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
+        // auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
-        auto e2_id = ecs.AddEntity(scene1_id, Entity{
-            .position = {1.f, 1.f, 0.f, 1.f}
-        }, {plane_mesh_index});
+        // auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
+        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
+        //     .position = {1.f, 1.f, 0.f, 1.f}
+        // }, {plane_mesh_index});
 
-        auto scene2_id = ecs.AddScene(Scene{});
+        // auto scene2_id = ecs.AddScene(Scene{});
 
-        auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
+        // auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
-        auto e4_id = ecs.AddEntity(scene2_id, Entity{
-            .position = {-2.f, 1.f, 0.f, 1.f}
-        }, {pyramid_mesh_index});
+        // auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
+        // auto e4_id = ecs.AddEntity(scene2_id, Entity{
+        //     .position = {-2.f, 1.f, 0.f, 1.f}
+        // }, {pyramid_mesh_index});
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
+
+        TL::Load<SceneID, Assimp_Info>(Assimp_Info{
+            .add_scene_function = [&](auto parent_id, const auto& name) {
+                return ecs.AddScene(parent_id, Scene{}, name);
+            },
+            .add_entity_function = [&](auto parent_id, const auto& name, const auto& mesh_indexes, auto position, auto rotation, auto scale) {
+                return ecs.AddEntity(parent_id, Entity{
+                    .position = position,
+                    .rotation = rotation,
+                    .scale = scale
+                }, mesh_indexes, name);
+            },
+            .add_mesh_function = [&](const auto& name, auto material_index, const auto& positions, const auto& uv2s, const auto& normals) -> MeshPair {
+                int out_index = -1;
+                auto out_id = ecs.AddMesh(positions, uv2s, normals, material_index, out_index, name);
+                return {out_id, out_index};
+            },
+            .add_material_function = [&](const auto& name, auto image_ptr) -> MaterialPair {
+                int out_index = -1;
+                auto out_id = ecs.AddMaterial(Material{}, out_index);
+                ecs.SetMaterialImage(out_id, image_ptr);
+                return {out_id, out_index};
+            },
+            .path = "models/SaiyanOne.glb"
+        });
     }
 
     ecs.MarkReady();
@@ -613,222 +639,7 @@ int main() {
                 ImGui::TextDisabled("GID: 0x%08X", SelectedReflectableID);
                 ImGui::Spacing();
 
-                std::function<void(ReflectableGroup&)> render_reflectables;
-                render_reflectables = [&](auto& what_reflectable_group) {
-                    auto& reflectables = what_reflectable_group.GetReflectables();
-
-                    auto reflect_begin = reflectables.begin();
-                    auto reflect_it = reflect_begin;
-                    auto reflect_end = reflectables.end();
-                    size_t reflect_dist = 0;
-
-                    auto update_iterators = [&]() {
-                        reflect_begin = reflectables.begin();
-                        reflect_it = reflect_begin + reflect_dist;
-                        reflect_end = reflectables.end();
-                    };
-
-                    for (; reflect_it != reflect_end; reflect_it++) {
-                        reflect_dist = std::distance(reflect_begin, reflect_it);
-                        auto& reflectable = **reflect_it;
-                        ImGui::PushID(&reflectable);
-                        const auto& reflectable_name = reflectable.GetName();
-
-                        if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-                        {
-                            bool popped_style_var = false;
-                            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 4));
-                            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
-
-                            auto reflectable_type_hint = reflectable.GetTypeHint();
-
-                            switch (reflectable_type_hint) {
-                            case ReflectableTypeHint::VEC2:
-                            {
-                                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                                if (ImGui::DragFloat2("##vec2", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                    reflectable.NotifyChange(0);
-                                    update_iterators();
-                                }
-                                break;
-                            }
-                            case ReflectableTypeHint::VEC3:
-                            {
-                                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                                if (ImGui::DragFloat3("##vec3", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                    reflectable.NotifyChange(0);
-                                    update_iterators();
-                                }
-                                break;
-                            }
-                            case ReflectableTypeHint::VEC3_RGB:
-                            {
-                                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                                if (ImGui::ColorEdit3("##rgb", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
-                                    reflectable.NotifyChange(0);
-                                    update_iterators();
-                                }
-                                break;
-                            }
-                            case ReflectableTypeHint::VEC4:
-                            {
-                                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                                if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                    reflectable.NotifyChange(0);
-                                    update_iterators();
-                                }
-                                break;
-                            }
-                            case ReflectableTypeHint::VEC4_RGBA:
-                            {
-                                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
-                                if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
-                                    reflectable.NotifyChange(0);
-                                    update_iterators();
-                                }
-                                break;
-                            }
-                            default:
-                            case ReflectableTypeHint::STRUCT: {
-                                const auto& reflectable_typeinfos = reflectable.GetPropertyTypeinfos();
-                                const auto& reflectable_prop_names = reflectable.GetPropertyNames();
-                                const auto& disabled_properties = reflectable.GetDisabledProperties();
-                                size_t index = 0;
-                                for (auto& prop_name : reflectable_prop_names)
-                                {
-                                    ImGui::PushID(prop_name.c_str());
-                                    auto prop_index = reflectable.GetPropertyIndexByName(prop_name);
-                                    auto type_info = reflectable_typeinfos[prop_index];
-                                    bool is_disabled = (prop_index < disabled_properties.size()) ? disabled_properties[prop_index] : false;
-
-                                    ImGui::BeginDisabled(is_disabled);
-                                    ImGui::Text("%s", prop_name.c_str());
-                                    ImGui::SameLine();
-
-                                    if (*type_info == typeid(float))
-                                    {
-                                        auto& value = reflectable.template GetPropertyByIndex<float>(prop_index);
-                                        ImGui::PushID(prop_index);
-                                        if (ImGui::InputFloat("##input", &value, 0.1f, 1.0f, "%.3f")) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                        ImGui::PopID();
-                                    }
-                                    else if (*type_info == typeid(int)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<int>(prop_index);
-                                        ImGui::PushID(prop_index);
-                                        if (ImGui::InputInt("##input", &value)) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                        ImGui::PopID();
-                                    }
-                                    else if (*type_info == typeid(bool)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<bool>(prop_index);
-                                        ImGui::PushID(prop_index);
-                                        if (ImGui::Checkbox("##checkbox", &value))
-                                        {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                        ImGui::PopID();
-                                    }
-                                    else if (*type_info == typeid(Light::LightType)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<Light::LightType>(prop_index);
-                                        static const char* projection_types[] = { "Directional", "Spot", "Point" };
-                                        int current_index = static_cast<int>(value);
-                                        if (ImGui::Combo("##lightType", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
-                                            value = static_cast<Light::LightType>(current_index);
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(Camera::ProjectionType)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<Camera::ProjectionType>(prop_index);
-                                        static const char* projection_types[] = { "Perspective", "Orthographic" };
-                                        int current_index = static_cast<int>(value);
-                                        if (ImGui::Combo("##proj", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
-                                            value = static_cast<Camera::ProjectionType>(current_index);
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(std::string)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<std::string>(prop_index);
-                                        if (value.capacity() < 128) value.reserve(128);
-                                        ImGui::PushID(prop_index);
-                                        if (ImGui::InputText("##s", value.data(), value.capacity() + 1)) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                        ImGui::PopID();
-                                    }
-                                    else if (*type_info == typeid(vec<float, 2>)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 2>>(prop_index);
-                                        if (ImGui::DragFloat2("##vec2", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(vec<float, 3>)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 3>>(prop_index);
-                                        if (ImGui::DragFloat3("##vec3", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(vec<float, 4>)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 4>>(prop_index);
-                                        if (ImGui::DragFloat4("##vec4", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
-                                            reflectable.NotifyChange(prop_index);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(color_vec<float, 3>)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 3>>(prop_index);
-                                        if (ImGui::ColorEdit3("##rgb", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
-                                            reflectable.NotifyChange(0);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(color_vec<float, 4>)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 4>>(prop_index);
-                                        if (ImGui::ColorEdit4("##rgba", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
-                                            reflectable.NotifyChange(0);
-                                            update_iterators();
-                                        }
-                                    }
-                                    else if (*type_info == typeid(MaterialIndexReflectable)) {
-                                        auto& value = reflectable.template GetPropertyByIndex<MaterialIndexReflectable>(prop_index);
-                                        auto& material_group = ecs.GetGroupByIndex<Material, Material::ReflectableGroup>(value.material_index);
-                                        ImGui::EndDisabled();
-                                        ImGui::PopID();
-                                        ImGui::PopStyleVar(2);
-                                        popped_style_var = true;
-                                        render_reflectables(material_group);
-                                        break;
-                                    }
-                                    else {
-                                        ImGui::TextDisabled("<Unsupported type>");
-                                    }
-
-                                    ImGui::EndDisabled();
-                                    ImGui::PopID();
-                                }
-                                break;
-                            }
-                            }
-
-                            if (!popped_style_var)
-                                ImGui::PopStyleVar(2);
-                        }
-                    
-                        ImGui::PopID();
-                    }
-                };
-
-                render_reflectables(reflectable_group);
+                RenderReflectables(reflectable_group);
                 ImGui::PopID();
             }
 
@@ -844,6 +655,220 @@ int main() {
         windows_render();
     }
 }
+
+void RenderReflectables(ReflectableGroup& what_reflectable_group) {
+    auto& reflectables = what_reflectable_group.GetReflectables();
+
+    auto reflect_begin = reflectables.begin();
+    auto reflect_it = reflect_begin;
+    auto reflect_end = reflectables.end();
+    size_t reflect_dist = 0;
+
+    auto update_iterators = [&]() {
+        reflect_begin = reflectables.begin();
+        reflect_it = reflect_begin + reflect_dist;
+        reflect_end = reflectables.end();
+    };
+
+    for (; reflect_it != reflect_end; reflect_it++) {
+        reflect_dist = std::distance(reflect_begin, reflect_it);
+        auto& reflectable = **reflect_it;
+        ImGui::PushID(&reflectable);
+        const auto& reflectable_name = reflectable.GetName();
+
+        if (ImGui::CollapsingHeader(reflectable_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            bool popped_style_var = false;
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(6, 4));
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
+
+            auto reflectable_type_hint = reflectable.GetTypeHint();
+
+            switch (reflectable_type_hint) {
+            case ReflectableTypeHint::VEC2:
+            {
+                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                if (ImGui::DragFloat2("##vec2", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    reflectable.NotifyChange(0);
+                    update_iterators();
+                }
+                break;
+            }
+            case ReflectableTypeHint::VEC3:
+            {
+                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                if (ImGui::DragFloat3("##vec3", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    reflectable.NotifyChange(0);
+                    update_iterators();
+                }
+                break;
+            }
+            case ReflectableTypeHint::VEC3_RGB:
+            {
+                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                if (ImGui::ColorEdit3("##rgb", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                    reflectable.NotifyChange(0);
+                    update_iterators();
+                }
+                break;
+            }
+            case ReflectableTypeHint::VEC4:
+            {
+                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                if (ImGui::DragFloat4("##vec4", static_cast<float*>(data_ptr), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                    reflectable.NotifyChange(0);
+                    update_iterators();
+                }
+                break;
+            }
+            case ReflectableTypeHint::VEC4_RGBA:
+            {
+                auto data_ptr = reflectable.GetVoidPropertyByIndex(0);
+                if (ImGui::ColorEdit4("##rgba", static_cast<float*>(data_ptr), ImGuiColorEditFlags_Float)) {
+                    reflectable.NotifyChange(0);
+                    update_iterators();
+                }
+                break;
+            }
+            default:
+            case ReflectableTypeHint::STRUCT: {
+                const auto& reflectable_typeinfos = reflectable.GetPropertyTypeinfos();
+                const auto& reflectable_prop_names = reflectable.GetPropertyNames();
+                const auto& disabled_properties = reflectable.GetDisabledProperties();
+                size_t index = 0;
+                for (auto& prop_name : reflectable_prop_names)
+                {
+                    ImGui::PushID(prop_name.c_str());
+                    auto prop_index = reflectable.GetPropertyIndexByName(prop_name);
+                    auto type_info = reflectable_typeinfos[prop_index];
+                    bool is_disabled = (prop_index < disabled_properties.size()) ? disabled_properties[prop_index] : false;
+
+                    ImGui::BeginDisabled(is_disabled);
+                    ImGui::Text("%s", prop_name.c_str());
+                    ImGui::SameLine();
+
+                    if (*type_info == typeid(float))
+                    {
+                        auto& value = reflectable.template GetPropertyByIndex<float>(prop_index);
+                        ImGui::PushID(prop_index);
+                        if (ImGui::InputFloat("##input", &value, 0.1f, 1.0f, "%.3f")) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                        ImGui::PopID();
+                    }
+                    else if (*type_info == typeid(int)) {
+                        auto& value = reflectable.template GetPropertyByIndex<int>(prop_index);
+                        ImGui::PushID(prop_index);
+                        if (ImGui::InputInt("##input", &value)) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                        ImGui::PopID();
+                    }
+                    else if (*type_info == typeid(bool)) {
+                        auto& value = reflectable.template GetPropertyByIndex<bool>(prop_index);
+                        ImGui::PushID(prop_index);
+                        if (ImGui::Checkbox("##checkbox", &value))
+                        {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                        ImGui::PopID();
+                    }
+                    else if (*type_info == typeid(Light::LightType)) {
+                        auto& value = reflectable.template GetPropertyByIndex<Light::LightType>(prop_index);
+                        static const char* projection_types[] = { "Directional", "Spot", "Point" };
+                        int current_index = static_cast<int>(value);
+                        if (ImGui::Combo("##lightType", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
+                            value = static_cast<Light::LightType>(current_index);
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(Camera::ProjectionType)) {
+                        auto& value = reflectable.template GetPropertyByIndex<Camera::ProjectionType>(prop_index);
+                        static const char* projection_types[] = { "Perspective", "Orthographic" };
+                        int current_index = static_cast<int>(value);
+                        if (ImGui::Combo("##proj", &current_index, projection_types, IM_ARRAYSIZE(projection_types))) {
+                            value = static_cast<Camera::ProjectionType>(current_index);
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(std::string)) {
+                        auto& value = reflectable.template GetPropertyByIndex<std::string>(prop_index);
+                        if (value.capacity() < 128) value.reserve(128);
+                        ImGui::PushID(prop_index);
+                        if (ImGui::InputText("##s", value.data(), value.capacity() + 1)) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                        ImGui::PopID();
+                    }
+                    else if (*type_info == typeid(vec<float, 2>)) {
+                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 2>>(prop_index);
+                        if (ImGui::DragFloat2("##vec2", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(vec<float, 3>)) {
+                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 3>>(prop_index);
+                        if (ImGui::DragFloat3("##vec3", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(vec<float, 4>)) {
+                        auto& value = reflectable.template GetPropertyByIndex<vec<float, 4>>(prop_index);
+                        if (ImGui::DragFloat4("##vec4", static_cast<float*>(&value[0]), 0.01f, -1000.0f, 1000.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp)) {
+                            reflectable.NotifyChange(prop_index);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(color_vec<float, 3>)) {
+                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 3>>(prop_index);
+                        if (ImGui::ColorEdit3("##rgb", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                            reflectable.NotifyChange(0);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(color_vec<float, 4>)) {
+                        auto& value = reflectable.template GetPropertyByIndex<color_vec<float, 4>>(prop_index);
+                        if (ImGui::ColorEdit4("##rgba", static_cast<float*>(&value[0]), ImGuiColorEditFlags_Float)) {
+                            reflectable.NotifyChange(0);
+                            update_iterators();
+                        }
+                    }
+                    else if (*type_info == typeid(MaterialIndexReflectable)) {
+                        auto& value = reflectable.template GetPropertyByIndex<MaterialIndexReflectable>(prop_index);
+                        auto& material_group = ecs_ptr->GetGroupByIndex<Material, Material::ReflectableGroup>(value.material_index);
+                        ImGui::EndDisabled();
+                        ImGui::PopID();
+                        ImGui::PopStyleVar(2);
+                        popped_style_var = true;
+                        RenderReflectables(material_group);
+                        break;
+                    }
+                    else {
+                        ImGui::TextDisabled("<Unsupported type>");
+                    }
+
+                    ImGui::EndDisabled();
+                    ImGui::PopID();
+                }
+                break;
+            }
+            }
+
+            if (!popped_style_var)
+                ImGui::PopStyleVar(2);
+        }
+    
+        ImGui::PopID();
+    }
+};
 
 std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index)
 {

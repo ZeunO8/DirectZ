@@ -6,7 +6,7 @@
 template <typename T, typename R>
 R AssimpConvert(T val)
 {
-	if constexpr (std::is_same_v<T, aiMatrix4x4>)
+	if constexpr (std::is_same_v<T, aiMatrix4x4>) {
 		if constexpr (std::is_same_v<R, mat<float, 4, 4>>)
         {
             mat<float, 4, 4> m(0.0f);
@@ -28,7 +28,8 @@ R AssimpConvert(T val)
             m[3][3] = val.d4;
 			return m;
         }
-	if constexpr (std::is_same_v<T, mat<float, 4, 4>>)
+    }
+	else if constexpr (std::is_same_v<T, mat<float, 4, 4>>) {
 		if constexpr (std::is_same_v<R, aiMatrix4x4>)
         {
             return aiMatrix4x4(val[0][0], val[1][0], val[2][0], val[3][0],
@@ -36,6 +37,28 @@ R AssimpConvert(T val)
                 val[0][2], val[1][2], val[2][2], val[3][2],
                 val[0][3], val[1][3], val[2][3], val[3][3]);
         }
+    }
+    else if constexpr (std::is_same_v<T, aiVector2D>) {
+        if constexpr (std::is_same_v<R, vec<float, 2>>) {
+            return vec<float, 2>(val.x, val.y);
+        }
+    }
+    else if constexpr (std::is_same_v<T, aiVector3D>) {
+        if constexpr (std::is_same_v<R, vec<float, 2>>) {
+            return vec<float, 2>(val.x, val.y);
+        }
+        else if constexpr (std::is_same_v<R, vec<float, 3>>) {
+            return vec<float, 3>(val.x, val.y, val.z);
+        }
+        else if constexpr (std::is_same_v<R, vec<float, 4>>) {
+            return vec<float, 4>(val.x, val.y, val.z, 1.0f);
+        }
+    }
+    else if constexpr (std::is_same_v<T, aiQuaternion>) {
+        if constexpr (std::is_same_v<R, quat<float>>) {
+            return quat<float>(val.w, val.x, val.y, val.z);
+        }
+    }
     R r;
     return r;
 }

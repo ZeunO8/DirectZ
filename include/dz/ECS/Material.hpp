@@ -84,23 +84,15 @@ void EnsureMaterialFragColor(in SubMesh submesh, inout vec4 current_color) {
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"atlasImageSize", {0, 0}},
-                {"atlasPackedRect", {1, 0}},
-                {"albedo", {2, 0}}
+                {"Albedo Color", {0, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "atlasImageSize"},
-                {1, "atlasPackedRect"},
-                {2, "albedo"}
+                {0, "Albedo Color"}
             };
             inline static std::vector<std::string> prop_names = {
-                "atlasImageSize",
-                "atlasPackedRect",
-                "albedo"
+                "Albedo Color"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(vec<float, 2>),
-                &typeid(vec<float, 2>),
                 &typeid(color_vec<float, 4>)
             };
 

@@ -1,4 +1,6 @@
 #include <dz/ImagePack.hpp>
+#include "Image.cpp.hpp"
+#include "Directz.cpp.hpp"
 
 #include <stdexcept>
 #include <algorithm>
@@ -11,7 +13,7 @@
 #include <execution>
 
 // using Format = zg::images::Image::Format;
-bool ImagePack::is_dirty()
+bool dz::ImagePack::is_dirty()
 {
     if (image_vec.size() != rect_vec.size())
         return true;
@@ -27,7 +29,7 @@ bool ImagePack::is_dirty()
 	}
 	return any_dirty;
 }
-void ImagePack::repack()
+void dz::ImagePack::repack()
 {
 
 	constexpr int padding = 0; // padding in pixels around each image
@@ -217,7 +219,7 @@ void ImagePack::repack()
 		atlas = image_vec[0];
 	}
 }
-size_t ImagePack::findImageIndex(Image* image)
+size_t dz::ImagePack::findImageIndex(Image* image)
 {
 	size_t index = 0;
 	auto image_vec_size = image_vec.size();
@@ -232,7 +234,7 @@ size_t ImagePack::findImageIndex(Image* image)
 	else
 		throw std::runtime_error("Image not found");
 }
-void ImagePack::addImage(Image* image)
+void dz::ImagePack::addImage(Image* image)
 {
 	try
 	{
@@ -243,16 +245,23 @@ void ImagePack::addImage(Image* image)
 		image_vec.push_back(image);
 	}
 }
-bool ImagePack::check()
+bool dz::ImagePack::check()
 {
 	auto isDirty = is_dirty();
-	if (!isDirty)
+	if (!isDirty) {
+		if (!atlas) {
+			atlas = image_create({
+				.width = 1,
+				.height = 1
+			});
+		}
 		return false;
+	}
 	repack();
 	return true;
 }
-Image* ImagePack::getAtlas() { return atlas; }
-vec<float, 2> ImagePack::getUV(vec<float, 2> original_uv, Image* image)
+Image* dz::ImagePack::getAtlas() { return atlas; }
+vec<float, 2> dz::ImagePack::getUV(vec<float, 2> original_uv, Image* image)
 {
     return {};
 	// auto& image_ref = *image;
@@ -264,7 +273,7 @@ vec<float, 2> ImagePack::getUV(vec<float, 2> original_uv, Image* image)
 	// float atlas_v = (packed_rect.y + pixel_v) / float(atlas_size.y);
 	// return {atlas_u, atlas_v};
 }
-std::vector<vec<float, 2>> ImagePack::getUVs(const std::vector<vec<float, 2>>& original_uvs, Image* image)
+std::vector<vec<float, 2>> dz::ImagePack::getUVs(const std::vector<vec<float, 2>>& original_uvs, Image* image)
 {
 	auto& image_ref = *image;
 	auto& packed_rect = findPackedRect(image);
@@ -281,9 +290,9 @@ std::vector<vec<float, 2>> ImagePack::getUVs(const std::vector<vec<float, 2>>& o
 	// }
 	return new_uvs;
 }
-ImagePack::rect_type& ImagePack::findPackedRect(Image* image)
+dz::ImagePack::rect_type& dz::ImagePack::findPackedRect(Image* image)
 {
 	return rect_vec[findImageIndex(image)];
 }
-size_t ImagePack::size() const { return image_vec.size(); }
-bool ImagePack::empty() const { return image_vec.empty(); }
+size_t dz::ImagePack::size() const { return image_vec.size(); }
+bool dz::ImagePack::empty() const { return image_vec.empty(); }

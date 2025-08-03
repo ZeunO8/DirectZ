@@ -1542,7 +1542,8 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
-    void transition_image_layout(VkImage image, VkImageLayout old_layout, VkImageLayout new_layout) {
+    void transition_image_layout(Image* image_ptr, VkImageLayout old_layout, VkImageLayout new_layout) {
+        auto image = image_ptr->image;
         auto device = dr.device;
         auto command_buffer = begin_single_time_commands();
 
@@ -1553,7 +1554,7 @@ namespace dz {
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.image = image;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.aspectMask = image_get_aspect_mask(image_ptr);
         barrier.subresourceRange.baseMipLevel = 0;
         barrier.subresourceRange.levelCount = 1;
         barrier.subresourceRange.baseArrayLayer = 0;
@@ -1589,7 +1590,8 @@ namespace dz {
                 if (runtime_ite == bound_buffer_group->runtime_images.end())
                     continue;
 
-                auto& image = *runtime_ite->second;;
+                auto image_ptr = runtime_ite->second.get();
+                auto& image = *image_ptr;
         
                 auto exp_lay_ite = shader_image.expected_layouts.find(shader);
                 if (exp_lay_ite == shader_image.expected_layouts.end())
@@ -1599,7 +1601,7 @@ namespace dz {
         
                 if (image.current_layout != required)
                 {
-                    transition_image_layout(image.image, image.current_layout, required);
+                    transition_image_layout(image_ptr, image.current_layout, required);
                     image.current_layout = required;
                 }
             }
