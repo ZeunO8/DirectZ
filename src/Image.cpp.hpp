@@ -37,4 +37,10 @@ namespace dz {
         VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
         void* data = nullptr;
     };
+
+    void upload_image_data(Image*);
+    void init_empty_image_data(Image*);
+    uint32_t image_get_aspect_mask(Image*);
+
+    Image* image_create_internal(const ImageCreateInfoInternal& info);
 }

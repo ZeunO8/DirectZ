@@ -59,7 +59,7 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
     index = pair.second;
 }
 
-using TL = TypeLoader<STB_Image_Loader>;
+using TL = TypeLoader<STB_Image_Loader, Assimp_Loader>;
 
 std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
 std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index);
@@ -101,48 +101,73 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        int mat1_index = -1;
-        auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
-        auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
-            .path = "hi.bmp"
-        });
-        ecs.SetMaterialImage(mat1_id, im_1);
+        // int mat1_index = -1;
+        // auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
+        // auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
+        //     .path = "images/hi.bmp"
+        // });
+        // ecs.SetMaterialImage(mat1_id, im_1);
 
         int blue_material = -1;
         auto mat2_id = ecs.AddMaterial(Material{
             .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
         }, blue_material);
 
-        auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
-        auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
-        auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
+        // auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
+        // auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
+        // auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
 
-        int mat3_index = -1;
-        auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
-        auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
-            .path = "Suzuho-Ueda.bmp"
-        });
-        ecs.SetMaterialImage(mat3_id, suzuho);
+        // int mat3_index = -1;
+        // auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
+        // auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
+        //     .path = "images/Suzuho-Ueda.bmp"
+        // });
+        // ecs.SetMaterialImage(mat3_id, suzuho);
 
-        auto scene1_id = ecs.AddScene(Scene{});
+        // auto scene1_id = ecs.AddScene(Scene{});
 
-        auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
+        // auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
 
-        auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
-        auto e2_id = ecs.AddEntity(scene1_id, Entity{
-            .position = {1.f, 1.f, 0.f, 1.f}
-        }, {plane_mesh_index});
+        // auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
+        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
+        //     .position = {1.f, 1.f, 0.f, 1.f}
+        // }, {plane_mesh_index});
 
-        auto scene2_id = ecs.AddScene(Scene{});
+        // auto scene2_id = ecs.AddScene(Scene{});
 
-        auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
+        // auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
 
-        auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
-        auto e4_id = ecs.AddEntity(scene2_id, Entity{
-            .position = {-2.f, 1.f, 0.f, 1.f}
-        }, {pyramid_mesh_index});
+        // auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
+        // auto e4_id = ecs.AddEntity(scene2_id, Entity{
+        //     .position = {-2.f, 1.f, 0.f, 1.f}
+        // }, {pyramid_mesh_index});
 
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
+
+        TL::Load<SceneID, Assimp_Info>(Assimp_Info{
+            .add_scene_function = [&](auto parent_id, const auto& name) {
+                return ecs.AddScene(parent_id, Scene{}, name);
+            },
+            .add_entity_function = [&](auto parent_id, const auto& name, const auto& mesh_indexes, auto position, auto rotation, auto scale) {
+                return ecs.AddEntity(parent_id, Entity{
+                    .position = position,
+                    .rotation = rotation,
+                    .scale = scale
+                }, mesh_indexes, name);
+            },
+            .add_mesh_function = [&](const auto& name, auto material_index, const auto& positions, const auto& uv2s, const auto& normals) -> MeshPair {
+                int out_index = -1;
+                auto out_id = ecs.AddMesh(positions, uv2s, normals, material_index, out_index, name);
+                return {out_id, out_index};
+            },
+            .add_material_function = [&](const auto& name, auto image_ptr) -> MaterialPair {
+                int out_index = -1;
+                auto out_id = ecs.AddMaterial(Material{}, out_index);
+                ecs.SetMaterialImage(out_id, image_ptr);
+                return {out_id, out_index};
+            },
+            .path = "models/SaiyanOne.glb"
+        });
     }
 
     ecs.MarkReady();

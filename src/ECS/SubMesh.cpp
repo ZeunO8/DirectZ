@@ -21,6 +21,7 @@ void* dz::ecs::SubMesh::SubMeshReflectable::GetVoidPropertyByIndex(int prop_inde
     auto& mesh = *mesh_ptr;
     switch (prop_index) {
     case 0: return &mesh.material_index;
+    case 1: return &mesh.material_index;
     default: return nullptr;
     }
 }

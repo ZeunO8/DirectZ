@@ -97,19 +97,19 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"position", {0, 0}},
-                {"rotation", {1, 0}},
-                {"scale", {2, 0}}
+                {"Position", {0, 0}},
+                {"Rotation", {1, 0}},
+                {"Scale", {2, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "position"},
-                {1, "rotation"},
-                {2, "scale"}
+                {0, "Position"},
+                {1, "Rotation"},
+                {2, "Scale"}
             };
             inline static std::vector<std::string> prop_names = {
-                "position",
-                "rotation",
-                "scale"
+                "Position",
+                "Rotation",
+                "Scale"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
                 &typeid(vec<float, 3>),

@@ -73,6 +73,7 @@ target_link_libraries(DirectZ PRIVATE
 	iostreams
 	archive_static
 	assimp
+	zlibstatic
 )
 
 target_link_libraries(dzp PRIVATE DirectZ)

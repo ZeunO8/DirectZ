@@ -87,6 +87,7 @@ namespace dz
 #include "ImagePack.cpp"
 
 #include "Loaders/STB_Image_Loader.cpp"
+#include "Loaders/Assimp_Loader.cpp"
 
 #include "runtime.cpp"
 

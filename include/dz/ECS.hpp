@@ -508,7 +508,14 @@ namespace dz {
         }
 
         template <typename TData, typename TProvider>
-        void AddProviderSingle(int parent_id, size_t& id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector, int& out_index) {
+        void AddProviderSingle(
+            int parent_id,
+            size_t& id,
+            const TData& data,
+            std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector,
+            int& out_index,
+            const std::string& name = ""
+        ) {
             if (id)
                 return;
 
@@ -607,20 +614,26 @@ namespace dz {
         }
 
         template <typename TData>
-        size_t AddProvider(int parent_id, const TData& data, std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector, int& out_index) {
+        int AddProvider(
+            int parent_id,
+            const TData& data,
+            std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector,
+            int& out_index,
+            const std::string& name = ""
+        ) {
             size_t id = 0;
-            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index), ...);
+            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index, name), ...);
             if (!id)
                 throw std::runtime_error("Unable to find Provider supporting TData");
             return id;
         }
 
         template <typename TEntity>
-        size_t AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
+        int AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name = "") {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             auto entity_id = AddProvider<TEntity>(parent_id, entity_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
             auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
             for (auto& mesh_index : mesh_indexes) {
                 auto& mesh_group = GetGroupByIndex<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_index);
@@ -630,27 +643,27 @@ namespace dz {
                     .mesh_index = mesh_index,
                     .material_index = mesh_group.material_index
                 };
-                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.reflectable_children, submesh_index);
+                auto submesh_id = AddProvider<SubMeshProviderT>(entity_id, submesh_data, entity_group.reflectable_children, submesh_index, mesh_group.name);
             }
             return entity_id;
         }
 
         template <typename TEntity>
-        size_t AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes) {
-            return AddEntity<TEntity>(-1, entity_data, mesh_indexes);
+        int AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name = "") {
+            return AddEntity<TEntity>(-1, entity_data, mesh_indexes, name);
         }
 
         template <typename TScene>
-        size_t AddScene(int parent_id, const TScene& scene_data) {
+        int AddScene(int parent_id, const TScene& scene_data, const std::string& name = "") {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TScene>(parent_id, scene_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
         }
 
         template <typename TScene>
-        size_t AddScene(const TScene& scene_data) {
-            return AddScene<TScene>(-1, scene_data);
+        int AddScene(const TScene& scene_data, const std::string& name = "") {
+            return AddScene<TScene>(-1, scene_data, name);
         }
 
         SceneProviderT& GetScene(size_t scene_id) {
@@ -658,7 +671,7 @@ namespace dz {
         }
 
         template <typename TMaterial>
-        size_t AddMaterial(const TMaterial& material_data, int& out_index) {
+        int AddMaterial(const TMaterial& material_data, int& out_index) {
             return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index);
         }
 
@@ -678,13 +691,13 @@ namespace dz {
                 UpdateAtlas();
         }
 
-        size_t AddMesh(
-            size_t parent_id,
+        int AddMesh(
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
             const std::vector<vec<float, 4>>& normals,
             int material_index,
-            int& out_index
+            int& out_index,
+            const std::string& name = ""
         ) {
             MeshProviderT mesh_data;
             auto position_index = buffer_group_get_buffer_element_count(buffer_group, VertexPositions_Str);
@@ -700,9 +713,7 @@ namespace dz {
             if (!normals.empty())
                 mesh_data.normal_offset = normal_index;
 
-            auto parent_group_ptr = FindParentGroupPtr(parent_id);
-            auto mesh_id = AddProvider<MeshProviderT>(parent_id, mesh_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : mesh_group_vector, out_index);
+            auto mesh_id = AddProvider<MeshProviderT>(-1, mesh_data, mesh_group_vector, out_index, name);
             
             if (mesh_data.position_offset != -1) {
                 buffer_group_set_buffer_element_count(buffer_group, VertexPositions_Str, mesh_data.position_offset + positions.size());
@@ -735,16 +746,6 @@ namespace dz {
             mesh_group.material_index = material_index;
 
             return mesh_id;
-        }
-
-        size_t AddMesh(
-            const std::vector<vec<float, 4>>& positions,
-            const std::vector<vec<float, 2>>& uv2s,
-            const std::vector<vec<float, 4>>& normals,
-            int material_index,
-            int& out_index
-        ) {
-            return AddMesh(-1, positions, uv2s, normals, material_index, out_index);
         }
 
         ReflectableGroup& GetGenericGroupByID(size_t id) {
@@ -836,11 +837,11 @@ namespace dz {
         }
 
         template <typename TCamera>
-        size_t AddCamera(size_t parent_id, const TCamera& camera_data, TCamera::ProjectionType projectionType) {
+        int AddCamera(size_t parent_id, const TCamera& camera_data, TCamera::ProjectionType projectionType, const std::string& name = "") {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             auto camera_id = AddProvider<TCamera>(parent_id, camera_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
 
             auto& camera = GetCamera(camera_id);
             auto& camera_group = GetGroupByID<TCamera, typename TCamera::ReflectableGroup>(camera_id);
@@ -869,8 +870,8 @@ namespace dz {
         }
 
         template <typename TCamera>
-        size_t AddCamera(const TCamera& camera_data, TCamera::ProjectionType projectionType) {
-            return AddCamera<TCamera>(-1, camera_data, projectionType);
+        int AddCamera(const TCamera& camera_data, TCamera::ProjectionType projectionType, const std::string& name = "") {
+            return AddCamera<TCamera>(-1, camera_data, projectionType, name);
         }
 
         CameraProviderT& GetCamera(size_t camera_id) {

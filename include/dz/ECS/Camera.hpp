@@ -134,16 +134,16 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"type", {0, 0}},
-                {"is_active", {1, 0}}
+                {"Type", {0, 0}},
+                {"Is Active", {1, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "type"},
-                {1, "is_active"}
+                {0, "Type"},
+                {1, "Is Active"}
             };
             inline static std::vector<std::string> prop_names = {
-                "type",
-                "is_active"
+                "Type",
+                "Is Active"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
                 &typeid(Camera::ProjectionType),
@@ -172,25 +172,25 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"position", {0, 0}},
-                {"center", {1, 0}},
-                {"up", {2, 0}},
-                {"nearPlane", {3, 0}},
-                {"farPlane", {4, 0}}
+                {"Position", {0, 0}},
+                {"Center", {1, 0}},
+                {"Up", {2, 0}},
+                {"Near Plane", {3, 0}},
+                {"Far Plane", {4, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "posiiton"},
-                {1, "center"},
-                {2, "up"},
-                {3, "nearPlane"},
-                {4, "farPlane"},
+                {0, "Position"},
+                {1, "Center"},
+                {2, "Up"},
+                {3, "Near Plane"},
+                {4, "Far Plane"},
             };
             inline static std::vector<std::string> prop_names = {
-                "position",
-                "center",
-                "up",
-                "nearPlane",
-                "farPlane"
+                "Position",
+                "Center",
+                "Up",
+                "Near Plane",
+                "Far Plane"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
                 &typeid(vec<float, 3>),
@@ -219,16 +219,16 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"aspect", {0, 0}},
-                {"fov", {1, 0}}
+                {"Aspect", {0, 0}},
+                {"FOV", {1, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "aspect"},
-                {1, "fov"}
+                {0, "Aspect"},
+                {1, "FOV"}
             };
             inline static std::vector<std::string> prop_names = {
-                "aspect",
-                "fov"
+                "Aspect",
+                "FOV"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
                 &typeid(float),
@@ -254,16 +254,16 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"orthoWidth", {0, 0}},
-                {"orthoHeight", {1, 0}}
+                {"Ortho Width", {0, 0}},
+                {"Ortho Height", {1, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "orthoWidth"},
-                {1, "orthoHeight"}
+                {0, "Ortho Width"},
+                {1, "Ortho Height"}
             };
             inline static std::vector<std::string> prop_names = {
-                "orthoWidth",
-                "orthoHeight"
+                "Ortho Width",
+                "Ortho Height"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
                 &typeid(float),
