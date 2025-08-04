@@ -53,7 +53,8 @@ namespace dz {
             .tiling = info.tiling,
             .memory_properties = info.memory_properties,
             .multisampling = info.multisampling,
-            .data = info.data
+            .data = info.data,
+            .surfaceType = info.surfaceType
         };
         return image_create_internal(internal_info);
     }
@@ -61,7 +62,9 @@ namespace dz {
     void image_cpy_data(Image* image, void* data) {
         if (!data)
             return;
-        auto image_byte_size = image->width * image->height * image->depth * 4 * sizeof(char);
+        auto channels = image_get_channels_size_of_t(image);
+        auto pixel_stride = image_get_sizeof_channels(channels);
+        auto image_byte_size = image->width * image->height * image->depth * pixel_stride;
         image->data = std::shared_ptr<void>(malloc(image_byte_size), free);
         memcpy(image->data.get(), data, image_byte_size);
     }
@@ -77,7 +80,8 @@ namespace dz {
             .view_type = info.view_type,
             .tiling = info.tiling,
             .memory_properties = info.memory_properties,
-            .multisampling = info.multisampling
+            .multisampling = info.multisampling,
+            .surfaceType = info.surfaceType
         };
 
         image_cpy_data(result, info.data);
@@ -630,5 +634,9 @@ namespace dz {
         for (auto& c : channels)
             size += c;
         return size_t(size);
+    }
+
+    SurfaceType image_get_surface_type(Image* image_ptr) {
+        return image_ptr->surfaceType;
     }
 }

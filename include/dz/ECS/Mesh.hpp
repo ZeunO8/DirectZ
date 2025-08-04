@@ -1,5 +1,6 @@
 #pragma once
 #include "Provider.hpp"
+#include "../Reflectable.hpp"
 
 namespace dz::ecs {
     struct Mesh : Provider<Mesh> {
@@ -8,8 +9,14 @@ namespace dz::ecs {
         int uv2_offset = -1;
         int normal_offset = -1;
 
+        int tangent_offset = -1;
+        int bitangent_offset = -1;
+        int padding1 = 0;
+        int padding2 = 0;
+
         inline static constexpr size_t PID = 3;
         inline static float Priority = 0.5f;
+        inline static constexpr bool RequiresBuffer = true;
         inline static constexpr bool IsMeshProvider = true;
         inline static std::string ProviderName = "Mesh";
         inline static std::string StructName = "Mesh";
@@ -19,6 +26,10 @@ struct Mesh {
     int position_offset;
     int uv2_offset;
     int normal_offset;
+    int tangent_offset;
+    int bitangent_offset;
+    int padding1;
+    int padding2;
 };
 )";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
@@ -38,6 +49,16 @@ vec2 GetMeshUV2(in Mesh mesh) {
         return vec2(0.0);
     return VertexUV2s.data[mesh.uv2_offset + gl_VertexIndex];
 }
+vec3 GetMeshTangent(in Mesh mesh) {
+    if (mesh.tangent_offset == -1)
+        return vec3(0.0);
+    return VertexTangents.data[mesh.tangent_offset + gl_VertexIndex].xyz;
+}
+vec3 GetMeshBitangent(in Mesh mesh) {
+    if (mesh.bitangent_offset == -1)
+        return vec3(0.0);
+    return VertexBitangents.data[mesh.bitangent_offset + gl_VertexIndex].xyz;
+}
 )" },
             { ShaderModuleType::Fragment, R"(
 )" }
@@ -48,10 +69,12 @@ vec2 GetMeshUV2(in Mesh mesh) {
     vec3 mesh_vertex = GetMeshVertex(mesh);
     vec3 mesh_normal = GetMeshNormal(mesh);
     vec2 mesh_uv2 = GetMeshUV2(mesh);
+    vec3 mesh_tangent = GetMeshTangent(mesh);
+    vec3 mesh_bitangent = GetMeshBitangent(mesh);
 )", ShaderModuleType::Vertex}
         };
         
-        struct MeshReflectable : Reflectable {
+        struct MeshReflectable : ::Reflectable {
 
         private:
             std::function<Mesh*()> get_mesh_function;

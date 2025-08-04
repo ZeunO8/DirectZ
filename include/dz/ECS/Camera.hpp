@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Provider.hpp"
+#include "../Reflectable.hpp"
 #include "../Framebuffer.hpp"
 #include "../Shader.hpp"
 #include "../math.hpp"
@@ -28,6 +29,7 @@ namespace dz::ecs {
         int parent_cid = 0;
         int transform_dirty = 1;
         int is_active = 1;
+        inline static constexpr bool RequiresBuffer = true; 
         inline static constexpr bool IsCameraProvider = true;
         inline static constexpr size_t PID = 5;
         inline static float Priority = 0.5f;
@@ -126,7 +128,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         };
 
         
-        struct CameraMetaReflectable : Reflectable {
+        struct CameraMetaReflectable : ::Reflectable {
             
         private:
             std::function<Camera*()> get_camera_function;

@@ -357,6 +357,94 @@ namespace dz {
 			return VK_SAMPLE_COUNT_2_BIT;
 		return VK_SAMPLE_COUNT_1_BIT;
 	}
+
+	void check_format_supported(
+		VkFormat format,
+		VkImageType imageType,
+		VkImageTiling imageTiling,
+		VkImageUsageFlags usageFlags
+	) {
+		VkImageFormatProperties formatProps = {};
+		VkResult result = vkGetPhysicalDeviceImageFormatProperties(
+			dr.physicalDevice,
+			format,
+			imageType,
+			imageTiling,
+			usageFlags,
+			0,
+			&formatProps
+		);
+		dr.formats_supported_map[format][imageType][imageTiling][usageFlags] = (result == VK_SUCCESS);
+	}
+
+	void verify_format_support()
+	{
+		static VkFormat formats[] = {
+			VK_FORMAT_R8_UNORM,
+			VK_FORMAT_R8G8_UNORM,
+			VK_FORMAT_R8G8B8_UNORM,
+			VK_FORMAT_B8G8R8_UNORM,
+			VK_FORMAT_R8G8B8A8_UNORM,
+			VK_FORMAT_B8G8R8A8_UNORM,
+			VK_FORMAT_R16_SFLOAT,
+			VK_FORMAT_R16G16_SFLOAT,
+			VK_FORMAT_R16G16B16_SFLOAT,
+			VK_FORMAT_R16G16B16A16_SFLOAT,
+			VK_FORMAT_R32_SFLOAT,
+			VK_FORMAT_R32G32_SFLOAT,
+			VK_FORMAT_R32G32B32_SFLOAT,
+			VK_FORMAT_R32G32B32A32_SFLOAT,
+			VK_FORMAT_D16_UNORM,
+			VK_FORMAT_D32_SFLOAT,
+			VK_FORMAT_D24_UNORM_S8_UINT,
+			VK_FORMAT_D32_SFLOAT_S8_UINT
+		};
+
+		static VkImageType types[] = {
+			VK_IMAGE_TYPE_1D,
+			VK_IMAGE_TYPE_2D,
+			VK_IMAGE_TYPE_3D
+		};
+
+		static VkImageTiling tilings[] = {
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_TILING_LINEAR
+		};
+
+		static VkImageUsageFlags usages[] = {
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+			VK_IMAGE_USAGE_STORAGE_BIT,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+		};
+
+		for (VkFormat format : formats)
+		{
+			for (VkImageType type : types)
+			{
+				for (VkImageTiling tiling : tilings)
+				{
+					for (VkImageUsageFlags usage : usages)
+					{
+						check_format_supported(format, type, tiling, usage);
+					}
+				}
+			}
+		}
+		dr.formats_supported.R8_UNORM = dr.formats_supported_map
+			[VK_FORMAT_R8_UNORM][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8_UNORM = dr.formats_supported_map
+			[VK_FORMAT_R8G8_UNORM][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8B8_UNORM = dr.formats_supported_map
+			[VK_FORMAT_R8G8B8_UNORM][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8B8A8_UNORM = dr.formats_supported_map
+			[VK_FORMAT_R8G8B8A8_UNORM][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+	}
+
 	void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer)
 	{
 		if (dr.physicalDevice)
@@ -392,10 +480,10 @@ namespace dz {
 		{
 			throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find a suitable GPU!");
 		}
-		VkPhysicalDeviceProperties physicalDeviceProperties;
-		vkGetPhysicalDeviceProperties(dr.physicalDevice, &physicalDeviceProperties);
-		std::cout << "Selected Physical Device: '" << physicalDeviceProperties.deviceName
+		vkGetPhysicalDeviceProperties(dr.physicalDevice, &dr.physicalDeviceProperties);
+		std::cout << "Selected Physical Device: '" << dr.physicalDeviceProperties.deviceName
 							<< "' with score of: " << selectedDeviceScore << std::endl;
+		verify_format_support();
 		return;
 	}
 	uint32_t rate_device_suitability(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device)

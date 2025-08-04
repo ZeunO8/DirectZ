@@ -21,6 +21,7 @@ namespace dz {
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkSampleCountFlagBits multisampling;
         std::shared_ptr<void> data;
+        SurfaceType surfaceType = SurfaceType::BaseColor;
     };
 
     struct ImageCreateInfoInternal
@@ -36,6 +37,7 @@ namespace dz {
         VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
         void* data = nullptr;
+        SurfaceType surfaceType = SurfaceType::BaseColor;
     };
 
     void upload_image_data(Image*);

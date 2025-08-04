@@ -1,5 +1,6 @@
 #pragma once
 #include "Provider.hpp"
+#include "../Reflectable.hpp"
 
 namespace dz::ecs {
     struct Scene : Provider<Scene> {
@@ -14,6 +15,7 @@ namespace dz::ecs {
         
         inline static constexpr size_t PID = 1;
         inline static float Priority = 0.5f;
+        inline static constexpr bool RequiresBuffer = true;
         inline static constexpr bool IsSceneProvider = true;
         inline static std::string ProviderName = "Scene";
         inline static std::string StructName = "Scene";
@@ -80,7 +82,7 @@ void GetSceneModel(int scene_index, out mat4 out_model, out int parent_index, ou
 )"}
         };
 
-        struct SceneTransformReflectable : Reflectable {
+        struct SceneTransformReflectable : ::Reflectable {
         private:
             std::function<Scene*()> get_scene_function;
             int uid;

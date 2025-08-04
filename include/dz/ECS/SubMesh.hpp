@@ -2,6 +2,7 @@
 #include "Provider.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
+#include "../Reflectable.hpp"
 
 namespace dz::ecs {
     inline static std::string Meshs_Str = "Meshs";
@@ -13,6 +14,7 @@ namespace dz::ecs {
 
         inline static constexpr size_t PID = 4;
         inline static float Priority = 0.5f;
+        inline static constexpr bool RequiresBuffer = true;
         inline static constexpr bool IsDrawProvider = true;
         inline static constexpr bool IsSubMeshProvider = true;
         inline static std::string ProviderName = "SubMesh";
@@ -32,7 +34,7 @@ struct SubMesh {
                 return mesh.vertex_count;
         }
         
-        struct SubMeshReflectable : Reflectable {
+        struct SubMeshReflectable : ::Reflectable {
 
         private:
             std::function<SubMesh*()> get_submesh_function;

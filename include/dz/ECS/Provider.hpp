@@ -30,6 +30,13 @@ namespace dz {
             return 0;
         }
 
+        inline static constexpr bool GetRequiresBuffer() {
+            if constexpr (requires { T::RequiresBuffer; } ) {
+                return T::RequiresBuffer;
+            }
+            return false;
+        }
+
         inline static constexpr bool GetIsDrawProvider() {
             if constexpr (requires { T::IsDrawProvider; }) {
                 return T::IsDrawProvider;

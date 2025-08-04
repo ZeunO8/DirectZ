@@ -13,6 +13,7 @@ namespace dz {
 		using spaces_type = rectpack2D::empty_spaces<allow_flip, rectpack2D::default_empty_spaces>;
 		using rect_type = rectpack2D::output_rect_t<spaces_type>;
 		Image* atlas = nullptr;
+		bool owns_atlas = true;
 		std::vector<Image*> image_vec;
 		std::vector<rect_type> rect_vec;
 		std::vector<uint8_t> rgba_buffer;
@@ -21,6 +22,8 @@ namespace dz {
 		size_t findImageIndex(Image* image);
 
 	public:
+		~ImagePack();
+		void SetOwnAtlas(bool owns = false);
 		void addImage(Image* image);
 		bool check();
 		Image* getAtlas();

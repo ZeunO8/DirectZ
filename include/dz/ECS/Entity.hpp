@@ -16,6 +16,7 @@ namespace dz::ecs {
         
         inline static constexpr size_t PID = 2;
         inline static float Priority = 0.5f;
+        inline static constexpr bool RequiresBuffer = true;
         inline static constexpr bool IsEntityProvider = true;
         inline static std::string ProviderName = "Entity";
         inline static std::string StructName = "Entity";

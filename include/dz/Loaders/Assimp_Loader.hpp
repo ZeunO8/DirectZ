@@ -7,6 +7,7 @@
 #include <vector>
 #include <dz/math.hpp>
 #include <dz/Image.hpp>
+#include <dz/ImagePack.hpp>
 
 namespace dz::loaders {
     using MeshPair = std::pair<size_t, int>;
@@ -20,9 +21,14 @@ namespace dz::loaders {
     using TScale = vec<float, 4>;
     using TUV2 = vec<float, 2>;
     using TNormal = vec<float, 4>;
+    using TTangent = vec<float, 4>;
+    using TBitangent = vec<float, 4>;
     using AddSceneFunction = std::function<SceneID(
         ParentID,
-        const std::string&
+        const std::string&,
+        TPosition,
+        TRotation,
+        TScale
     )>;
     using AddEntityFunction = std::function<EntityID(
         ParentID,
@@ -34,14 +40,16 @@ namespace dz::loaders {
     )>;
     using AddMaterialFunction = std::function<MaterialPair(
         const std::string&,
-        Image*
+        const std::vector<Image*>&
     )>; 
     using AddMeshFunction = std::function<MeshPair(
         const std::string&,
         MaterialIndex,
         const std::vector<TPosition>&,
         const std::vector<TUV2>&,
-        const std::vector<TNormal>&
+        const std::vector<TNormal>&,
+        const std::vector<TTangent>&,
+        const std::vector<TBitangent>&
     )>;
     struct Assimp_Info {
         ParentID parent_id = -1;
@@ -52,6 +60,9 @@ namespace dz::loaders {
         std::filesystem::path path;
         std::shared_ptr<char> bytes;
         size_t bytes_length = 0;
+        TPosition root_position = TPosition(0.0, 0.0, 0.0, 1.0);
+        TRotation root_rotation = TRotation(0.0, 0.0, 0.0, 1.0);
+        TScale root_scale = TScale(1.0, 1.0, 1.0, 1.0);
     };
     struct Assimp_Loader {
         using value_type = SceneID;

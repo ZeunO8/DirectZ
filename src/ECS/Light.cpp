@@ -1,25 +1,23 @@
 #include <dz/ECS/Light.hpp>
 #include <dz/GlobalUID.hpp>
 
-dz::ecs::LightMetaReflectable::LightMetaReflectable(
-    const std::function<Light*()>& get_light_function,
-    const std::function<void()>& reset_reflectables_function
+dz::ecs::Light::LightMetaReflectable::LightMetaReflectable(
+    const std::function<Light*()>& get_light_function
 ):
     get_light_function(get_light_function),
-    reset_reflectables_function(reset_reflectables_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
-    name("Light Type")
+    name("Light Meta")
 {}
 
-int dz::ecs::LightMetaReflectable::GetID() {
+int dz::ecs::Light::LightMetaReflectable::GetID() {
     return uid;
 }
 
-std::string& dz::ecs::LightMetaReflectable::GetName() {
+std::string& dz::ecs::Light::LightMetaReflectable::GetName() {
     return name;
 }
 
-void* dz::ecs::LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
+void* dz::ecs::Light::LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
     auto light_ptr = get_light_function();
     if (!light_ptr)
         return nullptr;
@@ -37,7 +35,7 @@ void* dz::ecs::LightMetaReflectable::GetVoidPropertyByIndex(int prop_index) {
     }
 }
 
-void dz::ecs::LightMetaReflectable::NotifyChange(int prop_index) {
+void dz::ecs::Light::LightMetaReflectable::NotifyChange(int prop_index) {
     auto light_ptr = get_light_function();
     if (!light_ptr)
         return;
@@ -45,7 +43,6 @@ void dz::ecs::LightMetaReflectable::NotifyChange(int prop_index) {
     switch (prop_index) {
     default:
         // LightInit(light);
-        // reset_reflectables_function();
         break;
     }
 }
