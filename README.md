@@ -3,17 +3,19 @@
 ![GitHub](https://img.shields.io/github/license/ZeunO8/DirectZ)
 ![GitHub repo size](https://img.shields.io/github/repo-size/ZeunO8/DirectZ)
 
-DirectZ `namespace dz` is a rewrite of **[Zeungine](https://github.com/Zeucor/Zeungine)** and aims to improve upon its core logic while adding *GPU driven rendering*.
+DirectZ is a layer ontop of Vulkan allowing developers to write **Cross Platform** ***high performance*** **Graphical Applications**
 
 DirectZ uses `spirv_reflect` to reflect developer written `.glsl` shaders. Because of this, DirectZ allows developers to simply write shader code and have their render resources created automagically for you.
 
-Memory is mapped from the GPU to CPU, and, using compute shaders, most of the apps logic can be offloaded to the GPU to achieve highly parallel gameloops.
+The majority of Memory (via BufferGroups) is allocated on the GPU, and mapped to CPU.
 
-DirectZ provides:
+Using compute shaders, most of the apps logic can be offloaded to the GPU to achieve highly parallel gameloops.
 
-- Easy API for creating windows
+DirectZ aims to achieve:
+
+- Simple C-like API for creating core concepts such as: windows, shaders, images, and more
 - Quick access to a fully reflected Shader pipeline
-- GPU driven rendering
+- GPU driven rendering - (in progress, the majority of processing is done GPU side)
 
 ##### Build Status
 [![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=master&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
