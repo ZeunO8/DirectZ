@@ -51,7 +51,7 @@ void dz::ImagePack::repack()
 
 	if (image_vec_size > 1)
 	{
-		const int max_side = 4096;
+		const int max_side = dr.physicalDeviceProperties.limits.maxImageDimension2D;
 		const int discard_step = -4;
 		auto report_successful = [](rect_type&) { return rectpack2D::callback_result::CONTINUE_PACKING; };
 		auto report_unsuccessful = [](rect_type&) { return rectpack2D::callback_result::ABORT_PACKING; };
@@ -233,6 +233,13 @@ size_t dz::ImagePack::findImageIndex(Image* image)
 		return index;
 	else
 		throw std::runtime_error("Image not found");
+}
+ImagePack::~ImagePack() {
+	if (owns_atlas)
+		image_free(atlas);
+}
+void ImagePack::SetOwnAtlas(bool owns) {
+	owns_atlas = owns;
 }
 void dz::ImagePack::addImage(Image* image)
 {

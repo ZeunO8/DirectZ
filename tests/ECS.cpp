@@ -12,7 +12,7 @@ struct StateSystem : Provider<StateSystem> {
     virtual ~StateSystem() = default;
 };
 
-// #define ENABLE_LIGHTS
+#define ENABLE_LIGHTS
 using ExampleECS = ECS<
     CID_MIN,
     Scene,
@@ -22,7 +22,7 @@ using ExampleECS = ECS<
     Camera,
     Material
 #ifdef ENABLE_LIGHTS
-    , Light
+    , Light, PhongLighting
 #endif
 >;
 
@@ -61,9 +61,6 @@ auto set_pair_id_index(auto pair, auto& id, auto& index) {
 
 using TL = TypeLoader<STB_Image_Loader, Assimp_Loader>;
 
-std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index);
-std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index);
-std::pair<size_t, int> AddCubeMesh(ExampleECS& ecs, int material_index);
 void RenderReflectables(ReflectableGroup& what_reflectable_group);
 
 int main() {
@@ -101,52 +98,15 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        // int mat1_index = -1;
-        // auto mat1_id = ecs.AddMaterial(Material{}, mat1_index);
-        // auto im_1 = TL::Load<Image*, STB_Image_Loader::info_type>({
-        //     .path = "images/hi.bmp"
-        // });
-        // ecs.SetMaterialImage(mat1_id, im_1);
-
-        int blue_material = -1;
-        auto mat2_id = ecs.AddMaterial(Material{
-            .albedo = {0.0f, 0.0f, 1.0f, 1.0f}
-        }, blue_material);
-
-        // auto [pyramid_mesh_id, pyramid_mesh_index] = AddPyramidMesh(ecs, blue_material);
-        // auto [plane_mesh_id, plane_mesh_index] = AddPlaneMesh(ecs, blue_material);
-        // auto [cube_mesh_id, cube_mesh_index] = AddCubeMesh(ecs, blue_material);
-
-        // int mat3_index = -1;
-        // auto mat3_id = ecs.AddMaterial(Material{}, mat3_index);
-        // auto suzuho = TL::Load<Image*, STB_Image_Loader::info_type>({
-        //     .path = "images/Suzuho-Ueda.bmp"
-        // });
-        // ecs.SetMaterialImage(mat3_id, suzuho);
-
-        // auto scene1_id = ecs.AddScene(Scene{});
-
-        // auto cam1_id = ecs.AddCamera(scene1_id, Camera{}, Camera::Perspective);
-
-        // auto e1_id = ecs.AddEntity(scene1_id, Entity{}, {plane_mesh_index});
-        // auto e2_id = ecs.AddEntity(scene1_id, Entity{
-        //     .position = {1.f, 1.f, 0.f, 1.f}
-        // }, {plane_mesh_index});
-
-        // auto scene2_id = ecs.AddScene(Scene{});
-
-        // auto cam2_id = ecs.AddCamera(scene2_id, Camera{}, Camera::Perspective);
-
-        // auto e3_id = ecs.AddEntity(scene2_id, Entity{}, {cube_mesh_index});
-        // auto e4_id = ecs.AddEntity(scene2_id, Entity{
-        //     .position = {-2.f, 1.f, 0.f, 1.f}
-        // }, {pyramid_mesh_index});
-
         auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
 
-        TL::Load<SceneID, Assimp_Info>(Assimp_Info{
-            .add_scene_function = [&](auto parent_id, const auto& name) {
-                return ecs.AddScene(parent_id, Scene{}, name);
+        Assimp_Info base_info{
+            .add_scene_function = [&](auto parent_id, const auto& name, auto position, auto rotation, auto scale) {
+                return ecs.AddScene(parent_id, Scene{
+                    .position = position,
+                    .rotation = rotation,
+                    .scale = scale
+                }, name);
             },
             .add_entity_function = [&](auto parent_id, const auto& name, const auto& mesh_indexes, auto position, auto rotation, auto scale) {
                 return ecs.AddEntity(parent_id, Entity{
@@ -155,19 +115,38 @@ int main() {
                     .scale = scale
                 }, mesh_indexes, name);
             },
-            .add_mesh_function = [&](const auto& name, auto material_index, const auto& positions, const auto& uv2s, const auto& normals) -> MeshPair {
+            .add_mesh_function = [&](const auto& name, auto material_index, const auto& positions, const auto& uv2s, const auto& normals, const auto& tangents, const auto& bitangents) -> MeshPair {
                 int out_index = -1;
-                auto out_id = ecs.AddMesh(positions, uv2s, normals, material_index, out_index, name);
+                auto out_id = ecs.AddMesh(positions, uv2s, normals, tangents, bitangents, material_index, out_index, name);
                 return {out_id, out_index};
             },
-            .add_material_function = [&](const auto& name, auto image_ptr) -> MaterialPair {
+            .add_material_function = [&](const auto& name, const auto& images_vec) -> MaterialPair {
                 int out_index = -1;
                 auto out_id = ecs.AddMaterial(Material{}, out_index);
-                ecs.SetMaterialImage(out_id, image_ptr);
+                ecs.SetMaterialImages(out_id, images_vec);
                 return {out_id, out_index};
-            },
-            .path = "models/SaiyanOne.glb"
-        });
+            }
+        };
+
+        auto saiyan_one_info = base_info;
+        saiyan_one_info.path = "models/SaiyanOne.glb";
+
+        TL::Load<SceneID, Assimp_Info>(saiyan_one_info);
+
+        auto golden_sports_car_info = base_info;
+        golden_sports_car_info.path = "models/GoldenSportsCar.glb";
+
+        golden_sports_car_info.root_position[0] += 4.5f;
+
+        TL::Load<SceneID, Assimp_Info>(golden_sports_car_info);
+
+        ecs.AddLight(Light{
+            .type = uint32_t(Light::Directional),
+            .intensity = 1.f,
+            .position = {0, 10, 0},
+            .direction = {0, -1, 0},
+            .color = {1, 1, 1}
+        }, "Directional Light");
     }
 
     ecs.MarkReady();
@@ -483,12 +462,12 @@ int main() {
                 ImDrawList* draw_list = ImGui::GetWindowDrawList();
                 static float rounding = 6.0f;
 
-                bool has_texture = !material.atlas_pack.all(-1.f);
+                bool has_texture = !material.albedo_atlas_pack.all(-1.f);
 
                 if (has_texture)
                 {
                     draw_list->AddImageRounded(
-                        (ImTextureID)material_group.frame_image_ds,
+                        (ImTextureID)material_group.albedo_frame_image_ds,
                         rect_min,
                         rect_max,
                         ImVec2(0, 0),
@@ -509,10 +488,10 @@ int main() {
                 else
                 {
                     ImU32 color = ImGui::ColorConvertFloat4ToU32(ImVec4(
-                        material.albedo[0],
-                        material.albedo[1],
-                        material.albedo[2],
-                        material.albedo[3]
+                        material.albedo_color[0],
+                        material.albedo_color[1],
+                        material.albedo_color[2],
+                        material.albedo_color[3]
                     ));
 
                     draw_list->AddRectFilled(rect_min, rect_max, color, rounding);
@@ -869,153 +848,6 @@ void RenderReflectables(ReflectableGroup& what_reflectable_group) {
         ImGui::PopID();
     }
 };
-
-std::pair<size_t, int> AddPyramidMesh(ExampleECS& ecs, int material_index)
-{
-    std::vector<vec<float, 4>> positions = {
-        // Base triangle 1
-        { -1.0f, 0.0f, -1.0f, 1.0f },
-        {  1.0f, 0.0f, -1.0f, 1.0f },
-        {  1.0f, 0.0f,  1.0f, 1.0f },
-
-        // Base triangle 2
-        {  1.0f, 0.0f,  1.0f, 1.0f },
-        { -1.0f, 0.0f,  1.0f, 1.0f },
-        { -1.0f, 0.0f, -1.0f, 1.0f },
-
-        // Side 1
-        {  1.0f, 0.0f, -1.0f, 1.0f },
-        { -1.0f, 0.0f, -1.0f, 1.0f },
-        {  0.0f, 1.0f,  0.0f, 1.0f },
-
-        // Side 2
-        {  1.0f, 0.0f,  1.0f, 1.0f },
-        {  1.0f, 0.0f, -1.0f, 1.0f },
-        {  0.0f, 1.0f,  0.0f, 1.0f },
-
-        // Side 3
-        { -1.0f, 0.0f,  1.0f, 1.0f },
-        {  1.0f, 0.0f,  1.0f, 1.0f },
-        {  0.0f, 1.0f,  0.0f, 1.0f },
-
-        // Side 4
-        { -1.0f, 0.0f, -1.0f, 1.0f },
-        { -1.0f, 0.0f,  1.0f, 1.0f },
-        {  0.0f, 1.0f,  0.0f, 1.0f }
-    };
-
-    std::vector<vec<float, 2>> uv2s = {
-        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f },
-        { 0.0f, 1.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f },
-        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
-        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
-        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f },
-        { 1.0f, 0.0f }, { 0.0f, 0.0f }, { 0.5f, 1.0f }
-    };
-
-    std::vector<vec<float, 4>> normals = {
-        { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f },
-        { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f, 0.0f },
-        { 0.0f, 0.707f, -0.707f, 0.0f }, { 0.0f, 0.707f, -0.707f, 0.0f }, { 0.0f, 0.707f, -0.707f, 0.0f },
-        { 0.707f, 0.707f, 0.0f, 0.0f }, { 0.707f, 0.707f, 0.0f, 0.0f }, { 0.707f, 0.707f, 0.0f, 0.0f },
-        { 0.0f, 0.707f, 0.707f, 0.0f }, { 0.0f, 0.707f, 0.707f, 0.0f }, { 0.0f, 0.707f, 0.707f, 0.0f },
-        { -0.707f, 0.707f, 0.0f, 0.0f }, { -0.707f, 0.707f, 0.0f, 0.0f }, { -0.707f, 0.707f, 0.0f, 0.0f }
-    };
-
-    int mesh_index = -1;
-    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
-    return { mesh_id, mesh_index };
-}
-
-std::pair<size_t, int> AddCubeMesh(ExampleECS& ecs, int material_index)
-{
-    std::vector<vec<float, 4>> positions = {
-        { 0.5,  0.5,  0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0},
-        {-0.5, -0.5,  0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0},
-
-        {-0.5,  0.5, -0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0},
-        { 0.5, -0.5, -0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0},
-
-        {-0.5,  0.5,  0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0},
-        {-0.5, -0.5, -0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0},
-
-        { 0.5,  0.5, -0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0},
-        { 0.5, -0.5,  0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0},
-
-        { 0.5,  0.5, -0.5, 1.0}, {-0.5,  0.5, -0.5, 1.0}, {-0.5,  0.5,  0.5, 1.0},
-        {-0.5,  0.5,  0.5, 1.0}, { 0.5,  0.5,  0.5, 1.0}, { 0.5,  0.5, -0.5, 1.0},
-
-        { 0.5, -0.5,  0.5, 1.0}, {-0.5, -0.5,  0.5, 1.0}, {-0.5, -0.5, -0.5, 1.0},
-        {-0.5, -0.5, -0.5, 1.0}, { 0.5, -0.5, -0.5, 1.0}, { 0.5, -0.5,  0.5, 1.0}
-    };
-
-    std::vector<vec<float, 2>> uv2s = {
-        {1.0, 1.0}, {0.0, 1.0}, {0.0, 0.0},
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0},
-
-        {0.0, 1.0}, {1.0, 1.0}, {1.0, 0.0},
-        {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0},
-
-        {0.0, 1.0}, {0.0, 1.0}, {0.0, 0.0},
-        {0.0, 0.0}, {0.0, 0.0}, {0.0, 1.0},
-
-        {1.0, 1.0}, {1.0, 1.0}, {1.0, 0.0},
-        {1.0, 0.0}, {1.0, 0.0}, {1.0, 1.0},
-
-        {1.0, 1.0}, {0.0, 1.0}, {0.0, 1.0},
-        {0.0, 1.0}, {1.0, 1.0}, {1.0, 1.0},
-
-        {1.0, 0.0}, {0.0, 0.0}, {0.0, 0.0},
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 0.0}
-    };
-
-    std::vector<vec<float, 4>> normals = {
-        {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0}, {0, 0, 1, 0},
-        {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0}, {0, 0, -1, 0},
-        {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0}, {-1, 0, 0, 0},
-        {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0}, {1, 0, 0, 0},
-        {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0}, {0, 1, 0, 0},
-        {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}, {0, -1, 0, 0}
-    };
-
-    int mesh_index = -1;
-    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
-    return { mesh_id, mesh_index };
-}
-
-std::pair<size_t, int> AddPlaneMesh(ExampleECS& ecs, int material_index)
-{
-    std::vector<vec<float, 4>> positions = {
-        { 0.5,  0.5, 0, 1},
-        {-0.5,  0.5, 0, 1},
-        {-0.5, -0.5, 0, 1},
-        {-0.5, -0.5, 0, 1},
-        { 0.5, -0.5, 0, 1},
-        { 0.5,  0.5, 0, 1}
-    };
-
-    std::vector<vec<float, 2>> uv2s = {
-        {1.0, 0.0},
-        {0.0, 0.0},
-        {0.0, 1.0},
-        {0.0, 1.0},
-        {1.0, 1.0},
-        {1.0, 0.0}
-    };
-
-    std::vector<vec<float, 4>> normals = {
-        {0.0, 0.0, 1.0, 1},
-        {0.0, 0.0, 1.0, 1},
-        {0.0, 0.0, 1.0, 1},
-        {0.0, 0.0, 1.0, 1},
-        {0.0, 0.0, 1.0, 1},
-        {0.0, 0.0, 1.0, 1}
-    };
-
-    int mesh_index = -1;
-    auto mesh_id = ecs.AddMesh(positions, uv2s, normals, material_index, mesh_index);
-    return { mesh_id, mesh_index };
-}
 
 // void DrawEntityGroup(ExampleECS& ecs, int id, ExampleECS::EntityReflectableGroup& entity_group)
 // {
@@ -1402,7 +1234,7 @@ void DrawWindowGroup(const std::string& window_name, WindowReflectableGroup& win
     ImGui::PopID();
 }
 
-bool ReflectableGroupFilterCheck(ImGuiTextFilter& SceneGraphFilter, ReflectableGroup& reflectable_group) {
+bool ReflectableGroupFilterCheck(ImGuiTextFilter& SceneGraphFilter, ::ReflectableGroup& reflectable_group) {
     auto initial = SceneGraphFilter.PassFilter(reflectable_group.GetName().c_str());
     if (initial)
         return true;

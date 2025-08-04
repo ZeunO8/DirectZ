@@ -9,6 +9,20 @@
 namespace dz
 {
     struct Image;
+
+    enum class SurfaceType {
+        BaseColor,
+        Diffuse,
+        Specular,
+        Normal,
+        Height,
+        AmbientOcclusion,
+        DiffuseRoughness,
+        Metalness,
+        Shininess,
+        MetalnessRoughness
+    };
+
     struct ImageCreateInfo {
         uint32_t width = 1;
         uint32_t height = 1;
@@ -22,6 +36,7 @@ namespace dz
         VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
         bool is_framebuffer_attachment = false;
         void* data = nullptr;
+        SurfaceType surfaceType = SurfaceType::BaseColor;
     };
 
     /**
@@ -82,4 +97,9 @@ namespace dz
     * @returns the channels pixel stride in bytes
     */
     size_t image_get_sizeof_channels(const std::vector<float>& channels);
+
+    /**
+     * @brief returns the underlying surface type of an Image
+     */
+    SurfaceType image_get_surface_type(Image*);
 }

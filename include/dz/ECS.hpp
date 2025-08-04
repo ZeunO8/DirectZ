@@ -11,6 +11,7 @@
 #include "State.hpp"
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
+#include "ECS/PhongLighting.hpp"
 #include "ECS/Scene.hpp"
 #include "ECS/Entity.hpp"
 #include "ECS/Mesh.hpp"
@@ -30,10 +31,17 @@
 namespace dz {
 
     inline static std::string Cameras_Str = "Cameras";
-    inline static std::string Atlas_Str = "Atlas";
+    inline static std::string AlbedoAtlas_Str = "AlbedoAtlas";
+    inline static std::string NormalAtlas_Str = "NormalAtlas";
+    inline static std::string RoughnessAtlas_Str = "RoughnessAtlas";
+    inline static std::string MetalnessAtlas_Str = "MetalnessAtlas";
+    inline static std::string MetalnessRoughnessAtlas_Str = "MetalnessRoughnessAtlas";
+    inline static std::string ShininessAtlas_Str = "ShininessAtlas";
     inline static std::string VertexPositions_Str = "VertexPositions";
     inline static std::string VertexUV2s_Str = "VertexUV2s";
     inline static std::string VertexNormals_Str = "VertexNormals";
+    inline static std::string VertexTangents_Str = "VertexTangents";
+    inline static std::string VertexBitangents_Str = "VertexBitangents";
     
     template<int TCID, typename... TProviders>
     struct ECS : Restorable {
@@ -62,6 +70,7 @@ namespace dz {
             std::string buffer_name;
             std::string sparse_name;
             std::string glsl_struct;
+            bool requires_buffer;
             std::unordered_map<ShaderModuleType, std::string> glsl_methods;
             std::unordered_map<ShaderModuleType, std::vector<std::string>> glsl_layouts;
             std::string glsl_main;
@@ -96,10 +105,17 @@ namespace dz {
         std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains; // !
 
         std::vector<std::string> restricted_keys{
-            Atlas_Str,
+            AlbedoAtlas_Str,
+            NormalAtlas_Str,
+            RoughnessAtlas_Str,
+            MetalnessAtlas_Str,
+            MetalnessRoughnessAtlas_Str,
+            ShininessAtlas_Str,
             VertexPositions_Str,
             VertexUV2s_Str,
-            VertexNormals_Str
+            VertexNormals_Str,
+            VertexTangents_Str,
+            VertexBitangents_Str
         }; // !
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
         bool components_registered = false; // !
@@ -124,7 +140,12 @@ namespace dz {
         bool material_browser_open = true;
 
         bool atlas_dirty = false;
-        ImagePack atlas_pack;
+        ImagePack albedo_atlas_pack;
+        ImagePack normal_atlas_pack;
+        ImagePack roughness_atlas_pack;
+        ImagePack metalness_atlas_pack;
+        ImagePack metalness_roughness_atlas_pack;
+        ImagePack shininess_atlas_pack;
 
         auto GenerateEntitysDrawFunction() {
             return [&](auto buffer_group, auto& draw_object) -> DrawTuples {
@@ -251,33 +272,59 @@ namespace dz {
             EnableDrawInWindow(window_ptr);
         }
 
+        void UseAtlas(auto& pack, auto& str) {
+            auto atlas = pack.getAtlas();
+            shader_use_image(main_shader, str, atlas);
+            shader_use_image(model_compute_shader, str, atlas);
+            shader_use_image(camera_mat_compute_shader, str, atlas);
+        }
+
         void MarkReady() {
-            UpdateAtlas();
-            auto atlas = atlas_pack.getAtlas();
-            shader_use_image(main_shader, Atlas_Str, atlas);
-            shader_use_image(model_compute_shader, Atlas_Str, atlas);
-            shader_use_image(camera_mat_compute_shader, Atlas_Str, atlas);
+            UpdateAtlases();
+            UseAtlas(albedo_atlas_pack, AlbedoAtlas_Str);
+            UseAtlas(normal_atlas_pack, NormalAtlas_Str);
+            UseAtlas(roughness_atlas_pack, RoughnessAtlas_Str);
+            UseAtlas(metalness_atlas_pack, MetalnessAtlas_Str);
+            UseAtlas(metalness_roughness_atlas_pack, MetalnessRoughnessAtlas_Str);
+            UseAtlas(shininess_atlas_pack, ShininessAtlas_Str);
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
             }
-            shader_update_descriptor_sets(main_shader);
+            else {
+                shader_update_descriptor_sets(main_shader);
+                shader_update_descriptor_sets(model_compute_shader);
+                shader_update_descriptor_sets(camera_mat_compute_shader);
+            }
         }
 
-        void UpdateAtlas() {
-            atlas_pack.check();
+        void UpdatePackedRect(auto image, auto& image_pack, auto& atlas_pack) {
+            if (!image)
+                return;
+            auto& packed_rect = image_pack.findPackedRect(image);
+            (*(vec<float, 2>*)&atlas_pack[0]) = {packed_rect.w, packed_rect.h};
+            (*(vec<float, 2>*)&atlas_pack[2]) = {packed_rect.x, packed_rect.y};
+        }
+
+        void UpdateAtlases() {
+            albedo_atlas_pack.check();
+            normal_atlas_pack.check();
+            roughness_atlas_pack.check();
+            metalness_atlas_pack.check();
+            metalness_roughness_atlas_pack.check();
+            shininess_atlas_pack.check();
             for (auto& material_group_sh_ptr : material_group_vector) {
                 auto generic_group_ptr = material_group_sh_ptr.get();
                 auto material_group_ptr = dynamic_cast<typename MaterialProviderT::ReflectableGroup*>(generic_group_ptr);
                 auto& material_group = *material_group_ptr;
-                if (!material_group.image)
-                    continue;
                 auto& material = GetMaterial(material_group.id);
-                auto& atlasImageSize = *(vec<float, 2>*)&material.atlas_pack[0];
-                auto& atlasPackedRect = *(vec<float, 2>*)&material.atlas_pack[2];
-                auto& packed_rect = atlas_pack.findPackedRect(material_group.image);
-                atlasImageSize = {packed_rect.w, packed_rect.h};
-                atlasPackedRect = {packed_rect.x, packed_rect.y};
+                //
+                UpdatePackedRect(material_group.albedo_image, albedo_atlas_pack, material.albedo_atlas_pack);
+                UpdatePackedRect(material_group.normal_image, normal_atlas_pack, material.normal_atlas_pack);
+                UpdatePackedRect(material_group.roughness_image, roughness_atlas_pack, material.roughness_atlas_pack);
+                UpdatePackedRect(material_group.metalness_image, metalness_atlas_pack, material.metalness_atlas_pack);
+                UpdatePackedRect(material_group.metalness_roughness_image, metalness_roughness_atlas_pack, material.metalness_roughness_atlas_pack);
+                UpdatePackedRect(material_group.shininess_image, shininess_atlas_pack, material.shininess_atlas_pack);
                 continue;
             }
         }
@@ -445,6 +492,7 @@ namespace dz {
             auto& glsl_methods = TProvider::GetGLSLMethods();
             auto& glsl_layouts = TProvider::GetGLSLLayouts();
             auto& priority_glsl_main = TProvider::GetGLSLMain();
+            constexpr auto requires_buffer = TProvider::GetRequiresBuffer();
             constexpr auto pid = TProvider::GetPID();
             prioritized_provider_ids[priority].push_back(pid);
             auto provider_index = pid_provider_groups.size();
@@ -458,6 +506,7 @@ namespace dz {
             provider_group.glsl_methods = glsl_methods;
             provider_group.glsl_layouts = glsl_layouts;
             provider_group.is_component = TProvider::GetIsComponent();
+            provider_group.requires_buffer = requires_buffer;
             for (auto& [main_priority, main_string, module_type] : priority_glsl_main) {
                 priority_glsl_mains[module_type][main_priority].push_back(main_string);
             }
@@ -539,7 +588,11 @@ namespace dz {
 
             group.cid = pid;
             group.id = ecs_id;
-            group.GetName() += (" #" + std::to_string(pro_id));
+            auto& group_name = group.GetName();
+            if (name.empty())
+                group_name += (" #" + std::to_string(pro_id));
+            else
+                group_name = name;
 
             auto& provider_group = pid_provider_groups[pid];
             
@@ -671,30 +724,65 @@ namespace dz {
         }
 
         template <typename TMaterial>
-        int AddMaterial(const TMaterial& material_data, int& out_index) {
-            return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index);
+        int AddMaterial(const TMaterial& material_data, int& out_index, const std::string& name = "") {
+            return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index, name);
         }
 
         MaterialProviderT& GetMaterial(size_t material_id) {
             return GetProviderData<MaterialProviderT>(material_id);
         }
 
-        void SetMaterialImage(size_t material_id, Image* image) {
+        void SetMaterialImages(size_t material_id, const std::vector<Image*> images_vec) {
             auto& material_group = GetGroupByID<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
-            material_group.image = image;
-            
-            auto frame_ds_pair = image_create_descriptor_set(image);
-            material_group.frame_image_ds = frame_ds_pair.second;
 
-            atlas_pack.addImage(material_group.image);
+            for (auto& image_ptr : images_vec) {
+                auto frame_ds_pair = image_create_descriptor_set(image_ptr);
+                auto surfaceType = image_get_surface_type(image_ptr);
+                switch (surfaceType) {
+                case SurfaceType::BaseColor:
+                case SurfaceType::Diffuse:
+                    material_group.albedo_image = image_ptr;
+                    material_group.albedo_frame_image_ds = frame_ds_pair.second;
+                    albedo_atlas_pack.addImage(image_ptr);
+                    break;
+                case SurfaceType::DiffuseRoughness:
+                    material_group.roughness_image = image_ptr;
+                    material_group.roughness_frame_image_ds = frame_ds_pair.second;
+                    roughness_atlas_pack.addImage(image_ptr);
+                    break;
+                case SurfaceType::Metalness:
+                    material_group.metalness_image = image_ptr;
+                    material_group.metalness_frame_image_ds = frame_ds_pair.second;
+                    metalness_atlas_pack.addImage(image_ptr);
+                    break;
+                case SurfaceType::MetalnessRoughness:
+                    material_group.metalness_roughness_image = image_ptr;
+                    material_group.metalness_roughness_frame_image_ds = frame_ds_pair.second;
+                    metalness_roughness_atlas_pack.addImage(image_ptr);
+                    break;
+                case SurfaceType::Normal:
+                    material_group.normal_image = image_ptr;
+                    material_group.normal_frame_image_ds = frame_ds_pair.second;
+                    normal_atlas_pack.addImage(image_ptr);
+                    break;
+                case SurfaceType::Shininess:
+                    material_group.shininess_image = image_ptr;
+                    material_group.shininess_frame_image_ds = frame_ds_pair.second;
+                    shininess_atlas_pack.addImage(image_ptr);
+                    break;
+                }
+            }
+
             if (buffer_initialized)
-                UpdateAtlas();
+                UpdateAtlases();
         }
 
         int AddMesh(
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
             const std::vector<vec<float, 4>>& normals,
+            const std::vector<vec<float, 4>>& tangents,
+            const std::vector<vec<float, 4>>& bitangents,
             int material_index,
             int& out_index,
             const std::string& name = ""
@@ -703,6 +791,8 @@ namespace dz {
             auto position_index = buffer_group_get_buffer_element_count(buffer_group, VertexPositions_Str);
             auto uv2_index = buffer_group_get_buffer_element_count(buffer_group, VertexUV2s_Str);
             auto normal_index = buffer_group_get_buffer_element_count(buffer_group, VertexNormals_Str);
+            auto tangent_index = buffer_group_get_buffer_element_count(buffer_group, VertexTangents_Str);
+            auto bitangent_index = buffer_group_get_buffer_element_count(buffer_group, VertexBitangents_Str);
 
             if (!positions.empty()) {
                 mesh_data.vertex_count = positions.size();
@@ -712,6 +802,10 @@ namespace dz {
                 mesh_data.uv2_offset = uv2_index;
             if (!normals.empty())
                 mesh_data.normal_offset = normal_index;
+            if (!tangents.empty())
+                mesh_data.tangent_offset = tangent_index;
+            if (!bitangents.empty())
+                mesh_data.bitangent_offset = bitangent_index;
 
             auto mesh_id = AddProvider<MeshProviderT>(-1, mesh_data, mesh_group_vector, out_index, name);
             
@@ -742,10 +836,41 @@ namespace dz {
                 memcpy((void*)&normals_ptr[mesh_data.normal_offset], normals.data(), normals.size() * sizeof(vec<float, 4>));
             }
 
+            if (mesh_data.tangent_offset != -1) {
+                buffer_group_set_buffer_element_count(buffer_group, VertexTangents_Str, mesh_data.tangent_offset + tangents.size());
+
+                auto tangents_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, VertexTangents_Str);
+                auto tangents_ptr = (vec<float, 4>*)(tangents_sh_ptr.get());
+
+                memcpy((void*)&tangents_ptr[mesh_data.tangent_offset], tangents.data(), tangents.size() * sizeof(vec<float, 4>));
+            }
+
+            if (mesh_data.bitangent_offset != -1) {
+                buffer_group_set_buffer_element_count(buffer_group, VertexBitangents_Str, mesh_data.bitangent_offset + bitangents.size());
+
+                auto bitangents_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, VertexBitangents_Str);
+                auto bitangents_ptr = (vec<float, 4>*)(bitangents_sh_ptr.get());
+
+                memcpy((void*)&bitangents_ptr[mesh_data.bitangent_offset], bitangents.data(), bitangents.size() * sizeof(vec<float, 4>));
+            }
+
             auto& mesh_group = GetGroupByID<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_id);
             mesh_group.material_index = material_index;
 
             return mesh_id;
+        }
+
+        template <typename TLight>
+        int AddLight(int parent_id, const TLight& light_data, const std::string& name = "") {
+            auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            int out_index = -1;
+            return AddProvider<TLight>(parent_id, light_data,
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+        }
+
+        template <typename TLight>
+        int AddLight(const TLight& light_data, const std::string& name = "") {
+            return AddLight(-1, light_data, name);
         }
 
         ReflectableGroup& GetGenericGroupByID(size_t id) {
@@ -993,7 +1118,12 @@ namespace dz {
 
             auto binding_index = 0;
 
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D Atlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D AlbedoAtlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D NormalAtlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D RoughnessAtlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D MetalnessAtlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D MetalnessRoughnessAtlas;\n";
+            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D ShininessAtlas;\n";
 
             // Setup Structs
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
@@ -1019,11 +1149,25 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Vert
     vec4 data[];
 } VertexNormals;
 )";
+            shader_header += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer VertexTangentsBuffer {
+    vec4 data[];
+} VertexTangents;
+)";
+            shader_header += R"(
+layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer VertexBitangentsBuffer {
+    vec4 data[];
+} VertexBitangents;
+)";
 
             // Setup Buffers
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
                     auto& provider_group = pid_provider_groups[provider_id];
+                    if (!provider_group.requires_buffer) {
+                        shader_header += provider_group.glsl_methods[moduleType];
+                        continue;
+                    }
                     shader_header += R"(
 layout(std430, binding = )" + std::to_string(binding_index++) + ") buffer " + provider_group.struct_name + R"(Buffer {
     )" + provider_group.struct_name + R"( data[];
@@ -1130,12 +1274,14 @@ bool HasComponentWithType(in Entity entity, int entity_index, int type, out int 
 #version 450
 layout(location = 0) out int outID;
 layout(location = 1) out vec4 outColor;
-layout(location = 2) out vec4 outPosition;
+layout(location = 2) out vec3 outPosition;
 layout(location = 3) out vec3 outNormal;
 layout(location = 4) out vec3 outViewPosition;
 layout(location = 5) out vec2 outUV2;
+layout(location = 6) out vec3 outTangent;
+layout(location = 7) out vec3 outBitangent;
 )";
-            int out_location = 6;
+            int out_location = 8;
             int in_location = 0;
             shader_string += GenerateShaderLayout(ShaderModuleType::Vertex, in_location, out_location);
 
@@ -1164,7 +1310,7 @@ void main() {
     vec3 normal_vs = normalize(mat3(transpose(inverse(entity.model))) * mesh_normal);
     gl_Position = clip_position;
     outColor = final_color;
-    outPosition = entity.model * vertex_position;
+    outPosition = vec3(entity.model * vertex_position);
     outViewPosition = view_position.xyz;
     outNormal = normal_vs;
     outUV2 = mesh_uv2;
@@ -1179,14 +1325,16 @@ void main() {
 #version 450
 layout(location = 0) flat in int inID;
 layout(location = 1) in vec4 inColor;
-layout(location = 2) in vec4 inPosition;
+layout(location = 2) in vec3 inPosition;
 layout(location = 3) in vec3 inNormal;
 layout(location = 4) in vec3 inViewPosition;
 layout(location = 5) in vec2 inUV2;
+layout(location = 6) in vec3 inTangent;
+layout(location = 7) in vec3 inBitangent;
 
 layout(location = 0) out vec4 FragColor;
 )";
-            int in_location = 6;
+            int in_location = 8;
             int out_location = 1;
             shader_string += GenerateShaderLayout(ShaderModuleType::Fragment, in_location, out_location);
 
@@ -1205,6 +1353,7 @@ void main() {
     Entity entity = GetEntityData(submesh.parent_index);
     int t_component_index = -1;
     vec4 current_color = inColor;
+    vec3 current_normal = inNormal;
 )";
     
             shader_string += GenerateShaderMain(ShaderModuleType::Fragment);

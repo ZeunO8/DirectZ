@@ -59,6 +59,14 @@ R AssimpConvert(T val)
             return quat<float>(val.w, val.x, val.y, val.z);
         }
     }
+    else if constexpr (std::is_same_v<T, aiColor4D>) {
+        if constexpr (std::is_same_v<R, vec<float, 3>>) {
+            return vec<float, 3>(val.r, val.g, val.b);
+        }
+        else if constexpr (std::is_same_v<R, vec<float, 4>>) {
+            return vec<float, 4>(val.r, val.g, val.b, val.a);
+        }
+    }
     R r;
     return r;
 }

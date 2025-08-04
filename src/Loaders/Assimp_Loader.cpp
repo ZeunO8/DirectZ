@@ -1,6 +1,7 @@
 #include <dz/Loaders/Assimp_Loader.hpp>
 #include "../Assimp/Assimp.hpp"
 #include <dz/Loaders/STB_Image_Loader.hpp>
+#include "../Image.cpp.hpp"
 #include <iostream>
 #include <unordered_map>
 
@@ -46,11 +47,35 @@ namespace dz::loaders::assimp_loader {
         }
     }
 
+    bool IsCombinedImage(
+        const aiScene* aiscene,
+        aiMaterial* material,
+        aiTextureType type_x,
+        aiTextureType type_y
+    ) {
+        static auto HasType = [](auto material, auto type, auto& imageIndex) -> bool {
+            auto count = material->GetTextureCount(type);
+            for (uint32_t i = 0; i < count; ++i) {
+                aiString str;
+                material->GetTexture(type, i, &str);
+                if (str.data[0] == '*') {
+                    imageIndex = atoi(&str.data[1]);
+                    return true;
+                }
+            }
+            return false;
+        };
+        int32_t x_index = -1, y_index = -1;
+        auto has_x = HasType(material, type_x, x_index);
+        auto has_y = HasType(material, type_y, y_index);
+        return (has_x && has_y && x_index == y_index);
+    }
+
     std::vector<Image*> LoadMaterialImages(
         const aiScene *aiscene,
         aiMaterial *material,
         const aiTextureType &type,
-        const std::string &typeName
+        SurfaceType surfaceType
     )
     {
         std::vector<Image*> images;
@@ -72,6 +97,7 @@ namespace dz::loaders::assimp_loader {
                         .bytes = std::shared_ptr<char>((char*)aiTex->pcData, [](auto p) {}),
                         .bytes_length = aiTex->mWidth
                     });
+                    image_ptr->surfaceType = surfaceType;
                 }
                 else
                 {
@@ -105,45 +131,133 @@ namespace dz::loaders::assimp_loader {
                 mesh_indexes.push_back(pair_it->second.second);
             }
             auto& ai_mesh = context.scene_ptr->mMeshes[aiMeshIndex];
+            vec<float, 4> albedo_color;
             // image data
-            std::vector<std::tuple<std::string, std::string, Image*>> keyed_images;
+            std::vector<Image*> images_vec;
+            MaterialPair material_pair(0, -1);
             if (ai_mesh->mMaterialIndex >= 0)
             {
                 aiMaterial *material = context.scene_ptr->mMaterials[ai_mesh->mMaterialIndex];
                 std::string material_name(material->GetName().C_Str());
                 // Load base color (albedo) image
-                std::vector<Image*> baseColorMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_BASE_COLOR, "baseColor");
-                for (auto& image_ptr : baseColorMaps)
                 {
-                    keyed_images.push_back({"ColorTexture", material_name, image_ptr});
+                std::vector<Image*> baseColorMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_BASE_COLOR, SurfaceType::BaseColor);
+                auto count = 0;
+                for (auto& image_ptr : baseColorMaps) {
+                    images_vec.push_back(image_ptr);
+                }
                 }
                 // Load diffuse images
-                std::vector<Image*> diffuseMaps;
-                if (!baseColorMaps.size())
                 {
-                    diffuseMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_DIFFUSE, "diffuse");
-                    for (auto& image_ptr : diffuseMaps)
-                    {
-                        keyed_images.push_back({"ColorTexture", material_name, image_ptr});
+                std::vector<Image*> diffuseMaps;
+                if (images_vec.empty())
+                {
+                    diffuseMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_DIFFUSE, SurfaceType::Diffuse);
+                    auto count = 0;
+                    for (auto& image_ptr : diffuseMaps) {
+                        images_vec.push_back(image_ptr);
                     }
                 }
-            }
-            std::vector<int> material_indexes;
-            material_indexes.reserve(keyed_images.size());
-            for (auto& keyed_tuple : keyed_images) {
-                auto material_pair = info.add_material_function(std::get<1>(keyed_tuple), std::get<2>(keyed_tuple));
-                material_indexes.push_back(material_pair.second);
+                }
+                // Load specular textures
+                {
+                auto specularMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_SPECULAR, SurfaceType::Specular);
+                auto count = 0;
+                for (auto& image_ptr : specularMaps) {
+                    images_vec.push_back(image_ptr);
+                }
+                }
+                // Load normal maps
+                {
+                auto normalMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_NORMALS, SurfaceType::Normal);
+                auto count = 0;
+                for (auto& image_ptr : normalMaps) {
+                    images_vec.push_back(image_ptr);
+                }
+                }
+                // Load height maps
+                {
+                auto heightMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_HEIGHT, SurfaceType::Height);
+                auto count = 0;
+                for (auto& image_ptr : heightMaps) {
+                    images_vec.push_back(image_ptr);
+                }
+                }
+                // Load ambient occlusion maps
+                {
+                auto aoMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_AMBIENT_OCCLUSION, SurfaceType::AmbientOcclusion);
+                auto count = 0;
+                for (auto& image_ptr : aoMaps) {
+                    images_vec.push_back(image_ptr);
+                }
+                }
+                bool is_combined_metal_rough = IsCombinedImage(context.scene_ptr, material, aiTextureType_DIFFUSE_ROUGHNESS, aiTextureType_METALNESS);
+                if (is_combined_metal_rough) {
+                    // Load MetalnessRoughness maps
+                    {
+                    auto metalnessRoughnessMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_DIFFUSE_ROUGHNESS, SurfaceType::MetalnessRoughness);
+                    auto count = 0;
+                    for (auto& image_ptr : metalnessRoughnessMaps) {
+                        images_vec.push_back(image_ptr);
+                    }
+                    }
+                }
+                else {
+                    // Load Roughness maps
+                    {
+                    auto roughnessMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_DIFFUSE_ROUGHNESS, SurfaceType::DiffuseRoughness);
+                    auto count = 0;
+                    for (auto& image_ptr : roughnessMaps) {
+                        images_vec.push_back(image_ptr);
+                    }
+                    }
+                    // Load Metal maps
+                    {
+                    auto metalMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_METALNESS, SurfaceType::Metalness);
+                    auto count = 0;
+                    for (auto& image_ptr : metalMaps) {
+                        images_vec.push_back(image_ptr);
+                    }
+                    }
+                }
+                // Load Shininess maps
+                {
+                auto shininessMaps = LoadMaterialImages(context.scene_ptr, material, aiTextureType_SHININESS, SurfaceType::Shininess);
+                auto count = 0;
+                for (auto& image_ptr : shininessMaps) {
+                    images_vec.push_back(image_ptr);
+                }
+                }
+                // Load Albedo Color
+                {
+                aiColor4D aicolor;
+                if (AI_SUCCESS == aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &aicolor))
+                {
+                    albedo_color = AssimpConvert<aiColor4D, vec<float, 4>>(aicolor);
+                }
+                }
+                material_pair = info.add_material_function(material_name, images_vec);
             }
             // vertex data
             std::vector<TPosition> positions;
             positions.reserve(ai_mesh->mNumFaces * 3);
+
             std::vector<TUV2> uv2s;
             uv2s.reserve(ai_mesh->mNumFaces * 3);
+
             std::vector<TNormal> normals;
             normals.reserve(ai_mesh->mNumFaces * 3);
+
+            std::vector<TTangent> tangents;
+            tangents.reserve(ai_mesh->mNumFaces * 3);
+
+            std::vector<TBitangent> bitangents;
+            bitangents.reserve(ai_mesh->mNumFaces * 3);
+
             static constexpr auto i0 = 0;
             static constexpr auto i1 = 1;
             static constexpr auto i2 = 2;
+            // ai_mesh->mTangents
             for (auto fi = 0; fi < ai_mesh->mNumFaces; ++fi) {
                 auto& face = ai_mesh->mFaces[fi];
                 if (face.mNumIndices == 3) {
@@ -159,12 +273,17 @@ namespace dz::loaders::assimp_loader {
                     normals.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mNormals[i_0]));
                     normals.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mNormals[i_1]));
                     normals.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mNormals[i_2]));
+                    tangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mTangents[i_0]));
+                    tangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mTangents[i_1]));
+                    tangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mTangents[i_2]));
+                    bitangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mBitangents[i_0]));
+                    bitangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mBitangents[i_1]));
+                    bitangents.push_back(AssimpConvert<aiVector3D, vec<float, 4>>(ai_mesh->mBitangents[i_2]));
                 }
                 else
 			        throw std::runtime_error("expected number of indices in face to equal 3");
             }
-            auto material_index = material_indexes.empty() ? -1 : material_indexes[0];
-            auto mesh_pair = info.add_mesh_function(ai_mesh->mName.C_Str(), material_index, positions, uv2s, normals);
+            auto mesh_pair = info.add_mesh_function(ai_mesh->mName.C_Str(), material_pair.second, positions, uv2s, normals, tangents, bitangents);
             context.mesh_index_pair_map[aiMeshIndex] = mesh_pair;
             mesh_indexes.push_back(mesh_pair.second);
         }
@@ -173,7 +292,7 @@ namespace dz::loaders::assimp_loader {
 
     dz::loaders::SceneID AssimpLoad(AssimpContext& context, const Assimp_Info& info) {
         CountNodes(context, context.scene_ptr->mRootNode);
-        auto scene_id = info.add_scene_function(info.parent_id, context.scene_ptr->mName.C_Str());
+        auto scene_id = info.add_scene_function(info.parent_id, context.scene_ptr->mName.C_Str(), info.root_position, info.root_rotation, info.root_scale);
         AddNode(context, info, context.scene_ptr->mRootNode, scene_id);
         return scene_id;
     }

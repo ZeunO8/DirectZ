@@ -93,12 +93,21 @@ struct StateHolder {
     };
     bool loaded = false;
 };
+
+struct FormatsSupported {
+    bool R8_UNORM;
+    bool R8G8_UNORM;
+    bool R8G8B8_UNORM;
+    bool R8G8B8A8_UNORM;
+};
+
 struct DirectRegistry
 {
     StateHolder stateHolder;
     uint8_t windowType;
     VkInstance instance = VK_NULL_HANDLE;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
+    VkPhysicalDeviceProperties physicalDeviceProperties;
     VkDevice device = VK_NULL_HANDLE;
     VkSurfaceFormatKHR firstSurfaceFormat = {};
     VkRenderPass surfaceRenderPass = VK_NULL_HANDLE;
@@ -120,6 +129,14 @@ struct DirectRegistry
     std::atomic<uint32_t> window_count = 0;
 	ImGuiLayer imguiLayer;
     std::queue<VkDescriptorSetLayout> layoutQueue;
+    std::unordered_map<VkFormat, 
+		std::unordered_map<VkImageType,
+    		std::unordered_map<VkImageTiling,
+        		std::unordered_map<VkImageUsageFlags, bool>
+            >
+        >
+    > formats_supported_map;
+    FormatsSupported formats_supported;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif
