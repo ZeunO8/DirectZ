@@ -1,7 +1,14 @@
 ### DirectZ
 
+![GitHub Created At](https://img.shields.io/github/created-at/ZeunO8/DirectZ)
 ![GitHub](https://img.shields.io/github/license/ZeunO8/DirectZ)
+![GitHub top language](https://img.shields.io/github/languages/top/ZeunO8/DirectZ)
 ![GitHub repo size](https://img.shields.io/github/repo-size/ZeunO8/DirectZ)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ZeunO8/DirectZ)
+
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/ZeunO8/DirectZ)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues-closed/ZeunO8/DirectZ)
+
 
 DirectZ is a layer ontop of Vulkan allowing developers to write **Cross Platform** ***high performance*** **Graphical Applications**
 
@@ -18,6 +25,9 @@ DirectZ aims to achieve:
 - GPU driven rendering - (in progress, the majority of processing is done GPU side)
 
 ##### Build Status
+
+![GitHub branch status](https://img.shields.io/github/checks-status/ZeunO8/DirectZ/master)
+
 [![MacOS (ARM) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml/badge.svg?branch=master&label=MacOS%20ARM%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-arm.yml)
 [![MacOS (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml/badge.svg?branch=master&label=MacOS%20x86_64%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/macos-x64.yml)
 [![Linux (x86_64) Build](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml/badge.svg?branch=master&label=Linux%20Build)](https://github.com/ZeunO8/DirectZ/actions/workflows/linux.yml)
