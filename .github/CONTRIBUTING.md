@@ -5,8 +5,8 @@ Thank you for considering contributing to DirectZ! This engine is built with per
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: git clone https://github.com/your-username/DirectZ.git
-3. Create a branch: git checkout -b branch-name
+2. Clone your fork: `git clone https://github.com/your-username/DirectZ.git`
+3. Create a branch: `git checkout -b branch-name`
 
 ## Build Instructions
 
@@ -22,9 +22,9 @@ See [README.md](/README.md)
 
 Use clear and scoped commit messages, such as:
 
-[Asset] Add support for streaming KTX textures
+`[Asset] Add support for streaming KTX textures`
 
-[Core] Fix crash when recreating Vulkan swapchain
+`[Core] Fix crash when recreating Vulkan swapchain`
 
 ## Submitting Changes
 
@@ -37,7 +37,7 @@ Use clear and scoped commit messages, such as:
 
 ## Need Help?
 
-If you have questions, open an issue with the "question" label or email: directz+support@atomicmail.io
+If you have questions, open an issue with the "question" label or email: [directz+support@atomicmail.io](mailto:directz+support@atomicmail.io)
 
 ---
 
