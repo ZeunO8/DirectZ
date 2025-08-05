@@ -113,7 +113,7 @@ namespace dz {
     void shader_set_render_pass(Shader* shader_ptr, Framebuffer* framebuffer_ptr) {
         if (!shader_ptr || !framebuffer_ptr)
             return;
-        shader_ptr->renderPass = framebuffer_ptr->renderPass;
+        shader_ptr->renderPass = framebuffer_ptr->clearRenderPass;
     }
 
     void shader_include_asset_pack(Shader* shader, AssetPack* asset_pack) {
@@ -1778,12 +1778,12 @@ namespace dz {
 
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = VK_FALSE;
+        rasterizer.depthClampEnable = shader->depth_clamp_enabled;
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
-        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-        rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.polygonMode = shader->polygon_mode;
+        rasterizer.lineWidth = shader->line_width;
+        rasterizer.cullMode = shader->cull_mode;
+        rasterizer.frontFace = shader->front_face;
         rasterizer.depthBiasEnable = VK_FALSE;
 
         VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -1793,18 +1793,20 @@ namespace dz {
 
         VkPipelineDepthStencilStateCreateInfo depthStencil{};
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencil.depthTestEnable = VK_TRUE;
-        depthStencil.depthWriteEnable = VK_TRUE;
-        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        depthStencil.depthTestEnable = shader->depth_test_enabled;
+        depthStencil.depthWriteEnable = shader->depth_write_enabled;
+        depthStencil.depthCompareOp = shader->depth_compare_op;
+        depthStencil.depthBoundsTestEnable = shader->depth_bounds_test_enabled;
+        depthStencil.stencilTestEnable = shader->stencil_test_enabled;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-        colorBlendAttachment.blendEnable = VK_FALSE;
-        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+        colorBlendAttachment.blendEnable = shader->blend_state.enable;
+        colorBlendAttachment.srcColorBlendFactor = (VkBlendFactor)shader->blend_state.srcColor;
+        colorBlendAttachment.dstColorBlendFactor = (VkBlendFactor)shader->blend_state.dstColor;
+        colorBlendAttachment.colorBlendOp = (VkBlendOp)shader->blend_state.colorOp;
+        colorBlendAttachment.srcAlphaBlendFactor = (VkBlendFactor)shader->blend_state.srcAlpha;
+        colorBlendAttachment.dstAlphaBlendFactor = (VkBlendFactor)shader->blend_state.dstAlpha;
+        colorBlendAttachment.alphaBlendOp = (VkBlendOp)shader->blend_state.alphaOp;
         colorBlendAttachment.colorWriteMask =
             VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
             VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -1966,6 +1968,9 @@ namespace dz {
         size_t screen_draw_list_index = 0;
         size_t fb_draw_list_index = 0;
 
+        static std::unordered_map<Framebuffer*, bool> framebuffers_cleared;
+        framebuffers_cleared.clear();
+
         for (auto& drawInformation_ptr : renderer->vec_draw_information) {
             auto& drawInformation = *drawInformation_ptr;
             for (auto& cameraDrawInfo : drawInformation.cameraDrawInfos) {
@@ -1991,7 +1996,9 @@ namespace dz {
             if (camera_pre_render_fn)
                 camera_pre_render_fn();
             auto framebuffer_ptr = std::get<0>(fb_tuple);
-            framebuffer_bind(framebuffer_ptr);
+            auto& cleared = framebuffers_cleared[framebuffer_ptr];
+            framebuffer_bind(framebuffer_ptr, !cleared);
+            cleared = true;
             draw_shader_draw_list(renderer, *std::get<1>(fb_tuple));
             framebuffer_unbind(framebuffer_ptr);
         }
@@ -2178,5 +2185,49 @@ namespace dz {
         }
         assert(false);
         return (VkShaderStageFlags)0;
+    }
+
+    void shader_set_line_width(Shader* shader, float line_width) {
+        shader->line_width = line_width;
+    }
+
+    void shader_set_depth_test(Shader* shader, bool enabled) {
+        shader->depth_test_enabled = enabled;
+    }
+
+    void shader_set_depth_write(Shader* shader, bool write_enabled) {
+        shader->depth_write_enabled = write_enabled;
+    }
+
+    void shader_set_depth_clamp(Shader* shader, bool clamp_enabled) {
+        shader->depth_clamp_enabled = clamp_enabled;
+    }
+    
+    void shader_set_polygon_mode(Shader* shader, VkPolygonMode polygon_mode) {
+        shader->polygon_mode = polygon_mode;
+    }
+
+    void shader_set_depth_compare_op(Shader* shader, VkCompareOp compare_op) {
+        shader->depth_compare_op = compare_op;
+    }
+    
+    void shader_set_cull_mode(Shader* shader, VkCullModeFlags cull_mode) {
+        shader->cull_mode = cull_mode;
+    }
+
+    void shader_set_front_face(Shader* shader, VkFrontFace front_face) {
+        shader->front_face = front_face;
+    }
+    
+    void shader_set_blend_state(Shader* shader, BlendState blend_state) {
+        shader->blend_state = blend_state;
+    }
+
+    void shader_set_depth_bounds_test(Shader* shader, bool enabled) {
+        shader->depth_bounds_test_enabled = enabled;
+    }
+
+    void shader_set_stencil_test(Shader* shader, bool enabled) {
+        shader->stencil_test_enabled = enabled;
     }
 }

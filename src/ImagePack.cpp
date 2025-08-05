@@ -212,11 +212,13 @@ void dz::ImagePack::repack()
 				.height = uint32_t(atlas_height),
 				.data = rgba
 			});
+			owns_atlas = true;
 		}
 	}
 	else if (image_vec_size)
 	{
 		atlas = image_vec[0];
+		owns_atlas = false;
 	}
 }
 size_t dz::ImagePack::findImageIndex(Image* image)

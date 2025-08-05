@@ -16,7 +16,7 @@ namespace dz::ecs {
 
         inline static constexpr size_t PID = 3;
         inline static float Priority = 0.5f;
-        inline static constexpr bool RequiresBuffer = true;
+        inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
         inline static constexpr bool IsMeshProvider = true;
         inline static std::string ProviderName = "Mesh";
         inline static std::string StructName = "Mesh";

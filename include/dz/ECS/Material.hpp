@@ -1,6 +1,7 @@
 #pragma once
 #include "Provider.hpp"
 #include "../Reflectable.hpp"
+#include "../Shader.hpp"
 #include "../Image.hpp"
 
 namespace dz::ecs {
@@ -20,7 +21,7 @@ namespace dz::ecs {
 
         inline static constexpr size_t PID = 6;
         inline static float Priority = 2.5f;
-        inline static constexpr bool RequiresBuffer = true;
+        inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
         inline static constexpr bool IsMaterialProvider = true;
         inline static std::string ProviderName = "Material";
         inline static std::string StructName = "Material";
@@ -34,6 +35,15 @@ struct Material {
     vec4 shininess_atlas_pack;
     vec4 albedo_color;
 };
+
+struct MaterialParams {
+    vec3 albedo;
+    vec3 normal;
+    float metalness;
+    float roughness;
+};
+
+MaterialParams mParams;
 )";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
             { ShaderModuleType::Vertex, R"(
@@ -42,52 +52,37 @@ vec4 GetMaterialBaseColor(in SubMesh submesh) {
         return Materials.data[submesh.material_index].albedo_color;
     return vec4(1.0, 0.0, 1.0, 1.0);
 }
-vec4 SampleAtlas(in vec2 inUV2, in vec2 image_size, in vec2 packed_rect, in sampler2D atlas) {
-    vec2 resolution = vec2(textureSize(atlas, 0));
-    vec2 offset_uv = packed_rect / resolution;
-    vec2 scale_uv = image_size / resolution;
-    vec2 packed_uv = offset_uv + inUV2 * scale_uv;
-    return texture(atlas, packed_uv);
-}
-void EnsureMaterialNormal(in SubMesh submesh, in vec2 inUV2, inout vec3 current_normal) {
-    vec2 image_size = Materials.data[submesh.material_index].normal_atlas_pack.xy;
-    if (image_size.x == -1.0)
-        return;
-    vec2 packed_rect = Materials.data[submesh.material_index].normal_atlas_pack.zw;
-    current_normal = SampleAtlas(inUV2, image_size, packed_rect, NormalAtlas).xyz;
-    current_normal = normalize(current_normal * 2.0 - 1.0);
-}
 )" },
             { ShaderModuleType::Fragment, R"(
-vec4 SampleAtlas(in vec2 image_size, in vec2 packed_rect, in sampler2D atlas) {
+vec4 SampleAtlas(in vec2 uv, in vec2 image_size, in vec2 packed_rect, in sampler2D atlas) {
     vec2 resolution = vec2(textureSize(atlas, 0));
     vec2 offset_uv = packed_rect / resolution;
     vec2 scale_uv = image_size / resolution;
-    vec2 packed_uv = offset_uv + inUV2 * scale_uv;
+    vec2 packed_uv = offset_uv + uv * scale_uv;
     return texture(atlas, packed_uv);
 }
-void EnsureMaterialFragColor(in SubMesh submesh, inout vec4 current_color) {
+void EnsureMaterialFragColor(in vec2 uv, in SubMesh submesh, inout vec4 current_color) {
     vec2 image_size = Materials.data[submesh.material_index].albedo_atlas_pack.xy;
     if (image_size.x == -1.0)
         return;
     vec2 packed_rect = Materials.data[submesh.material_index].albedo_atlas_pack.zw;
-    current_color = SampleAtlas(image_size, packed_rect, AlbedoAtlas);
+    current_color = SampleAtlas(uv, image_size, packed_rect, AlbedoAtlas);
 }
-void EnsureMaterialNormal(in SubMesh submesh, inout vec3 current_normal) {
+void EnsureMaterialNormal(in vec2 uv, in SubMesh submesh, inout vec3 current_normal) {
     vec2 image_size = Materials.data[submesh.material_index].normal_atlas_pack.xy;
     if (image_size.x == -1.0)
         return;
     vec2 packed_rect = Materials.data[submesh.material_index].normal_atlas_pack.zw;
-    vec3 tangentNormal = SampleAtlas(image_size, packed_rect, NormalAtlas).xyz;
+    vec3 tangentNormal = SampleAtlas(uv, image_size, packed_rect, NormalAtlas).xyz;
     tangentNormal = normalize(tangentNormal * 2.0 - 1.0);
     mat3 TBN = mat3(inTangent, inBitangent, inNormal);
     current_normal = normalize(TBN * tangentNormal);
 }
-void EnsureMaterialMetalnessRoughness(in SubMesh submesh, inout float metalness, inout float roughness) {
+void EnsureMaterialMetalnessRoughness(in vec2 uv, in SubMesh submesh, inout float metalness, inout float roughness) {
     vec2 m_r_image_size = Materials.data[submesh.material_index].metalness_roughness_atlas_pack.xy;
     if (m_r_image_size.x != -1.0) {
         vec2 m_r_packed_rect = Materials.data[submesh.material_index].metalness_roughness_atlas_pack.zw;
-        vec4 m_r_vec = SampleAtlas(m_r_image_size, m_r_packed_rect, MetalnessRoughnessAtlas);
+        vec4 m_r_vec = SampleAtlas(uv, m_r_image_size, m_r_packed_rect, MetalnessRoughnessAtlas);
         metalness = m_r_vec.r;
         roughness = m_r_vec.g;
         return;
@@ -95,37 +90,42 @@ void EnsureMaterialMetalnessRoughness(in SubMesh submesh, inout float metalness,
     vec2 m_image_size = Materials.data[submesh.material_index].metalness_atlas_pack.xy;
     if (m_image_size.x != -1.0) {
         vec2 m_packed_rect = Materials.data[submesh.material_index].metalness_atlas_pack.zw;
-        metalness = SampleAtlas(m_image_size, m_packed_rect, MetalnessAtlas).r;
+        metalness = SampleAtlas(uv, m_image_size, m_packed_rect, MetalnessAtlas).r;
     }
     vec2 r_image_size = Materials.data[submesh.material_index].roughness_atlas_pack.xy;
     if (r_image_size.x != -1.0) {
         vec2 r_packed_rect = Materials.data[submesh.material_index].roughness_atlas_pack.zw;
-        roughness = SampleAtlas(r_image_size, r_packed_rect, RoughnessAtlas).r;
+        roughness = SampleAtlas(uv, r_image_size, r_packed_rect, RoughnessAtlas).r;
     }
 }
 )" }
         };
 
-        inline static std::unordered_map<ShaderModuleType, std::vector<std::string>> GLSLLayouts = {
-            // { ShaderModuleType::Vertex, {
-            //     "layout(location = @OUT@) out int outIsTexture;"
-            // } },
-            // { ShaderModuleType::Fragment, {
-            //     "layout(location = @IN@) in flat int inIsTexture;"
-            // } }
+        inline static std::vector<std::string> GLSLBindings = {
+            R"(
+layout(binding = @BINDING@) uniform sampler2D AlbedoAtlas;
+layout(binding = @BINDING@) uniform sampler2D NormalAtlas;
+layout(binding = @BINDING@) uniform sampler2D RoughnessAtlas;
+layout(binding = @BINDING@) uniform sampler2D MetalnessAtlas;
+layout(binding = @BINDING@) uniform sampler2D MetalnessRoughnessAtlas;
+layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
+)"
         };
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {0.5f, R"(
     final_color = GetMaterialBaseColor(submesh);
-    // EnsureMaterialNormal(submesh, mesh_uv2, mesh_normal);
 )", ShaderModuleType::Vertex},
             {0.5f, R"(
-    EnsureMaterialFragColor(submesh, current_color);
-    EnsureMaterialNormal(submesh, current_normal);
+    EnsureMaterialFragColor(inUV2, submesh, current_color);
+    EnsureMaterialNormal(inUV2, submesh, current_normal);
     float metalness = 0.0;
     float roughness = 0.0;
-    EnsureMaterialMetalnessRoughness(submesh, metalness, roughness);
+    EnsureMaterialMetalnessRoughness(inUV2, submesh, metalness, roughness);
+    mParams.albedo = vec3(current_color);
+    mParams.normal = current_normal;
+    mParams.metalness = metalness;
+    mParams.roughness = roughness;
 )", ShaderModuleType::Fragment}
         };
         

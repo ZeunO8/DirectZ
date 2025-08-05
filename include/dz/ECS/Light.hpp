@@ -21,7 +21,7 @@ namespace dz::ecs {
         float outerCone;          // for spot
         inline static constexpr size_t PID = 7;
         inline static float Priority = 3.5f;
-        inline static constexpr bool RequiresBuffer = true;
+        inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
         inline static std::string ProviderName = "Light";
         inline static std::string StructName = "Light";
         inline static std::string GLSLStruct = R"(
@@ -37,13 +37,25 @@ struct Light {
     vec3 color;
     float outerCone;
 };
+
+struct LightingParams {
+    vec3 worldPosition;
+    vec3 viewDirection;
+    float NdotV;
+    vec3 normal;
+    int lightsSize;
+};
+
+LightingParams lParams;
 )";
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {3.5f, R"(
-    vec3 frag_pos = inPosition;
-    vec3 view_dir = normalize(camera.position - frag_pos);
-    int lights_size = Lights.data.length();
+    lParams.worldPosition = inPosition;
+    lParams.viewDirection = normalize(camera.position - lParams.worldPosition);
+    lParams.NdotV = max(dot(current_normal, lParams.viewDirection), 0.0);
+    lParams.normal = current_normal;
+    lParams.lightsSize = Lights.data.length();
 )", ShaderModuleType::Fragment}
         };
         

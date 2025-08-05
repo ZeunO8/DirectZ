@@ -12,12 +12,15 @@
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
 #include "ECS/PhongLighting.hpp"
+#include "ECS/PhysicallyBasedLighting.hpp"
 #include "ECS/Scene.hpp"
 #include "ECS/Entity.hpp"
 #include "ECS/Mesh.hpp"
 #include "ECS/SubMesh.hpp"
 #include "ECS/Camera.hpp"
 #include "ECS/Material.hpp"
+#include "ECS/HDRI.hpp"
+#include "ECS/SkyBox.hpp"
 #include "ImagePack.hpp"
 #include <string>
 #include <vector>
@@ -27,6 +30,7 @@
 #include <iostreams/Serial.hpp>
 #include <fstream>
 #include <mutex>
+#include <any>
 
 namespace dz {
 
@@ -37,6 +41,7 @@ namespace dz {
     inline static std::string MetalnessAtlas_Str = "MetalnessAtlas";
     inline static std::string MetalnessRoughnessAtlas_Str = "MetalnessRoughnessAtlas";
     inline static std::string ShininessAtlas_Str = "ShininessAtlas";
+    inline static std::string HDRIAtlas_Str = "HDRIAtlas";
     inline static std::string VertexPositions_Str = "VertexPositions";
     inline static std::string VertexUV2s_Str = "VertexUV2s";
     inline static std::string VertexNormals_Str = "VertexNormals";
@@ -70,9 +75,10 @@ namespace dz {
             std::string buffer_name;
             std::string sparse_name;
             std::string glsl_struct;
-            bool requires_buffer;
+            BufferHost buffer_host_type;
             std::unordered_map<ShaderModuleType, std::string> glsl_methods;
             std::unordered_map<ShaderModuleType, std::vector<std::string>> glsl_layouts;
+            std::vector<std::string> glsl_bindings;
             std::string glsl_main;
             bool is_component = false;
             int component_id = 0;
@@ -94,6 +100,7 @@ namespace dz {
 
         std::vector<std::shared_ptr<ReflectableGroup>> reflectable_group_root_vector; // Y
         std::vector<std::shared_ptr<ReflectableGroup>> material_group_vector; // Y
+        std::vector<std::shared_ptr<ReflectableGroup>> hdri_group_vector; // Y
         std::vector<std::shared_ptr<ReflectableGroup>> mesh_group_vector; // Y
         std::map<size_t, std::vector<ReflectableGroup*>> pid_reflectable_vecs; // !
         std::unordered_map<size_t, std::unordered_map<size_t, size_t>> pid_id_index_maps; // !
@@ -111,6 +118,7 @@ namespace dz {
             MetalnessAtlas_Str,
             MetalnessRoughnessAtlas_Str,
             ShininessAtlas_Str,
+            HDRIAtlas_Str,
             VertexPositions_Str,
             VertexUV2s_Str,
             VertexNormals_Str,
@@ -127,15 +135,22 @@ namespace dz {
         using SceneProviderT = typename FirstMatchingOrDefault<IsSceneProvider, TProviders...>::type;
         using MaterialProviderT = typename FirstMatchingOrDefault<IsMaterialProvider, TProviders...>::type;
         using MeshProviderT = typename FirstMatchingOrDefault<IsMeshProvider, TProviders...>::type;
+        using HDRIProviderT = typename FirstMatchingOrDefault<IsHDRIProvider, TProviders...>::type;
+        using SkyBoxProviderT = typename FirstMatchingOrDefault<IsSkyBoxProvider, TProviders...>::type;
+        DrawListManager<SkyBoxProviderT> skybox_mg; // !
         DrawListManager<DrawProviderT> draw_mg; // !
 
         BufferGroup* buffer_group = nullptr; // !
         bool buffer_initialized = false; // !
         int buffer_size = 0; // !
+        std::unordered_map<std::string, std::any> cpu_buffers; // Y
         
         Shader* main_shader = nullptr; // !
+        Shader* skybox_shader = nullptr; // !
         Shader* model_compute_shader = nullptr; // !
         Shader* camera_mat_compute_shader = nullptr; // !
+        std::vector<Shader*> raster_shaders;
+        std::vector<Shader*> compute_shaders;
 
         bool material_browser_open = true;
 
@@ -146,12 +161,76 @@ namespace dz {
         ImagePack metalness_atlas_pack;
         ImagePack metalness_roughness_atlas_pack;
         ImagePack shininess_atlas_pack;
+        ImagePack hdri_atlas_pack;
+
+        auto GenerateSkyBoxDrawFunction() {
+            return [&](auto buffer_group, auto& skybox) -> DrawTuple {
+                return { skybox_shader, 36 };
+            };
+        }
+        auto GenerateSkyBoxCamerasDrawFunction() {
+            return [&](auto buffer_group, auto camera_index) -> CameraTuple {
+                auto& camera_group = GetGroupByIndex<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_index);
+                auto& camera = GetCamera(camera_group.id);
+                return {camera_index, camera_group.framebuffer, [&, camera_index]() {
+                    shader_update_push_constant(skybox_shader, 0, (void*)&camera_index, sizeof(uint32_t));
+                }, !camera.is_active};
+            };
+        }
+        auto GenerateSkyBoxCameraVisibilityFunction() {
+            return [&](auto buffer_group, auto camera_index) -> std::vector<int> {
+                std::vector<int> visible;
+                auto& camera_group = GetGroupByIndex<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_index);
+                auto current_parent_group_ptr = camera_group.parent_ptr;
+                while (current_parent_group_ptr) {
+                    auto scene_group_ptr = dynamic_cast<SceneProviderT::ReflectableGroup*>(current_parent_group_ptr);
+                    if (scene_group_ptr) {
+                        break;
+                    }
+                    current_parent_group_ptr = current_parent_group_ptr->parent_ptr;
+                }
+                auto visible_from_node_ptr = (current_parent_group_ptr) ?
+                    &current_parent_group_ptr->GetChildren() :
+                    &reflectable_group_root_vector;
+
+                std::function<void(std::vector<int>&, const std::vector<std::shared_ptr<ReflectableGroup>>*, int)> add_child_entries;
+
+                add_child_entries = [&](auto& visible, auto node_ptr, auto scenes_hit) {
+                    for (auto& ref_group_sh_ptr : *node_ptr) {
+                        auto ref_group_ptr = ref_group_sh_ptr.get();
+                        assert(ref_group_ptr);
+                        auto e_group_ptr = dynamic_cast<EntityProviderT::ReflectableGroup*>(ref_group_ptr);
+                        if (e_group_ptr) {
+                            add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit);
+                            continue;
+                        }
+                        auto s_group_ptr = dynamic_cast<SceneProviderT::ReflectableGroup*>(ref_group_ptr);
+                        if (s_group_ptr && !scenes_hit) {
+                            add_child_entries(visible, &ref_group_ptr->GetChildren(), scenes_hit + 1);
+                            continue;
+                        }
+                        auto c_group_ptr = dynamic_cast<CameraProviderT::ReflectableGroup*>(ref_group_ptr);
+                        if (c_group_ptr) {
+                            // do nothing for now (and ever?)
+                            continue;
+                        }
+                        auto b_group_ptr = dynamic_cast<SkyBoxProviderT::ReflectableGroup*>(ref_group_ptr);
+                        if (b_group_ptr) {
+                            visible.push_back(b_group_ptr->index);
+                            continue;
+                        }
+                    }
+                };
+                
+                add_child_entries(visible, visible_from_node_ptr, 0);
+
+                return visible;
+            };
+        }
 
         auto GenerateEntitysDrawFunction() {
-            return [&](auto buffer_group, auto& draw_object) -> DrawTuples {
-                return {
-                    {main_shader, draw_object.GetVertexCount(buffer_group, draw_object)}
-                };
+            return [&](auto buffer_group, auto& draw_object) -> DrawTuple {
+                return { main_shader, draw_object.GetVertexCount(buffer_group) };
             };
         }
 
@@ -232,9 +311,31 @@ namespace dz {
             return out_string;
         }
 
+        void Initialize() {
+            RegisterProviders();
+            buffer_group = CreateBufferGroup();
+            assert(buffer_group);
+
+            main_shader = GenerateMainShader();
+
+            skybox_shader = GenerateSkyBoxShader();
+
+            model_compute_shader = GenerateModelComputeShader();
+
+            camera_mat_compute_shader = GenerateCameraMatComputeShader();
+
+            EnableDrawInWindow(window_ptr);
+        }
+
         ECS(Serial& serial):
             buffer_name(FindBufferNameFromProviders()),
             window_ptr(state_get_ptr<WINDOW>(CID_WINDOW)),
+            skybox_mg(
+                buffer_name, GenerateSkyBoxDrawFunction(),
+                Cameras_Str, GenerateSkyBoxCamerasDrawFunction(),
+                GenerateSkyBoxCameraVisibilityFunction(),
+                false
+            ),
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
                 Cameras_Str, GenerateCamerasDrawFunction(),
@@ -242,20 +343,19 @@ namespace dz {
                 false
             )
         {
-            RegisterProviders();
-            buffer_group = CreateBufferGroup();
-            assert(buffer_group);
-            main_shader = GenerateMainShader();
-            model_compute_shader = GenerateModelComputeShader();
-            camera_mat_compute_shader = GenerateCameraMatComputeShader();
-            EnableDrawInWindow(window_ptr);
+            Initialize();
             restore(serial);
-            loaded_from_io = true;
         }
 
         ECS(WINDOW* initial_window_ptr):
             buffer_name(FindBufferNameFromProviders()),
             window_ptr(initial_window_ptr),
+            skybox_mg(
+                buffer_name, GenerateSkyBoxDrawFunction(),
+                Cameras_Str, GenerateSkyBoxCamerasDrawFunction(),
+                GenerateSkyBoxCameraVisibilityFunction(),
+                false
+            ),
             draw_mg(
                 buffer_name, GenerateEntitysDrawFunction(),
                 Cameras_Str, GenerateCamerasDrawFunction(),
@@ -263,18 +363,13 @@ namespace dz {
                 false
             )
         {
-            RegisterProviders();
-            buffer_group = CreateBufferGroup();
-            assert(buffer_group);
-            main_shader = GenerateMainShader();
-            model_compute_shader = GenerateModelComputeShader();
-            camera_mat_compute_shader = GenerateCameraMatComputeShader();
-            EnableDrawInWindow(window_ptr);
+            Initialize();
         }
 
         void UseAtlas(auto& pack, auto& str) {
             auto atlas = pack.getAtlas();
             shader_use_image(main_shader, str, atlas);
+            shader_use_image(skybox_shader, str, atlas);
             shader_use_image(model_compute_shader, str, atlas);
             shader_use_image(camera_mat_compute_shader, str, atlas);
         }
@@ -287,6 +382,8 @@ namespace dz {
             UseAtlas(metalness_atlas_pack, MetalnessAtlas_Str);
             UseAtlas(metalness_roughness_atlas_pack, MetalnessRoughnessAtlas_Str);
             UseAtlas(shininess_atlas_pack, ShininessAtlas_Str);
+            UpdateHDRIAtlas();
+            UseAtlas(hdri_atlas_pack, HDRIAtlas_Str);
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
@@ -329,6 +426,19 @@ namespace dz {
             }
         }
 
+        void UpdateHDRIAtlas() {
+            hdri_atlas_pack.check();
+            for (auto& hdri_group_sh_ptr : hdri_group_vector) {
+                auto generic_group_ptr = hdri_group_sh_ptr.get();
+                auto hdri_group_ptr = dynamic_cast<typename HDRIProviderT::ReflectableGroup*>(generic_group_ptr);
+                auto& hdri_group = *hdri_group_ptr;
+                auto& hdri = GetHDRI(hdri_group.id);
+                //
+                UpdatePackedRect(hdri_group.hdri_image, hdri_atlas_pack, hdri.hdri_atlas_pack);
+                continue;
+            }
+        }
+
         bool backup(Serial& serial) override {
             std::lock_guard lock(e_mutex);
             if (!serial.canWrite())
@@ -338,6 +448,8 @@ namespace dz {
             if (!BackupGroupVector(serial, reflectable_group_root_vector))
                 return false;
             if (!BackupGroupVector(serial, material_group_vector))
+                return false;
+            if (!BackupGroupVector(serial, hdri_group_vector))
                 return false;
             if (!BackupGroupVector(serial, mesh_group_vector))
                 return false;
@@ -360,6 +472,8 @@ namespace dz {
                 return false;
             if (!RestoreGroupVector(serial, material_group_vector, buffer_group))
                 return false;
+            if (!RestoreGroupVector(serial, hdri_group_vector, buffer_group))
+                return false;
             if (!RestoreGroupVector(serial, mesh_group_vector, buffer_group))
                 return false;
             if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
@@ -367,7 +481,7 @@ namespace dz {
             if (!RestoreBuffers(serial))
                 return false;
             UpdateGroupsChildren();
-            return true;
+            return (loaded_from_io = true);
         }
 
         bool Backup_pid_reflectable_vecs_sizes(Serial& serial) {
@@ -425,7 +539,7 @@ namespace dz {
                     if (pid == cam_pid) {
                         auto cam_ptr = dynamic_cast<typename CameraProviderT::ReflectableGroup*>(ptr);
                         assert(cam_ptr);
-                        cam_ptr->InitFramebuffer(main_shader, width, height);
+                        cam_ptr->InitFramebuffer(raster_shaders, width, height);
                         cam_ptr->update_draw_list_fn = [&]() {
                             draw_mg.MarkDirty();
                         };
@@ -491,8 +605,9 @@ namespace dz {
             auto& glsl_struct = TProvider::GetGLSLStruct();
             auto& glsl_methods = TProvider::GetGLSLMethods();
             auto& glsl_layouts = TProvider::GetGLSLLayouts();
+            auto& glsl_bindings = TProvider::GetGLSLBindings();
             auto& priority_glsl_main = TProvider::GetGLSLMain();
-            constexpr auto requires_buffer = TProvider::GetRequiresBuffer();
+            constexpr auto buffer_host_type = TProvider::GetBufferHostType();
             constexpr auto pid = TProvider::GetPID();
             prioritized_provider_ids[priority].push_back(pid);
             auto provider_index = pid_provider_groups.size();
@@ -505,8 +620,9 @@ namespace dz {
             provider_group.glsl_struct = glsl_struct;
             provider_group.glsl_methods = glsl_methods;
             provider_group.glsl_layouts = glsl_layouts;
+            provider_group.glsl_bindings = glsl_bindings;
             provider_group.is_component = TProvider::GetIsComponent();
-            provider_group.requires_buffer = requires_buffer;
+            provider_group.buffer_host_type = buffer_host_type;
             for (auto& [main_priority, main_string, module_type] : priority_glsl_main) {
                 priority_glsl_mains[module_type][main_priority].push_back(main_string);
             }
@@ -556,14 +672,58 @@ namespace dz {
             return dynamic_cast<T&>(*children[index]);
         }
 
-        template <typename TData, typename TProvider>
+        template<typename TData>
+        uint32_t xpu_group_get_buffer_element_count(const std::string& buffer_name, bool cpu) {
+            if (cpu) {
+                auto& buffer_any = cpu_buffers[buffer_name];
+                if (buffer_any.type() != typeid(std::vector<TData>))
+                    return 0;
+                return std::any_cast<std::vector<TData>&>(buffer_any).size();
+            }
+            else {
+                return buffer_group_get_buffer_element_count(buffer_group, buffer_name);
+            }
+        }
+        
+        template<typename TData>
+        void xpu_group_set_buffer_element_count(const std::string& buffer_name, uint32_t element_count, bool cpu) {
+            if (cpu) {
+                auto& buffer_any = cpu_buffers[buffer_name];
+                if (buffer_any.type() != typeid(std::vector<TData>)) {
+                    buffer_any = std::vector<TData>{};
+                }
+                auto& buffer_vec = std::any_cast<std::vector<TData>&>(buffer_any);
+                buffer_vec.resize(element_count);
+            }
+            else {
+                buffer_group_set_buffer_element_count(buffer_group, buffer_name, element_count);
+            }
+        }
+
+        template<typename TData>
+        std::shared_ptr<uint8_t> xpu_group_get_buffer_data_ptr(const std::string& buffer_name, bool cpu) {
+            if (cpu) {
+                auto& buffer_any = cpu_buffers[buffer_name];
+                if (buffer_any.type() != typeid(std::vector<TData>))
+                    return 0;
+                auto& buffer_vec = std::any_cast<std::vector<TData>&>(buffer_any);
+                auto data = (uint8_t*)(buffer_vec.data());
+                return std::shared_ptr<uint8_t>(data, [](auto ptr){});
+            }
+            else {
+                return buffer_group_get_buffer_data_ptr(buffer_group, buffer_name);
+            }
+        }
+
+        template <typename TData, typename TProvider, typename... Args>
         void AddProviderSingle(
             int parent_id,
             size_t& id,
-            const TData& data,
+            const TData& new_data,
             std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector,
             int& out_index,
-            const std::string& name = ""
+            const std::string& name,
+            const Args&... args
         ) {
             if (id)
                 return;
@@ -597,8 +757,10 @@ namespace dz {
             auto& provider_group = pid_provider_groups[pid];
             
             id = ecs_id;
+
+            constexpr auto cpu = (TProvider::GetBufferHostType() == BufferHost::CPU);
             
-            auto provider_index = buffer_group_get_buffer_element_count(buffer_group, provider_group.buffer_name);
+            auto provider_index = xpu_group_get_buffer_element_count<TData>(provider_group.buffer_name, cpu);
             
             auto& prov_ptr_vec = pid_reflectable_vecs[pid];
             assert(provider_index == prov_ptr_vec.size());
@@ -611,13 +773,15 @@ namespace dz {
             if (provider_group.buffer_name == buffer_name)
                 Resize(provider_index + 1);
             else
-                buffer_group_set_buffer_element_count(buffer_group, provider_group.buffer_name, provider_index + 1);
+                xpu_group_set_buffer_element_count<TData>(provider_group.buffer_name, provider_index + 1, cpu);
 
-            auto buffer = buffer_group_get_buffer_data_ptr(buffer_group, provider_group.buffer_name);
+            auto buffer = xpu_group_get_buffer_data_ptr<TData>(provider_group.buffer_name, cpu);
 
             auto data_ptr = ((TData*)(buffer.get()));
 
-            data_ptr[provider_index] = data;
+            data_ptr[provider_index] = new_data;
+
+            auto& data = data_ptr[provider_index];
 
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
 
@@ -634,27 +798,26 @@ namespace dz {
                 sparse_ptr[parent_entity_group.index] = provider_index;
             }
 
-            group.UpdateChildren();
-
             if (parent_id != -1) {
                 auto& parent_group = GetGenericGroupByID(parent_id);
-                if constexpr (std::is_same_v<TProvider, EntityProviderT>) {
-                    auto& entity = GetEntity(id);
-                    SetWhoParent(entity, &parent_group);
-                }
-                if constexpr (std::is_same_v<TProvider, CameraProviderT>) {
-                    auto& camera = GetCamera(id);
-                    SetWhoParent(camera, &parent_group);
-                }
-                if constexpr (std::is_same_v<TProvider, SceneProviderT>) {
-                    auto& scene = GetScene(id);
-                    SetWhoParent(scene, &parent_group);
-                }
-                if constexpr (std::is_same_v<TProvider, SubMeshProviderT>) {
-                    auto& submesh = GetSubMesh(id);
-                    SetWhoParent(submesh, &parent_group);
-                }
+                if constexpr (std::is_same_v<TProvider, EntityProviderT>)
+                    SetWhoParent(GetEntity(id), &parent_group);
+                if constexpr (std::is_same_v<TProvider, CameraProviderT>)
+                    SetWhoParent(GetCamera(id), &parent_group);
+                if constexpr (std::is_same_v<TProvider, SceneProviderT>)
+                    SetWhoParent(GetScene(id), &parent_group);
+                if constexpr (std::is_same_v<TProvider, SubMeshProviderT>)
+                    SetWhoParent(GetSubMesh(id), &parent_group);
+                if constexpr (std::is_same_v<TProvider, SkyBoxProviderT>)
+                    SetWhoParent(GetSkyBox(id), &parent_group);
             }
+
+            if constexpr (requires { data.Initialize(*this, group); })
+                data.Initialize(*this, group);
+            else if constexpr (requires { data.Initialize(); })
+                data.Initialize();
+
+            group.UpdateChildren();
 
             if constexpr (std::is_same_v<TProvider, EntityProviderT> || std::is_same_v<TProvider, CameraProviderT>) {
                 MarkDirty();
@@ -672,7 +835,7 @@ namespace dz {
             const TData& data,
             std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector,
             int& out_index,
-            const std::string& name = ""
+            const std::string& name
         ) {
             size_t id = 0;
             (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index, name), ...);
@@ -682,7 +845,7 @@ namespace dz {
         }
 
         template <typename TEntity>
-        int AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name = "") {
+        int AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             auto entity_id = AddProvider<TEntity>(parent_id, entity_data,
@@ -702,12 +865,12 @@ namespace dz {
         }
 
         template <typename TEntity>
-        int AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name = "") {
+        int AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name) {
             return AddEntity<TEntity>(-1, entity_data, mesh_indexes, name);
         }
 
         template <typename TScene>
-        int AddScene(int parent_id, const TScene& scene_data, const std::string& name = "") {
+        int AddScene(int parent_id, const TScene& scene_data, const std::string& name) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TScene>(parent_id, scene_data,
@@ -715,7 +878,7 @@ namespace dz {
         }
 
         template <typename TScene>
-        int AddScene(const TScene& scene_data, const std::string& name = "") {
+        int AddScene(const TScene& scene_data, const std::string& name) {
             return AddScene<TScene>(-1, scene_data, name);
         }
 
@@ -724,7 +887,7 @@ namespace dz {
         }
 
         template <typename TMaterial>
-        int AddMaterial(const TMaterial& material_data, int& out_index, const std::string& name = "") {
+        int AddMaterial(const TMaterial& material_data, int& out_index, const std::string& name) {
             return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index, name);
         }
 
@@ -777,6 +940,26 @@ namespace dz {
                 UpdateAtlases();
         }
 
+        template <typename THDRI>
+        int AddHDRI(const THDRI& hdri_data, int& out_index, const std::string& name) {
+            return AddProvider<THDRI>(-1, hdri_data, hdri_group_vector, out_index, name);
+        }
+
+        HDRIProviderT& GetHDRI(size_t hdri_id) {
+            return GetProviderData<HDRIProviderT>(hdri_id);
+        }
+
+        void SetHDRIImage(size_t hdri_id, Image* image_ptr) {
+            auto& hdri_group = GetGroupByID<HDRIProviderT, typename HDRIProviderT::ReflectableGroup>(hdri_id);
+
+            hdri_group.hdri_image = image_ptr;
+            hdri_group.hdri_frame_image_ds = image_create_descriptor_set(image_ptr).second;
+            hdri_atlas_pack.addImage(image_ptr);
+
+            if (buffer_initialized)
+                UpdateHDRIAtlas();
+        }
+
         int AddMesh(
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
@@ -785,7 +968,7 @@ namespace dz {
             const std::vector<vec<float, 4>>& bitangents,
             int material_index,
             int& out_index,
-            const std::string& name = ""
+            const std::string& name
         ) {
             MeshProviderT mesh_data;
             auto position_index = buffer_group_get_buffer_element_count(buffer_group, VertexPositions_Str);
@@ -861,7 +1044,7 @@ namespace dz {
         }
 
         template <typename TLight>
-        int AddLight(int parent_id, const TLight& light_data, const std::string& name = "") {
+        int AddLight(int parent_id, const TLight& light_data, const std::string& name) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TLight>(parent_id, light_data,
@@ -869,8 +1052,25 @@ namespace dz {
         }
 
         template <typename TLight>
-        int AddLight(const TLight& light_data, const std::string& name = "") {
+        int AddLight(const TLight& light_data, const std::string& name) {
             return AddLight(-1, light_data, name);
+        }
+
+        template <typename TSkyBox>
+        int AddSkyBox(int parent_id, const TSkyBox& skybox_data, const std::string& name) {
+            auto parent_group_ptr = FindParentGroupPtr(parent_id);
+            int out_index = -1;
+            return AddProvider<TSkyBox>(parent_id, skybox_data,
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+        }
+
+        template <typename TSkyBox>
+        int AddSkyBox(const TSkyBox& skybox_data, const std::string& name) {
+            return AddSkyBox(-1, skybox_data, name);
+        }
+
+        SkyBoxProviderT& GetSkyBox(size_t skybox_id) {
+            return GetProviderData<SkyBoxProviderT>(skybox_id);
         }
 
         ReflectableGroup& GetGenericGroupByID(size_t id) {
@@ -962,41 +1162,33 @@ namespace dz {
         }
 
         template <typename TCamera>
-        int AddCamera(size_t parent_id, const TCamera& camera_data, TCamera::ProjectionType projectionType, const std::string& name = "") {
+        int AddCamera(size_t parent_id, const TCamera& camera_data, const std::string& name) {
+            auto new_data = camera_data;
+            auto width = *window_get_width_ref(window_ptr);
+            auto height = *window_get_height_ref(window_ptr);
+            if (new_data.width == 0 || new_data.height == 0) {
+                new_data.width = width;
+                new_data.height = height;
+            }
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
-            auto camera_id = AddProvider<TCamera>(parent_id, camera_data,
+            auto camera_id = AddProvider<TCamera>(parent_id, new_data,
                 parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
 
-            auto& camera = GetCamera(camera_id);
             auto& camera_group = GetGroupByID<TCamera, typename TCamera::ReflectableGroup>(camera_id);
             camera_group.update_draw_list_fn = [&]() {
                 draw_mg.MarkDirty();
             };
 
-            auto& width = *window_get_width_ref(window_ptr);
-            auto& height = *window_get_height_ref(window_ptr);
-            // Initialize camera matrices
-            {
-                switch(projectionType) {
-                case TCamera::Perspective:
-                    CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, width, height, radians(81.f));
-                    break;
-                case TCamera::Orthographic:
-                    CameraInit(camera, {0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 0.25f, 1000.f, vec<float, 4>(0, 0, width, height));
-                    break;
-                }
-            }
-
             camera_group.NotifyNameChanged();
-            camera_group.InitFramebuffer(main_shader, width, height);
+            camera_group.InitFramebuffer(raster_shaders, width, height);
 
             return camera_id;
         }
 
         template <typename TCamera>
-        int AddCamera(const TCamera& camera_data, TCamera::ProjectionType projectionType, const std::string& name = "") {
-            return AddCamera<TCamera>(-1, camera_data, projectionType, name);
+        int AddCamera(const TCamera& camera_data, const std::string& name) {
+            return AddCamera<TCamera>(-1, camera_data, name);
         }
 
         CameraProviderT& GetCamera(size_t camera_id) {
@@ -1066,6 +1258,25 @@ namespace dz {
             shader_add_module(shader_ptr, ShaderModuleType::Vertex, GenerateMainVertexShaderCode());
             shader_add_module(shader_ptr, ShaderModuleType::Fragment, GenerateMainFragmentShaderCode());
 
+            raster_shaders.push_back(shader_ptr);
+            return shader_ptr;
+        }
+
+        Shader* GenerateSkyBoxShader() {
+            auto shader_ptr = shader_create();
+
+            shader_add_buffer_group(shader_ptr, buffer_group);
+
+            shader_set_depth_test(shader_ptr, true);
+            shader_set_depth_write(shader_ptr, false);
+            shader_set_depth_compare_op(shader_ptr, VK_COMPARE_OP_LESS_OR_EQUAL);
+            shader_set_depth_bounds_test(shader_ptr, false);
+            shader_set_stencil_test(shader_ptr, false);
+
+            shader_add_module(shader_ptr, ShaderModuleType::Vertex, GenerateSkyBoxVertexShaderCode());
+            shader_add_module(shader_ptr, ShaderModuleType::Fragment, GenerateSkyBoxFragmentShaderCode());
+
+            raster_shaders.push_back(shader_ptr);
             return shader_ptr;
         }
 
@@ -1083,6 +1294,7 @@ namespace dz {
                 return buffer_group_get_buffer_element_count(buffer_group, buffer_name);
             });
 
+            compute_shaders.push_back(shader_ptr);
             return shader_ptr;
         }
 
@@ -1100,11 +1312,13 @@ namespace dz {
                 return buffer_group_get_buffer_element_count(buffer_group, Cameras_Str);
             });
 
+            compute_shaders.push_back(shader_ptr);
             return shader_ptr;
         }
 
         void EnableDrawInWindow(WINDOW* window_ptr) {
             window_add_drawn_buffer_group(window_ptr, &draw_mg, buffer_group);
+            window_add_drawn_buffer_group(window_ptr, &skybox_mg, buffer_group);
 
             window_register_free_callback(window_ptr, 100.f, [&]() mutable {
                 // for (auto& [scene_id, scene_group] : id_scene_groups)
@@ -1113,17 +1327,38 @@ namespace dz {
             });
         }
 
+        std::string GenerateShaderBinding(ShaderModuleType moduleType, int& binding_index) {
+            std::string shader_bindings;
+            for (auto& [priority, provider_ids] : prioritized_provider_ids) {
+                for (auto& provider_id : provider_ids) {
+                    auto& provider_group = pid_provider_groups[provider_id];
+                    auto& bindings_vec = provider_group.glsl_bindings;
+                    for (auto binding_str : bindings_vec) {
+                        static std::string BINDING_STR = "@BINDING@";
+                        static auto replace_str = [](const auto& STR, auto& binding_str, auto& binding_index) {
+                            auto pos = binding_str.find(STR);
+                            if (pos != std::string::npos) {
+                                auto binding_str_it = binding_str.begin();
+                                binding_str.erase(binding_str_it + pos, binding_str_it + pos + STR.size());
+                                auto binding_index_str = std::to_string(binding_index++);
+                                binding_str.insert(binding_str.begin() + pos, binding_index_str.begin(), binding_index_str.end());
+                            }
+                            return pos;
+                        };
+                        while (replace_str(BINDING_STR, binding_str, binding_index) != std::string::npos) {}
+                        shader_bindings += ("\n" + binding_str + "\n");
+                    }
+                }
+            }
+            return shader_bindings;
+        }
+
         std::string GenerateShaderHeader(ShaderModuleType moduleType) {          
             std::string shader_header;
 
             auto binding_index = 0;
 
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D AlbedoAtlas;\n";
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D NormalAtlas;\n";
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D RoughnessAtlas;\n";
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D MetalnessAtlas;\n";
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D MetalnessRoughnessAtlas;\n";
-            shader_header += "\nlayout(binding = " + std::to_string(binding_index++) + ") uniform sampler2D ShininessAtlas;\n";
+            shader_header += GenerateShaderBinding(moduleType, binding_index);
 
             // Setup Structs
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
@@ -1164,7 +1399,7 @@ layout(std430, binding = )" + std::to_string(binding_index++) + R"() buffer Vert
             for (auto& [priority, provider_ids] : prioritized_provider_ids) {
                 for (auto& provider_id : provider_ids) {
                     auto& provider_group = pid_provider_groups[provider_id];
-                    if (!provider_group.requires_buffer) {
+                    if (provider_group.buffer_host_type != BufferHost::GPU) {
                         shader_header += provider_group.glsl_methods[moduleType];
                         continue;
                     }
@@ -1275,13 +1510,14 @@ bool HasComponentWithType(in Entity entity, int entity_index, int type, out int 
 layout(location = 0) out int outID;
 layout(location = 1) out vec4 outColor;
 layout(location = 2) out vec3 outPosition;
-layout(location = 3) out vec3 outNormal;
-layout(location = 4) out vec3 outViewPosition;
-layout(location = 5) out vec2 outUV2;
-layout(location = 6) out vec3 outTangent;
-layout(location = 7) out vec3 outBitangent;
+layout(location = 3) out vec3 outLocalPosition;
+layout(location = 4) out vec3 outNormal;
+layout(location = 5) out vec3 outViewPosition;
+layout(location = 6) out vec2 outUV2;
+layout(location = 7) out vec3 outTangent;
+layout(location = 8) out vec3 outBitangent;
 )";
-            int out_location = 8;
+            int out_location = 9;
             int in_location = 0;
             shader_string += GenerateShaderLayout(ShaderModuleType::Vertex, in_location, out_location);
 
@@ -1326,15 +1562,16 @@ void main() {
 layout(location = 0) flat in int inID;
 layout(location = 1) in vec4 inColor;
 layout(location = 2) in vec3 inPosition;
-layout(location = 3) in vec3 inNormal;
-layout(location = 4) in vec3 inViewPosition;
-layout(location = 5) in vec2 inUV2;
-layout(location = 6) in vec3 inTangent;
-layout(location = 7) in vec3 inBitangent;
+layout(location = 3) in vec3 inLocalPosition;
+layout(location = 4) in vec3 inNormal;
+layout(location = 5) in vec3 inViewPosition;
+layout(location = 6) in vec2 inUV2;
+layout(location = 7) in vec3 inTangent;
+layout(location = 8) in vec3 inBitangent;
 
 layout(location = 0) out vec4 FragColor;
 )";
-            int in_location = 8;
+            int in_location = 9;
             int out_location = 1;
             shader_string += GenerateShaderLayout(ShaderModuleType::Fragment, in_location, out_location);
 
@@ -1360,6 +1597,94 @@ void main() {
 
             shader_string += R"(
     FragColor = current_color;
+}
+)";
+            return shader_string;
+        }
+
+        std::string GenerateSkyBoxVertexShaderCode() {
+            std::string shader_string = R"(
+#version 450
+layout(location = 0) out int outID;
+layout(location = 1) out vec3 outLocalPosition;
+)";
+            int out_location = 2;
+            int in_location = 0;
+            shader_string += GenerateShaderLayout(ShaderModuleType::Vertex, in_location, out_location);
+
+            shader_string += R"(
+layout(push_constant) uniform PushConstants {
+    int camera_index;
+} pc;
+)";
+            shader_string += GenerateShaderHeader(ShaderModuleType::Vertex);
+
+            // Main
+            shader_string += R"(
+vec3 positions[36] = vec3[](
+    vec3(-1.0,  1.0, -1.0), vec3(-1.0, -1.0, -1.0), vec3( 1.0, -1.0, -1.0),
+    vec3( 1.0, -1.0, -1.0), vec3( 1.0,  1.0, -1.0), vec3(-1.0,  1.0, -1.0),
+
+    vec3(-1.0, -1.0,  1.0), vec3(-1.0, -1.0, -1.0), vec3(-1.0,  1.0, -1.0),
+    vec3(-1.0,  1.0, -1.0), vec3(-1.0,  1.0,  1.0), vec3(-1.0, -1.0,  1.0),
+
+    vec3( 1.0, -1.0, -1.0), vec3( 1.0, -1.0,  1.0), vec3( 1.0,  1.0,  1.0),
+    vec3( 1.0,  1.0,  1.0), vec3( 1.0,  1.0, -1.0), vec3( 1.0, -1.0, -1.0),
+
+    vec3(-1.0, -1.0,  1.0), vec3(-1.0,  1.0,  1.0), vec3( 1.0,  1.0,  1.0),
+    vec3( 1.0,  1.0,  1.0), vec3( 1.0, -1.0,  1.0), vec3(-1.0, -1.0,  1.0),
+
+    vec3(-1.0,  1.0, -1.0), vec3( 1.0,  1.0, -1.0), vec3( 1.0,  1.0,  1.0),
+    vec3( 1.0,  1.0,  1.0), vec3(-1.0,  1.0,  1.0), vec3(-1.0,  1.0, -1.0),
+
+    vec3(-1.0, -1.0, -1.0), vec3(-1.0, -1.0,  1.0), vec3( 1.0, -1.0, -1.0),
+    vec3( 1.0, -1.0, -1.0), vec3(-1.0, -1.0,  1.0), vec3( 1.0, -1.0,  1.0)
+);
+
+void main() {
+    int skybox_index = outID = gl_InstanceIndex;
+    Camera camera = GetCameraData(pc.camera_index);
+    vec3 pos = positions[gl_VertexIndex];
+    mat4 viewNoTranslation = mat4(mat3(camera.view));
+    gl_Position = camera.projection * viewNoTranslation * vec4(pos, 1.0);
+    gl_Position.z = gl_Position.w;
+    outLocalPosition = pos;
+}
+)";
+
+            return shader_string;
+        }
+
+        std::string GenerateSkyBoxFragmentShaderCode() {
+            std::string shader_string = R"(
+#version 450
+layout(location = 0) flat in int inID;
+layout(location = 1) in vec3 inLocalPosition;
+
+vec3 inTangent = vec3(0.0);
+vec3 inBitangent = vec3(0.0);
+vec3 inNormal = vec3(0.0);
+
+layout(location = 0) out vec4 FragColor;
+)";
+            int in_location = 2;
+            int out_location = 1;
+            shader_string += GenerateShaderLayout(ShaderModuleType::Fragment, in_location, out_location);
+
+            shader_string += R"(
+
+layout(push_constant) uniform PushConstants {
+    int camera_index;
+} pc;
+)";
+            shader_string += GenerateShaderHeader(ShaderModuleType::Fragment);
+
+            shader_string += R"(
+void main() {
+    SkyBox skybox = GetSkyBoxData(inID);
+    vec3 direction = normalize(inLocalPosition);
+    direction.y = -direction.y;
+    FragColor = SampleHDRI(skybox.hdri_index, direction);;
 }
 )";
             return shader_string;
@@ -1470,16 +1795,15 @@ void main() {
         bool SetCameraAspect(size_t camera_id, float width, float height) {
             if (!width || !height)
                 return false;
+
             auto& camera = GetCamera(camera_id);
-            camera.orthoWidth = width;
-            camera.orthoHeight = height;
-            switch (typename CameraProviderT::ProjectionType(camera.type)) {
-            case CameraProviderT::Perspective:
-                camera.aspect = camera.orthoWidth / camera.orthoHeight;
-                break;
-            default: break;
-            }
-            CameraInit(camera);
+
+            camera.width = width;
+            camera.height = height;
+
+            if constexpr (requires { camera.Initialize(); })
+                camera.Initialize();
+
             return true;
         }
 

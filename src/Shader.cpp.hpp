@@ -218,6 +218,17 @@ namespace dz {
         VkRenderPass renderPass = VK_NULL_HANDLE;
         std::unordered_map<std::string, Image*> sampler_key_image_override_map;
         std::unordered_map<std::string, uint32_t> keyed_set_binding_index_map;
+        float line_width = 1.0f;
+        bool depth_test_enabled = true;
+        bool depth_write_enabled = true;
+        bool depth_clamp_enabled = false;
+        VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
+        VkCompareOp depth_compare_op = VK_COMPARE_OP_LESS;
+        VkCullModeFlags cull_mode = VK_CULL_MODE_BACK_BIT;
+        VkFrontFace front_face = VK_FRONT_FACE_CLOCKWISE;
+        BlendState blend_state = BlendState::Disabled;
+        bool depth_bounds_test_enabled = false;
+        bool stencil_test_enabled = false;
     };
 
     struct BufferGroup {
