@@ -129,20 +129,14 @@ namespace dz {
             memset(new_buffer.get(), 0, new_size);
             memcpy(new_buffer.get(), buffer.data_ptr.get(), (std::min)(old_size, new_size));
             buffer.data_ptr = new_buffer;
+        
+            std::cout << "Resized dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes)." << std::endl;
         }
         else if (!buffer.gpu_buffer.mapped_memory) {
             // Allocate the initial CPU-side buffer. Use a custom deleter for array `new[]`.
             buffer.data_ptr = std::shared_ptr<uint8_t>(new uint8_t[new_size], std::default_delete<uint8_t[]>());
             memset(buffer.data_ptr.get(), 0, new_size);
-        
-            if (old_element_count && old_data_ptr) {
-                auto copy_size = std::min(old_element_count, element_count);
-                memcpy(buffer.data_ptr.get(), old_data_ptr.get(), copy_size);
-                std::cout << "Resized dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
-            }
-            else {
-                std::cout << "Set dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
-            }
+            std::cout << "Set dynamic CPU buffer '" << buffer_name << "' to hold " << element_count << " elements (" << new_size << " bytes). CPU staging buffer created." << std::endl;
         }
         else {
             buffer_group_resize_gpu_buffer(buffer_name, buffer);

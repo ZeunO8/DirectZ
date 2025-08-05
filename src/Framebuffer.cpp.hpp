@@ -12,7 +12,8 @@ namespace dz {
         bool own_images;
 
 		VkCommandBuffer commandBuffer;
-		VkRenderPass renderPass;
+		VkRenderPass clearRenderPass;
+		VkRenderPass loadRenderPass;
 		VkFramebuffer framebuffer;
 		uint32_t attachmentsSize;
 		uint32_t width;
@@ -35,5 +36,7 @@ namespace dz {
 
         Image** new_pImages = 0;
         VkFramebuffer new_framebuffer = VK_NULL_HANDLE;
+
+        bool clear = true;
     };
 }

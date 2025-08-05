@@ -1,68 +1,22 @@
 #include <dz/ECS/Camera.hpp>
 #include <dz/GlobalUID.hpp>
 
-void dz::ecs::CameraInit(
-    Camera& camera,
-    vec<float, 3> position,
-    vec<float, 3> center,
-    vec<float, 3> up,
-    float nearPlane,
-    float farPlane,
-    float width,
-    float height,
-    float fov,
-    Camera::ProjectionType projectionType
-) {
-    assert(projectionType == Camera::Perspective);
-    camera.nearPlane = nearPlane;
-    camera.farPlane = farPlane;
-    camera.position = position;
-    camera.center = center;
-    camera.up = up;
-    camera.type = int(projectionType);
-    camera.aspect = width / height;
-    camera.fov = fov;
-    camera.orthoWidth = width;
-    camera.orthoHeight = height;
-    CameraInit(camera);
-}
-void dz::ecs::CameraInit(
-    Camera& camera,
-    vec<float, 3> position,
-    vec<float, 3> center,
-    vec<float, 3> up,
-    float nearPlane,
-    float farPlane,
-    vec<float, 4> viewport,
-    Camera::ProjectionType projectionType
-) {
-    assert(projectionType == Camera::Orthographic);
-    camera.nearPlane = nearPlane;
-    camera.farPlane = farPlane;
-    camera.position = position;
-    camera.center = center;
-    camera.up = up;
-    camera.type = int(projectionType);
-    camera.orthoWidth = viewport[3];
-    camera.orthoHeight = viewport[4];
-    camera.aspect = camera.orthoWidth / camera.orthoHeight;
-    CameraInit(camera);
-}
-
-void dz::ecs::CameraInit(Camera& camera) {
-    switch(Camera::ProjectionType(camera.type))
-    {
-    case Camera::Perspective:
-        camera.projection = perspective(camera.fov, camera.aspect, camera.nearPlane, camera.farPlane);
-        // camera.view = lookAt(camera.position, camera.center, camera.up);
-        break;
-    case Camera::Orthographic:
-        camera.projection = orthographic(-camera.orthoWidth / 2.f, camera.orthoWidth / 2.f, -camera.orthoHeight / 2.f, camera.orthoHeight / 2.f, camera.nearPlane, camera.farPlane);
-        // camera.view = lookAt(camera.position, camera.center, camera.up);
-        break;
-    default: break;
-    }
-}
+dz::ecs::Camera dz::ecs::Camera::DefaultPerspective = {
+    .nearPlane = 0.25f,
+    .farPlane = 1000.f,
+    .type = dz::ecs::Camera::Perspective,
+    .position = {0, 0, 10},
+    .center = {0, 0, 0},
+    .up = {0, 1, 0}
+};
+dz::ecs::Camera dz::ecs::Camera::DefaultOrthographic = {
+    .nearPlane = 0.25f,
+    .farPlane = 1000.f,
+    .type = dz::ecs::Camera::Orthographic,
+    .position = {0, 0, 10},
+    .center = {0, 0, 0},
+    .up = {0, 1, 0}
+};
 
 dz::ecs::Camera::CameraMetaReflectable::CameraMetaReflectable(
     const std::function<Camera*()>& get_camera_function,
@@ -101,7 +55,7 @@ void dz::ecs::Camera::CameraMetaReflectable::NotifyChange(int prop_index) {
     auto& camera = *camera_ptr;
     switch (prop_index) {
     default:
-        CameraInit(camera);
+        camera.Initialize();
         reset_reflectables_function();
         break;
     }
@@ -148,7 +102,7 @@ void dz::ecs::Camera::CameraViewReflectable::NotifyChange(int prop_index) {
     auto& camera = *camera_ptr;
     switch (prop_index) {
     default:
-        CameraInit(camera);
+        camera.Initialize();
         camera.transform_dirty = 1;
         break;
     }
@@ -174,10 +128,7 @@ void* dz::ecs::Camera::CameraPerspectiveReflectable::GetVoidPropertyByIndex(int 
         return nullptr;
     auto& camera = *camera_ptr;
     switch (prop_index) {
-    case 0:
-        return &camera.aspect;
-    case 1:
-        return &camera.fov;
+    case 0: return &camera.fov;
     default: return nullptr;
     }
 }
@@ -189,7 +140,7 @@ void dz::ecs::Camera::CameraPerspectiveReflectable::NotifyChange(int prop_index)
     auto& camera = *camera_ptr;
     switch (prop_index) {
     default:
-        CameraInit(camera);
+        camera.Initialize();
         break;
     }
 }
@@ -215,9 +166,9 @@ void* dz::ecs::Camera::CameraOrthographicReflectable::GetVoidPropertyByIndex(int
     auto& camera = *camera_ptr;
     switch (prop_index) {
     case 0:
-        return &camera.orthoWidth;
+        return &camera.width;
     case 1:
-        return &camera.orthoHeight;
+        return &camera.height;
     default: return nullptr;
     }
 }
@@ -229,7 +180,7 @@ void dz::ecs::Camera::CameraOrthographicReflectable::NotifyChange(int prop_index
     auto& camera = *camera_ptr;
     switch (prop_index) {
     default:
-        CameraInit(camera);
+        camera.Initialize();
         break;
     }
 }

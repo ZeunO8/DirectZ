@@ -8,6 +8,7 @@
 #include <filesystem>
 #include "ReflectedStructView.hpp"
 #include "math.hpp"
+#include "BlendState.hpp"
 
 namespace dz
 {
@@ -159,4 +160,80 @@ namespace dz
     * @brief Updates a push_constant by index given data and size
     */
     void shader_update_push_constant(Shader*, uint32_t pc_index, void* data, uint32_t size);
+
+    /**
+     * @brief Sets the line width for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_line_width(Shader*, float line_width);
+
+    /**
+     * @brief Enables/Disables depth testing in a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_depth_test(Shader*, bool enabled);
+
+    /**
+     * @brief Enables/Disables depth writing in a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_depth_write(Shader*, bool write_enabled);
+
+    /**
+     * @brief Enables/Disables depth clamping in a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_depth_clamp(Shader*, bool clamp_enabled);
+
+    /**
+     * @brief Sets the polygon mode for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_polygon_mode(Shader*, VkPolygonMode polygon_mode);
+
+    /**
+     * @brief Sets the compare of of a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_depth_compare_op(Shader*, VkCompareOp compare_op);
+
+    /**
+     * @brief Sets the cull mode for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_cull_mode(Shader*, VkCullModeFlags cull_mode);
+
+    /**
+     * @brief Sets the front face for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_front_face(Shader*, VkFrontFace front_face);
+
+    /**
+     * @brief Sets the BlendState for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_blend_state(Shader*, BlendState blend_state);
+
+    /**
+     * @brief Sets depth_bounds_test for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_depth_bounds_test(Shader*, bool enabled);
+    /**
+     * @brief Sets stencil_test for a Shader
+     * 
+     * @note must be called before the Shader is compiled
+     */
+    void shader_set_stencil_test(Shader*, bool enabled);
 } // namespace dz

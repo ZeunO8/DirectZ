@@ -20,9 +20,11 @@ using ExampleECS = ECS<
     Mesh,
     SubMesh,
     Camera,
-    Material
+    Material,
+    HDRI,
+    SkyBox
 #ifdef ENABLE_LIGHTS
-    , Light, PhongLighting
+    , Light, PhysicallyBasedLighting
 #endif
 >;
 
@@ -98,9 +100,24 @@ int main() {
     auto& ecs = *ecs_ptr;
         
     if (!state_loaded) {
-        auto cam3_id = ecs.AddCamera(Camera{}, Camera::Perspective);
+        int autumn_hdri_index = -1;
+        auto autumn_hdri_id = ecs.AddHDRI(HDRI{}, autumn_hdri_index, "hdri/autumn_field_puresky_4k");
+        ecs.SetHDRIImage(autumn_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
+            .path = "hdri/autumn_field_puresky_4k.hdr"
+        }));
+
+        int afternoon_hdri_index = -1;
+        auto afternoon_hdri_id = ecs.AddHDRI(HDRI{}, afternoon_hdri_index, "zwartkops_straight_afternoon_4k");
+        ecs.SetHDRIImage(afternoon_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
+            .path = "hdri/zwartkops_straight_afternoon_4k.hdr"
+        }));
+
+        auto sky_scene_id = ecs.AddScene(Scene{}, "Sky Scene");
+
+        ecs.AddCamera(sky_scene_id, Camera::DefaultPerspective, "Sky Camera");
 
         Assimp_Info base_info{
+            .parent_id = sky_scene_id,
             .add_scene_function = [&](auto parent_id, const auto& name, auto position, auto rotation, auto scale) {
                 return ecs.AddScene(parent_id, Scene{
                     .position = position,
@@ -122,7 +139,7 @@ int main() {
             },
             .add_material_function = [&](const auto& name, const auto& images_vec) -> MaterialPair {
                 int out_index = -1;
-                auto out_id = ecs.AddMaterial(Material{}, out_index);
+                auto out_id = ecs.AddMaterial(Material{}, out_index, name);
                 ecs.SetMaterialImages(out_id, images_vec);
                 return {out_id, out_index};
             }
@@ -140,13 +157,25 @@ int main() {
 
         TL::Load<SceneID, Assimp_Info>(golden_sports_car_info);
 
-        ecs.AddLight(Light{
+        ecs.AddLight(sky_scene_id, Light{
             .type = uint32_t(Light::Directional),
             .intensity = 1.f,
             .position = {0, 10, 0},
             .direction = {0, -1, 0},
             .color = {1, 1, 1}
         }, "Directional Light");
+
+        ecs.AddSkyBox(sky_scene_id, SkyBox{
+            .hdri_index = autumn_hdri_index
+        }, "Pure Sky SkyBox");
+
+        auto afternoon_scene_id = ecs.AddScene(Scene{}, "Afternoon Scene");
+
+        ecs.AddCamera(afternoon_scene_id, Camera::DefaultPerspective, "Afternoon Camera");
+
+        ecs.AddSkyBox(afternoon_scene_id, SkyBox{
+            .hdri_index = afternoon_hdri_index
+        }, "Afternoon SkyBox");
     }
 
     ecs.MarkReady();
@@ -1174,23 +1203,23 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
 
     switch (dragged_group->cid) {
     case Entity::PID: {
-        auto& entity = ecs_ptr->GetEntity(dragged_group->id);
-        ExampleECS::SetWhoParent(entity, new_parent_ptr);
+        ExampleECS::SetWhoParent(ecs_ptr->GetEntity(dragged_group->id), new_parent_ptr);
         break;
     }
     case Camera::PID: {
-        auto& camera = ecs_ptr->GetCamera(dragged_group->id);
-        ExampleECS::SetWhoParent(camera, new_parent_ptr);
+        ExampleECS::SetWhoParent(ecs_ptr->GetCamera(dragged_group->id), new_parent_ptr);
         break;
     }
     case Scene::PID: {
-        auto& scene = ecs_ptr->GetScene(dragged_group->id);
-        ExampleECS::SetWhoParent(scene, new_parent_ptr);
+        ExampleECS::SetWhoParent(ecs_ptr->GetScene(dragged_group->id), new_parent_ptr);
         break;
     }
     case SubMesh::PID: {
-        auto& submesh = ecs_ptr->GetSubMesh(dragged_group->id);
-        ExampleECS::SetWhoParent(submesh, new_parent_ptr);
+        ExampleECS::SetWhoParent(ecs_ptr->GetSubMesh(dragged_group->id), new_parent_ptr);
+        break;
+    }
+    case SkyBox::PID: {
+        ExampleECS::SetWhoParent(ecs_ptr->GetSkyBox(dragged_group->id), new_parent_ptr);
         break;
     }
     }

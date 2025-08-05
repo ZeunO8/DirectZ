@@ -14,7 +14,7 @@ namespace dz::ecs {
 
         inline static constexpr size_t PID = 4;
         inline static float Priority = 0.5f;
-        inline static constexpr bool RequiresBuffer = true;
+        inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
         inline static constexpr bool IsDrawProvider = true;
         inline static constexpr bool IsSubMeshProvider = true;
         inline static std::string ProviderName = "SubMesh";
@@ -28,10 +28,10 @@ struct SubMesh {
 };
 )";
 
-        uint32_t GetVertexCount(BufferGroup* buffer_group, SubMesh& submesh) {
-                auto mesh_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, Meshs_Str);
-                auto& mesh = *(Mesh*)(mesh_buffer_sh_ptr.get() + (sizeof(Mesh) * submesh.mesh_index));
-                return mesh.vertex_count;
+        uint32_t GetVertexCount(BufferGroup* buffer_group) {
+            auto mesh_buffer_sh_ptr = buffer_group_get_buffer_data_ptr(buffer_group, Meshs_Str);
+            auto& mesh = *(Mesh*)(mesh_buffer_sh_ptr.get() + (sizeof(Mesh) * mesh_index));
+            return mesh.vertex_count;
         }
         
         struct SubMeshReflectable : ::Reflectable {

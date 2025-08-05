@@ -56,9 +56,13 @@ namespace dz {
 
         vkCreateEvent(dr.device, &eventCreateInfo, 0, &framebuffer.event);
 
-        std::vector<UsingAttachmentDescription> vkAttachments;
-        std::vector<UsingAttachmentReference> colorAttachmentRefs;
-        std::vector<UsingAttachmentReference> resolveAttachmentRefs;
+        std::vector<UsingAttachmentDescription> clearAttachments;
+        std::vector<UsingAttachmentReference> clearColorAttachmentRefs;
+        std::vector<UsingAttachmentReference> clearResolveAttachmentRefs;
+        
+        std::vector<UsingAttachmentDescription> loadAttachments;
+        std::vector<UsingAttachmentReference> loadColorAttachmentRefs;
+        std::vector<UsingAttachmentReference> loadResolveAttachmentRefs;
         UsingAttachmentReference depthStencilRef{};
 #ifdef USING_VULKAN_1_2
         VkSubpassDescriptionDepthStencilResolve subpassDepthStencilResolve{};
@@ -96,15 +100,17 @@ namespace dz {
 
             vkImageViews.push_back(image.imageView);
 
-            UsingAttachmentDescription attachment{};
+            UsingAttachmentDescription clearAttachment{};
+            UsingAttachmentDescription loadAttachment{};
 
 #if USING_VULKAN_1_2
-            attachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
+            loadAttachment.sType = clearAttachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
 #endif
-            attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-            attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            clearAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            loadAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+            loadAttachment.storeOp = clearAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            loadAttachment.stencilLoadOp = clearAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            loadAttachment.stencilStoreOp = clearAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
             if (framebuffer.width != image.width || framebuffer.height != image.height)
             {
@@ -114,17 +120,17 @@ namespace dz {
 
             VkImageLayout subpassLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            attachment.format = image.format;
+            loadAttachment.format = clearAttachment.format = image.format;
             
-            if (attachment.format == VK_FORMAT_UNDEFINED)
+            if (clearAttachment.format == VK_FORMAT_UNDEFINED)
                 throw std::runtime_error("Attachment format is undefined!");
             switch (attachmentType)
             {
             case AttachmentType::ColorResolve:
             {
-                attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-                attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                loadAttachment.samples = clearAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+                loadAttachment.initialLayout = clearAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                loadAttachment.finalLayout = clearAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 subpassLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 UsingAttachmentReference _ref_{};
 #ifdef USING_VULKAN_1_2
@@ -132,14 +138,14 @@ namespace dz {
 #endif
                 _ref_.attachment = attachmentIndex;
                 _ref_.layout = subpassLayout;
-                resolveAttachmentRefs.push_back(_ref_);
+                clearResolveAttachmentRefs.push_back(_ref_);
                 break;
             }
             case AttachmentType::DepthResolve:
             {
-                attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-                attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                attachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                loadAttachment.samples = clearAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+                loadAttachment.initialLayout = clearAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                loadAttachment.finalLayout = clearAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 subpassLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 #ifdef USING_VULKAN_1_2
                 depthResolveRef.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
@@ -155,11 +161,11 @@ namespace dz {
             }
             case AttachmentType::Color:
             {
-                attachment.samples = image.multisampling;
-                // if (attachment.samples > maxMSAASamples)
-                //     attachment.samples = maxMSAASamples;
-                attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                loadAttachment.samples = clearAttachment.samples = image.multisampling;
+                // if (loadAttachment.samples = clearAttachment.samples > maxMSAASamples)
+                //     loadAttachment.samples = clearAttachment.samples = maxMSAASamples;
+                loadAttachment.initialLayout = clearAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                loadAttachment.finalLayout = clearAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 subpassLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
                 UsingAttachmentReference _ref_{};
 #ifdef USING_VULKAN_1_2
@@ -167,7 +173,7 @@ namespace dz {
 #endif
                 _ref_.attachment = attachmentIndex;
                 _ref_.layout = subpassLayout;
-                colorAttachmentRefs.push_back(_ref_);
+                clearColorAttachmentRefs.push_back(_ref_);
                 inputSrcStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 inputDstStageMask |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 inputDstAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
@@ -184,16 +190,16 @@ namespace dz {
             {
                 if (hasDepthStencil)
                     throw std::runtime_error("Framebuffer cannot have multiple depth/stencil attachments!");
-                attachment.samples = image.multisampling;
-                // if (attachment.samples > maxMSAASamples)
-                //     attachment.samples = maxMSAASamples;
-                attachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                attachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;//(framebuffer.hasDepthResolveAttachment() ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                loadAttachment.samples = clearAttachment.samples = image.multisampling;
+                // if (loadAttachment.samples = clearAttachment.samples > maxMSAASamples)
+                //     loadAttachment.samples = clearAttachment.samples = maxMSAASamples;
+                loadAttachment.initialLayout = clearAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                loadAttachment.finalLayout = clearAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;//(framebuffer.hasDepthResolveAttachment() ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 subpassLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 if (attachmentType != AttachmentType::Depth)
                 {
-                    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+                    loadAttachment.stencilLoadOp = clearAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                    loadAttachment.stencilStoreOp = clearAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
                 }
                 UsingAttachmentReference _ref_{};
 #ifdef USING_VULKAN_1_2
@@ -218,7 +224,8 @@ namespace dz {
             default:
                 throw std::runtime_error("Unsupported attachment type");
             }
-            vkAttachments.push_back(attachment);
+            clearAttachments.push_back(clearAttachment);
+            loadAttachments.push_back(loadAttachment);
 
             attachmentIndex++;
         }
@@ -229,10 +236,10 @@ namespace dz {
         subpass.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
 #endif
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentRefs.size());
-        subpass.pColorAttachments = colorAttachmentRefs.empty() ? nullptr : colorAttachmentRefs.data();
+        subpass.colorAttachmentCount = static_cast<uint32_t>(clearColorAttachmentRefs.size());
+        subpass.pColorAttachments = clearColorAttachmentRefs.empty() ? nullptr : clearColorAttachmentRefs.data();
         subpass.pDepthStencilAttachment = hasDepthStencil ? &depthStencilRef : nullptr;
-        subpass.pResolveAttachments = resolveAttachmentRefs.data();
+        subpass.pResolveAttachments = clearResolveAttachmentRefs.data();
 #ifdef USING_VULKAN_1_2
         if (requiresDepthResolve)
             subpass.pNext = &subpassDepthStencilResolve;
@@ -264,28 +271,39 @@ namespace dz {
         dependencies[1].dstAccessMask = outputDstAccessMask; // Updated based on finalLayout
         dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     
-        UsingRenderPassCreateInfo renderPassInfo{};
+        UsingRenderPassCreateInfo clearRenderPassInfo{};
 #ifdef USING_VULKAN_1_2
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
+        clearRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
 #endif
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(vkAttachments.size());
-        renderPassInfo.pAttachments = vkAttachments.data();
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-        renderPassInfo.pDependencies = dependencies.data();
+        clearRenderPassInfo.attachmentCount = static_cast<uint32_t>(clearAttachments.size());
+        clearRenderPassInfo.pAttachments = clearAttachments.data();
+        clearRenderPassInfo.subpassCount = 1;
+        clearRenderPassInfo.pSubpasses = &subpass;
+        clearRenderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+        clearRenderPassInfo.pDependencies = dependencies.data();
 
 #ifdef USING_VULKAN_1_2
         vk_check("vkCreateRenderPass2",
-            vkCreateRenderPass2(dr.device, &renderPassInfo, nullptr, &framebuffer.renderPass));
+            vkCreateRenderPass2(dr.device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
 #else
         vk_check("vkCreateRenderPass",
-            vkCreateRenderPass(dr.device, &renderPassInfo, nullptr, &framebuffer.renderPass));
+            vkCreateRenderPass(dr.device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
+#endif
+        
+        auto loadRenderPassInfo = clearRenderPassInfo;
+        loadRenderPassInfo.pAttachments = loadAttachments.data();
+
+#ifdef USING_VULKAN_1_2
+        vk_check("vkCreateRenderPass2",
+            vkCreateRenderPass2(dr.device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
+#else
+        vk_check("vkCreateRenderPass",
+            vkCreateRenderPass(dr.device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
 #endif
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = framebuffer.renderPass;
+        framebufferInfo.renderPass = framebuffer.clearRenderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(vkImageViews.size());
         framebufferInfo.pAttachments = vkImageViews.data();
         framebufferInfo.width = framebuffer.width;
@@ -321,7 +339,7 @@ namespace dz {
         framebuffer.clear_changed = true;
     }
 
-    void framebuffer_bind(Framebuffer* framebuffer_ptr) {
+    void framebuffer_bind(Framebuffer* framebuffer_ptr, bool clear) {
         if (!framebuffer_ptr) {
             return;
         }
@@ -341,14 +359,15 @@ namespace dz {
             framebuffer.render_pass_info_changed = true;
         }
         
-        if (framebuffer.render_pass_info_changed) {
+        if (framebuffer.clear != clear || framebuffer.render_pass_info_changed) {
             framebuffer.renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            framebuffer.renderPassInfo.renderPass = framebuffer.renderPass;
+            framebuffer.renderPassInfo.renderPass = clear ? framebuffer.clearRenderPass : framebuffer.loadRenderPass;
             framebuffer.renderPassInfo.framebuffer = framebuffer.framebuffer;
             framebuffer.renderPassInfo.renderArea.offset = {0, 0};
             framebuffer.renderPassInfo.renderArea.extent.width = framebuffer.width;
             framebuffer.renderPassInfo.renderArea.extent.height = framebuffer.height;
             framebuffer.render_pass_info_changed = false;
+            framebuffer.clear = clear;
         }
 
         if (framebuffer.clear_changed) {
@@ -492,7 +511,8 @@ namespace dz {
                 free(framebuffer.pImages);
             if (framebuffer.pAttachmentTypes)
                 free(framebuffer.pAttachmentTypes);
-            vkDestroyRenderPass(dr.device, framebuffer.renderPass, 0);
+            vkDestroyRenderPass(dr.device, framebuffer.clearRenderPass, 0);
+            vkDestroyRenderPass(dr.device, framebuffer.loadRenderPass, 0);
             vkDestroyFramebuffer(dr.device, framebuffer.framebuffer, 0);
             vkDestroyEvent(dr.device, framebuffer.event, 0);
             vkFreeCommandBuffers(dr.device, dr.commandPool, 1, &framebuffer.commandBuffer);
@@ -550,7 +570,7 @@ namespace dz {
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = framebuffer.renderPass;
+        framebufferInfo.renderPass = framebuffer.clearRenderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(vkImageViews.size());
         framebufferInfo.pAttachments = vkImageViews.data();
         framebufferInfo.width = framebuffer.width;
@@ -590,6 +610,9 @@ namespace dz {
         return nullptr;
     }
 
+    BlendState BlendState::Disabled = {
+        .enable = false
+    };
     BlendState BlendState::MainFramebuffer = {
         true,
         BlendFactor::One,

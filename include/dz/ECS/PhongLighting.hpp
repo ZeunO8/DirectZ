@@ -7,12 +7,11 @@ namespace dz::ecs {
     struct PhongLighting : Provider<PhongLighting> {
         inline static constexpr size_t PID = 8;
         inline static float Priority = 4.0f;
-        inline static constexpr bool RequiresBuffer = false;
         inline static std::string ProviderName = "PhongLighting";
         inline static std::string StructName = "PhongLighting";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
             {ShaderModuleType::Fragment, R"(
-vec3 CalculatePhongLighting(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Light light) {
+vec3 CalculatePhongLighting(in Light light) {
     vec3 light_dir;
     float attenuation = 1.0;
 
@@ -22,14 +21,14 @@ vec3 CalculatePhongLighting(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Lig
     }
     else
     {
-        light_dir = normalize(light.position - frag_pos);
-        float dist = length(light.position - frag_pos);
+        light_dir = normalize(light.position - lParams.worldPosition);
+        float dist = length(light.position - lParams.worldPosition);
         attenuation = clamp(1.0 - (dist / light.range), 0.0, 1.0);
     }
 
-    float diff = max(dot(normal, light_dir), 0.0);
-    vec3 reflect_dir = reflect(-light_dir, normal);
-    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 4.0);//shininess);
+    float diff = max(dot(lParams.normal, light_dir), 0.0);
+    vec3 reflect_dir = reflect(-light_dir, lParams.normal);
+    float spec = pow(max(dot(lParams.viewDirection, reflect_dir), 0.0), 4.0);//shininess);
 
     float spotlight_factor = 1.0;
     if (light.type == 2)
@@ -49,8 +48,8 @@ vec3 CalculatePhongLighting(in vec3 normal, vec3 frag_pos, vec3 view_dir, in Lig
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {4.0f, R"(
     vec3 light_color = vec3(0.0);
-    for (int light_index = 0; light_index < lights_size; light_index++) {
-        light_color += CalculatePhongLighting(current_normal, frag_pos, view_dir, Lights.data[light_index]);
+    for (int light_index = 0; light_index < lParams.lightsSize; light_index++) {
+        light_color += CalculatePhongLighting(Lights.data[light_index]);
     }
     current_color = vec4(light_color, 1.0) * current_color;
 )", ShaderModuleType::Fragment}

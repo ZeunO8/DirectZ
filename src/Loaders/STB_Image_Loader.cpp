@@ -48,7 +48,7 @@ dz::Image* STB_Image_load_path(const std::filesystem::path& path) {
         path_string.c_str(), &width, &height, &nrChannels, (std::max)(nrChannels, minChannels));
 	if (!imageData)
 		throw std::runtime_error("Failed to load image from memory.");
-    return STB_Image_load_image(imageData, width, height, nrChannels);
+    return STB_Image_load_image(imageData, width, height, (std::max)(nrChannels, minChannels));
 }
 
 dz::Image* STB_Image_load_bytes(const std::shared_ptr<char>& bytes, size_t bytes_length) {

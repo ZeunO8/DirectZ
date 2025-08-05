@@ -79,6 +79,7 @@ namespace dz
 #include "ECS/Mesh.cpp"
 #include "ECS/SubMesh.cpp"
 #include "ECS/Material.cpp"
+#include "ECS/HDRI.cpp"
 #include "ECS/Camera.cpp"
 #include "ECS/Light.cpp"
 

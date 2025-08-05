@@ -36,11 +36,11 @@ namespace dz
     template<typename DrawT>
     struct DrawListManager : IDrawListManager
     {
-        using Determine_DrawT_DrawTuples_Function = std::function<DrawTuples(BufferGroup*, DrawT&)>;
+        using Determine_DrawT_DrawTuple_Function = std::function<DrawTuple(BufferGroup*, DrawT&)>;
         using Determine_CameraTuple_Function = std::function<CameraTuple(BufferGroup*, int)>;
         using Determine_VisibleDraws_Function = std::function<std::vector<int>(BufferGroup*, int camera_index)>;
     private:
-        Determine_DrawT_DrawTuples_Function fn_determine_DrawT_DrawTuples;
+        Determine_DrawT_DrawTuple_Function fn_determine_DrawT_DrawTuple;
         Determine_CameraTuple_Function fn_determine_CameraTuple;
         Determine_VisibleDraws_Function fn_get_visible_draws;
         std::string draw_key;
@@ -54,15 +54,15 @@ namespace dz
          * @brief Constructs a DrawListManager with a draw key and logic function.
          * 
          * @param draw_key Buffer key to iterate over.
-         * @param fn_determine_DrawT_DrawTuples Function that maps a DrawT instance to shader and vertex count.
+         * @param fn_determine_DrawT_DrawTuple Function that maps a DrawT instance to shader and vertex count.
          */
         DrawListManager(
-            const std::string& draw_key, const Determine_DrawT_DrawTuples_Function& fn_determine_DrawT_DrawTuples,
+            const std::string& draw_key, const Determine_DrawT_DrawTuple_Function& fn_determine_DrawT_DrawTuple,
             const std::string& camera_key = "", const Determine_CameraTuple_Function& fn_determine_CameraTuple = {},
             const Determine_VisibleDraws_Function& fn_get_visible_draws = {},
             bool enable_global_camera_if_cameras_empty = true
         ):
-            fn_determine_DrawT_DrawTuples(fn_determine_DrawT_DrawTuples),
+            fn_determine_DrawT_DrawTuple(fn_determine_DrawT_DrawTuple),
             fn_determine_CameraTuple(fn_determine_CameraTuple),
             draw_key(draw_key),
             camera_key(camera_key),
@@ -128,15 +128,10 @@ namespace dz
                 drawInformation.cameraDrawInfos.push_back(cameraDrawInfo);
             }
 
-            auto drawTuplesMatch = [](const auto& a, const auto& b) -> bool
+            auto drawTupleMatch = [](const auto& a, const auto& b) -> bool
             {
-                if (a.size() != b.size())
+                if (std::get<0>(a) != std::get<0>(b) || std::get<1>(a) != std::get<1>(b))
                     return false;
-                for (size_t k = 0; k < a.size(); ++k)
-                {
-                    if (std::get<0>(a[k]) != std::get<0>(b[k]) || std::get<1>(a[k]) != std::get<1>(b[k]))
-                        return false;
-                }
                 return true;
             };
 
@@ -154,7 +149,7 @@ namespace dz
 
                     auto element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, i);
                     auto& element = element_view.template as_struct<DrawT>();
-                    auto draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, element);
+                    auto draw_tuple = fn_determine_DrawT_DrawTuple(buffer_group, element);
 
                     uint32_t run_start = static_cast<uint32_t>(i);
                     uint32_t instance_count = 1;
@@ -166,25 +161,24 @@ namespace dz
                         j = visible_entity_indices_data[vj];
                         auto next_element_view = buffer_group_get_buffer_element_view(buffer_group, draw_key, j);
                         auto& next_element = next_element_view.template as_struct<DrawT>();
-                        auto next_draw_tuples = fn_determine_DrawT_DrawTuples(buffer_group, next_element);
+                        auto next_draw_tuple = fn_determine_DrawT_DrawTuple(buffer_group, next_element);
 
-                        if (!drawTuplesMatch(draw_tuples, next_draw_tuples))
+                        if (!drawTupleMatch(draw_tuple, next_draw_tuple))
                             break;
 
                         instance_count += 1;
                         vj += 1;
                     }
 
-                    for (auto& [shader, vertexCount] : draw_tuples)
-                    {
-                        DrawIndirectCommand cmd;
-                        cmd.vertexCount = vertexCount;
-                        cmd.instanceCount = instance_count;
-                        cmd.firstVertex = 0;
-                        cmd.firstInstance = run_start;
+                    auto& [shader, vertexCount] = draw_tuple;
+                    
+                    DrawIndirectCommand cmd;
+                    cmd.vertexCount = vertexCount;
+                    cmd.instanceCount = instance_count;
+                    cmd.firstVertex = 0;
+                    cmd.firstInstance = run_start;
 
-                        cameraDrawInfo.shaderDrawList[shader].push_back(cmd);
-                    }
+                    cameraDrawInfo.shaderDrawList[shader].push_back(cmd);
 
                     vi = vj;
                 }

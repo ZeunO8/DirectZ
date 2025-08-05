@@ -7,6 +7,12 @@
 namespace dz {
     inline static const std::string kEmptyString = "";
 
+    enum class BufferHost {
+        NoBuffer,
+        CPU,
+        GPU
+    };
+
     template <typename T>
     struct Provider {
         inline static constexpr size_t GetPID() {
@@ -30,11 +36,11 @@ namespace dz {
             return 0;
         }
 
-        inline static constexpr bool GetRequiresBuffer() {
-            if constexpr (requires { T::RequiresBuffer; } ) {
-                return T::RequiresBuffer;
+        inline static constexpr BufferHost GetBufferHostType() {
+            if constexpr (requires { T::BufferHostType; } ) {
+                return T::BufferHostType;
             }
-            return false;
+            return BufferHost::NoBuffer;
         }
 
         inline static constexpr bool GetIsDrawProvider() {
@@ -86,6 +92,20 @@ namespace dz {
             return false;
         }
 
+        inline static constexpr bool GetIsHDRIProvider() {
+            if constexpr (requires { T::IsHDRIProvider; }) {
+                return T::IsHDRIProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsSkyBoxProvider() {
+            if constexpr (requires { T::IsSkyBoxProvider; }) {
+                return T::IsSkyBoxProvider;
+            }
+            return false;
+        }
+
         inline static float GetPriority() {
             if constexpr (requires { T::Priority; }) {
                 return T::Priority;
@@ -128,6 +148,14 @@ namespace dz {
             }
             static std::unordered_map<ShaderModuleType, std::vector<std::string>> kEmptyMap = {};
             return kEmptyMap;
+        }
+
+        inline static const std::vector<std::string>& GetGLSLBindings() {
+            if constexpr (requires { T::GLSLBindings; }) {
+                return T::GLSLBindings;
+            }
+            static std::vector<std::string> kEmptyVec = {};
+            return kEmptyVec;
         }
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>>& GetGLSLMain() {
@@ -187,6 +215,18 @@ namespace dz {
     struct IsSubMeshProvider
     {
         static constexpr bool value = Provider<T>::GetIsSubMeshProvider();
+    };
+
+    template<typename T>
+    struct IsHDRIProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsHDRIProvider();
+    };
+
+    template<typename T>
+    struct IsSkyBoxProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsSkyBoxProvider();
     };
 
     template<template<typename> class Trait, typename... Ts>

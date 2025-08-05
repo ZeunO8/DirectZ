@@ -15,21 +15,25 @@ namespace dz::ecs {
         };
         mat<float, 4, 4> view;
         mat<float, 4, 4> projection;
-        float nearPlane;
-        float farPlane;
-        int type;
-        float aspect = 0;
-        vec<float, 3> position;
+        float nearPlane = 0.f;
+        float farPlane = 0.f;
+        int type = -1;
+        int padding = 0;
+        vec<float, 3> position = {0, 0, 0};
         float fov = 80.f;
-        vec<float, 3> center;
-        float orthoWidth;
-        vec<float, 3> up;
-        float orthoHeight;
+        vec<float, 3> center = {0, 0, 0};
+        float width = 0;
+        vec<float, 3> up = {0, 1, 0};
+        float height = 0;
         int parent_index = -1;
         int parent_cid = 0;
         int transform_dirty = 1;
         int is_active = 1;
-        inline static constexpr bool RequiresBuffer = true; 
+
+        static Camera DefaultPerspective;
+        static Camera DefaultOrthographic;
+
+        inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
         inline static constexpr bool IsCameraProvider = true;
         inline static constexpr size_t PID = 5;
         inline static float Priority = 0.5f;
@@ -42,13 +46,13 @@ struct Camera {
     float nearPlane;
     float farPlane;
     int type;
-    float aspect;
+    float padding;
     vec3 position;
     float fov;
     vec3 center;
-    float orthoWidth;
+    float width;
     vec3 up;
-    float orthoHeight;
+    float height;
     int parent_index;
     int parent_cid;
     int transform_dirty;
@@ -126,7 +130,6 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
 }
 )"}
         };
-
         
         struct CameraMetaReflectable : ::Reflectable {
             
@@ -221,19 +224,15 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"Aspect", {0, 0}},
-                {"FOV", {1, 0}}
+                {"FOV", {0, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "Aspect"},
-                {1, "FOV"}
+                {0, "FOV"}
             };
             inline static std::vector<std::string> prop_names = {
-                "Aspect",
                 "FOV"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(float),
                 &typeid(float)
             };
 
@@ -382,7 +381,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                 }
             }
 
-            void InitFramebuffer(Shader* shader, float width, float height) {
+            void InitFramebuffer(const std::vector<Shader*>& shader_vec, float width, float height) {
                 // Initialize camera framebuffer
                 fb_color_image = image_create({
                     .width = uint32_t(width),
@@ -415,7 +414,8 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                 auto frame_ds_pair = image_create_descriptor_set(fb_color_image);
                 frame_image_ds = frame_ds_pair.second;
 
-                shader_set_render_pass(shader, framebuffer);
+                for (auto& shader : shader_vec)
+                    shader_set_render_pass(shader, framebuffer);
             }
             bool backup(Serial& serial) const override {
                 if (!backup_internal(serial))
@@ -432,32 +432,24 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         };
 
         using ReflectableGroup = CameraReflectableGroup;
+
+        void Initialize() {
+            switch(Camera::ProjectionType(type))
+            {
+            case Camera::Perspective:
+                projection = perspective(radians(fov), width / height, nearPlane, farPlane);
+                break;
+            case Camera::Orthographic:
+                projection = orthographic(-width / 2.f, width / 2.f, -height / 2.f, height / 2.f, nearPlane, farPlane);
+                break;
+            default: break;
+            }
+        }
+
+        template<typename TECS>
+        void Initialize(TECS& ecs, ::ReflectableGroup& camera_group) {
+            Initialize();
+        }
     };
-
-    void CameraInit(
-        Camera& camera, 
-        vec<float, 3> position,
-        vec<float, 3> center,
-        vec<float, 3> up,
-        float nearPlane,
-        float farPlane,
-        float width,
-        float height,
-        float fov,
-        Camera::ProjectionType projectionType = Camera::Perspective
-    );
-
-    void CameraInit(
-        Camera& camera, 
-        vec<float, 3> position,
-        vec<float, 3> center,
-        vec<float, 3> up,
-        float nearPlane,
-        float farPlane,
-        vec<float, 4> viewport,
-        Camera::ProjectionType projectionType = Camera::Orthographic
-    );
-
-    void CameraInit(Camera& camera);
 
 }
