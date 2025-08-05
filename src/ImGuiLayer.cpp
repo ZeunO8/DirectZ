@@ -1,5 +1,5 @@
 #include <dz/ImGuiLayer.hpp>
-#include "fa-solid-900-ttf.c"
+#include "fa-solid-900-ttf.cpp"
 #include "WindowImpl.hpp"
 #include "RendererImpl.hpp"
 
