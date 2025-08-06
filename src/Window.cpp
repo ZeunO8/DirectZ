@@ -254,7 +254,7 @@ namespace dz {
 		for (auto& [priority, shader_dispatches] : window->priority_shader_dispatches) {
 			for (auto& [shader, dispatch_fn] : shader_dispatches) {
 				auto count = dispatch_fn();
-				shader_dispatch(shader, {count, 1, 1});
+				shader_dispatch(shader, count, 1, 1);
 			}
 		}
 		if (!window->minimized || !window_get_minimized(window))

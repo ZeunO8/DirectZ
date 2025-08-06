@@ -102,4 +102,39 @@ namespace dz
      * @brief returns the underlying surface type of an Image
      */
     SurfaceType image_get_surface_type(Image*);
+
+    /**
+     * @brief returns the underlying width of an Image
+     */
+    uint32_t image_get_width(Image*);
+
+    /**
+     * @brief returns the underlying height of an Image
+     */
+    uint32_t image_get_height(Image*);
+
+    /**
+     * @brief returns the underlying depth of an Image
+     */
+    uint32_t image_get_depth(Image*);
+
+    /**
+     * @brief returns the underlying layout of an Image
+     */
+    VkImageLayout image_get_layout(Image*);
+
+    /**
+     * @brief returns the underlying format of an Image
+     */
+    VkFormat image_get_format(Image*);
+
+    /**
+     * @brief transitions the underlying layout of an Image
+     */
+    void transition_image_layout(Image* image_ptr, VkImageLayout new_layout);
+
+    /**
+     * @brief helper function to return the pixel size for a given VkFormat in bytes
+     */
+    size_t get_format_pixel_size(VkFormat format);
 }

@@ -9,6 +9,7 @@ namespace dz::loaders {
         std::filesystem::path path;
         std::shared_ptr<char> bytes;
         size_t bytes_length = 0;
+        bool load_float = 0; // false loads UNORM, true loads SFLOAT
     };
     struct STB_Image_Loader {
         using value_type = Image*;

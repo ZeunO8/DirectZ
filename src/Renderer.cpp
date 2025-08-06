@@ -443,6 +443,19 @@ namespace dz {
 		dr.formats_supported.R8G8B8A8_UNORM = dr.formats_supported_map
 			[VK_FORMAT_R8G8B8A8_UNORM][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+			
+		dr.formats_supported.R32_SFLOAT = dr.formats_supported_map
+			[VK_FORMAT_R32_SFLOAT][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R32G32_SFLOAT = dr.formats_supported_map
+			[VK_FORMAT_R32G32_SFLOAT][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R32G32B32_SFLOAT = dr.formats_supported_map
+			[VK_FORMAT_R32G32B32_SFLOAT][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R32G32B32A32_SFLOAT = dr.formats_supported_map
+			[VK_FORMAT_R32G32B32A32_SFLOAT][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 	}
 
 	void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer)

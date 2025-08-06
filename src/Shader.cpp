@@ -1542,14 +1542,15 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
-    void transition_image_layout(Image* image_ptr, VkImageLayout old_layout, VkImageLayout new_layout) {
+    void transition_image_layout(Image* image_ptr, VkImageLayout new_layout) {
         auto image = image_ptr->image;
         auto device = dr.device;
         auto command_buffer = begin_single_time_commands();
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = old_layout;
+        auto& current_layout = image_ptr->current_layout;
+        barrier.oldLayout = current_layout;
         barrier.newLayout = new_layout;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1560,7 +1561,7 @@ namespace dz {
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
 
-        auto it = kLayoutTransitions.find({old_layout, new_layout});
+        auto it = kLayoutTransitions.find({barrier.oldLayout, new_layout});
         if (it == kLayoutTransitions.end()) {
             throw std::runtime_error("Unsupported image layout transition!");
         }
@@ -1580,6 +1581,8 @@ namespace dz {
         );
 
         end_single_time_commands(command_buffer);
+
+        current_layout = new_layout;
     }
 
     void shader_ensure_image_layouts(Shader* shader) {
@@ -1601,15 +1604,17 @@ namespace dz {
         
                 if (image.current_layout != required)
                 {
-                    transition_image_layout(image_ptr, image.current_layout, required);
-                    image.current_layout = required;
+                    transition_image_layout(image_ptr, required);
                 }
             }
         }
     }
 
-    void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout) {
+    void shader_dispatch(Shader* shader, uint32_t x, uint32_t y, uint32_t z, const std::function<void()>& shader_pre_dispatch) {
         shader_ensure_image_layouts(shader);
+
+        dr.commandBuffer = &dr.computeCommandBuffer;
+
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(dr.computeCommandBuffer, &beginInfo);
@@ -1634,11 +1639,15 @@ namespace dz {
             sets.data(),
             0, nullptr
         );
+
+        if (shader_pre_dispatch)
+            shader_pre_dispatch();
+
         vkCmdDispatch(
             dr.computeCommandBuffer,
-            dispatch_layout[0],
-            dispatch_layout[1],
-            dispatch_layout[2]
+            x,
+            y,
+            z
         );
         vkEndCommandBuffer(dr.computeCommandBuffer);
         VkSubmitInfo submitInfo{};
@@ -1647,6 +1656,8 @@ namespace dz {
         submitInfo.pCommandBuffers = &dr.computeCommandBuffer;
         vkQueueSubmit(dr.computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(dr.computeQueue);
+
+        dr.commandBuffer = VK_NULL_HANDLE;
     }
 
     void shader_compile(Shader* shader) {
@@ -1666,13 +1677,28 @@ namespace dz {
         pipelineLayoutInfo.pSetLayouts = layouts.data();
 
         std::vector<VkPushConstantRange> ranges;
-        for (auto& [pc_index, pc] : shader->push_constants) {
+        static auto AddRangeForStageFlags = [](auto& push_constants, auto& ranges, auto stageFlag) {
+            auto total_size = 0;
+            bool hadStage = false;
+            for (auto& [pc_index, pc] : push_constants) {
+                if (pc.stageFlags != stageFlag)
+                    continue;
+                if (!hadStage)
+                    hadStage = true;
+                total_size += pc.size;
+            }
+            if (!hadStage)
+                return;
             VkPushConstantRange range;
-            range.offset = pc.offset;
-            range.size = pc.size;
-            range.stageFlags = pc.stageFlags;
+            range.offset = 0;
+            range.size = total_size;
+            range.stageFlags = stageFlag;
             ranges.push_back(range);
-        }
+        };
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_VERTEX_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_FRAGMENT_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_COMPUTE_BIT);
         pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
         pipelineLayoutInfo.pPushConstantRanges = ranges.data();
 

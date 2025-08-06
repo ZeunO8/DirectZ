@@ -42,6 +42,7 @@ namespace dz {
     inline static std::string MetalnessRoughnessAtlas_Str = "MetalnessRoughnessAtlas";
     inline static std::string ShininessAtlas_Str = "ShininessAtlas";
     inline static std::string HDRIAtlas_Str = "HDRIAtlas";
+    inline static std::string IrradianceAtlas_Str = "IrradianceAtlas";
     inline static std::string VertexPositions_Str = "VertexPositions";
     inline static std::string VertexUV2s_Str = "VertexUV2s";
     inline static std::string VertexNormals_Str = "VertexNormals";
@@ -119,6 +120,7 @@ namespace dz {
             MetalnessRoughnessAtlas_Str,
             ShininessAtlas_Str,
             HDRIAtlas_Str,
+            IrradianceAtlas_Str,
             VertexPositions_Str,
             VertexUV2s_Str,
             VertexNormals_Str,
@@ -162,6 +164,7 @@ namespace dz {
         ImagePack metalness_roughness_atlas_pack;
         ImagePack shininess_atlas_pack;
         ImagePack hdri_atlas_pack;
+        ImagePack irradiance_atlas_pack;
 
         auto GenerateSkyBoxDrawFunction() {
             return [&](auto buffer_group, auto& skybox) -> DrawTuple {
@@ -313,6 +316,10 @@ namespace dz {
 
         void Initialize() {
             RegisterProviders();
+
+            // hdri_atlas_pack.SetAtlasFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+            // irradiance_atlas_pack.SetAtlasFormat(VK_FORMAT_R32G32B32A32_SFLOAT);
+
             buffer_group = CreateBufferGroup();
             assert(buffer_group);
 
@@ -384,6 +391,7 @@ namespace dz {
             UseAtlas(shininess_atlas_pack, ShininessAtlas_Str);
             UpdateHDRIAtlas();
             UseAtlas(hdri_atlas_pack, HDRIAtlas_Str);
+            UseAtlas(irradiance_atlas_pack, IrradianceAtlas_Str);
             if (!buffer_initialized) {
                 buffer_group_initialize(buffer_group);
                 buffer_initialized = true;
@@ -428,6 +436,7 @@ namespace dz {
 
         void UpdateHDRIAtlas() {
             hdri_atlas_pack.check();
+            irradiance_atlas_pack.check();
             for (auto& hdri_group_sh_ptr : hdri_group_vector) {
                 auto generic_group_ptr = hdri_group_sh_ptr.get();
                 auto hdri_group_ptr = dynamic_cast<typename HDRIProviderT::ReflectableGroup*>(generic_group_ptr);
@@ -435,6 +444,7 @@ namespace dz {
                 auto& hdri = GetHDRI(hdri_group.id);
                 //
                 UpdatePackedRect(hdri_group.hdri_image, hdri_atlas_pack, hdri.hdri_atlas_pack);
+                UpdatePackedRect(hdri_group.irradiance_image, irradiance_atlas_pack, hdri.irradiance_atlas_pack);
                 continue;
             }
         }
@@ -813,9 +823,9 @@ namespace dz {
             }
 
             if constexpr (requires { data.Initialize(*this, group); })
-                data.Initialize(*this, group);
+                data.Initialize(*this, group, args...);
             else if constexpr (requires { data.Initialize(); })
-                data.Initialize();
+                data.Initialize(args...);
 
             group.UpdateChildren();
 
@@ -829,27 +839,34 @@ namespace dz {
             who.parent_cid = new_parent_ptr ? new_parent_ptr->cid : 0;
         }
 
-        template <typename TData>
+        template <typename TData, typename... Args>
         int AddProvider(
             int parent_id,
             const TData& data,
             std::vector<std::shared_ptr<ReflectableGroup>>& reflectable_group_vector,
             int& out_index,
-            const std::string& name
+            const std::string& name,
+            const Args&... args
         ) {
             size_t id = 0;
-            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index, name), ...);
+            (AddProviderSingle<TData, TProviders>(parent_id, id, data, reflectable_group_vector, out_index, name, args...), ...);
             if (!id)
                 throw std::runtime_error("Unable to find Provider supporting TData");
             return id;
         }
 
-        template <typename TEntity>
-        int AddEntity(int parent_id, const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name) {
+        template <typename TEntity, typename... Args>
+        int AddEntity(
+            int parent_id,
+            const TEntity& entity_data,
+            const std::vector<int>& mesh_indexes,
+            const std::string& name,
+            const Args&... args
+        ) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             auto entity_id = AddProvider<TEntity>(parent_id, entity_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name, args...);
             auto& entity_group = GetGroupByID<EntityProviderT, typename EntityProviderT::ReflectableGroup>(entity_id);
             for (auto& mesh_index : mesh_indexes) {
                 auto& mesh_group = GetGroupByIndex<MeshProviderT, typename MeshProviderT::ReflectableGroup>(mesh_index);
@@ -864,31 +881,31 @@ namespace dz {
             return entity_id;
         }
 
-        template <typename TEntity>
-        int AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name) {
-            return AddEntity<TEntity>(-1, entity_data, mesh_indexes, name);
+        template <typename TEntity, typename... Args>
+        int AddEntity(const TEntity& entity_data, const std::vector<int>& mesh_indexes, const std::string& name, const Args&... args) {
+            return AddEntity<TEntity>(-1, entity_data, mesh_indexes, name, args...);
         }
 
-        template <typename TScene>
-        int AddScene(int parent_id, const TScene& scene_data, const std::string& name) {
+        template <typename TScene, typename... Args>
+        int AddScene(int parent_id, const TScene& scene_data, const std::string& name, const Args&... args) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TScene>(parent_id, scene_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name, args...);
         }
 
-        template <typename TScene>
-        int AddScene(const TScene& scene_data, const std::string& name) {
-            return AddScene<TScene>(-1, scene_data, name);
+        template <typename TScene, typename... Args>
+        int AddScene(const TScene& scene_data, const std::string& name, const Args&... args) {
+            return AddScene<TScene>(-1, scene_data, name, args...);
         }
 
         SceneProviderT& GetScene(size_t scene_id) {
             return GetProviderData<SceneProviderT>(scene_id);
         }
 
-        template <typename TMaterial>
-        int AddMaterial(const TMaterial& material_data, int& out_index, const std::string& name) {
-            return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index, name);
+        template <typename TMaterial, typename... Args>
+        int AddMaterial(const TMaterial& material_data, int& out_index, const std::string& name, const Args&... args) {
+            return AddProvider<TMaterial>(-1, material_data, material_group_vector, out_index, name, args...);
         }
 
         MaterialProviderT& GetMaterial(size_t material_id) {
@@ -940,26 +957,35 @@ namespace dz {
                 UpdateAtlases();
         }
 
-        template <typename THDRI>
-        int AddHDRI(const THDRI& hdri_data, int& out_index, const std::string& name) {
-            return AddProvider<THDRI>(-1, hdri_data, hdri_group_vector, out_index, name);
+        template <typename THDRI, typename... Args>
+        int AddHDRI(const THDRI& hdri_data, int& out_index, const std::string& name, const Args&... args) {
+            return AddProvider<THDRI>(-1, hdri_data, hdri_group_vector, out_index, name, args...);
         }
 
         HDRIProviderT& GetHDRI(size_t hdri_id) {
             return GetProviderData<HDRIProviderT>(hdri_id);
         }
 
-        void SetHDRIImage(size_t hdri_id, Image* image_ptr) {
+        template<typename... Args>
+        void SetHDRIImage(size_t hdri_id, Image* image_ptr, const Args&... args) {
             auto& hdri_group = GetGroupByID<HDRIProviderT, typename HDRIProviderT::ReflectableGroup>(hdri_id);
+
+            auto& hdri = GetHDRI(hdri_group.id);
 
             hdri_group.hdri_image = image_ptr;
             hdri_group.hdri_frame_image_ds = image_create_descriptor_set(image_ptr).second;
             hdri_atlas_pack.addImage(image_ptr);
 
+            if constexpr (requires { hdri.Initialize(*this, hdri_group); })
+                hdri.Initialize(*this, hdri_group, args...);
+            else if constexpr (requires { hdri.Initialize(); })
+                hdri.Initialize(args...);
+
             if (buffer_initialized)
                 UpdateHDRIAtlas();
         }
 
+        template<typename... Args>
         int AddMesh(
             const std::vector<vec<float, 4>>& positions,
             const std::vector<vec<float, 2>>& uv2s,
@@ -968,7 +994,8 @@ namespace dz {
             const std::vector<vec<float, 4>>& bitangents,
             int material_index,
             int& out_index,
-            const std::string& name
+            const std::string& name,
+            const Args&... args
         ) {
             MeshProviderT mesh_data;
             auto position_index = buffer_group_get_buffer_element_count(buffer_group, VertexPositions_Str);
@@ -990,7 +1017,7 @@ namespace dz {
             if (!bitangents.empty())
                 mesh_data.bitangent_offset = bitangent_index;
 
-            auto mesh_id = AddProvider<MeshProviderT>(-1, mesh_data, mesh_group_vector, out_index, name);
+            auto mesh_id = AddProvider<MeshProviderT>(-1, mesh_data, mesh_group_vector, out_index, name, args...);
             
             if (mesh_data.position_offset != -1) {
                 buffer_group_set_buffer_element_count(buffer_group, VertexPositions_Str, mesh_data.position_offset + positions.size());
@@ -1043,29 +1070,29 @@ namespace dz {
             return mesh_id;
         }
 
-        template <typename TLight>
-        int AddLight(int parent_id, const TLight& light_data, const std::string& name) {
+        template <typename TLight, typename... Args>
+        int AddLight(int parent_id, const TLight& light_data, const std::string& name, const Args&... args) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TLight>(parent_id, light_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name, args...);
         }
 
-        template <typename TLight>
-        int AddLight(const TLight& light_data, const std::string& name) {
-            return AddLight(-1, light_data, name);
+        template <typename TLight, typename... Args>
+        int AddLight(const TLight& light_data, const std::string& name, const Args&... args) {
+            return AddLight(-1, light_data, name, args...);
         }
 
-        template <typename TSkyBox>
-        int AddSkyBox(int parent_id, const TSkyBox& skybox_data, const std::string& name) {
+        template <typename TSkyBox, typename... Args>
+        int AddSkyBox(int parent_id, const TSkyBox& skybox_data, const std::string& name, const Args&... args) {
             auto parent_group_ptr = FindParentGroupPtr(parent_id);
             int out_index = -1;
             return AddProvider<TSkyBox>(parent_id, skybox_data,
-                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name);
+                parent_group_ptr ? parent_group_ptr->GetChildren() : reflectable_group_root_vector, out_index, name, args...);
         }
 
-        template <typename TSkyBox>
-        int AddSkyBox(const TSkyBox& skybox_data, const std::string& name) {
+        template <typename TSkyBox, typename... Args>
+        int AddSkyBox(const TSkyBox& skybox_data, const std::string& name, const Args&... args) {
             return AddSkyBox(-1, skybox_data, name);
         }
 
@@ -1251,7 +1278,6 @@ namespace dz {
 
         Shader* GenerateMainShader() {
             auto shader_ptr = shader_create();
-
 
             shader_add_buffer_group(shader_ptr, buffer_group);
 

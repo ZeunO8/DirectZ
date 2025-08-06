@@ -186,6 +186,6 @@ DZ_EXPORT void update()
 
 DZ_EXPORT void render()
 {
-    shader_dispatch(compute_shader, {quad_ptrs.size(), 1, 1});
+    shader_dispatch(compute_shader, quad_ptrs.size(), 1, 1);
     window_render(cached_window);
 }

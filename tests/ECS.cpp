@@ -103,13 +103,15 @@ int main() {
         int autumn_hdri_index = -1;
         auto autumn_hdri_id = ecs.AddHDRI(HDRI{}, autumn_hdri_index, "hdri/autumn_field_puresky_4k");
         ecs.SetHDRIImage(autumn_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
-            .path = "hdri/autumn_field_puresky_4k.hdr"
+            .path = "hdri/autumn_field_puresky_4k.hdr",
+            .load_float = false
         }));
 
         int afternoon_hdri_index = -1;
         auto afternoon_hdri_id = ecs.AddHDRI(HDRI{}, afternoon_hdri_index, "zwartkops_straight_afternoon_4k");
         ecs.SetHDRIImage(afternoon_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
-            .path = "hdri/zwartkops_straight_afternoon_4k.hdr"
+            .path = "hdri/zwartkops_straight_afternoon_4k.hdr",
+            .load_float = false
         }));
 
         auto sky_scene_id = ecs.AddScene(Scene{}, "Sky Scene");

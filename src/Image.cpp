@@ -639,4 +639,75 @@ namespace dz {
     SurfaceType image_get_surface_type(Image* image_ptr) {
         return image_ptr->surfaceType;
     }
+
+    uint32_t image_get_width(Image* image_ptr) {
+        return image_ptr->width;
+    }
+
+    uint32_t image_get_height(Image* image_ptr) {
+        return image_ptr->height;
+    }
+
+    uint32_t image_get_depth(Image* image_ptr) {
+        return image_ptr->depth;
+    }
+
+    VkImageLayout image_get_layout(Image* image_ptr) {
+        return image_ptr->current_layout;
+    }
+
+    VkFormat image_get_format(Image* image_ptr) {
+        return image_ptr->format;
+    }
+
+    size_t get_format_pixel_size(VkFormat format) {
+        switch (format)
+        {
+            case VK_FORMAT_R8_UNORM:
+            case VK_FORMAT_R8_UINT:
+            case VK_FORMAT_R8_SNORM:
+            case VK_FORMAT_R8_SINT:
+            case VK_FORMAT_S8_UINT:
+                return 1;
+
+            case VK_FORMAT_R8G8_UNORM:
+            case VK_FORMAT_R8G8_UINT:
+            case VK_FORMAT_R8G8_SNORM:
+            case VK_FORMAT_R8G8_SINT:
+                return 2;
+
+            case VK_FORMAT_R8G8B8_UNORM:
+            case VK_FORMAT_R8G8B8_UINT:
+            case VK_FORMAT_R8G8B8_SNORM:
+            case VK_FORMAT_R8G8B8_SINT:
+                return 3;
+
+            case VK_FORMAT_R8G8B8A8_UNORM:
+            case VK_FORMAT_R8G8B8A8_UINT:
+            case VK_FORMAT_R8G8B8A8_SNORM:
+            case VK_FORMAT_R8G8B8A8_SINT:
+            case VK_FORMAT_B8G8R8A8_UNORM:
+            case VK_FORMAT_B8G8R8A8_SRGB:
+                return 4;
+
+            case VK_FORMAT_R32G32B32A32_SFLOAT:
+                return 16;
+
+            case VK_FORMAT_D32_SFLOAT:
+                return 4;
+
+            case VK_FORMAT_D32_SFLOAT_S8_UINT:
+                return 5;
+
+            case VK_FORMAT_R32_UINT:
+                return 4;
+
+            case VK_FORMAT_R5G6B5_UNORM_PACK16:
+            case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
+                return 2;
+
+            default:
+                return 4; // fallback
+        }
+    }
 }

@@ -99,6 +99,10 @@ struct FormatsSupported {
     bool R8G8_UNORM;
     bool R8G8B8_UNORM;
     bool R8G8B8A8_UNORM;
+    bool R32_SFLOAT;
+    bool R32G32_SFLOAT;
+    bool R32G32B32_SFLOAT;
+    bool R32G32B32A32_SFLOAT;
 };
 
 struct DirectRegistry
