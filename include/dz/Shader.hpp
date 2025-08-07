@@ -93,7 +93,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param dispatch_layout Layout dimensions as vec<int32_t, 3>.
      */
-    void shader_dispatch(Shader*, vec<int32_t, 3> dispatch_layout);
+    void shader_dispatch(Shader*, uint32_t x, uint32_t y, uint32_t z, void(*shader_pre_dispatch)(Shader*, void*) = 0, void(*shader_post_dispatch)(Shader*, void*) = 0, void* user_data = nullptr);
 
     /**
      * @brief Compiles the shader source code to SPIR-V.
@@ -160,6 +160,13 @@ namespace dz
     * @brief Updates a push_constant by index given data and size
     */
     void shader_update_push_constant(Shader*, uint32_t pc_index, void* data, uint32_t size);
+
+    /**
+     * @brief Updates the push_constants with the underlying shader pipeline
+     * 
+     * @note this only needs to be called for Compute shaders, Raster shaders have it done automatically with DrawListManagers 
+     */
+    void shader_ensure_push_constants(Shader* shader);
 
     /**
      * @brief Sets the line width for a Shader

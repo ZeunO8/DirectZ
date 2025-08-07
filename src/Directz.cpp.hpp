@@ -99,6 +99,14 @@ struct FormatsSupported {
     bool R8G8_UNORM;
     bool R8G8B8_UNORM;
     bool R8G8B8A8_UNORM;
+    bool R8_SRGB;
+    bool R8G8_SRGB;
+    bool R8G8B8_SRGB;
+    bool R8G8B8A8_SRGB;
+    bool R32_SFLOAT;
+    bool R32G32_SFLOAT;
+    bool R32G32B32_SFLOAT;
+    bool R32G32B32A32_SFLOAT;
 };
 
 struct DirectRegistry
@@ -114,12 +122,14 @@ struct DirectRegistry
     VkQueue graphicsQueue;
     VkQueue computeQueue;
     VkQueue presentQueue;
+    VkQueue copyQueue;
     int32_t graphicsAndComputeFamily = -1;
     int32_t presentFamily = -1;
     Renderer* currentRenderer = 0;
     VkCommandPool commandPool = VK_NULL_HANDLE;
     VkCommandBuffer* commandBuffer = 0;
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
+    VkCommandBuffer copyCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<WINDOW*> window_ptrs;
     std::vector<WindowReflectableGroup*> window_reflectable_entries;
@@ -137,6 +147,10 @@ struct DirectRegistry
         >
     > formats_supported_map;
     FormatsSupported formats_supported;
+    std::vector<VkImageCopy> copyRegions;
+    std::vector<std::tuple<Image*, VkImageLayout, int>> copySrcImages;
+    std::vector<std::tuple<Image*, VkImageLayout, int>> copyDstImages;
+    ColorSpace preferredColorSpace = ColorSpace::SRGB;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif

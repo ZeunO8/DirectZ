@@ -36,6 +36,23 @@ namespace dz {
             return 0;
         }
 
+        inline static void RunStaticInitialize() {
+            static bool initialized = false;
+            if (initialized)
+                return;
+            if constexpr (requires { T::StaticInitialize; }) {
+                T::StaticInitialize();
+            }
+            initialized = true;
+            return;
+        }
+
+        inline static void RunShaderTweak(Shader* shader) {
+            if constexpr (requires { T::ShaderTweak(shader); }) {
+                T::ShaderTweak(shader);
+            }
+        }
+
         inline static constexpr BufferHost GetBufferHostType() {
             if constexpr (requires { T::BufferHostType; } ) {
                 return T::BufferHostType;
@@ -102,6 +119,13 @@ namespace dz {
         inline static constexpr bool GetIsSkyBoxProvider() {
             if constexpr (requires { T::IsSkyBoxProvider; }) {
                 return T::IsSkyBoxProvider;
+            }
+            return false;
+        }
+
+        inline static constexpr bool GetIsLightProvider() {
+            if constexpr (requires { T::IsLightProvider; }) {
+                return T::IsLightProvider;
             }
             return false;
         }
@@ -227,6 +251,12 @@ namespace dz {
     struct IsSkyBoxProvider
     {
         static constexpr bool value = Provider<T>::GetIsSkyBoxProvider();
+    };
+
+    template<typename T>
+    struct IsLightProvider
+    {
+        static constexpr bool value = Provider<T>::GetIsLightProvider();
     };
 
     template<template<typename> class Trait, typename... Ts>

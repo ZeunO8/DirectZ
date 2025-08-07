@@ -14,14 +14,15 @@ namespace dz::ecs {
         float range;              // for point/spot
         float innerCone;          // for spot
         vec<float, 3> position;
-        int padding1 = 0;
+        int parent_index = -1;
         vec<float, 3> direction;  // normalized, for directional/spot
-        int padding2 = 0;
+        int parent_cid = 0;
         vec<float, 3> color;      // RGBA
         float outerCone;          // for spot
         inline static constexpr size_t PID = 7;
         inline static float Priority = 3.5f;
         inline static constexpr BufferHost BufferHostType = BufferHost::GPU;
+        inline static constexpr bool IsLightProvider = true;
         inline static std::string ProviderName = "Light";
         inline static std::string StructName = "Light";
         inline static std::string GLSLStruct = R"(
@@ -31,9 +32,9 @@ struct Light {
     float range;
     float innerCone;
     vec3 position;
-    int padding1;
+    int parent_index;
     vec3 direction;
-    int padding2;
+    int parent_cid;
     vec3 color;
     float outerCone;
 };
@@ -51,10 +52,12 @@ LightingParams lParams;
 
         inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
             {3.5f, R"(
+    vec3 N = normalize(current_normal);
+    vec3 V = normalize(camera.position - inPosition);
     lParams.worldPosition = inPosition;
-    lParams.viewDirection = normalize(camera.position - lParams.worldPosition);
-    lParams.NdotV = max(dot(current_normal, lParams.viewDirection), 0.0);
-    lParams.normal = current_normal;
+    lParams.viewDirection = V;
+    lParams.NdotV = max(dot(N, V), 0.0);
+    lParams.normal = N;
     lParams.lightsSize = Lights.data.length();
 )", ShaderModuleType::Fragment}
         };
@@ -120,7 +123,7 @@ LightingParams lParams;
             void NotifyChange(int prop_index) override;
         };
 
-        struct LightReflectableGroup : ReflectableGroup {
+        struct LightReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

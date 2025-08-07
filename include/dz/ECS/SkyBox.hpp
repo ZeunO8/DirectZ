@@ -23,16 +23,8 @@ struct SkyBox {
     int padding;
 };
 )";
-        inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
-            {ShaderModuleType::Fragment, R"(
-)" }
-        };
-        inline static std::vector<std::tuple<float, std::string, ShaderModuleType>> GLSLMain = {
-            {4.0f, R"(
-)", ShaderModuleType::Fragment}
-        };
 
-        struct SkyBoxReflectableGroup : ReflectableGroup {
+        struct SkyBoxReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

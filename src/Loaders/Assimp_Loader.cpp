@@ -228,6 +228,7 @@ namespace dz::loaders::assimp_loader {
                     images_vec.push_back(image_ptr);
                 }
                 }
+                float metalness = 0, roughness = 0;
                 // Load Albedo Color
                 {
                 aiColor4D aicolor;
@@ -235,8 +236,10 @@ namespace dz::loaders::assimp_loader {
                 {
                     albedo_color = AssimpConvert<aiColor4D, vec<float, 4>>(aicolor);
                 }
+                if (AI_SUCCESS == aiGetMaterialFloat(material, AI_MATKEY_METALLIC_FACTOR, &metalness)) { }
+                if (AI_SUCCESS == aiGetMaterialFloat(material, AI_MATKEY_ROUGHNESS_FACTOR, &roughness)) { }
                 }
-                material_pair = info.add_material_function(material_name, images_vec);
+                material_pair = info.add_material_function(material_name, images_vec, albedo_color, metalness, roughness);
             }
             // vertex data
             std::vector<TPosition> positions;

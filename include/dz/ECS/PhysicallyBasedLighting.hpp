@@ -21,6 +21,11 @@ vec3 fresnelSchlick(vec3 F0, float cosTheta)
 	return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+vec3 fresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
+{
+    return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 // GGX/Towbridge-Reitz normal distribution function.
 // Uses Disney's reparametrization of alpha = roughness^2
 float ndfGGX(float cosLh, float roughness)
@@ -46,24 +51,23 @@ float gaSchlickGGX(float cosLi, float NdotV, float roughness)
 	return gaSchlickG1(cosLi, k) * gaSchlickG1(NdotV, k);
 }
 
-vec3 IBL(vec3 F0, vec3 Lr)
-{
-	// vec3 irradiance = texture(u_EnvIrradianceTex, m_Params.Normal).rgb;
-	// vec3 F = fresnelSchlickRoughness(F0, m_Params.NdotV, m_Params.Roughness);
-	// vec3 kd = (1.0 - F) * (1.0 - m_Params.Metalness);
-	// vec3 diffuseIBL = m_Params.Albedo * irradiance;
+vec3 IBL(vec3 F0, vec3 N, vec3 V) {
+    // diffuse IBL (view-independent) //
+    vec3 irradiance = SampleIrradiance( 0, N ).rgb;
+    vec3 diffuseBRDF = mParams.albedo / PI;
+    vec3 diffuse    = diffuseBRDF * irradiance;
 
-	// int u_EnvRadianceTexLevels = textureQueryLevels(u_EnvRadianceTex);
-	// float NoV = clamp(m_Params.NdotV, 0.0, 1.0);
-	// vec3 R = 2.0 * dot(m_Params.View, m_Params.Normal) * m_Params.Normal - m_Params.View;
-	// vec3 specularIrradiance = textureLod(u_EnvRadianceTex, RotateVectorAboutY(u_EnvMapRotation, Lr), (m_Params.Roughness * m_Params.Roughness) * u_EnvRadianceTexLevels).rgb;
+    // specular IBL (view-dependent) //
+    float NdotV = max( dot( N, V ), 0.0 );
+    vec3  R      = reflect( -V, N );                    // reflection vector
+    int   maxMips = textureQueryLevels( RadianceAtlas );
+    float mip    = mParams.roughness * mParams.roughness * float( maxMips );
+    vec3  radiance = SampleRadiance( 0, R ).rgb;
+    vec2  brdfLUT  = texture( brdfLUT, vec2( NdotV, 1.0 - mParams.roughness ) ).rg;
+    vec3  F        = fresnelSchlickRoughness( F0, NdotV, mParams.roughness );
+    vec3  specular = radiance * ( F * brdfLUT.x + brdfLUT.y );
 
-	// // Sample BRDF Lut, 1.0 - roughness for y-coord because texture was generated (in Sparky) for gloss model
-	// vec2 specularBRDF = texture(u_BRDFLUTTexture, vec2(m_Params.NdotV, 1.0 - m_Params.Roughness)).rg;
-	// vec3 specularIBL = specularIrradiance * (F * specularBRDF.x + specularBRDF.y);
-
-	// return kd * diffuseIBL + specularIBL;
-    return vec3(0.0);
+    return diffuse + specular;
 }
 
 vec3 PBDL(vec3 F0, in Light light) {
@@ -93,6 +97,11 @@ vec3 PBDL(vec3 F0, in Light light) {
 vec3 PBL(vec3 F0) {
     vec3 result = vec3(0.0);
     for (int light_index = 0; light_index < lParams.lightsSize; light_index++) {
+        int lightTopIndex = -1;
+        int lightTopCID = 0;
+        GetTopNodeByCID(light_index, CID_Light, lightTopIndex, lightTopCID, CID_Scene);
+        if (lightTopIndex != inTopNodeIndex)
+            continue;
         switch (Lights.data[light_index].type) {
         case 0:
             result += PBDL(F0, Lights.data[light_index]);
@@ -112,13 +121,13 @@ vec3 PBL(vec3 F0) {
 	vec3 F0 = mix(Fdielectric, mParams.albedo, mParams.metalness);
 
     vec3 lightContribution = PBL(F0);
-    vec3 iblContribution = IBL(F0, Lr);
+    vec3 iblContribution = IBL(F0, N, V);
     
     current_color = vec4(lightContribution + iblContribution, 1.0);
 )", ShaderModuleType::Fragment}
         };
 
-        struct PhysicallyBasedLightingReflectableGroup : ReflectableGroup {
+        struct PhysicallyBasedLightingReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

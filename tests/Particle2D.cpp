@@ -547,14 +547,14 @@ void main()
 
     while (window_poll_events(window))
     {
-        shader_dispatch(image_clear_compute_shader, {(*window_width_ptr + 31)/32, (*window_height_ptr + 31)/32, 1});
-        shader_dispatch(clear_density_shader, {(density_field_size + 127)/128, 1, 1});
-        shader_dispatch(deposit_mass_shader, {dispatchX, 1, 1});
+        shader_dispatch(image_clear_compute_shader, (*window_width_ptr + 31)/32, (*window_height_ptr + 31)/32, 1);
+        shader_dispatch(clear_density_shader, (density_field_size + 127)/128, 1, 1);
+        shader_dispatch(deposit_mass_shader, dispatchX, 1, 1);
         for (uint32_t i = 0; i < numDiffusionPasses; ++i) {
-            shader_dispatch(diffuse_density_shader, {(uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1});
+            shader_dispatch(diffuse_density_shader, (uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1);
         }
-        shader_dispatch(gradient_force_shader, {(uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1});
-        shader_dispatch(gravity_motion_shader, {dispatchX, 1, 1});
+        shader_dispatch(gradient_force_shader, (uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1);
+        shader_dispatch(gravity_motion_shader, dispatchX, 1, 1);
         window_render(window);
     }
     return 0;

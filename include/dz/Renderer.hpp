@@ -1,3 +1,4 @@
+#pragma once
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__) || defined(ANDROID)
 #define RENDERER_VULKAN
 #endif
@@ -23,3 +24,9 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <ImGuizmo.h>
 #include <dz/internal/IconsFontAwesome6.h>
+
+enum class ColorSpace : uint32_t {
+    SRGB = VK_FORMAT_R8G8B8A8_SRGB,
+    UNORM = VK_FORMAT_R8G8B8A8_UNORM
+};
+

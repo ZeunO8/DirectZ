@@ -430,7 +430,7 @@ namespace dz {
             case SpvImageFormatRgba32f: return VK_FORMAT_R32G32B32A32_SFLOAT;
             case SpvImageFormatRgba16f: return VK_FORMAT_R16G16B16A16_SFLOAT;
             case SpvImageFormatR32f: return VK_FORMAT_R32_SFLOAT;
-            case SpvImageFormatRgba8: return VK_FORMAT_R8G8B8A8_UNORM;
+            case SpvImageFormatRgba8: return VK_FORMAT_R8G8B8A8_SRGB;
             case SpvImageFormatRgba8Snorm: return VK_FORMAT_R8G8B8A8_SNORM;
             case SpvImageFormatRg32f: return VK_FORMAT_R32G32_SFLOAT;
             case SpvImageFormatRg16f: return VK_FORMAT_R16G16_SFLOAT;
@@ -439,9 +439,9 @@ namespace dz {
             case SpvImageFormatRgba16: return VK_FORMAT_R16G16B16A16_UNORM;
             case SpvImageFormatRgb10A2: return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
             case SpvImageFormatRg16: return VK_FORMAT_R16G16_UNORM;
-            case SpvImageFormatRg8: return VK_FORMAT_R8G8_UNORM;
+            case SpvImageFormatRg8: return VK_FORMAT_R8G8_SRGB;
             case SpvImageFormatR16: return VK_FORMAT_R16_UNORM;
-            case SpvImageFormatR8: return VK_FORMAT_R8_UNORM;
+            case SpvImageFormatR8: return VK_FORMAT_R8_SRGB;
             case SpvImageFormatRgba16Snorm: return VK_FORMAT_R16G16B16A16_SNORM;
             case SpvImageFormatRg16Snorm: return VK_FORMAT_R16G16_SNORM;
             case SpvImageFormatRg8Snorm: return VK_FORMAT_R8G8_SNORM;
@@ -1039,10 +1039,39 @@ namespace dz {
                     continue;
                 }
 
+                auto descriptor_type = static_cast<VkDescriptorType>(binding_info.descriptor_type);
+                auto descriptor_count = binding_info.count;
+
+                switch (descriptor_type) {
+                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                    for (auto& [buffer_group, enabled] : shader->buffer_groups) {
+                        if (!enabled)
+                            continue;
+                        Image* img = nullptr;
+                        auto override_it = shader->sampler_key_image_override_map.find(binding_info.name);
+                        if (override_it != shader->sampler_key_image_override_map.end()) {
+                            img = override_it->second;
+                        }
+                        else {
+                            auto image_it = buffer_group->runtime_images.find(binding_info.name);
+                            if (image_it == buffer_group->runtime_images.end())
+                                continue;
+                            img = image_it->second.get();
+                        }
+                        descriptor_count = img->mip_levels;
+                        break;
+                    }
+                    break;
+                default:
+                    break;
+                }
+
                 VkDescriptorSetLayoutBinding layout_binding{};
                 layout_binding.binding = binding_info.binding;
-                layout_binding.descriptorType = static_cast<VkDescriptorType>(binding_info.descriptor_type);
-                layout_binding.descriptorCount = binding_info.count;
+                layout_binding.descriptorType = descriptor_type;
+                layout_binding.descriptorCount = descriptor_count;
                 layout_binding.stageFlags = GetShaderStageFromModuleType(stage);
                 layout_binding.pImmutableSamplers = nullptr;
 
@@ -1084,8 +1113,35 @@ namespace dz {
             for (uint32_t i = 0; i < reflect_module->descriptor_binding_count; ++i)
             {
                 const SpvReflectDescriptorBinding& binding_info = reflect_module->descriptor_bindings[i];
-                VkDescriptorType type = static_cast<VkDescriptorType>(binding_info.descriptor_type);
-                descriptor_counts[type] += binding_info.count;
+                auto descriptor_type = static_cast<VkDescriptorType>(binding_info.descriptor_type);
+                auto descriptor_count = binding_info.count;
+
+                switch (descriptor_type) {
+                case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+                case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+                    for (auto& [buffer_group, enabled] : shader->buffer_groups) {
+                        if (!enabled)
+                            continue;
+                        Image* img = nullptr;
+                        auto override_it = shader->sampler_key_image_override_map.find(binding_info.name);
+                        if (override_it != shader->sampler_key_image_override_map.end()) {
+                            img = override_it->second;
+                        }
+                        else {
+                            auto image_it = buffer_group->runtime_images.find(binding_info.name);
+                            if (image_it == buffer_group->runtime_images.end())
+                                continue;
+                            img = image_it->second.get();
+                        }
+                        descriptor_count = img->mip_levels;
+                        break;
+                    }
+                    break;
+                default:
+                    break;
+                }
+                descriptor_counts[descriptor_type] += descriptor_count;
             }
         }
 
@@ -1184,7 +1240,7 @@ namespace dz {
     * @brief The core creation function. It iterates the prepared ShaderBuffer map, creates the
     * actual Vulkan buffers, copies initial data, and performs the shared_ptr swap.
     */
-    bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader) {
+    bool shader_buffers_ensure_and_bind(BufferGroup* buffer_group, Shader* shader) {
         std::vector<VkWriteDescriptorSet> descriptor_writes;
         std::vector<VkDescriptorBufferInfo> buffer_infos; 
         std::vector<VkDescriptorImageInfo> image_infos;
@@ -1208,20 +1264,23 @@ namespace dz {
 
             auto dstSet = shader_get_descriptor_set(shader, name);
 
-            VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            write_set.dstSet = dstSet;
-            write_set.dstBinding = buffer.binding;
-            write_set.dstArrayElement = 0;
-            write_set.descriptorType = buffer.descriptor_type;
-            write_set.descriptorCount = 1;
-            write_set.pBufferInfo = &buffer_infos[i];
-            descriptor_writes.push_back(write_set);
+            descriptor_writes.push_back(VkWriteDescriptorSet{
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = dstSet,
+                .dstBinding = buffer.binding,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = buffer.descriptor_type,
+                .pBufferInfo = &buffer_infos[i]
+            });
             
             i++;
         }
 
-        for (auto& [name, image_ref] : buffer_group->images) {
-            Image* img = 0;
+        size_t image_info_count = 0;
+        for (auto& [name, image_ref] : buffer_group->images)
+        {
+            Image* img = nullptr;
             auto override_it = shader->sampler_key_image_override_map.find(name);
             if (override_it != shader->sampler_key_image_override_map.end()) {
                 img = override_it->second;
@@ -1230,33 +1289,62 @@ namespace dz {
                 auto image_it = buffer_group->runtime_images.find(name);
                 if (image_it == buffer_group->runtime_images.end())
                 {
-                    std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
+                    std::cerr << "Warning: Buffer group has no image defined for key: " << name << std::endl;
                     continue;
                 }
                 img = image_it->second.get();
             }
 
-            image_infos.emplace_back();
-            image_infos.back().imageView = img->imageView;
-            image_infos.back().imageLayout = infer_image_layout(shader, image_ref.descriptor_types);
-            image_infos.back().sampler = img->sampler;
+            image_info_count += static_cast<uint32_t>(img->imageViews.size());
         }
 
-        size_t j = 0;
-        for (auto& [name, image_ref] : buffer_group->images) {
-            auto dstSet = shader_get_descriptor_set(shader, name);
-            
-            VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-            write_set.dstSet = dstSet;
-            write_set.dstBinding = image_ref.binding;
-            write_set.dstArrayElement = 0;
-            auto type = image_ref.descriptor_types[shader];
-            write_set.descriptorType = type;
-            write_set.descriptorCount = 1;
-            write_set.pImageInfo = &image_infos[j];
-            descriptor_writes.push_back(write_set);
+        image_infos.reserve(image_info_count);
 
-            j++;
+        size_t image_info_offset = 0;
+        for (auto& [name, image_ref] : buffer_group->images)
+        {
+            Image* img = nullptr;
+            auto override_it = shader->sampler_key_image_override_map.find(name);
+            if (override_it != shader->sampler_key_image_override_map.end()) {
+                img = override_it->second;
+            }
+            else {
+                auto image_it = buffer_group->runtime_images.find(name);
+                if (image_it == buffer_group->runtime_images.end())
+                {
+                    std::cerr << "Warning: Buffer group has no image defined for key: " << name << std::endl;
+                    continue;
+                }
+                img = image_it->second.get();
+            }
+
+            uint32_t num_mips = static_cast<uint32_t>(img->imageViews.size());
+            if (num_mips == 0)
+                continue;
+
+            for (uint32_t mip = 0; mip < num_mips; ++mip)
+            {
+                image_infos.push_back(VkDescriptorImageInfo{
+                    .sampler = img->sampler,
+                    .imageView = img->imageViews[mip],
+                    .imageLayout = infer_image_layout(shader, image_ref.descriptor_types)
+                });
+            }
+
+            auto dstSet = shader_get_descriptor_set(shader, name);
+            auto type = image_ref.descriptor_types[shader];
+
+            descriptor_writes.push_back(VkWriteDescriptorSet{
+                .sType{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET},
+                .dstSet = dstSet,
+                .dstBinding = image_ref.binding,
+                .dstArrayElement = 0,
+                .descriptorCount = num_mips,
+                .descriptorType = type,
+                .pImageInfo = image_infos.data() + image_info_offset
+            });
+
+            image_info_offset += num_mips;
         }
         
         if (!descriptor_writes.empty()) {
@@ -1282,79 +1370,7 @@ namespace dz {
         for (auto& [buffer_group, bound] : shader->buffer_groups) {
             if (!bound)
                 continue;
-            for (auto& [name, buffer] : buffer_group->buffers) {
-                if (buffer.gpu_buffer.mapped_memory)
-                    continue;
-
-                buffer_group_make_gpu_buffer(name, buffer);
-            }
-            for (auto& [name, buffer] : buffer_group->buffers) {
-                // Prepare the descriptor set write
-                buffer_infos.emplace_back();
-                buffer_infos.back().buffer = buffer.gpu_buffer.buffer;
-                buffer_infos.back().offset = 0;
-                buffer_infos.back().range = buffer.gpu_buffer.size;
-            }
-        
-            size_t i = 0;
-            for (auto& [name, buffer] : buffer_group->buffers) {
-
-                auto dstSet = shader_get_descriptor_set(shader, name);
-
-                VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                write_set.dstSet = dstSet;
-                write_set.dstBinding = buffer.binding;
-                write_set.dstArrayElement = 0;
-                write_set.descriptorType = buffer.descriptor_type;
-                write_set.descriptorCount = 1;
-                write_set.pBufferInfo = &buffer_infos[i];
-                descriptor_writes.push_back(write_set);
-                
-                i++;
-            }
-
-            for (auto& [name, image_ref] : buffer_group->images) {
-                Image* img = 0;
-                auto override_it = shader->sampler_key_image_override_map.find(name);
-                if (override_it != shader->sampler_key_image_override_map.end()) {
-                    img = override_it->second;
-                }
-                else {
-                    auto image_it = buffer_group->runtime_images.find(name);
-                    if (image_it == buffer_group->runtime_images.end())
-                    {
-                        std::cerr << "Warning: Buffer group has not image defined for key: " << name << std::endl;
-                        continue;
-                    }
-                    img = image_it->second.get();
-                }
-
-                image_infos.emplace_back();
-                image_infos.back().imageView = img->imageView;
-                image_infos.back().imageLayout = infer_image_layout(shader, image_ref.descriptor_types);
-                image_infos.back().sampler = img->sampler;
-            }
-
-            size_t j = 0;
-            for (auto& [name, image_ref] : buffer_group->images) {
-                auto dstSet = shader_get_descriptor_set(shader, name);
-                
-                VkWriteDescriptorSet write_set{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-                write_set.dstSet = dstSet;
-                write_set.dstBinding = image_ref.binding;
-                write_set.dstArrayElement = 0;
-                auto type = image_ref.descriptor_types[shader];
-                write_set.descriptorType = type;
-                write_set.descriptorCount = 1;
-                write_set.pImageInfo = &image_infos[j];
-                descriptor_writes.push_back(write_set);
-
-                j++;
-            }
-        }
-        
-        if (!descriptor_writes.empty()) {
-            vkUpdateDescriptorSets(dr.device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+            shader_buffers_ensure_and_bind(buffer_group, shader);
         }
     }
 
@@ -1370,7 +1386,7 @@ namespace dz {
         auto& device = dr.device;
 
         if (!CreateDescriptorSetLayouts(device, shader)) return;
-        if (!CreateDescriptorPool(device, shader, 10)) return; // Max 10 sets of each type
+        if (!CreateDescriptorPool(device, shader, 15)) return; // Max 10 sets of each type
         if (!AllocateDescriptorSets(device, shader)) return;
         if (!AllocatePushConstants(shader)) return;
 
@@ -1539,28 +1555,30 @@ namespace dz {
 
         // Read/Write only compatibility
         {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
+        {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL}, {VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
         {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
-    void transition_image_layout(Image* image_ptr, VkImageLayout old_layout, VkImageLayout new_layout) {
+    void transition_image_layout(Image* image_ptr, VkImageLayout new_layout, int mip) {
         auto image = image_ptr->image;
         auto device = dr.device;
         auto command_buffer = begin_single_time_commands();
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = old_layout;
+        auto& current_layout = image_ptr->current_layouts[mip];
+        barrier.oldLayout = current_layout;
         barrier.newLayout = new_layout;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.image = image;
         barrier.subresourceRange.aspectMask = image_get_aspect_mask(image_ptr);
-        barrier.subresourceRange.baseMipLevel = 0;
+        barrier.subresourceRange.baseMipLevel = mip;
         barrier.subresourceRange.levelCount = 1;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
 
-        auto it = kLayoutTransitions.find({old_layout, new_layout});
+        auto it = kLayoutTransitions.find({barrier.oldLayout, new_layout});
         if (it == kLayoutTransitions.end()) {
             throw std::runtime_error("Unsupported image layout transition!");
         }
@@ -1580,36 +1598,38 @@ namespace dz {
         );
 
         end_single_time_commands(command_buffer);
+
+        current_layout = new_layout;
     }
 
     void shader_ensure_image_layouts(Shader* shader) {
         for (auto& bound_buffer_group : shader->bound_buffer_groups) {
-            for (auto& [name, shader_image] : bound_buffer_group->images)
-            {
-                auto runtime_ite = bound_buffer_group->runtime_images.find(name);
-                if (runtime_ite == bound_buffer_group->runtime_images.end())
-                    continue;
-
-                auto image_ptr = runtime_ite->second.get();
+            for (auto& [name, image_ptr] : bound_buffer_group->runtime_images) {
+                
                 auto& image = *image_ptr;
         
-                auto exp_lay_ite = shader_image.expected_layouts.find(shader);
-                if (exp_lay_ite == shader_image.expected_layouts.end())
+                auto& expected_layouts = bound_buffer_group->images[name].expected_layouts;
+                auto exp_lay_ite = expected_layouts.find(shader);
+                if (exp_lay_ite == expected_layouts.end())
                     continue;
 
                 auto required = exp_lay_ite->second;
-        
-                if (image.current_layout != required)
-                {
-                    transition_image_layout(image_ptr, image.current_layout, required);
-                    image.current_layout = required;
+                auto current_layouts_data = image.current_layouts.data();
+
+                for (auto mip = 0; mip < image.mip_levels; ++mip) {
+                    if (current_layouts_data[mip] != required) {
+                        transition_image_layout(&image, required, mip);
+                    }
                 }
             }
         }
     }
 
-    void shader_dispatch(Shader* shader, vec<int32_t, 3> dispatch_layout) {
+    void shader_dispatch(Shader* shader, uint32_t x, uint32_t y, uint32_t z, void(*shader_pre_dispatch)(Shader*, void*), void(*shader_post_dispatch)(Shader*, void*), void* user_data) {
         shader_ensure_image_layouts(shader);
+
+        dr.commandBuffer = &dr.computeCommandBuffer;
+
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(dr.computeCommandBuffer, &beginInfo);
@@ -1634,11 +1654,15 @@ namespace dz {
             sets.data(),
             0, nullptr
         );
+
+        if (shader_pre_dispatch)
+            shader_pre_dispatch(shader, user_data);
+
         vkCmdDispatch(
             dr.computeCommandBuffer,
-            dispatch_layout[0],
-            dispatch_layout[1],
-            dispatch_layout[2]
+            x,
+            y,
+            z
         );
         vkEndCommandBuffer(dr.computeCommandBuffer);
         VkSubmitInfo submitInfo{};
@@ -1647,6 +1671,11 @@ namespace dz {
         submitInfo.pCommandBuffers = &dr.computeCommandBuffer;
         vkQueueSubmit(dr.computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
         vkQueueWaitIdle(dr.computeQueue);
+
+        dr.commandBuffer = VK_NULL_HANDLE;
+
+        if (shader_post_dispatch)
+            shader_post_dispatch(shader, user_data);
     }
 
     void shader_compile(Shader* shader) {
@@ -1666,13 +1695,28 @@ namespace dz {
         pipelineLayoutInfo.pSetLayouts = layouts.data();
 
         std::vector<VkPushConstantRange> ranges;
-        for (auto& [pc_index, pc] : shader->push_constants) {
+        static auto AddRangeForStageFlags = [](auto& push_constants, auto& ranges, auto stageFlag) {
+            auto total_size = 0;
+            bool hadStage = false;
+            for (auto& [pc_index, pc] : push_constants) {
+                if (pc.stageFlags != stageFlag)
+                    continue;
+                if (!hadStage)
+                    hadStage = true;
+                total_size += pc.size;
+            }
+            if (!hadStage)
+                return;
             VkPushConstantRange range;
-            range.offset = pc.offset;
-            range.size = pc.size;
-            range.stageFlags = pc.stageFlags;
+            range.offset = 0;
+            range.size = total_size;
+            range.stageFlags = stageFlag;
             ranges.push_back(range);
-        }
+        };
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_VERTEX_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_FRAGMENT_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        AddRangeForStageFlags(shader->push_constants, ranges, VK_SHADER_STAGE_COMPUTE_BIT);
         pipelineLayoutInfo.pushConstantRangeCount = ranges.size();
         pipelineLayoutInfo.pPushConstantRanges = ranges.data();
 

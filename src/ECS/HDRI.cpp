@@ -1,6 +1,14 @@
 #include <dz/ECS/HDRI.hpp>
 #include <dz/GlobalUID.hpp>
 
+void dz::ecs::set_radiance_control_block(Shader* shader, void* user_data) {
+    RadianceControlBlock& controlBlock = *(RadianceControlBlock*)user_data;
+    shader_update_push_constant(shader, 0, (void*)&controlBlock.roughness, sizeof(float));
+    shader_update_push_constant(shader, 1, (void*)&controlBlock.mip, sizeof(int));
+    shader_ensure_push_constants(shader);
+
+}
+
 dz::ecs::HDRI::HDRIReflectable::HDRIReflectable(const std::function<HDRI*()>& get_hdri_function):
     get_hdri_function(get_hdri_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),

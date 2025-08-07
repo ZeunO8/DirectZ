@@ -494,7 +494,7 @@ void main()
                 if (esc_pressed)
                     break;
         
-                shader_dispatch(update_entity_shader, {entity_ptrs.size(), 1, 1});
+                shader_dispatch(update_entity_shader, entity_ptrs.size(), 1, 1);
 
                 for (auto& ep : entity_ptrs)
                 {

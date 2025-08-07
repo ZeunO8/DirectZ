@@ -23,6 +23,9 @@ namespace dz::loaders {
     using TNormal = vec<float, 4>;
     using TTangent = vec<float, 4>;
     using TBitangent = vec<float, 4>;
+    using TColor = vec<float, 4>;
+    using TMetalness = float;
+    using TRoughness = float;
     using AddSceneFunction = std::function<SceneID(
         ParentID,
         const std::string&,
@@ -40,7 +43,10 @@ namespace dz::loaders {
     )>;
     using AddMaterialFunction = std::function<MaterialPair(
         const std::string&,
-        const std::vector<Image*>&
+        const std::vector<Image*>&,
+        TColor,
+        TMetalness,
+        TRoughness
     )>; 
     using AddMeshFunction = std::function<MeshPair(
         const std::string&,

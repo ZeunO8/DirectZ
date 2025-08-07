@@ -283,7 +283,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             void NotifyChange(int prop_index) override;
         };
 
-        struct CameraReflectableGroup : ReflectableGroup {
+        struct CameraReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::string imgui_name;

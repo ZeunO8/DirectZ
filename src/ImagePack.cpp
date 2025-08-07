@@ -12,6 +12,8 @@
 #include <thread>
 #include <execution>
 
+static constexpr auto PADDING = 0; // PADDING in pixels around each image
+
 // using Format = zg::images::Image::Format;
 bool dz::ImagePack::is_dirty()
 {
@@ -31,8 +33,6 @@ bool dz::ImagePack::is_dirty()
 }
 void dz::ImagePack::repack()
 {
-
-	constexpr int padding = 0; // padding in pixels around each image
 	size_t image_vec_size = image_vec.size();
 	rect_vec.resize(image_vec_size);
 	auto image_vec_data = image_vec.data();
@@ -44,8 +44,8 @@ void dz::ImagePack::repack()
 			rect_type rect;
 			rect.x = 0;
 			rect.y = 0;
-			rect.h = image_ptr->height + 2 * padding; // <--- add vertical padding
-			rect.w = image_ptr->width + 2 * padding; // <--- add horizontal padding
+			rect.h = image_ptr->height + 2 * PADDING; // <--- add vertical PADDING
+			rect.w = image_ptr->width + 2 * PADDING; // <--- add horizontal PADDING
 			return rect;
 		});
 
@@ -62,158 +62,66 @@ void dz::ImagePack::repack()
 
 		int atlas_width = result_size.w;
 		int atlas_height = result_size.h;
-		size_t byte_size = atlas_width * atlas_height * 4;
-		if (rgba_buffer.size() < byte_size)
-			rgba_buffer.resize(byte_size);
-		uint8_t* rgba = rgba_buffer.data();
-		memset(rgba, 0, byte_size);
+		size_t pixel_size = get_format_pixel_size(atlas_format);
+
+		uint32_t atlas_mip_levels = 0;
 
 		for (size_t index = 0; index < image_vec_size; ++index)
 		{
 			auto& image_ptr = image_vec_data[index];
 			auto& image = *image_ptr;
-			auto channels = image_get_channels_size_of_t(image_ptr);
-			auto sizeof_channels = image_get_sizeof_channels(channels);
-			auto format = image.format;
-			auto image_data = (char*)image.data.get();
-			auto& rect = rect_vec_data[index];
-
-			if (image.width != rect.w - 2 * padding || image.height != rect.h - 2 * padding)
-			{
-				continue;
+			
+			if (atlas_mip_levels == 0) {
+				atlas_mip_levels = image.mip_levels;
 			}
-
-			for (int y = 0; y < image.height; ++y)
-			{
-				auto dst_row = &rgba[((rect.y + padding + y) * atlas_width + (rect.x + padding)) * 4];
-				const auto src_row = &image_data[(y * image.width) * sizeof_channels];
-
-				for (int x = 0; x < image.width; ++x)
-				{
-					const auto src_pixel = src_row + x * sizeof_channels;
-					auto dst_pixel = dst_row + x * 4;
-
-					switch (format)
-					{
-						case VK_FORMAT_R8_UNORM:
-						case VK_FORMAT_R8_UINT:
-						case VK_FORMAT_R8_SNORM:
-						case VK_FORMAT_R8_SINT:
-						case VK_FORMAT_S8_UINT:
-							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
-							dst_pixel[1] = dst_pixel[2] = 0;
-							dst_pixel[3] = 255;
-							break;
-
-						case VK_FORMAT_R8G8_UNORM:
-						case VK_FORMAT_R8G8_UINT:
-						case VK_FORMAT_R8G8_SNORM:
-						case VK_FORMAT_R8G8_SINT:
-							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
-							dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
-							dst_pixel[2] = 0;
-							dst_pixel[3] = 255;
-							break;
-
-						case VK_FORMAT_R8G8B8_UNORM:
-						case VK_FORMAT_R8G8B8_UINT:
-						case VK_FORMAT_R8G8B8_SNORM:
-						case VK_FORMAT_R8G8B8_SINT:
-							dst_pixel[0] = ((const uint8_t*)src_pixel)[0];
-							dst_pixel[1] = ((const uint8_t*)src_pixel)[1];
-							dst_pixel[2] = ((const uint8_t*)src_pixel)[2];
-							dst_pixel[3] = 255;
-							break;
-
-						case VK_FORMAT_R8G8B8A8_UNORM:
-						case VK_FORMAT_R8G8B8A8_UINT:
-						case VK_FORMAT_R8G8B8A8_SNORM:
-						case VK_FORMAT_R8G8B8A8_SINT:
-						case VK_FORMAT_B8G8R8A8_UNORM:
-						case VK_FORMAT_B8G8R8A8_SRGB:
-							std::memcpy(dst_pixel, src_pixel, 4);
-							break;
-
-						case VK_FORMAT_R32G32B32A32_SFLOAT:
-						{
-							const float* fp = (const float*)src_pixel;
-							dst_pixel[0] = static_cast<uint8_t>(std::clamp(fp[0], 0.0f, 1.0f) * 255.0f);
-							dst_pixel[1] = static_cast<uint8_t>(std::clamp(fp[1], 0.0f, 1.0f) * 255.0f);
-							dst_pixel[2] = static_cast<uint8_t>(std::clamp(fp[2], 0.0f, 1.0f) * 255.0f);
-							dst_pixel[3] = static_cast<uint8_t>(std::clamp(fp[3], 0.0f, 1.0f) * 255.0f);
-							break;
-						}
-
-						case VK_FORMAT_D32_SFLOAT:
-						{
-							float d = *(const float*)src_pixel;
-							uint8_t gray = static_cast<uint8_t>(std::clamp(d, 0.0f, 1.0f) * 255.0f);
-							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = gray;
-							dst_pixel[3] = 255;
-							break;
-						}
-
-						case VK_FORMAT_D32_SFLOAT_S8_UINT:
-						{
-							float depth = *(const float*)src_pixel;
-							const uint8_t* s8 = (const uint8_t*)(src_pixel + sizeof(float));
-							dst_pixel[0] = *s8;
-							dst_pixel[1] = dst_pixel[2] = static_cast<uint8_t>(std::clamp(depth, 0.0f, 1.0f) * 255.0f);
-							dst_pixel[3] = 255;
-							break;
-						}
-
-						case VK_FORMAT_R32_UINT:
-						{
-							uint32_t val = *(const uint32_t*)src_pixel;
-							uint8_t clamped = static_cast<uint8_t>(std::clamp<int>(val, 0, 255));
-							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = clamped;
-							dst_pixel[3] = 255;
-							break;
-						}
-
-						case VK_FORMAT_R5G6B5_UNORM_PACK16:
-						{
-							uint16_t p = *(const uint16_t*)src_pixel;
-							dst_pixel[0] = ((p >> 11) & 0x1F) << 3;
-							dst_pixel[1] = ((p >> 5) & 0x3F) << 2;
-							dst_pixel[2] = (p & 0x1F) << 3;
-							dst_pixel[3] = 255;
-							break;
-						}
-
-						case VK_FORMAT_R5G5B5A1_UNORM_PACK16:
-						{
-							uint16_t p = *(const uint16_t*)src_pixel;
-							dst_pixel[0] = ((p >> 10) & 0x1F) << 3;
-							dst_pixel[1] = ((p >> 5) & 0x1F) << 3;
-							dst_pixel[2] = (p & 0x1F) << 3;
-							dst_pixel[3] = (p & 0x8000) ? 255 : 0;
-							break;
-						}
-
-						default:
-							dst_pixel[0] = dst_pixel[1] = dst_pixel[2] = 0;
-							dst_pixel[3] = 255;
-							break;
-					}
+			else if (atlas_mip_levels != image.mip_levels) {
+				if (enforce_same_miplvl) {
+					throw std::runtime_error("Atlas Pack: Image index [" + std::to_string(index) + "] does not match atlas mip_levels, failing");
 				}
+				continue;
 			}
 		}
 
+		atlas_buffer_sizes.resize(atlas_mip_levels);
+		atlas_buffers.resize(atlas_mip_levels);
+
+		for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+			auto mipWidth = (std::max)(1, atlas_width >> mip);
+			auto mipHeight = (std::max)(1, atlas_height >> mip);
+			size_t byte_size = mipWidth * mipHeight * pixel_size;
+			auto& atlas_buffer_size = atlas_buffer_sizes[mip];
+			auto& atlas_buffer = atlas_buffers[mip];
+			if (atlas_buffer_size != byte_size) {
+				auto new_buffer = std::shared_ptr<void>(malloc(byte_size), free);
+				if (atlas_buffer) {
+					memcpy(new_buffer.get(), atlas_buffer.get(), (std::min)(atlas_buffer_size, byte_size));
+				}
+				atlas_buffer = new_buffer;
+				atlas_buffer_size = byte_size;
+			}
+			memset(atlas_buffer.get(), 0, atlas_buffer_size);
+		}
+
+		CPU_Image_Copy(atlas_width, atlas_height, pixel_size, atlas_mip_levels);
+
 		if (atlas && atlas->width == atlas_width && atlas->height == atlas_height)
 		{
-			image_upload_data(atlas, rgba);
+			for (auto mip = 0; mip < atlas_mip_levels; ++mip)
+				image_upload_data(atlas, mip, atlas_buffers[mip].get());
 		}
 		else
 		{
 			atlas = image_create({
 				.width = uint32_t(atlas_width),
 				.height = uint32_t(atlas_height),
-				.data = rgba
+				.format = atlas_format,
+				.datas = atlas_buffers,
+				.mip_levels = atlas_mip_levels
 			});
 			owns_atlas = true;
 		}
+
+		GPU_Image_Copy(atlas_width, atlas_height, pixel_size, atlas_mip_levels);
 	}
 	else if (image_vec_size)
 	{
@@ -221,6 +129,134 @@ void dz::ImagePack::repack()
 		owns_atlas = false;
 	}
 }
+
+void ImagePack::CPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels) {
+	auto image_vec_size = image_vec.size();
+	auto image_vec_data = image_vec.data();
+	auto rect_vec_data = rect_vec.data();
+
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+		auto channels = image_get_channels_size_of_t(image_ptr);
+		auto sizeof_channels = image_get_sizeof_channels(channels);
+		auto format = image.format;
+
+		if (enforce_same_format && format != atlas_format) {
+			std::cout << "Atlas Pack: Image index [" << index << "] is not the same format as atlas_format, skipping" << std::endl; 
+			continue;
+		}
+
+		if (image.data_is_cpu_side && !image.data_is_gpu_side) {
+			for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+				auto image_data = (unsigned char*)image.datas[mip].get();
+				auto atlas_data = (unsigned char*)atlas_buffers[mip].get();
+				auto& rect = rect_vec_data[index];
+
+				auto image_mip_width = (std::max)(1, int(image.width) >> mip);
+				auto image_mip_height = (std::max)(1, int(image.height) >> mip);
+				auto atlas_mip_width = (std::max)(1, atlas_width >> mip);
+				auto rect_mip_w = (std::max)(1, rect.w >> mip);
+				auto rect_mip_h = (std::max)(1, rect.h >> mip);
+				auto rect_mip_y = (std::max)(1, rect.y >> mip);
+				auto rect_mip_x = (std::max)(1, rect.x >> mip);
+
+				if (image_mip_width != rect_mip_w - 2 * PADDING || image_mip_height != rect.h - 2 * PADDING)
+				{
+					continue;
+				}
+
+				for (int y = 0; y < image_mip_height; ++y)
+				{
+					uint8_t* dst_row = &atlas_data[((rect_mip_y + PADDING + y) * atlas_mip_width + (rect_mip_x + PADDING)) * pixel_size];
+					const uint8_t* src_row = reinterpret_cast<const uint8_t*>(&image_data[(y * image_mip_width) * sizeof_channels]);
+
+					for (int x = 0; x < image_mip_width; ++x)
+					{
+						const void* src_pixel = &src_row[x * sizeof_channels];
+						void* dst_pixel = &dst_row[x * pixel_size];
+
+						convert_pixel(format, atlas_format, src_pixel, dst_pixel);
+					}
+				}
+			}
+		}
+
+	}
+}
+
+void ImagePack::GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels) {
+	auto image_vec_size = image_vec.size();
+	auto image_vec_data = image_vec.data();
+	auto rect_vec_data = rect_vec.data();
+
+	image_copy_begin();
+	
+	auto region_count = 0;
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+
+		if (image.data_is_gpu_side)
+			region_count += atlas_mip_levels;
+	}
+
+	image_copy_reserve_regions(region_count);
+	
+	auto region_index = 0;
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+
+		auto format = image.format;
+
+		if (enforce_same_format && format != atlas_format) {
+			std::cout << "Atlas Pack: Image index [" << index << "] is not the same format as atlas_format, skipping" << std::endl; 
+			continue;
+		}
+
+		if (image.data_is_gpu_side) {
+			for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+				auto& rect = rect_vec_data[index];
+
+				auto image_mip_width = (std::max)(1u, image.width >> mip);
+				auto image_mip_height = (std::max)(1u, image.height >> mip);
+				auto image_mip_depth = (std::max)(1u, image.depth >> mip);
+				auto atlas_mip_width = (std::max)(1, atlas_width >> mip);
+				auto rect_mip_w = (std::max)(1, rect.w >> mip);
+				auto rect_mip_h = (std::max)(1, rect.h >> mip);
+				auto rect_mip_y = (std::max)(0, rect.y >> mip);
+				auto rect_mip_x = (std::max)(0, rect.x >> mip);
+
+				if (image_mip_width != rect_mip_w - 2 * PADDING || image_mip_height != rect_mip_h - 2 * PADDING)
+				{
+					continue;
+				}
+
+                VkImageCopy region{};
+                region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                region.srcSubresource.mipLevel = mip;
+                region.srcSubresource.baseArrayLayer = 0;
+                region.srcSubresource.layerCount = 1;
+                region.srcOffset = { 0, 0, 0 };
+
+                region.dstSubresource = region.srcSubresource;
+				region.dstSubresource.mipLevel = mip;
+                region.dstOffset = { rect_mip_x + PADDING, rect_mip_y + PADDING, 0 };
+                region.extent.width = image_mip_width;
+                region.extent.height = image_mip_height;
+                region.extent.depth = image_mip_depth;
+
+                image_copy_image(atlas, image_ptr, region);
+				region_index++;
+			}
+		}
+
+	}
+
+	image_copy_end();
+}
+
 size_t dz::ImagePack::findImageIndex(Image* image)
 {
 	size_t index = 0;
@@ -242,6 +278,9 @@ ImagePack::~ImagePack() {
 }
 void ImagePack::SetOwnAtlas(bool owns) {
 	owns_atlas = owns;
+}
+void ImagePack::SetAtlasFormat(VkFormat new_format) {
+	atlas_format = new_format;
 }
 void dz::ImagePack::addImage(Image* image)
 {
@@ -305,3 +344,93 @@ dz::ImagePack::rect_type& dz::ImagePack::findPackedRect(Image* image)
 }
 size_t dz::ImagePack::size() const { return image_vec.size(); }
 bool dz::ImagePack::empty() const { return image_vec.empty(); }
+
+
+void ImagePack::copy_bytes(const void* src, void* dst, size_t size)
+{
+	std::memcpy(dst, src, size);
+}
+
+uint8_t ImagePack::float_to_u8(float val)
+{
+	return static_cast<uint8_t>(std::clamp(val, 0.0f, 1.0f) * 255.0f);
+}
+
+float ImagePack::u8_to_float(uint8_t val)
+{
+	return static_cast<float>(val) / 255.0f;
+}
+
+void ImagePack::convert_R32G32B32A32_SFLOAT_to_R8G8B8A8_UNORM(const void* src, void* dst)
+{
+	const float* f = reinterpret_cast<const float*>(src);
+	uint8_t* d = reinterpret_cast<uint8_t*>(dst);
+	d[0] = float_to_u8(f[0]);
+	d[1] = float_to_u8(f[1]);
+	d[2] = float_to_u8(f[2]);
+	d[3] = float_to_u8(f[3]);
+}
+
+void ImagePack::convert_R8G8B8A8_UNORM_to_R32G32B32A32_SFLOAT(const void* src, void* dst)
+{
+	const uint8_t* s = reinterpret_cast<const uint8_t*>(src);
+	float* f = reinterpret_cast<float*>(dst);
+	f[0] = u8_to_float(s[0]);
+	f[1] = u8_to_float(s[1]);
+	f[2] = u8_to_float(s[2]);
+	f[3] = u8_to_float(s[3]);
+}
+
+int ImagePack::format_index(VkFormat fmt)
+{
+	for (int i = 0; i < FMT_COUNT; ++i)
+		if (supported_formats[i] == fmt)
+			return i;
+	return -1;
+}
+
+void ImagePack::init_conversion_matrix()
+{
+	static bool initialized = false;
+	if (initialized) return;
+	initialized = true;
+
+	// Set format sizes
+	format_sizes[format_index(VK_FORMAT_R8_UNORM)] = 1;
+	format_sizes[format_index(VK_FORMAT_R8G8_UNORM)] = 2;
+	format_sizes[format_index(VK_FORMAT_R8G8B8_UNORM)] = 3;
+	format_sizes[format_index(VK_FORMAT_R8G8B8A8_UNORM)] = 4;
+	format_sizes[format_index(VK_FORMAT_R32_SFLOAT)] = 4;
+	format_sizes[format_index(VK_FORMAT_R32G32_SFLOAT)] = 8;
+	format_sizes[format_index(VK_FORMAT_R32G32B32_SFLOAT)] = 12;
+	format_sizes[format_index(VK_FORMAT_R32G32B32A32_SFLOAT)] = 16;
+
+	// Identity copies
+	for (int i = 0; i < FMT_COUNT; ++i)
+		conversion_matrix[i][i] = [=](const void* src, void* dst) { copy_bytes(src, dst, format_sizes[i]); };
+
+	// Specific conversions
+	int r8g8b8a8_idx = format_index(VK_FORMAT_R8G8B8A8_UNORM);
+	int r32g32b32a32_idx = format_index(VK_FORMAT_R32G32B32A32_SFLOAT);
+
+	conversion_matrix[r32g32b32a32_idx][r8g8b8a8_idx] = convert_R32G32B32A32_SFLOAT_to_R8G8B8A8_UNORM;
+	conversion_matrix[r8g8b8a8_idx][r32g32b32a32_idx] = convert_R8G8B8A8_UNORM_to_R32G32B32A32_SFLOAT;
+}
+
+void ImagePack::convert_pixel(VkFormat src_format, VkFormat dst_format, const void* src, void* dst)
+{
+	init_conversion_matrix();
+
+	int src_idx = format_index(src_format);
+	int dst_idx = format_index(dst_format);
+
+	if (src_idx == -1 || dst_idx == -1)
+		throw std::runtime_error("Unsupported format in convert_pixel");
+
+	ConvertFunc func = conversion_matrix[src_idx][dst_idx];
+
+	if (!func)
+		throw std::runtime_error("Conversion path not implemented between formats");
+
+	func(src, dst);
+}

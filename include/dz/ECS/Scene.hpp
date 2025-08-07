@@ -120,7 +120,7 @@ void GetSceneModel(int scene_index, out mat4 out_model, out int parent_index, ou
             void NotifyChange(int prop_index) override;
         };
 
-        struct SceneReflectableGroup : ReflectableGroup {
+        struct SceneReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
