@@ -55,7 +55,7 @@ vec3 CalculatePhongLighting(in Light light) {
 )", ShaderModuleType::Fragment}
         };
 
-        struct PhongLightingReflectableGroup : ReflectableGroup {
+        struct PhongLightingReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

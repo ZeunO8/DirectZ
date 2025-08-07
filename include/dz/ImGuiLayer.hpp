@@ -9,7 +9,7 @@
 namespace dz {
     struct ImGuiLayer {
         friend WINDOW;
-        friend std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image);
+        friend std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image*, uint32_t);
         using ImmediateDrawFunction = std::function<void(ImGuiLayer&)>;
         using ImmediateDrawPair = std::pair<std::string, ImmediateDrawFunction>;
     private:

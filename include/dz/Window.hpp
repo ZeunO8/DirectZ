@@ -38,7 +38,7 @@ namespace dz
 #endif
     };
 
-    struct WindowReflectableGroup : ReflectableGroup {
+    struct WindowReflectableGroup : ::ReflectableGroup {
 
     private:
         WINDOW* window_ptr;

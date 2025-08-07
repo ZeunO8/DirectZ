@@ -69,7 +69,7 @@ struct SubMesh {
             void NotifyChange(int prop_index) override;
         };
 
-        struct SubMeshReflectableGroup : ReflectableGroup {
+        struct SubMeshReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

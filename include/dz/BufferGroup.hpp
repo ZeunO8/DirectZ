@@ -46,7 +46,7 @@ namespace dz
      * @param data_pointer Optional pointer to image data.
      * @return Pointer to the created Image.
      */
-    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, void* data_pointer = 0);
+    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, const std::vector<std::shared_ptr<void>>& datas = {});
 
     /**
      * @brief Defines a 3D image in the buffer group.
@@ -59,7 +59,7 @@ namespace dz
      * @param data_pointer Optional pointer to image data.
      * @return Pointer to the created Image.
      */
-    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data_pointer = 0);
+    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, const std::vector<std::shared_ptr<void>>& datas = {});
 
     /**
      * @brief Sets the number of elements in a named buffer.

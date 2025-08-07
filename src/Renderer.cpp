@@ -386,6 +386,12 @@ namespace dz {
 			VK_FORMAT_B8G8R8_UNORM,
 			VK_FORMAT_R8G8B8A8_UNORM,
 			VK_FORMAT_B8G8R8A8_UNORM,
+			VK_FORMAT_R8_SRGB,
+			VK_FORMAT_R8G8_SRGB,
+			VK_FORMAT_R8G8B8_SRGB,
+			VK_FORMAT_B8G8R8_SRGB,
+			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_FORMAT_B8G8R8A8_SRGB,
 			VK_FORMAT_R16_SFLOAT,
 			VK_FORMAT_R16G16_SFLOAT,
 			VK_FORMAT_R16G16B16_SFLOAT,
@@ -442,6 +448,19 @@ namespace dz {
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 		dr.formats_supported.R8G8B8A8_UNORM = dr.formats_supported_map
 			[VK_FORMAT_R8G8B8A8_UNORM][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+
+		dr.formats_supported.R8_SRGB = dr.formats_supported_map
+			[VK_FORMAT_R8_SRGB][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8_SRGB = dr.formats_supported_map
+			[VK_FORMAT_R8G8_SRGB][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8B8_SRGB = dr.formats_supported_map
+			[VK_FORMAT_R8G8B8_SRGB][VK_IMAGE_TYPE_2D]
+			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
+		dr.formats_supported.R8G8B8A8_SRGB = dr.formats_supported_map
+			[VK_FORMAT_R8G8B8A8_SRGB][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 			
 		dr.formats_supported.R32_SFLOAT = dr.formats_supported_map
@@ -615,8 +634,8 @@ namespace dz {
 
 		VkPhysicalDeviceRobustness2FeaturesEXT robustness2{
 			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT,
-			.robustBufferAccess2 = false,
-			.robustImageAccess2 = false,
+			.robustBufferAccess2 = true,
+			.robustImageAccess2 = true,
 			.nullDescriptor = true
 		};
 
@@ -655,7 +674,7 @@ namespace dz {
 		supportedFeatures.features.depthClamp = supportedFeatures.features.depthClamp ? VK_TRUE : VK_FALSE;
 		supportedFeatures.features.depthBiasClamp = supportedFeatures.features.depthBiasClamp ? VK_TRUE : VK_FALSE;
 		supportedFeatures.features.samplerAnisotropy = supportedFeatures.features.samplerAnisotropy ? VK_TRUE : VK_FALSE;
-		supportedFeatures.features.robustBufferAccess = VK_FALSE;
+		supportedFeatures.features.robustBufferAccess = robustness2_enabled;
 		supportedFeatures.features.multiDrawIndirect = supportedFeatures.features.multiDrawIndirect ? VK_TRUE : VK_FALSE;
 		supportedFeatures.features.drawIndirectFirstInstance = supportedFeatures.features.drawIndirectFirstInstance ? VK_TRUE : VK_FALSE;
 
@@ -676,6 +695,7 @@ namespace dz {
 		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.graphicsQueue);
 		vkGetDeviceQueue(dr.device, dr.presentFamily, 0, &dr.presentQueue);
 		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.computeQueue);
+		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.copyQueue);
 	}
 
 	bool create_swap_chain(Renderer* renderer)
@@ -775,7 +795,7 @@ namespace dz {
 	{
 		for (auto& availableFormat : availableFormats)
 		{
-			if (availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM)
+			if (availableFormat.format == (VkFormat)dr.preferredColorSpace)
 			{
 				return availableFormat;
 			}
@@ -829,24 +849,26 @@ namespace dz {
 		return;
 	}
 
+	void allocate_command_buffers(uint32_t count, VkCommandBuffer* pCommandBuffer, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+		VkCommandBufferAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = dr.commandPool;
+		allocInfo.level = level;
+		allocInfo.commandBufferCount = count;
+		vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(dr.device, &allocInfo, pCommandBuffer));
+	}
+
 	void ensure_command_buffers(Renderer* renderer)
 	{
 		if (!renderer->commandBuffers.empty())
 			return;
-		renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-		VkCommandBufferAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = dr.commandPool;
-		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocInfo.commandBufferCount = renderer->commandBuffers.size();
-		vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(dr.device, &allocInfo, &renderer->commandBuffers[0]));
 
-		VkCommandBufferAllocateInfo computeAllocInfo{};
-		computeAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		computeAllocInfo.commandPool = dr.commandPool;
-		computeAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		computeAllocInfo.commandBufferCount = 1;
-		vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(dr.device, &computeAllocInfo, &dr.computeCommandBuffer));
+		renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+		allocate_command_buffers(renderer->commandBuffers.size(), &renderer->commandBuffers[0]);
+
+		allocate_command_buffers(1, &dr.computeCommandBuffer);
+		allocate_command_buffers(1, &dr.copyCommandBuffer);
+
 		return;
 	}
 

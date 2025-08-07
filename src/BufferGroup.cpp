@@ -23,7 +23,7 @@ namespace dz {
             auto shader = sp.first;
             shader->bound_buffer_groups.push_back(buffer_group);
             shader_initialize(shader);
-            CreateAndBindShaderBuffers(buffer_group, shader);
+            shader_buffers_ensure_and_bind(buffer_group, shader);
             // shader_update_descriptor_sets(shader);
         }
     }
@@ -50,18 +50,19 @@ namespace dz {
         return flags;
     }
 
-    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, void* data_pointer) {
+    Image* buffer_group_define_image_2D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, const std::vector<std::shared_ptr<void>>& datas) {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
-        ImageCreateInfoInternal create_info{};
-        create_info.width = image_width;
-        create_info.height = image_height;
-        create_info.depth = 1;
-        create_info.format = shader_image.format;
-        create_info.image_type = VK_IMAGE_TYPE_2D;
-        create_info.view_type = VK_IMAGE_VIEW_TYPE_2D;
-        create_info.data = data_pointer;
-        create_info.usage = infer_image_usage_flags(shader_image.descriptor_types);
+        ImageCreateInfoInternal create_info{
+            .width = image_width,
+            .height = image_height,
+            .depth = 1,
+            .format = shader_image.format,
+            .usage = infer_image_usage_flags(shader_image.descriptor_types),
+            .image_type = VK_IMAGE_TYPE_2D,
+            .view_type = VK_IMAGE_VIEW_TYPE_2D,
+            .datas = datas
+        };
 
         auto image = image_create_internal(create_info);
 
@@ -70,7 +71,7 @@ namespace dz {
         return image;
     }
 
-    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, void* data_pointer) {
+    Image* buffer_group_define_image_3D(BufferGroup* buffer_group, const std::string& buffer_name, uint32_t image_width, uint32_t image_height, uint32_t image_depth, const std::vector<std::shared_ptr<void>>& datas) {
         ShaderImage& shader_image = buffer_group->images[buffer_name];
 
         ImageCreateInfoInternal create_info{
@@ -81,7 +82,7 @@ namespace dz {
             .usage = infer_image_usage_flags(shader_image.descriptor_types),
             .image_type = VK_IMAGE_TYPE_3D,
             .view_type = VK_IMAGE_VIEW_TYPE_3D,
-            .data = data_pointer
+            .datas = datas
         };
 
         auto image = image_create_internal(create_info);

@@ -130,7 +130,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
             void NotifyChange(int prop_index) override;
         };
 
-        struct EntityReflectableGroup : ReflectableGroup {
+        struct EntityReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;

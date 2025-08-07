@@ -86,7 +86,7 @@ int main() {
         window = window_create({
             .title = "ECS Test",
             .x = 0,
-            .y = 240,
+            .y = 120,
             .width = ORIGINAL_WINDOW_WIDTH,
             .height = ORIGINAL_WINDOW_HEIGHT,
             .borderless = true,
@@ -104,14 +104,14 @@ int main() {
         auto autumn_hdri_id = ecs.AddHDRI(HDRI{}, autumn_hdri_index, "hdri/autumn_field_puresky_4k");
         ecs.SetHDRIImage(autumn_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
             .path = "hdri/autumn_field_puresky_4k.hdr",
-            .load_float = false
+            .load_float = true
         }));
 
         int afternoon_hdri_index = -1;
         auto afternoon_hdri_id = ecs.AddHDRI(HDRI{}, afternoon_hdri_index, "zwartkops_straight_afternoon_4k");
         ecs.SetHDRIImage(afternoon_hdri_id, TL::Load<Image*, STB_Image_Info>(STB_Image_Info{
             .path = "hdri/zwartkops_straight_afternoon_4k.hdr",
-            .load_float = false
+            .load_float = true
         }));
 
         auto sky_scene_id = ecs.AddScene(Scene{}, "Sky Scene");
@@ -139,25 +139,51 @@ int main() {
                 auto out_id = ecs.AddMesh(positions, uv2s, normals, tangents, bitangents, material_index, out_index, name);
                 return {out_id, out_index};
             },
-            .add_material_function = [&](const auto& name, const auto& images_vec) -> MaterialPair {
+            .add_material_function = [&](const auto& name, const auto& images_vec, auto albedo_color, auto metalness, auto roughness) -> MaterialPair {
                 int out_index = -1;
-                auto out_id = ecs.AddMaterial(Material{}, out_index, name);
+                auto out_id = ecs.AddMaterial(Material{
+                    .albedo_color = albedo_color,
+                    .metalness = metalness,
+                    .roughness = roughness
+                }, out_index, name);
                 ecs.SetMaterialImages(out_id, images_vec);
                 return {out_id, out_index};
             }
         };
+        
+        // Saiyan
 
         auto saiyan_one_info = base_info;
         saiyan_one_info.path = "models/SaiyanOne.glb";
 
         TL::Load<SceneID, Assimp_Info>(saiyan_one_info);
 
+        // Golden sports car
+
         auto golden_sports_car_info = base_info;
         golden_sports_car_info.path = "models/GoldenSportsCar.glb";
 
-        golden_sports_car_info.root_position[0] += 4.5f;
+        golden_sports_car_info.root_position[0] += 2.5f;
 
         TL::Load<SceneID, Assimp_Info>(golden_sports_car_info);
+
+        // Red sports car
+
+        auto red_sports_car_info = base_info;
+        red_sports_car_info.path = "models/RedSportsCar.glb";
+
+        red_sports_car_info.root_position[0] -= 2.5f;
+
+        TL::Load<SceneID, Assimp_Info>(red_sports_car_info);
+
+        // Metal plane
+
+        auto metal_plane_info = base_info;
+        metal_plane_info.path = "models/metal_plane.glb";
+
+        metal_plane_info.root_position[1] -= 0.5f;
+
+        TL::Load<SceneID, Assimp_Info>(metal_plane_info);
 
         ecs.AddLight(sky_scene_id, Light{
             .type = uint32_t(Light::Directional),
@@ -1218,6 +1244,10 @@ void DrawDropTarget(ReflectableGroup& target_group, ReflectableGroup* dragged_gr
     }
     case SubMesh::PID: {
         ExampleECS::SetWhoParent(ecs_ptr->GetSubMesh(dragged_group->id), new_parent_ptr);
+        break;
+    }
+    case Light::PID: {
+        ExampleECS::SetWhoParent(ecs_ptr->GetLight(dragged_group->id), new_parent_ptr);
         break;
     }
     case SkyBox::PID: {

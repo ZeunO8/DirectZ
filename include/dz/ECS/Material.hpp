@@ -18,6 +18,10 @@ namespace dz::ecs {
         vec<float, 4> metalness_atlas_pack = {-1.0f, -1.0f, -1.0f, -1.0f};
         vec<float, 4> shininess_atlas_pack = {-1.0f, -1.0f, -1.0f, -1.0f};
         vec<float, 4> albedo_color = {1.0f, 1.0f, 1.0f, 1.0f};
+        float metalness = 0;
+        float roughness = 0;
+        int padding1 = 0;
+        int padding2 = 0;
 
         inline static constexpr size_t PID = 6;
         inline static float Priority = 2.5f;
@@ -34,6 +38,10 @@ struct Material {
     vec4 metalness_atlas_pack;
     vec4 shininess_atlas_pack;
     vec4 albedo_color;
+    float metalness;
+    float roughness;
+    int padding1;
+    int padding2;
 };
 
 struct MaterialParams {
@@ -109,6 +117,8 @@ layout(binding = @BINDING@) uniform sampler2D RoughnessAtlas;
 layout(binding = @BINDING@) uniform sampler2D MetalnessAtlas;
 layout(binding = @BINDING@) uniform sampler2D MetalnessRoughnessAtlas;
 layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
+
+layout(binding = @BINDING@) uniform sampler2D brdfLUT;
 )"
         };
 
@@ -119,8 +129,8 @@ layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
             {0.5f, R"(
     EnsureMaterialFragColor(inUV2, submesh, current_color);
     EnsureMaterialNormal(inUV2, submesh, current_normal);
-    float metalness = 0.0;
-    float roughness = 0.0;
+    float metalness = Materials.data[submesh.material_index].metalness;
+    float roughness = Materials.data[submesh.material_index].roughness;
     EnsureMaterialMetalnessRoughness(inUV2, submesh, metalness, roughness);
     mParams.albedo = vec3(current_color);
     mParams.normal = current_normal;
@@ -128,6 +138,12 @@ layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
     mParams.roughness = roughness;
 )", ShaderModuleType::Fragment}
         };
+
+        static Shader* ensure_brdfLUT_shader(Image* brdfLUT_image);
+        
+        static void StaticInitialize();
+
+        static void ShaderTweak(Shader*);
         
         struct MaterialReflectable : ::Reflectable {
 
@@ -136,16 +152,24 @@ layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
-                {"Albedo Color", {0, 0}}
+                {"Albedo Color", {0, 0}},
+                {"Metalness", {1, 0}},
+                {"Roughness", {2, 0}}
             };
             inline static std::unordered_map<int, std::string> prop_index_names = {
-                {0, "Albedo Color"}
+                {0, "Albedo Color"},
+                {1, "Metalness"},
+                {2, "Roughness"}
             };
             inline static std::vector<std::string> prop_names = {
-                "Albedo Color"
+                "Albedo Color",
+                "Metalness",
+                "Roughness"
             };
             inline static const std::vector<const std::type_info*> typeinfos = {
-                &typeid(color_vec<float, 4>)
+                &typeid(color_vec<float, 4>),
+                &typeid(float),
+                &typeid(float)
             };
 
         public:
@@ -160,7 +184,7 @@ layout(binding = @BINDING@) uniform sampler2D ShininessAtlas;
             void NotifyChange(int prop_index) override;
         };
 
-        struct MaterialReflectableGroup : ReflectableGroup {
+        struct MaterialReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

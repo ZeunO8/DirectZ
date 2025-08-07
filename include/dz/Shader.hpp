@@ -93,7 +93,7 @@ namespace dz
      * @param shader Pointer to the Shader.
      * @param dispatch_layout Layout dimensions as vec<int32_t, 3>.
      */
-    void shader_dispatch(Shader*, uint32_t x, uint32_t y, uint32_t z, const std::function<void()>& shader_pre_dispatch = {});
+    void shader_dispatch(Shader*, uint32_t x, uint32_t y, uint32_t z, void(*shader_pre_dispatch)(Shader*, void*) = 0, void(*shader_post_dispatch)(Shader*, void*) = 0, void* user_data = nullptr);
 
     /**
      * @brief Compiles the shader source code to SPIR-V.

@@ -93,12 +93,15 @@ namespace dz {
             auto& image = *framebuffer.pImages[attachment_index];
             auto& attachmentType = framebuffer.pAttachmentTypes[attachment_index];
             
-            if (image.imageView == VK_NULL_HANDLE)
+            assert(image.mip_levels == 1);
+
+            auto& imageView = image.imageViews[0];
+            if (imageView == VK_NULL_HANDLE)
             {
                 throw std::runtime_error("Framebuffer attachment texture image view is null!");
             }
 
-            vkImageViews.push_back(image.imageView);
+            vkImageViews.push_back(imageView);
 
             UsingAttachmentDescription clearAttachment{};
             UsingAttachmentDescription loadAttachment{};
@@ -554,12 +557,15 @@ namespace dz {
         ) {
             auto& image = *framebuffer.new_pImages[attachment_index];
 
-            if (image.imageView == VK_NULL_HANDLE)
+            assert(image.mip_levels == 1);
+
+            auto& imageView = image.imageViews[0];
+            if (imageView == VK_NULL_HANDLE)
             {
                 throw std::runtime_error("Framebuffer attachment texture image view is null!");
             }
 
-            vkImageViews.push_back(image.imageView);
+            vkImageViews.push_back(imageView);
 
             if (framebuffer.width != image.width || framebuffer.height != image.height)
             {
@@ -761,18 +767,19 @@ namespace dz {
         {
             auto& DepthImage = *DepthImage_ptr;
             static auto new_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            if (DepthImage.current_layout != new_layout)
+            auto& current_layout = DepthImage.current_layouts[0];
+            if (current_layout != new_layout)
             {
                 VkImageMemoryBarrier barrier;
                 VkPipelineStageFlags sourceStage;
                 VkPipelineStageFlags destinationStage;
                 prepareImageBarrier(framebuffer.commandBuffer,
                     DepthImage.image, DepthImage.format,
-                    DepthImage.current_layout,
+                    current_layout,
                     new_layout,
                     VK_IMAGE_ASPECT_DEPTH_BIT, sourceStage, destinationStage, barrier);
                 vkCmdPipelineBarrier(framebuffer.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-                DepthImage.current_layout = new_layout;
+                current_layout = new_layout;
             }
         }
     }
@@ -786,14 +793,13 @@ namespace dz {
             // shadowMapImage->isDirty = true;
             // auto& textureImpl = *static_cast<VulkanImageImpl*>(shadowMapImage->rendererData);
 
-
-            if (DepthImage.current_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
-                DepthImage.current_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            auto& current_layout = DepthImage.current_layouts[0];
+            if (current_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
+                current_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
             {
                 std::cerr << "Warning: Directional shadow map layout was not ATTACHMENT_OPTIMAL before transition!" << std::endl;
             }
 
-            auto& current_layout = DepthImage.current_layout;
             auto new_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             
             vkCmdSetEvent(framebuffer.commandBuffer, framebuffer.event, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT);
@@ -835,7 +841,8 @@ namespace dz {
             auto& ColorImage = *ColorImage_ptr;
 
             static auto new_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            if (ColorImage.current_layout != new_layout)
+            auto& current_layout = ColorImage.current_layouts[0];
+            if (current_layout != new_layout)
             {
                 VkImageMemoryBarrier colorBarrier = {};
                 VkPipelineStageFlags sourceStage;
@@ -843,10 +850,10 @@ namespace dz {
                 prepareImageBarrier(
                     framebuffer.commandBuffer,
                     ColorImage.image, ColorImage.format,
-                    ColorImage.current_layout, new_layout,
+                    current_layout, new_layout,
                     VK_IMAGE_ASPECT_COLOR_BIT, sourceStage, destinationStage, colorBarrier);
                 vkCmdPipelineBarrier(framebuffer.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &colorBarrier);
-                ColorImage.current_layout = new_layout;
+                current_layout = new_layout;
             }
         }
     }
@@ -859,7 +866,7 @@ namespace dz {
             auto& ColorImage = *ColorImage_ptr;
             // colorImage->isDirty = true;
 
-            auto& current_layout = ColorImage.current_layout;
+            auto& current_layout = ColorImage.current_layouts[0];
             auto new_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             VkImageMemoryBarrier barrier{};
@@ -899,17 +906,18 @@ namespace dz {
             auto& ColorResolveImage = *ColorResolveImage_ptr;
 
             static auto new_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            if (ColorResolveImage.current_layout != new_layout)
+            auto& current_layout = ColorResolveImage.current_layouts[0];
+            if (current_layout != new_layout)
             {
                 VkImageMemoryBarrier colorBarrier = {};
                 VkPipelineStageFlags sourceStage;
                 VkPipelineStageFlags destinationStage;
                 prepareImageBarrier(framebuffer.commandBuffer,
                     ColorResolveImage.image, ColorResolveImage.format,
-                    ColorResolveImage.current_layout, new_layout,
+                    current_layout, new_layout,
                     VK_IMAGE_ASPECT_COLOR_BIT, sourceStage, destinationStage, colorBarrier);
                 vkCmdPipelineBarrier(framebuffer.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &colorBarrier);
-                ColorResolveImage.current_layout = new_layout;
+                current_layout = new_layout;
             }
         }
     }
@@ -922,7 +930,7 @@ namespace dz {
             auto& ColorResolveImage = *ColorResolveImage_ptr;
             // colorResolveImage->isDirty = true;
 
-            ColorResolveImage.current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            ColorResolveImage.current_layouts[0] = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
     }
 
@@ -934,17 +942,18 @@ namespace dz {
             auto& DepthResolveImage = *DepthResolveImage_ptr;
 
             static auto new_layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            if (DepthResolveImage.current_layout != new_layout)
+            auto& current_layout = DepthResolveImage.current_layouts[0];
+            if (current_layout != new_layout)
             {
                 VkImageMemoryBarrier depthBarrier = {};
                 VkPipelineStageFlags sourceStage;
                 VkPipelineStageFlags destinationStage;
                 prepareImageBarrier(framebuffer.commandBuffer,
                     DepthResolveImage.image, DepthResolveImage.format,
-                    DepthResolveImage.current_layout, new_layout,
+                    current_layout, new_layout,
                     VK_IMAGE_ASPECT_DEPTH_BIT, sourceStage, destinationStage, depthBarrier);
                 vkCmdPipelineBarrier(framebuffer.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &depthBarrier);
-                DepthResolveImage.current_layout = new_layout;
+                current_layout = new_layout;
             }
         }
     }
@@ -957,18 +966,19 @@ namespace dz {
             auto& DepthResolveImage = *DepthResolveImage_ptr;
             // depthResolveImage->isDirty = true;
 
-            DepthResolveImage.current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            auto& current_layout = DepthResolveImage.current_layouts[0];
+            current_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
             // Ensure the layout we are transitioning *from* is correct
-            if (DepthResolveImage.current_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
-                DepthResolveImage.current_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+            if (current_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL &&
+                current_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
             {
                 // Log warning or throw? Indicates layout tracking might be off.
                 // For now, let's assume it *should* be ATTACHMENT_OPTIMAL here.
                 std::cerr << "Warning: Directional shadow map layout was not ATTACHMENT_OPTIMAL before transition!" << std::endl;
             }
 
-            VkImageLayout oldLayout = DepthResolveImage.current_layout;
+            VkImageLayout oldLayout = current_layout;
             VkImageLayout newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
             VkImageMemoryBarrier barrier;
@@ -986,7 +996,7 @@ namespace dz {
             vkCmdPipelineBarrier(framebuffer.commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
             // Update tracked layout
-            DepthResolveImage.current_layout = newLayout;
+            current_layout = newLayout;
         }
     }
 

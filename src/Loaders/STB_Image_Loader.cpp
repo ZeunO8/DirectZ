@@ -7,8 +7,8 @@
 
 int STB_Image_minChannelsu() {
     int minChannels = 4;
-    if (dr.formats_supported.R8G8B8A8_UNORM && dr.formats_supported.R8G8B8_UNORM &&
-        dr.formats_supported.R8G8_UNORM && dr.formats_supported.R8_UNORM) {
+    if (dr.formats_supported.R8G8B8A8_SRGB && dr.formats_supported.R8G8B8_SRGB &&
+        dr.formats_supported.R8G8_SRGB && dr.formats_supported.R8_SRGB) {
         minChannels = 0;
     }
     return minChannels;
@@ -23,27 +23,27 @@ int STB_Image_minChannelsf() {
     return minChannels;
 }
 
-dz::Image* STB_Image_load_image_uf(const void* ptr, int width, int height, int nrChannels, bool load_float) {
+dz::Image* STB_Image_load_image_uf(const std::vector<std::shared_ptr<void>>& datas, int width, int height, int nrChannels, bool load_float) {
     VkFormat format;
     switch (nrChannels) {
     case 1:
-        format = (load_float ? VK_FORMAT_R32_SFLOAT : VK_FORMAT_R8_UNORM);
+        format = (load_float ? VK_FORMAT_R32_SFLOAT : VK_FORMAT_R8_SRGB);
         break;
     case 2:
-        format = (load_float ? VK_FORMAT_R32G32_SFLOAT : VK_FORMAT_R8G8_UNORM);
+        format = (load_float ? VK_FORMAT_R32G32_SFLOAT : VK_FORMAT_R8G8_SRGB);
         break;
     case 3:
-        format = (load_float ? VK_FORMAT_R32G32B32_SFLOAT : VK_FORMAT_R8G8B8_UNORM);
+        format = (load_float ? VK_FORMAT_R32G32B32_SFLOAT : VK_FORMAT_R8G8B8_SRGB);
         break;
     case 4:
-        format = (load_float ? VK_FORMAT_R32G32B32A32_SFLOAT : VK_FORMAT_R8G8B8A8_UNORM);
+        format = (load_float ? VK_FORMAT_R32G32B32A32_SFLOAT : VK_FORMAT_R8G8B8A8_SRGB);
         break;
     }
     dz::ImageCreateInfo info{
         .width = (uint32_t)width,
         .height = (uint32_t)height,
         .format = format,
-        .data = (void*)ptr
+        .datas = datas
     };
     return dz::image_create(info);
 }
@@ -56,7 +56,9 @@ dz::Image* STB_Image_load_pathu(const std::filesystem::path& path) {
         path_string.c_str(), &width, &height, &nrChannels, (std::max)(nrChannels, minChannels));
 	if (!imageData)
 		throw std::runtime_error("Failed to load image from memory.");
-    return STB_Image_load_image_uf(imageData, width, height, (std::max)(nrChannels, minChannels), false);
+    return STB_Image_load_image_uf({
+        {(void*)imageData, [](auto ptr) { stbi_image_free(ptr); }}
+    }, width, height, (std::max)(nrChannels, minChannels), false);
 }
 
 dz::Image* STB_Image_load_bytesu(const std::shared_ptr<char>& bytes, size_t bytes_length) {
@@ -67,7 +69,9 @@ dz::Image* STB_Image_load_bytesu(const std::shared_ptr<char>& bytes, size_t byte
         bytes_length, &width, &height, &nrChannels, minChannels);
 	if (!imageData)
 		throw std::runtime_error("Failed to load image from memory.");
-    return STB_Image_load_image_uf(imageData, width, height, (std::max)(nrChannels, minChannels), false);
+    return STB_Image_load_image_uf({
+        {(void*)imageData, [](auto ptr) { stbi_image_free(ptr); }}
+    }, width, height, (std::max)(nrChannels, minChannels), false);
 }
 
 dz::Image* STB_Image_load_pathf(const std::filesystem::path& path) {
@@ -78,7 +82,9 @@ dz::Image* STB_Image_load_pathf(const std::filesystem::path& path) {
         path_string.c_str(), &width, &height, &nrChannels, (std::max)(nrChannels, minChannels));
 	if (!imageData)
 		throw std::runtime_error("Failed to load image from memory.");
-    return STB_Image_load_image_uf(imageData, width, height, (std::max)(nrChannels, minChannels), true);
+    return STB_Image_load_image_uf({
+        {(void*)imageData, [](auto ptr) { stbi_image_free(ptr); }}
+    }, width, height, (std::max)(nrChannels, minChannels), true);
 }
 
 dz::Image* STB_Image_load_bytesf(const std::shared_ptr<char>& bytes, size_t bytes_length) {
@@ -89,7 +95,9 @@ dz::Image* STB_Image_load_bytesf(const std::shared_ptr<char>& bytes, size_t byte
         bytes_length, &width, &height, &nrChannels, minChannels);
 	if (!imageData)
 		throw std::runtime_error("Failed to load image from memory.");
-    return STB_Image_load_image_uf(imageData, width, height, (std::max)(nrChannels, minChannels), true);
+    return STB_Image_load_image_uf({
+        {(void*)imageData, [](auto ptr) { stbi_image_free(ptr); }}
+    }, width, height, (std::max)(nrChannels, minChannels), true);
 }
 
 dz::Image* dz::loaders::STB_Image_Loader::Load(const dz::loaders::STB_Image_Info& info) {

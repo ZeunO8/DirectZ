@@ -14,26 +14,44 @@ namespace dz {
 		using rect_type = rectpack2D::output_rect_t<spaces_type>;
 		Image* atlas = nullptr;
 		bool owns_atlas = true;
-		VkFormat atlas_format = VK_FORMAT_R8G8B8A8_UNORM;
+		VkFormat atlas_format = (VkFormat)ColorSpace::SRGB;
 		bool format_changed = false;
 		std::vector<Image*> image_vec;
 		std::vector<rect_type> rect_vec;
-		std::vector<uint8_t> rgba_buffer;
+		std::vector<size_t> atlas_buffer_sizes;
+		std::vector<std::shared_ptr<void>> atlas_buffers;
 		bool is_dirty();
 		void repack();
+		void CPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels);
+		void GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels);
 		size_t findImageIndex(Image* image);
+		bool enforce_same_format = true;
+		bool enforce_same_miplvl = true;
 
 	public:
+
 		~ImagePack();
+
 		void SetOwnAtlas(bool owns = false);
+
 		void SetAtlasFormat(VkFormat new_format);
+
+		void SetEnforceSameFormat(bool enforced = true);
+
 		void addImage(Image* image);
+
 		bool check();
+
 		Image* getAtlas();
+
 		vec<float, 2> getUV(vec<float, 2> original_uv, Image* image);
+
 		std::vector<vec<float, 2>> getUVs(const std::vector<vec<float, 2>>& original_uvs, Image* image);
+
 		rect_type& findPackedRect(Image* image);
+
 		size_t size() const;
+
 		bool empty() const;
 
 	private:

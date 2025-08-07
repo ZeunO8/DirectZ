@@ -117,7 +117,7 @@ vec3 GetMeshBitangent(in Mesh mesh) {
             void NotifyChange(int prop_index) override;
         };
 
-        struct MeshReflectableGroup : ReflectableGroup {
+        struct MeshReflectableGroup : ::ReflectableGroup {
             BufferGroup* buffer_group = nullptr;
             std::string name;
             std::vector<Reflectable*> reflectables;

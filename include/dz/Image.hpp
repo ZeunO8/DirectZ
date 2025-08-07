@@ -27,7 +27,7 @@ namespace dz
         uint32_t width = 1;
         uint32_t height = 1;
         uint32_t depth = 1;
-        VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+        VkFormat format = (VkFormat)ColorSpace::SRGB;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         VkImageType image_type = VK_IMAGE_TYPE_2D;
         VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
@@ -35,8 +35,9 @@ namespace dz
         VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
         bool is_framebuffer_attachment = false;
-        void* data = nullptr;
+        std::vector<std::shared_ptr<void>> datas;
         SurfaceType surfaceType = SurfaceType::BaseColor;
+        uint32_t mip_levels = 1;
     };
 
     /**
@@ -47,11 +48,12 @@ namespace dz
     Image* image_create(const ImageCreateInfo&);
 
     /**
-    * @brief Uploads new data to an Image
+    * @brief Uploads new data to an Image at a given mip level
     *
-    * @note data must contain the bytes in the correct format
+    * @note if just image_ptr is provided, will upload whatever exists in CPU buffer
+    * @note if data provided, data must contain the bytes in the correct format
     */
-    void image_upload_data(Image* image, void* data);
+    void image_upload_data(Image* image_ptr, uint32_t mip = 0, void* data = nullptr);
 
     /**
      * @brief Resizes a 2D image to the specified dimensions.
@@ -84,7 +86,7 @@ namespace dz
     *
     * @returns a pair containing the SetLayout and Set for usage
     */
-    std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image);
+    std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image, uint32_t mip_level = 0);
 
     /**
     * @brief Gets the Channels and Size Of Type as a pair
@@ -121,7 +123,7 @@ namespace dz
     /**
      * @brief returns the underlying layout of an Image
      */
-    VkImageLayout image_get_layout(Image*);
+    VkImageLayout image_get_layout(Image*, int mip);
 
     /**
      * @brief returns the underlying format of an Image
@@ -131,10 +133,36 @@ namespace dz
     /**
      * @brief transitions the underlying layout of an Image
      */
-    void transition_image_layout(Image* image_ptr, VkImageLayout new_layout);
+    void transition_image_layout(Image* image_ptr, VkImageLayout new_layout, int mip = 0);
 
     /**
      * @brief helper function to return the pixel size for a given VkFormat in bytes
      */
     size_t get_format_pixel_size(VkFormat format);
+
+    /**
+     * @brief Begins the copy command buffer
+     * 
+     * @note is not thread safe, i.e. only one image copy can be in process at once 
+     */
+    void image_copy_begin();
+
+    /**
+     * @brief Reserves 'count' regions in the current copy command queue
+     * 
+     * @note this must always be called with the exact number of regions you expect to copy, before calling image_copy_image
+     */
+    void image_copy_reserve_regions(uint32_t count);
+
+    /**
+     * @brief Copys srcImage into dstImage with given region
+     * 
+     * @note must be called between image_copy_begin and image_copy_end
+     */
+    void image_copy_image(Image* dstImage, Image* srcImage, VkImageCopy region);
+
+    /**
+     * @brief Ends the copy command buffer
+     */
+    void image_copy_end();
 }

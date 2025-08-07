@@ -26,7 +26,7 @@ namespace dz {
 
     uint32_t GetMinimumTypeSizeInBytes(const SpvReflectTypeDescription& type_desc);
     uint32_t CalculateStructSize(const SpvReflectTypeDescription& type_desc);
-    bool CreateAndBindShaderBuffers(BufferGroup* buffer_group, Shader* shader);
+    bool shader_buffers_ensure_and_bind(BufferGroup* buffer_group, Shader* shader);
     VkShaderStageFlags GetShaderStageFromModuleType(ShaderModuleType type);
 
     struct ReflectedVariable {

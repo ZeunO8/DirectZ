@@ -12,6 +12,8 @@
 #include <thread>
 #include <execution>
 
+static constexpr auto PADDING = 0; // PADDING in pixels around each image
+
 // using Format = zg::images::Image::Format;
 bool dz::ImagePack::is_dirty()
 {
@@ -31,8 +33,6 @@ bool dz::ImagePack::is_dirty()
 }
 void dz::ImagePack::repack()
 {
-
-	constexpr int padding = 0; // padding in pixels around each image
 	size_t image_vec_size = image_vec.size();
 	rect_vec.resize(image_vec_size);
 	auto image_vec_data = image_vec.data();
@@ -44,8 +44,8 @@ void dz::ImagePack::repack()
 			rect_type rect;
 			rect.x = 0;
 			rect.y = 0;
-			rect.h = image_ptr->height + 2 * padding; // <--- add vertical padding
-			rect.w = image_ptr->width + 2 * padding; // <--- add horizontal padding
+			rect.h = image_ptr->height + 2 * PADDING; // <--- add vertical PADDING
+			rect.w = image_ptr->width + 2 * PADDING; // <--- add horizontal PADDING
 			return rect;
 		});
 
@@ -63,45 +63,51 @@ void dz::ImagePack::repack()
 		int atlas_width = result_size.w;
 		int atlas_height = result_size.h;
 		size_t pixel_size = get_format_pixel_size(atlas_format);
-		size_t byte_size = atlas_width * atlas_height * pixel_size;
-		if (rgba_buffer.size() < byte_size)
-			rgba_buffer.resize(byte_size);
-		uint8_t* atlas_data = rgba_buffer.data();
-		memset(atlas_data, 0, byte_size);
+
+		uint32_t atlas_mip_levels = 0;
 
 		for (size_t index = 0; index < image_vec_size; ++index)
 		{
 			auto& image_ptr = image_vec_data[index];
 			auto& image = *image_ptr;
-			auto channels = image_get_channels_size_of_t(image_ptr);
-			auto sizeof_channels = image_get_sizeof_channels(channels);
-			auto format = image.format;
-			auto image_data = (char*)image.data.get();
-			auto& rect = rect_vec_data[index];
-
-			if (image.width != rect.w - 2 * padding || image.height != rect.h - 2 * padding)
-			{
-				continue;
+			
+			if (atlas_mip_levels == 0) {
+				atlas_mip_levels = image.mip_levels;
 			}
-
-			for (int y = 0; y < image.height; ++y)
-			{
-				uint8_t* dst_row = &atlas_data[((rect.y + padding + y) * atlas_width + (rect.x + padding)) * pixel_size];
-				const uint8_t* src_row = reinterpret_cast<const uint8_t*>(&image_data[(y * image.width) * sizeof_channels]);
-
-				for (int x = 0; x < image.width; ++x)
-				{
-					const void* src_pixel = &src_row[x * sizeof_channels];
-					void* dst_pixel = &dst_row[x * pixel_size];
-
-					convert_pixel(format, atlas_format, src_pixel, dst_pixel);
+			else if (atlas_mip_levels != image.mip_levels) {
+				if (enforce_same_miplvl) {
+					throw std::runtime_error("Atlas Pack: Image index [" + std::to_string(index) + "] does not match atlas mip_levels, failing");
 				}
+				continue;
 			}
 		}
 
+		atlas_buffer_sizes.resize(atlas_mip_levels);
+		atlas_buffers.resize(atlas_mip_levels);
+
+		for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+			auto mipWidth = (std::max)(1, atlas_width >> mip);
+			auto mipHeight = (std::max)(1, atlas_height >> mip);
+			size_t byte_size = mipWidth * mipHeight * pixel_size;
+			auto& atlas_buffer_size = atlas_buffer_sizes[mip];
+			auto& atlas_buffer = atlas_buffers[mip];
+			if (atlas_buffer_size != byte_size) {
+				auto new_buffer = std::shared_ptr<void>(malloc(byte_size), free);
+				if (atlas_buffer) {
+					memcpy(new_buffer.get(), atlas_buffer.get(), (std::min)(atlas_buffer_size, byte_size));
+				}
+				atlas_buffer = new_buffer;
+				atlas_buffer_size = byte_size;
+			}
+			memset(atlas_buffer.get(), 0, atlas_buffer_size);
+		}
+
+		CPU_Image_Copy(atlas_width, atlas_height, pixel_size, atlas_mip_levels);
+
 		if (atlas && atlas->width == atlas_width && atlas->height == atlas_height)
 		{
-			image_upload_data(atlas, atlas_data);
+			for (auto mip = 0; mip < atlas_mip_levels; ++mip)
+				image_upload_data(atlas, mip, atlas_buffers[mip].get());
 		}
 		else
 		{
@@ -109,10 +115,13 @@ void dz::ImagePack::repack()
 				.width = uint32_t(atlas_width),
 				.height = uint32_t(atlas_height),
 				.format = atlas_format,
-				.data = atlas_data,
+				.datas = atlas_buffers,
+				.mip_levels = atlas_mip_levels
 			});
 			owns_atlas = true;
 		}
+
+		GPU_Image_Copy(atlas_width, atlas_height, pixel_size, atlas_mip_levels);
 	}
 	else if (image_vec_size)
 	{
@@ -120,6 +129,134 @@ void dz::ImagePack::repack()
 		owns_atlas = false;
 	}
 }
+
+void ImagePack::CPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels) {
+	auto image_vec_size = image_vec.size();
+	auto image_vec_data = image_vec.data();
+	auto rect_vec_data = rect_vec.data();
+
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+		auto channels = image_get_channels_size_of_t(image_ptr);
+		auto sizeof_channels = image_get_sizeof_channels(channels);
+		auto format = image.format;
+
+		if (enforce_same_format && format != atlas_format) {
+			std::cout << "Atlas Pack: Image index [" << index << "] is not the same format as atlas_format, skipping" << std::endl; 
+			continue;
+		}
+
+		if (image.data_is_cpu_side && !image.data_is_gpu_side) {
+			for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+				auto image_data = (unsigned char*)image.datas[mip].get();
+				auto atlas_data = (unsigned char*)atlas_buffers[mip].get();
+				auto& rect = rect_vec_data[index];
+
+				auto image_mip_width = (std::max)(1, int(image.width) >> mip);
+				auto image_mip_height = (std::max)(1, int(image.height) >> mip);
+				auto atlas_mip_width = (std::max)(1, atlas_width >> mip);
+				auto rect_mip_w = (std::max)(1, rect.w >> mip);
+				auto rect_mip_h = (std::max)(1, rect.h >> mip);
+				auto rect_mip_y = (std::max)(1, rect.y >> mip);
+				auto rect_mip_x = (std::max)(1, rect.x >> mip);
+
+				if (image_mip_width != rect_mip_w - 2 * PADDING || image_mip_height != rect.h - 2 * PADDING)
+				{
+					continue;
+				}
+
+				for (int y = 0; y < image_mip_height; ++y)
+				{
+					uint8_t* dst_row = &atlas_data[((rect_mip_y + PADDING + y) * atlas_mip_width + (rect_mip_x + PADDING)) * pixel_size];
+					const uint8_t* src_row = reinterpret_cast<const uint8_t*>(&image_data[(y * image_mip_width) * sizeof_channels]);
+
+					for (int x = 0; x < image_mip_width; ++x)
+					{
+						const void* src_pixel = &src_row[x * sizeof_channels];
+						void* dst_pixel = &dst_row[x * pixel_size];
+
+						convert_pixel(format, atlas_format, src_pixel, dst_pixel);
+					}
+				}
+			}
+		}
+
+	}
+}
+
+void ImagePack::GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels) {
+	auto image_vec_size = image_vec.size();
+	auto image_vec_data = image_vec.data();
+	auto rect_vec_data = rect_vec.data();
+
+	image_copy_begin();
+	
+	auto region_count = 0;
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+
+		if (image.data_is_gpu_side)
+			region_count += atlas_mip_levels;
+	}
+
+	image_copy_reserve_regions(region_count);
+	
+	auto region_index = 0;
+	for (size_t index = 0; index < image_vec_size; ++index) {
+		auto& image_ptr = image_vec_data[index];
+		auto& image = *image_ptr;
+
+		auto format = image.format;
+
+		if (enforce_same_format && format != atlas_format) {
+			std::cout << "Atlas Pack: Image index [" << index << "] is not the same format as atlas_format, skipping" << std::endl; 
+			continue;
+		}
+
+		if (image.data_is_gpu_side) {
+			for (auto mip = 0; mip < atlas_mip_levels; mip++) {
+				auto& rect = rect_vec_data[index];
+
+				auto image_mip_width = (std::max)(1u, image.width >> mip);
+				auto image_mip_height = (std::max)(1u, image.height >> mip);
+				auto image_mip_depth = (std::max)(1u, image.depth >> mip);
+				auto atlas_mip_width = (std::max)(1, atlas_width >> mip);
+				auto rect_mip_w = (std::max)(1, rect.w >> mip);
+				auto rect_mip_h = (std::max)(1, rect.h >> mip);
+				auto rect_mip_y = (std::max)(0, rect.y >> mip);
+				auto rect_mip_x = (std::max)(0, rect.x >> mip);
+
+				if (image_mip_width != rect_mip_w - 2 * PADDING || image_mip_height != rect_mip_h - 2 * PADDING)
+				{
+					continue;
+				}
+
+                VkImageCopy region{};
+                region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                region.srcSubresource.mipLevel = mip;
+                region.srcSubresource.baseArrayLayer = 0;
+                region.srcSubresource.layerCount = 1;
+                region.srcOffset = { 0, 0, 0 };
+
+                region.dstSubresource = region.srcSubresource;
+				region.dstSubresource.mipLevel = mip;
+                region.dstOffset = { rect_mip_x + PADDING, rect_mip_y + PADDING, 0 };
+                region.extent.width = image_mip_width;
+                region.extent.height = image_mip_height;
+                region.extent.depth = image_mip_depth;
+
+                image_copy_image(atlas, image_ptr, region);
+				region_index++;
+			}
+		}
+
+	}
+
+	image_copy_end();
+}
+
 size_t dz::ImagePack::findImageIndex(Image* image)
 {
 	size_t index = 0;
