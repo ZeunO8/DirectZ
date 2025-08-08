@@ -147,6 +147,9 @@ vec2 Hammersley(uint i, uint N)
 
 vec2 IntegrateBRDF(float NdotV, float Roughness)
 {
+    // Clamp NdotV to avoid division by zero in geometry visibility term
+    NdotV = max(NdotV, 0.0001);
+
     vec3 V;
     V.x = sqrt(1.0 - NdotV * NdotV);
     V.y = 0.0;
@@ -171,7 +174,10 @@ vec2 IntegrateBRDF(float NdotV, float Roughness)
         if (NdotL > 0.0)
         {
             float G = GeometrySmith(NdotV, NdotL, Roughness);
-            float G_Vis = (G * VdotH) / (NdotH * NdotV);
+
+            // Guard against divide-by-zero in NdotH * NdotV
+            float G_Vis = (G * VdotH) / max(NdotH * NdotV, 0.0001);
+
             float Fc = pow(1.0 - VdotH, 5.0);
 
             A += (1.0 - Fc) * G_Vis;
@@ -190,11 +196,12 @@ void main()
     if (pixelCoord.x >= 512 || pixelCoord.y >= 512)
         return;
 
-    vec2 uv = vec2(pixelCoord) / vec2(511.0, 511.0);
+    vec2 uv = vec2(pixelCoord) / vec2(512.0, 512.0);
     float NdotV = uv.x;
     float Roughness = uv.y;
 
     vec2 integratedBRDF = IntegrateBRDF(NdotV, Roughness);
+    integratedBRDF = clamp(integratedBRDF, 0.0, 1.0);
 
     imageStore(brdfLUT, pixelCoord, vec4(integratedBRDF, 0.0, 1.0));
 }

@@ -60,12 +60,12 @@ vec4 SampleIrradiance(in int hdri_index, in vec3 v) {
     vec2 packed_rect = HDRIs.data[hdri_index].irradiance_atlas_pack.zw;
     return SampleAtlas(SampleSphericalMap(v), image_size, packed_rect, IrradianceAtlas);
 }
-vec4 SampleRadiance(in int hdri_index, in vec3 v) {
+vec4 SampleRadiance(in int hdri_index, in vec3 v, float lod) {
     vec2 image_size = HDRIs.data[hdri_index].radiance_atlas_pack.xy;
     if (image_size.x == -1.0)
         return vec4(0.0);
     vec2 packed_rect = HDRIs.data[hdri_index].radiance_atlas_pack.zw;
-    return SampleAtlas(SampleSphericalMap(v), image_size, packed_rect, RadianceAtlas);
+    return SampleAtlasLOD(SampleSphericalMap(v), image_size, packed_rect, RadianceAtlas, lod);
 }
 )" }
         };
@@ -82,9 +82,6 @@ layout(binding = @BINDING@) uniform sampler2D RadianceAtlas;
             {0.5f, R"(
 )", ShaderModuleType::Vertex},
             {0.5f, R"(
-    vec4 hdri_sample = SampleHDRI(0, inLocalPosition);
-    vec4 irradiance_sample = SampleIrradiance(0, inLocalPosition);
-    vec4 radiance_sample = SampleRadiance(0, inLocalPosition);
 )", ShaderModuleType::Fragment}
         };
         
