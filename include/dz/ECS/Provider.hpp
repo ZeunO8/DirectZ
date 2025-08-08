@@ -22,6 +22,13 @@ namespace dz {
             return 0;
         }
 
+        inline static float GetPriority() {
+            if constexpr (requires { T::Priority; }) {
+                return T::Priority;
+            }
+            return 0.0f;
+        }
+
         inline static constexpr bool GetIsComponent() {
             if constexpr (requires { T::IsComponent; }) {
                 return T::IsComponent;
@@ -128,13 +135,6 @@ namespace dz {
                 return T::IsLightProvider;
             }
             return false;
-        }
-
-        inline static float GetPriority() {
-            if constexpr (requires { T::Priority; }) {
-                return T::Priority;
-            }
-            return 0.0f;
         }
 
         inline static const std::string& GetProviderName() {
