@@ -52,20 +52,44 @@ float gaSchlickGGX(float cosLi, float NdotV, float roughness)
 }
 
 vec3 IBL(vec3 F0, vec3 N, vec3 V) {
-    // diffuse IBL (view-independent) //
-    vec3 irradiance = SampleIrradiance( 0, N ).rgb;
-    vec3 diffuseBRDF = mParams.albedo / PI;
-    vec3 diffuse    = diffuseBRDF * irradiance;
+    // irradiance / diffuse
+    vec3 irradiance = SampleIrradiance(0, N).rgb;
+    vec3 kd = (1.0 - F0) * (1.0 - mParams.metalness);
+    vec3 diffuseBRDF = kd * mParams.albedo;
+    vec3 diffuse = diffuseBRDF * irradiance;
 
-    // specular IBL (view-dependent) //
-    float NdotV = max( dot( N, V ), 0.0 );
-    vec3  R      = reflect( -V, N );                    // reflection vector
-    int   maxMips = textureQueryLevels( RadianceAtlas );
-    float mip    = mParams.roughness * mParams.roughness * float( maxMips );
-    vec3  radiance = SampleRadiance( 0, R ).rgb;
-    vec2  brdfLUT  = texture( brdfLUT, vec2( NdotV, 1.0 - mParams.roughness ) ).rg;
-    vec3  F        = fresnelSchlickRoughness( F0, NdotV, mParams.roughness );
-    vec3  specular = radiance * ( F * brdfLUT.x + brdfLUT.y );
+    // reflection vector and radiance LOD
+    vec3 R = reflect(-V, N);
+    R.y = -R.y;
+    float maxMip = float(textureQueryLevels(RadianceAtlas)) - 1.0;
+    float lod = clamp(mParams.roughness * maxMip, 0.0, maxMip);
+    vec3 radiance = SampleRadiance(0, R, lod).rgb;
+
+    // safe-guard radiance (avoid NaN / negative)
+    radiance = max(radiance, vec3(0.0));
+
+    // --- BRDF LUT and Fresnel ---
+    // clamp / bias coordinates to safe range
+    float safeNdotV = clamp(lParams.NdotV, 0.0001, 1.0); // avoid exact zero
+    float safeRoughness = clamp(mParams.roughness, 0.0, 1.0);
+    vec2 brdfUV = vec2(safeNdotV, safeRoughness);
+
+    // Use explicit LOD 0 for BRDF LUT (typical LUT has no mips)
+    vec2 brdf = textureLod(brdfLUT, brdfUV, 0.0).rg;
+
+    // ensure brdf components are sane (clamp to avoid negative / huge values)
+    brdf = clamp(brdf, vec2(0.0), vec2(16.0));
+
+    vec3 F = fresnelSchlickRoughness(F0, safeNdotV, safeRoughness);
+
+    // combine
+    vec3 specular = radiance * (F * brdf.x + brdf.y);
+
+    // debug toggles — uncomment to diagnose:
+    // return radiance;               // shows raw radiance
+    // return vec3(brdf.x);           // visualise BRDF.x
+    // return vec3(brdf.y);           // visualise BRDF.y
+    // return vec3(F.x);              // visualise Fresnel (F)
 
     return diffuse + specular;
 }
@@ -76,18 +100,16 @@ vec3 PBDL(vec3 F0, in Light light) {
     vec3 Lradiance = vec3(light.intensity);
     vec3 Lh = normalize(Li + lParams.viewDirection);
 
-    // Calculate angles between surface normal and various light vectors.
     float cosLi = max(0.0, dot(lParams.normal, Li));
     float cosLh = max(0.0, dot(lParams.normal, Lh));
 
     vec3 F = fresnelSchlick(F0, max(0.0, dot(Lh, lParams.viewDirection)));
     float D = ndfGGX(cosLh, mParams.roughness);
     float G = gaSchlickGGX(cosLi, lParams.NdotV, mParams.roughness);
-    
+
     vec3 kd = (1.0 - F) * (1.0 - mParams.metalness);
     vec3 diffuseBRDF = kd * mParams.albedo;
-    
-    // Cook-Torrance
+
     vec3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * lParams.NdotV);
 
     result += (diffuseBRDF + specularBRDF) * Lradiance * cosLi;

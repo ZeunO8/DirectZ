@@ -69,6 +69,13 @@ vec4 SampleAtlas(in vec2 uv, in vec2 image_size, in vec2 packed_rect, in sampler
     vec2 packed_uv = offset_uv + uv * scale_uv;
     return texture(atlas, packed_uv);
 }
+vec4 SampleAtlasLOD(in vec2 uv, in vec2 image_size, in vec2 packed_rect, in sampler2D atlas, in float lod) {
+    vec2 resolution = vec2(textureSize(atlas, 0));
+    vec2 offset_uv = packed_rect / resolution;
+    vec2 scale_uv = image_size / resolution;
+    vec2 packed_uv = offset_uv + uv * scale_uv;
+    return textureLod(atlas, packed_uv, lod);
+}
 void EnsureMaterialFragColor(in vec2 uv, in SubMesh submesh, inout vec4 current_color) {
     vec2 image_size = Materials.data[submesh.material_index].albedo_atlas_pack.xy;
     if (image_size.x == -1.0)
