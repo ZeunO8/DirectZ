@@ -26,6 +26,7 @@ using ExampleECS = ECS<
 #ifdef ENABLE_LIGHTS
     , Light, PhysicallyBasedLighting
 #endif
+    , GammaCorrection
 >;
 
 

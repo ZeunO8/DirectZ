@@ -11,6 +11,7 @@
 #include "State.hpp"
 #include "ECS/Provider.hpp"
 #include "ECS/Light.hpp"
+#include "ECS/GammaCorrection.hpp"
 #include "ECS/PhongLighting.hpp"
 #include "ECS/PhysicallyBasedLighting.hpp"
 #include "ECS/Scene.hpp"
