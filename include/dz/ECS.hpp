@@ -157,21 +157,20 @@ namespace dz {
         Shader* skybox_shader = nullptr; // !
         Shader* model_compute_shader = nullptr; // !
         Shader* camera_mat_compute_shader = nullptr; // !
-        std::vector<Shader*> raster_shaders;
-        std::vector<Shader*> compute_shaders;
+        std::vector<Shader*> raster_shaders; // !
+        std::vector<Shader*> compute_shaders; // !
 
-        bool material_browser_open = true;
+        bool material_browser_open = true; // Y
 
-        bool atlas_dirty = false;
-        ImagePack albedo_atlas_pack;
-        ImagePack normal_atlas_pack;
-        ImagePack roughness_atlas_pack;
-        ImagePack metalness_atlas_pack;
-        ImagePack metalness_roughness_atlas_pack;
-        ImagePack shininess_atlas_pack;
-        ImagePack hdri_atlas_pack;
-        ImagePack irradiance_atlas_pack;
-        ImagePack radiance_atlas_pack;
+        ImagePack albedo_atlas_pack; // Y
+        ImagePack normal_atlas_pack; // Y
+        ImagePack roughness_atlas_pack; // Y
+        ImagePack metalness_atlas_pack; // Y
+        ImagePack metalness_roughness_atlas_pack; // Y
+        ImagePack shininess_atlas_pack; // Y
+        ImagePack hdri_atlas_pack; // Y
+        ImagePack irradiance_atlas_pack; // Y
+        ImagePack radiance_atlas_pack; // Y
 
         auto GenerateSkyBoxDrawFunction() {
             return [&](auto buffer_group, auto& skybox) -> DrawTuple {
@@ -476,6 +475,9 @@ namespace dz {
                 return false;
             if (!BackupBuffers(serial))
                 return false;
+            serial << material_browser_open;
+            if (!BackupAtli(serial))
+                return false;
             return true;
         }
 
@@ -500,6 +502,9 @@ namespace dz {
             if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
                 return false;
             if (!RestoreBuffers(serial))
+                return false;
+            serial >> material_browser_open;
+            if (!RestoreAtli(serial))
                 return false;
             UpdateGroupsChildren();
             return (loaded_from_io = true);
@@ -610,6 +615,63 @@ namespace dz {
                 auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
                 serial.writeBytes((const char*)buffer_ptr.get(), element_count * element_size);
             }
+            return true;
+        }
+
+        bool BackupAtlas(Serial& serial, ImagePack& atlas) {
+            atlas.getAtlas();
+            return image_serialize(atlas.getAtlas(), serial);
+        }
+
+        bool BackupAtli(Serial& serial) {
+            if (!BackupAtlas(serial, albedo_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, normal_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, roughness_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, metalness_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, metalness_roughness_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, shininess_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, hdri_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, irradiance_atlas_pack))
+                return false;
+            if (!BackupAtlas(serial, radiance_atlas_pack))
+                return false;
+            return true;
+        }
+
+        bool RestoreAtlas(Serial& serial, ImagePack& atlas) {
+            auto atlas_image = image_from_serial(serial);
+            if (!atlas_image)
+                return false;
+            // atlas.SetAtlasImage(atlas_image);
+            return true;
+        }
+
+        bool RestoreAtli(Serial& serial) {
+            if (!RestoreAtlas(serial, albedo_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, normal_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, roughness_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, metalness_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, metalness_roughness_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, shininess_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, hdri_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, irradiance_atlas_pack))
+                return false;
+            if (!RestoreAtlas(serial, radiance_atlas_pack))
+                return false;
             return true;
         }
 
