@@ -71,9 +71,7 @@ vec3 IBL(vec3 F0, vec3 N, vec3 V) {
 
     // --- BRDF LUT and Fresnel ---
     // clamp / bias coordinates to safe range
-    // float safeNdotV = clamp(lParams.NdotV, 0.0001, 1.0); // avoid exact zero
-    // float safeRoughness = clamp(mParams.roughness, 0.0, 1.0);
-    vec2 brdfUV = vec2(lParams.NdotV, mParams.roughness);
+    vec2 brdfUV = vec2(lParams.NdotV, 1.0 - mParams.roughness);
 
     // Use explicit LOD 0 for BRDF LUT (typical LUT has no mips)
     vec2 brdf = textureLod(brdfLUT, brdfUV, 0.0).rg;
