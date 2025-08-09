@@ -115,7 +115,14 @@ namespace dz {
         std::map<float, std::vector<size_t>> prioritized_provider_ids; // !
         std::unordered_map<ShaderModuleType, std::map<float, std::vector<std::string>>> priority_glsl_mains; // !
 
-        std::vector<std::string> restricted_keys{
+        std::vector<std::string> buffer_keys{
+            VertexPositions_Str,
+            VertexUV2s_Str,
+            VertexNormals_Str,
+            VertexTangents_Str,
+            VertexBitangents_Str
+        }; // !
+        std::vector<std::string> image_keys{
             AlbedoAtlas_Str,
             NormalAtlas_Str,
             RoughnessAtlas_Str,
@@ -125,11 +132,6 @@ namespace dz {
             HDRIAtlas_Str,
             IrradianceAtlas_Str,
             RadianceAtlas_Str,
-            VertexPositions_Str,
-            VertexUV2s_Str,
-            VertexNormals_Str,
-            VertexTangents_Str,
-            VertexBitangents_Str,
             brdfLUT_Str
         }; // !
         std::map<int, RegisteredComponentEntry> registered_component_map; // !
@@ -465,6 +467,8 @@ namespace dz {
                 return false;
             if (!Backup_pid_reflectable_vecs_sizes(serial))
                 return false;
+            if (!BackupBuffers(serial))
+                return false;
             if (!BackupGroupVector(serial, reflectable_group_root_vector))
                 return false;
             if (!BackupGroupVector(serial, material_group_vector))
@@ -473,11 +477,7 @@ namespace dz {
                 return false;
             if (!BackupGroupVector(serial, mesh_group_vector))
                 return false;
-            if (!BackupBuffers(serial))
-                return false;
             serial << material_browser_open;
-            if (!BackupAtli(serial))
-                return false;
             return true;
         }
 
@@ -491,6 +491,8 @@ namespace dz {
             ReflectableGroup::pid_id_index_maps_ptr = &pid_id_index_maps;
             if (!Restore_pid_reflectable_vecs_sizes(serial))
                 return false;
+            if (!RestoreBuffers(serial))
+                return false;
             if (!RestoreGroupVector(serial, reflectable_group_root_vector, buffer_group))
                 return false;
             if (!RestoreGroupVector(serial, material_group_vector, buffer_group))
@@ -501,11 +503,7 @@ namespace dz {
                 return false;
             if (!EnsureGroupVectorParentPtrs(reflectable_group_root_vector, nullptr))
                 return false;
-            if (!RestoreBuffers(serial))
-                return false;
             serial >> material_browser_open;
-            if (!RestoreAtli(serial))
-                return false;
             UpdateGroupsChildren();
             return (loaded_from_io = true);
         }
@@ -577,26 +575,26 @@ namespace dz {
         bool RestoreBuffers(Serial& serial) {
             if (!buffer_group)
                 return false;
-            auto keys_size = restricted_keys.size();
+            auto keys_size = buffer_keys.size();
             serial >> keys_size;
             for (size_t key_count = 1; key_count <= keys_size; ++key_count) {
-                std::string restricted_key;
-                serial >> restricted_key;
+                std::string buffer_key;
+                serial >> buffer_key;
                 uint32_t element_count, element_size;
                 serial >> element_count >> element_size;
                 auto buffer_size = element_count * element_size;
-                auto r_key_it = std::find(restricted_keys.begin(), restricted_keys.end(), restricted_key);
-                if (r_key_it == restricted_keys.end()) {
+                auto r_key_it = std::find(buffer_keys.begin(), buffer_keys.end(), buffer_key);
+                if (r_key_it == buffer_keys.end()) {
                     auto bytes = (char*)malloc(buffer_size);
                     serial.readBytes((char*)bytes, buffer_size);
                     free(bytes);
                     continue;
                 }
-                buffer_group_set_buffer_element_count(buffer_group, restricted_key, element_count);
-                auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+                buffer_group_set_buffer_element_count(buffer_group, buffer_key, element_count);
+                auto actual_element_size = buffer_group_get_buffer_element_size(buffer_group, buffer_key);
                 if (actual_element_size != element_size)
                     throw std::runtime_error("Incompatible buffer element sizes");
-                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, buffer_key);
                 serial.readBytes((char*)buffer_ptr.get(), buffer_size);
             }
             return true;
@@ -605,73 +603,16 @@ namespace dz {
         bool BackupBuffers(Serial& serial) {
             if (!buffer_group)
                 return false;
-            auto keys_size = restricted_keys.size();
+            auto keys_size = buffer_keys.size();
             serial << keys_size;
-            for (auto& restricted_key : restricted_keys) {
-                serial << restricted_key;
-                auto element_count = buffer_group_get_buffer_element_count(buffer_group, restricted_key);
-                auto element_size = buffer_group_get_buffer_element_size(buffer_group, restricted_key);
+            for (auto& buffer_key : buffer_keys) {
+                serial << buffer_key;
+                auto element_count = buffer_group_get_buffer_element_count(buffer_group, buffer_key);
+                auto element_size = buffer_group_get_buffer_element_size(buffer_group, buffer_key);
                 serial << element_count << element_size;
-                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, restricted_key);
+                auto buffer_ptr = buffer_group_get_buffer_data_ptr(buffer_group, buffer_key);
                 serial.writeBytes((const char*)buffer_ptr.get(), element_count * element_size);
             }
-            return true;
-        }
-
-        bool BackupAtlas(Serial& serial, ImagePack& atlas) {
-            atlas.getAtlas();
-            return image_serialize(atlas.getAtlas(), serial);
-        }
-
-        bool BackupAtli(Serial& serial) {
-            if (!BackupAtlas(serial, albedo_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, normal_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, roughness_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, metalness_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, metalness_roughness_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, shininess_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, hdri_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, irradiance_atlas_pack))
-                return false;
-            if (!BackupAtlas(serial, radiance_atlas_pack))
-                return false;
-            return true;
-        }
-
-        bool RestoreAtlas(Serial& serial, ImagePack& atlas) {
-            auto atlas_image = image_from_serial(serial);
-            if (!atlas_image)
-                return false;
-            // atlas.SetAtlasImage(atlas_image);
-            return true;
-        }
-
-        bool RestoreAtli(Serial& serial) {
-            if (!RestoreAtlas(serial, albedo_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, normal_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, roughness_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, metalness_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, metalness_roughness_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, shininess_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, hdri_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, irradiance_atlas_pack))
-                return false;
-            if (!RestoreAtlas(serial, radiance_atlas_pack))
-                return false;
             return true;
         }
 
@@ -715,8 +656,8 @@ namespace dz {
                 provider_group.component_id = int(TProvider::GetComponentID());
                 RegisterComponent<TProvider>();
             }
-            pid_create_from_serial[pid] = [](auto buffer_group, auto& serial) {
-                return TProvider::TryMakeGroupFromSerial(buffer_group, serial);
+            pid_create_from_serial[pid] = [&](auto buffer_group, auto& serial) {
+                return TProvider::TryMakeGroupFromSerial(*this, buffer_group, serial);
             };
         }
 
@@ -828,7 +769,7 @@ namespace dz {
 
             reflectable_group_vector.push_back(group_ptr);
 
-            auto& group = *group_ptr;
+            auto& group = dynamic_cast<typename TProvider::ReflectableGroup&>(*group_ptr);
 
             group.cid = pid;
             group.id = ecs_id;
@@ -884,24 +825,22 @@ namespace dz {
 
             if (parent_id != -1) {
                 auto& parent_group = GetGenericGroupByID(parent_id);
-                if constexpr (std::is_same_v<TProvider, EntityProviderT>)
-                    SetWhoParent(GetEntity(id), &parent_group);
-                else if constexpr (std::is_same_v<TProvider, CameraProviderT>)
-                    SetWhoParent(GetCamera(id), &parent_group);
-                else if constexpr (std::is_same_v<TProvider, SceneProviderT>)
-                    SetWhoParent(GetScene(id), &parent_group);
-                else if constexpr (std::is_same_v<TProvider, SubMeshProviderT>)
-                    SetWhoParent(GetSubMesh(id), &parent_group);
-                else if constexpr (std::is_same_v<TProvider, LightProviderT>)
-                    SetWhoParent(GetLight(id), &parent_group);
-                else if constexpr (std::is_same_v<TProvider, SkyBoxProviderT>)
-                    SetWhoParent(GetSkyBox(id), &parent_group);
+                if constexpr (
+                    std::is_same_v<TProvider, EntityProviderT> ||
+                    std::is_same_v<TProvider, CameraProviderT> ||
+                    std::is_same_v<TProvider, SceneProviderT> ||
+                    std::is_same_v<TProvider, SubMeshProviderT> ||
+                    std::is_same_v<TProvider, LightProviderT> ||
+                    std::is_same_v<TProvider, SkyBoxProviderT>
+                ) {
+                    SetWhoParent(GetProviderData<TProvider>(id), &parent_group);
+                }
             }
 
-            if constexpr (requires { data.Initialize(*this, group); })
-                data.Initialize(*this, group, args...);
-            else if constexpr (requires { data.Initialize(); })
-                data.Initialize(args...);
+            if constexpr (requires { group.Initialize(*this, data, args...); })
+                group.Initialize(*this, data, args...);
+            else if constexpr (requires { group.Initialize(args...); })
+                group.Initialize(args...);
 
             group.UpdateChildren();
 
@@ -988,51 +927,6 @@ namespace dz {
             return GetProviderData<MaterialProviderT>(material_id);
         }
 
-        void SetMaterialImages(size_t material_id, const std::vector<Image*> images_vec) {
-            auto& material_group = GetGroupByID<MaterialProviderT, typename MaterialProviderT::ReflectableGroup>(material_id);
-
-            for (auto& image_ptr : images_vec) {
-                auto frame_ds_pair = image_create_descriptor_set(image_ptr);
-                auto surfaceType = image_get_surface_type(image_ptr);
-                switch (surfaceType) {
-                case SurfaceType::BaseColor:
-                case SurfaceType::Diffuse:
-                    material_group.albedo_image = image_ptr;
-                    material_group.albedo_frame_image_ds = frame_ds_pair.second;
-                    albedo_atlas_pack.addImage(image_ptr);
-                    break;
-                case SurfaceType::DiffuseRoughness:
-                    material_group.roughness_image = image_ptr;
-                    material_group.roughness_frame_image_ds = frame_ds_pair.second;
-                    roughness_atlas_pack.addImage(image_ptr);
-                    break;
-                case SurfaceType::Metalness:
-                    material_group.metalness_image = image_ptr;
-                    material_group.metalness_frame_image_ds = frame_ds_pair.second;
-                    metalness_atlas_pack.addImage(image_ptr);
-                    break;
-                case SurfaceType::MetalnessRoughness:
-                    material_group.metalness_roughness_image = image_ptr;
-                    material_group.metalness_roughness_frame_image_ds = frame_ds_pair.second;
-                    metalness_roughness_atlas_pack.addImage(image_ptr);
-                    break;
-                case SurfaceType::Normal:
-                    material_group.normal_image = image_ptr;
-                    material_group.normal_frame_image_ds = frame_ds_pair.second;
-                    normal_atlas_pack.addImage(image_ptr);
-                    break;
-                case SurfaceType::Shininess:
-                    material_group.shininess_image = image_ptr;
-                    material_group.shininess_frame_image_ds = frame_ds_pair.second;
-                    shininess_atlas_pack.addImage(image_ptr);
-                    break;
-                }
-            }
-
-            if (buffer_initialized)
-                UpdateAtlases();
-        }
-
         template <typename THDRI, typename... Args>
         int AddHDRI(const THDRI& hdri_data, int& out_index, const std::string& name, const Args&... args) {
             return AddProvider<THDRI>(-1, hdri_data, hdri_group_vector, out_index, name, args...);
@@ -1040,25 +934,6 @@ namespace dz {
 
         HDRIProviderT& GetHDRI(size_t hdri_id) {
             return GetProviderData<HDRIProviderT>(hdri_id);
-        }
-
-        template<typename... Args>
-        void SetHDRIImage(size_t hdri_id, Image* image_ptr, const Args&... args) {
-            auto& hdri_group = GetGroupByID<HDRIProviderT, typename HDRIProviderT::ReflectableGroup>(hdri_id);
-
-            auto& hdri = GetHDRI(hdri_group.id);
-
-            hdri_group.hdri_image = image_ptr;
-            hdri_group.hdri_frame_image_ds = image_create_descriptor_set(image_ptr).second;
-            hdri_atlas_pack.addImage(image_ptr);
-
-            if constexpr (requires { hdri.Initialize(*this, hdri_group); })
-                hdri.Initialize(*this, hdri_group, args...);
-            else if constexpr (requires { hdri.Initialize(); })
-                hdri.Initialize(args...);
-
-            if (buffer_initialized)
-                UpdateHDRIAtlas();
         }
 
         template<typename... Args>
@@ -1348,10 +1223,15 @@ namespace dz {
         BufferGroup* CreateBufferGroup() {
             auto buffer_group_ptr = buffer_group_create("ECS:Group");
             for (auto& [provider_id, provider_group] : pid_provider_groups) {
-                restricted_keys.push_back(provider_group.buffer_name);
+                if (provider_group.buffer_host_type != BufferHost::GPU)
+                    continue;
+                buffer_keys.push_back(provider_group.buffer_name);
                 if (provider_group.is_component)
-                    restricted_keys.push_back(provider_group.sparse_name);
+                    buffer_keys.push_back(provider_group.sparse_name);
             }
+            std::vector<std::string> restricted_keys;
+            restricted_keys.insert(restricted_keys.end(), buffer_keys.begin(), buffer_keys.end());
+            restricted_keys.insert(restricted_keys.end(), image_keys.begin(), image_keys.end());
             buffer_group_restrict_to_keys(buffer_group_ptr, restricted_keys);
             return buffer_group_ptr;
         }
@@ -2102,13 +1982,14 @@ void main() {
             if (!width || !height)
                 return false;
 
+            auto& camera_group = GetGroupByID<CameraProviderT, typename CameraProviderT::ReflectableGroup>(camera_id);
             auto& camera = GetCamera(camera_id);
 
             camera.width = width;
             camera.height = height;
 
-            if constexpr (requires { camera.Initialize(); })
-                camera.Initialize();
+            if constexpr (requires { camera_group.Initialize(*this, camera); })
+                camera_group.Initialize(*this, camera);
 
             return true;
         }

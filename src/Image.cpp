@@ -868,19 +868,29 @@ namespace dz {
             uint32_t mipHeight = (std::max)(1u, info.height >> mip);
             uint32_t mipDepth = (std::max)(1u, info.depth >> mip);
             auto mip_byte_size = mipWidth * mipHeight * mipDepth * pixel_stride;
-            auto& bytes = (info_datas_data[mip] = std::shared_ptr<void>(malloc(mip_byte_size), free));
-            serial.readBytes((char*)(bytes.get()), mip_byte_size);
+            auto compressed_bytes = std::shared_ptr<void>(malloc(mip_byte_size), free);
+            serial.readBytes((char*)(compressed_bytes.get()), mip_byte_size);
+            // use info.format and mip sizes to determine parameters to pass to stbi_load
+            info_datas_data[mip] = compressed_bytes;
             mip++;
         }
         return info;
     }
 
     bool image_serialize(Image* image_ptr, Serial& serial) {
+        bool valid_image = image_ptr;
+        serial << valid_image;
+        if (!valid_image)
+            return true;
         auto info = image_to_info(image_ptr);
         return serialize_ImageCreateInfo(serial, info);
     }
 
     Image* image_from_serial(Serial& serial) {
+        bool valid_image = false;
+        serial >> valid_image;
+        if (!valid_image)
+            return nullptr;
         auto info = deserialize_ImageCreateInfo(serial);
         return image_create(info);
     }

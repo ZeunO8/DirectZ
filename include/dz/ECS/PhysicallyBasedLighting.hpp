@@ -7,6 +7,7 @@ namespace dz::ecs {
     struct PhysicallyBasedLighting : Provider<PhysicallyBasedLighting> {
         inline static constexpr size_t PID = 9;
         inline static float Priority = 4.0f;
+        inline static constexpr BufferHost BufferHostType = BufferHost::NoBuffer;
         inline static std::string ProviderName = "PhysicallyBasedLighting";
         inline static std::string StructName = "PhysicallyBasedLighting";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
@@ -206,15 +207,11 @@ vec3 PBL(vec3 F0) {
             std::string& GetName() override {
                 return name;
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name;
                 return true;
             }
-            bool restore(Serial& serial) override {
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override {
                 serial >> name;
                 return true;
             }

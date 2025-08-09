@@ -247,17 +247,88 @@ layout(binding = @BINDING@) uniform sampler2D brdfLUT;
                     }));
                 }
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name;
                 return true;
             }
-            bool restore(Serial& serial) override{
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override{
                 serial >> name;
                 return true;
+            }
+
+            bool SerializeArgs(Serial& serial) const override {
+                static auto add_image_ptr = [](auto& images_vec, auto image_ptr) {
+                    if (image_ptr)
+                        images_vec.push_back(image_ptr);
+                };
+                std::vector<Image*> images_vec;
+                add_image_ptr(images_vec, albedo_image);
+                add_image_ptr(images_vec, normal_image);
+                add_image_ptr(images_vec, metalness_roughness_image);
+                add_image_ptr(images_vec, roughness_image);
+                add_image_ptr(images_vec, metalness_image);
+                add_image_ptr(images_vec, shininess_image);
+                auto images_vec_size = images_vec.size();
+                serial << images_vec_size;
+                auto images_vec_data = images_vec.data();
+                for (size_t i = 0; i < images_vec_size; i++) {
+                    image_serialize(images_vec_data[i], serial);
+                }
+                return true;
+            }
+
+            inline static auto DeserializeArgsToTuple(Serial& serial) {
+                std::tuple<std::vector<Image*>> tuple;
+                auto& images_vec = std::get<0>(tuple);
+                auto images_vec_size = images_vec.size();
+                serial >> images_vec_size;
+                images_vec.resize(images_vec_size);
+                auto images_vec_data = images_vec.data();
+                for (size_t i = 0 ; i < images_vec_size; ++i) {
+                    images_vec_data[i] = image_from_serial(serial);
+                }
+                return tuple;
+            }
+
+            template<typename TECS>
+            void Initialize(TECS& ecs, Material& material, const std::vector<Image*> images_vec) {
+                for (auto& image_ptr : images_vec) {
+                    auto frame_ds_pair = image_create_descriptor_set(image_ptr);
+                    auto surfaceType = image_get_surface_type(image_ptr);
+                    switch (surfaceType) {
+                    case SurfaceType::BaseColor:
+                    case SurfaceType::Diffuse:
+                        albedo_image = image_ptr;
+                        albedo_frame_image_ds = frame_ds_pair.second;
+                        ecs.albedo_atlas_pack.addImage(image_ptr);
+                        break;
+                    case SurfaceType::DiffuseRoughness:
+                        roughness_image = image_ptr;
+                        roughness_frame_image_ds = frame_ds_pair.second;
+                        ecs.roughness_atlas_pack.addImage(image_ptr);
+                        break;
+                    case SurfaceType::Metalness:
+                        metalness_image = image_ptr;
+                        metalness_frame_image_ds = frame_ds_pair.second;
+                        ecs.metalness_atlas_pack.addImage(image_ptr);
+                        break;
+                    case SurfaceType::MetalnessRoughness:
+                        metalness_roughness_image = image_ptr;
+                        metalness_roughness_frame_image_ds = frame_ds_pair.second;
+                        ecs.metalness_roughness_atlas_pack.addImage(image_ptr);
+                        break;
+                    case SurfaceType::Normal:
+                        normal_image = image_ptr;
+                        normal_frame_image_ds = frame_ds_pair.second;
+                        ecs.normal_atlas_pack.addImage(image_ptr);
+                        break;
+                    case SurfaceType::Shininess:
+                        shininess_image = image_ptr;
+                        shininess_frame_image_ds = frame_ds_pair.second;
+                        ecs.shininess_atlas_pack.addImage(image_ptr);
+                        break;
+                    }
+                }
             }
 
         };

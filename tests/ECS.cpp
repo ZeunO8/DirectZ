@@ -146,8 +146,7 @@ int main() {
                     .albedo_color = albedo_color,
                     .metalness = metalness,
                     .roughness = roughness
-                }, out_index, name);
-                ecs.SetMaterialImages(out_id, images_vec);
+                }, out_index, name, images_vec);
                 return {out_id, out_index};
             }
         };
@@ -224,6 +223,7 @@ int main() {
             if (!free_state())
                 std::cerr << "Failed to Free State" << std::endl;
         }
+        ecs_ptr.reset();
     });
 
     auto& imgui = get_ImGuiLayer();

@@ -107,3 +107,26 @@ dz::Image* dz::loaders::STB_Image_Loader::Load(const dz::loaders::STB_Image_Info
         return (info.load_float) ? STB_Image_load_bytesf(info.bytes, info.bytes_length) : STB_Image_load_bytesu(info.bytes, info.bytes_length);
     throw std::runtime_error("Neither bytes nor path were provided to info!");
 }
+
+template <>
+Serial& deserialize(Serial& serial, dz::loaders::STB_Image_Info& info)
+{
+    serial >> info.load_float;
+    serial >> info.path;
+    serial >> info.bytes_length;
+    if (info.bytes_length) {
+        info.bytes = std::shared_ptr<char>((char*)malloc(info.bytes_length), free);
+        serial.readBytes(info.bytes.get(), info.bytes_length);
+    }
+    return serial;
+}
+template<>
+Serial& serialize(Serial& serial, const dz::loaders::STB_Image_Info& info)
+{
+    serial << info.load_float;
+    serial << info.path;
+    serial << info.bytes_length;
+    if (info.bytes_length)
+        serial.writeBytes(info.bytes.get(), info.bytes_length);
+    return serial;
+}

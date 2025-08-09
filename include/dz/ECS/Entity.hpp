@@ -185,9 +185,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                         reflectables.push_back(component_reflectable_ptr);
                 }
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name;
                 if (!BackupGroupVector(serial, reflectable_children))
                     return false;
@@ -195,9 +193,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
                     return false;
                 return true;
             }
-            bool restore(Serial& serial) override {
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override {
                 serial >> name;
                 if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
                     return false;
