@@ -244,7 +244,8 @@ namespace dz {
         auto pixel_stride = image_get_sizeof_channels(channels);
         uint32_t mipWidth = (std::max)(1u, image.width >> mip);
         uint32_t mipHeight = (std::max)(1u, image.height >> mip);
-        auto image_size = mipWidth * mipHeight * image.depth * pixel_stride;
+        uint32_t mipDepth = (std::max)(1u, image.depth >> mip);
+        auto image_size = mipWidth * mipHeight * mipDepth * pixel_stride;
         auto& ptr = image.datas[mip];
         ptr = std::shared_ptr<char>((char*)malloc(image_size), free);
         memset(ptr.get(), 0, image_size);
@@ -845,6 +846,7 @@ namespace dz {
             uint32_t mipDepth = (std::max)(1u, info.depth >> mip);
             auto mip_byte_size = mipWidth * mipHeight * mipDepth * pixel_stride;
             auto& bytes = info_datas_data[mip];
+            // use info.format and mip sizes to determine parameters to pass to stbi_write
             serial.writeBytes((char*)(bytes.get()), mip_byte_size);
             mip++;
         }
@@ -1022,7 +1024,11 @@ namespace dz {
         region.imageSubresource.baseArrayLayer = 0;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = {0, 0, 0};
-        region.imageExtent = {uint32_t(image_ptr->width), uint32_t(image_ptr->height), 1};
+
+        uint32_t mip_width  = std::max(1u, image_ptr->width >> mip);
+        uint32_t mip_height = std::max(1u, image_ptr->height >> mip);
+        uint32_t mip_depth = std::max(1u, image_ptr->depth >> mip);
+        region.imageExtent = {mip_width, mip_height, mip_depth};
 
         vkCmdCopyImageToBuffer(commandBuffer, image_ptr->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 stagingBuffer, 1, &region);
