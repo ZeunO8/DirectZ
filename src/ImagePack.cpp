@@ -257,20 +257,16 @@ void ImagePack::GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_s
 	image_copy_end();
 }
 
-size_t dz::ImagePack::findImageIndex(Image* image)
+bool dz::ImagePack::findImageIndex(Image* image, size_t& out_index)
 {
-	size_t index = 0;
-	auto image_vec_size = image_vec.size();
-	auto image_vec_data = image_vec.data();
-	for (; index < image_vec_size; ++index)
-	{
-		if (image == image_vec_data[index])
-			break;
+	auto image_vec_begin = image_vec.begin();
+	auto image_vec_end = image_vec.end();
+	auto image_it = std::find(image_vec_begin, image_vec_end, image);
+	if (image_it == image_vec_end) {
+		return false;
 	}
-	if (index < image_vec_size)
-		return index;
-	else
-		throw std::runtime_error("Image not found");
+	out_index = std::distance(image_vec_begin, image_it);
+	return true;
 }
 ImagePack::~ImagePack() {
 	if (owns_atlas)
@@ -284,13 +280,12 @@ void ImagePack::SetAtlasFormat(VkFormat new_format) {
 }
 void dz::ImagePack::addImage(Image* image)
 {
-	try
-	{
-		findImageIndex(image);
-	}
-	catch (...)
-	{
+	size_t out_index = 0;
+	if (!findImageIndex(image, out_index)) {
 		image_vec.push_back(image);
+	}
+	else {
+		std::cout << "Image already added to pack!" << std::endl;
 	}
 }
 bool dz::ImagePack::check()
@@ -309,38 +304,12 @@ bool dz::ImagePack::check()
 	return true;
 }
 Image* dz::ImagePack::getAtlas() { return atlas; }
-vec<float, 2> dz::ImagePack::getUV(vec<float, 2> original_uv, Image* image)
-{
-    return {};
-	// auto& image_ref = *image;
-	// float pixel_u = original_uv.x * image_ref.size.x;
-	// float pixel_v = original_uv.y * image_ref.size.y;
-	// auto& packed_rect = findPackedRect(image);
-	// auto& atlas_size = atlas->size;
-	// float atlas_u = (packed_rect.x + pixel_u) / float(atlas_size.x);
-	// float atlas_v = (packed_rect.y + pixel_v) / float(atlas_size.y);
-	// return {atlas_u, atlas_v};
-}
-std::vector<vec<float, 2>> dz::ImagePack::getUVs(const std::vector<vec<float, 2>>& original_uvs, Image* image)
-{
-	auto& image_ref = *image;
-	auto& packed_rect = findPackedRect(image);
-	std::vector<vec<float, 2>> new_uvs;
-	new_uvs.reserve(original_uvs.size());
-	// for (auto& original_uv : original_uvs)
-	// {
-	// 	float pixel_u = original_uv.x * image_ref.size.x;
-	// 	float pixel_v = original_uv.y * image_ref.size.y;
-	// 	auto& atlas_size = atlas->size;
-	// 	float atlas_u = (packed_rect.x + pixel_u) / float(atlas_size.x);
-	// 	float atlas_v = (packed_rect.y + pixel_v) / float(atlas_size.y);
-	// 	new_uvs.push_back({atlas_u, atlas_v});
-	// }
-	return new_uvs;
-}
 dz::ImagePack::rect_type& dz::ImagePack::findPackedRect(Image* image)
 {
-	return rect_vec[findImageIndex(image)];
+	size_t out_index = 0;
+	if (findImageIndex(image, out_index))
+		return rect_vec[out_index];
+	throw std::runtime_error("Image does not exist in Pack!");
 }
 size_t dz::ImagePack::size() const { return image_vec.size(); }
 bool dz::ImagePack::empty() const { return image_vec.empty(); }

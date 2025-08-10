@@ -24,7 +24,7 @@ namespace dz {
 		void repack();
 		void CPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels);
 		void GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_size, uint32_t atlas_mip_levels);
-		size_t findImageIndex(Image* image);
+		bool findImageIndex(Image* image, size_t& out_index);
 		bool enforce_same_format = true;
 		bool enforce_same_miplvl = true;
 
@@ -43,10 +43,6 @@ namespace dz {
 		bool check();
 
 		Image* getAtlas();
-
-		vec<float, 2> getUV(vec<float, 2> original_uv, Image* image);
-
-		std::vector<vec<float, 2>> getUVs(const std::vector<vec<float, 2>>& original_uvs, Image* image);
 
 		rect_type& findPackedRect(Image* image);
 
