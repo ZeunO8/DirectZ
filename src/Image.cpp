@@ -57,6 +57,7 @@ namespace dz {
             .tiling = info.tiling,
             .memory_properties = info.memory_properties,
             .multisampling = info.multisampling,
+            .is_framebuffer_attachment = info.is_framebuffer_attachment,
             .datas = info.datas,
             .surfaceType = info.surfaceType,
             .mip_levels = info.mip_levels
@@ -76,6 +77,7 @@ namespace dz {
             .tiling = info.tiling,
             .memory_properties = info.memory_properties,
             .multisampling = info.multisampling,
+            .is_framebuffer_attachment = info.is_framebuffer_attachment,
             .datas = info.datas,
             .surfaceType = info.surfaceType,
             .mip_levels = info.mip_levels
@@ -187,12 +189,10 @@ namespace dz {
             if (!image.datas[mip]) {
                 init_empty_image_data(image_ptr, mip);
             }
-            else if (!image_ptr->data_is_cpu_side) {
-                image_ptr->data_is_cpu_side = true;
-            }
-
             image_upload_data(image_ptr, mip);
+            image.datas[mip].reset();
         }
+        image_ptr->data_is_cpu_side = false;
 
         // Create ImageView
         image.imageViews.resize(image.mip_levels);
@@ -244,7 +244,8 @@ namespace dz {
         auto pixel_stride = image_get_sizeof_channels(channels);
         uint32_t mipWidth = (std::max)(1u, image.width >> mip);
         uint32_t mipHeight = (std::max)(1u, image.height >> mip);
-        auto image_size = mipWidth * mipHeight * image.depth * pixel_stride;
+        uint32_t mipDepth = (std::max)(1u, image.depth >> mip);
+        auto image_size = mipWidth * mipHeight * mipDepth * pixel_stride;
         auto& ptr = image.datas[mip];
         ptr = std::shared_ptr<char>((char*)malloc(image_size), free);
         memset(ptr.get(), 0, image_size);
@@ -484,13 +485,12 @@ namespace dz {
 
         return {layout, descriptorSet};
     }
-    
-    std::vector<float> image_get_channels_size_of_t(Image* image)
-    {
+
+    std::vector<float> format_get_channels_size_of_t(VkFormat format) {
         int channels = 0;
         float sizeoftype = 0;
 
-        switch (image->format)
+        switch (format)
         {
             case VK_FORMAT_R4G4_UNORM_PACK8:
                 channels = 2;
@@ -645,6 +645,11 @@ namespace dz {
         }
 
         return vec;
+    }
+    
+    std::vector<float> image_get_channels_size_of_t(Image* image)
+    {
+        return format_get_channels_size_of_t(image->format);
     }
 
     size_t image_get_sizeof_channels(const std::vector<float>& channels) {
@@ -822,5 +827,231 @@ namespace dz {
         dr.copyRegions.clear();
         dr.copySrcImages.clear();
         dr.copyDstImages.clear();
+    }
+
+    bool serialize_ImageCreateInfo(Serial& serial, const ImageCreateInfo& info) {
+        serial << info.width << info.height << info.depth
+               << info.format << info.usage << info.image_type
+               << info.view_type << info.tiling << info.memory_properties
+               << info.multisampling << info.is_framebuffer_attachment
+               << info.surfaceType << info.mip_levels;
+        auto channels = format_get_channels_size_of_t(info.format);
+        auto pixel_stride = image_get_sizeof_channels(channels);
+        assert(info.datas.size() == info.mip_levels);
+        auto info_datas_data = info.datas.data();
+        auto mip = 0;
+        for (auto& data_ptr : info.datas) {
+            uint32_t mipWidth = (std::max)(1u, info.width >> mip);
+            uint32_t mipHeight = (std::max)(1u, info.height >> mip);
+            uint32_t mipDepth = (std::max)(1u, info.depth >> mip);
+            auto mip_byte_size = mipWidth * mipHeight * mipDepth * pixel_stride;
+            auto& bytes = info_datas_data[mip];
+            // use info.format and mip sizes to determine parameters to pass to stbi_write
+            serial.writeBytes((char*)(bytes.get()), mip_byte_size);
+            mip++;
+        }
+        return true;
+    }
+
+    ImageCreateInfo deserialize_ImageCreateInfo(Serial& serial) {
+        ImageCreateInfo info;
+        serial >> info.width >> info.height >> info.depth
+               >> info.format >> info.usage >> info.image_type
+               >> info.view_type >> info.tiling >> info.memory_properties
+               >> info.multisampling >> info.is_framebuffer_attachment
+               >> info.surfaceType >> info.mip_levels;
+        auto channels = format_get_channels_size_of_t(info.format);
+        auto pixel_stride = image_get_sizeof_channels(channels);
+        info.datas.resize(info.mip_levels);
+        auto info_datas_data = info.datas.data();
+        auto mip = 0;
+        for (auto& data_ptr : info.datas) {
+            uint32_t mipWidth = (std::max)(1u, info.width >> mip);
+            uint32_t mipHeight = (std::max)(1u, info.height >> mip);
+            uint32_t mipDepth = (std::max)(1u, info.depth >> mip);
+            auto mip_byte_size = mipWidth * mipHeight * mipDepth * pixel_stride;
+            auto compressed_bytes = std::shared_ptr<void>(malloc(mip_byte_size), free);
+            serial.readBytes((char*)(compressed_bytes.get()), mip_byte_size);
+            // use info.format and mip sizes to determine parameters to pass to stbi_load
+            info_datas_data[mip] = compressed_bytes;
+            mip++;
+        }
+        return info;
+    }
+
+    bool image_serialize(Image* image_ptr, Serial& serial) {
+        bool valid_image = image_ptr;
+        serial << valid_image;
+        if (!valid_image)
+            return true;
+        auto info = image_to_info(image_ptr);
+        return serialize_ImageCreateInfo(serial, info);
+    }
+
+    Image* image_from_serial(Serial& serial) {
+        bool valid_image = false;
+        serial >> valid_image;
+        if (!valid_image)
+            return nullptr;
+        auto info = deserialize_ImageCreateInfo(serial);
+        return image_create(info);
+    }
+
+    ImageCreateInfo image_to_info(Image* image_ptr) {
+        ImageCreateInfo info{
+            .width = image_ptr->width,
+            .height = image_ptr->height,
+            .depth = image_ptr->depth,
+            .format = image_ptr->format,
+            .usage = image_ptr->usage,
+            .image_type = image_ptr->image_type,
+            .view_type = image_ptr->view_type,
+            .tiling = image_ptr->tiling,
+            .memory_properties = image_ptr->memory_properties,
+            .multisampling = image_ptr->multisampling,
+            .is_framebuffer_attachment = image_ptr->is_framebuffer_attachment,
+            .surfaceType = image_ptr->surfaceType,
+            .mip_levels = image_ptr->mip_levels
+        };
+        info.datas.reserve(info.mip_levels);
+        for (auto mip = 0; mip < info.mip_levels; mip++) {
+            auto mip_data = image_get_data(image_ptr, mip);
+            info.datas.push_back(std::shared_ptr<void>(mip_data, image_free_copied_data));
+        }
+        return info;
+    }
+
+    void* image_get_data(Image* image_ptr, int mip)
+    {
+        VkBuffer stagingBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory stagingBufferMemory = VK_NULL_HANDLE;
+        VkMemoryRequirements imageMemRequirements;
+        vkGetImageMemoryRequirements(dr.device, image_ptr->image, &imageMemRequirements);
+        VkDeviceSize bufferSize = imageMemRequirements.size;
+        char* imageData = (char*)malloc(bufferSize);
+
+        // 2. Create staging buffer
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = bufferSize;
+        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT; // We copy from image TO this buffer
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        vk_check("vkCreateBuffer", vkCreateBuffer(dr.device, &bufferInfo, nullptr, &stagingBuffer));
+
+        // 3. Allocate memory for staging buffer
+        VkMemoryRequirements stagingMemRequirements;
+        vkGetBufferMemoryRequirements(dr.device, stagingBuffer, &stagingMemRequirements);
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = stagingMemRequirements.size; // Use actual requirements for staging buffer
+        allocInfo.memoryTypeIndex = find_memory_type(stagingMemRequirements.memoryTypeBits,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        vk_check("vkAllocateMemory", vkAllocateMemory(dr.device, &allocInfo, nullptr, &stagingBufferMemory));
+
+        // 4. Bind staging buffer memory
+        vk_check("vkBindBufferMemory", vkBindBufferMemory(dr.device, stagingBuffer, stagingBufferMemory, 0));
+
+        // 5. Record and execute copy commands
+        VkCommandBuffer commandBuffer = begin_single_time_commands();
+
+        auto aspect_mask = image_get_aspect_mask(image_ptr);
+
+        auto& current_layout = image_ptr->current_layouts[mip];
+        auto originalLayout = current_layout;
+        auto transferLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+        VkImageMemoryBarrier copyBarrier{};
+        copyBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        copyBarrier.oldLayout = current_layout;
+        copyBarrier.newLayout = transferLayout;
+        copyBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        copyBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        copyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        copyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        copyBarrier.image = image_ptr->image;
+        copyBarrier.subresourceRange.aspectMask = aspect_mask;
+        copyBarrier.subresourceRange.baseMipLevel = mip;
+        copyBarrier.subresourceRange.levelCount = 1;
+        copyBarrier.subresourceRange.baseArrayLayer = 0;
+        copyBarrier.subresourceRange.layerCount = 1;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &copyBarrier
+        );
+
+        current_layout = transferLayout;
+
+        transferLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+        copyBarrier.oldLayout = current_layout;
+        copyBarrier.newLayout = transferLayout;
+        copyBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        copyBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        copyBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        copyBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        copyBarrier.image = image_ptr->image;
+        copyBarrier.subresourceRange.aspectMask = aspect_mask;
+        copyBarrier.subresourceRange.baseMipLevel = mip;
+        copyBarrier.subresourceRange.levelCount = 1;
+        copyBarrier.subresourceRange.baseArrayLayer = 0;
+        copyBarrier.subresourceRange.layerCount = 1;
+
+        vkCmdPipelineBarrier(
+            commandBuffer,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &copyBarrier
+        );
+
+        current_layout = transferLayout;
+
+        // Setup the copy region for base mip level, all array layers
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;   // 0 indicates tightly packed
+        region.bufferImageHeight = 0; // 0 indicates tightly packed
+        region.imageSubresource.aspectMask = aspect_mask;
+        region.imageSubresource.mipLevel = mip;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+
+        uint32_t mip_width  = std::max(1u, image_ptr->width >> mip);
+        uint32_t mip_height = std::max(1u, image_ptr->height >> mip);
+        uint32_t mip_depth = std::max(1u, image_ptr->depth >> mip);
+        region.imageExtent = {mip_width, mip_height, mip_depth};
+
+        vkCmdCopyImageToBuffer(commandBuffer, image_ptr->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                stagingBuffer, 1, &region);
+
+                                
+        end_single_time_commands(commandBuffer);
+        commandBuffer = VK_NULL_HANDLE;
+
+        transition_image_layout(image_ptr, originalLayout, mip);
+        
+        void* mappedMemory = nullptr;
+        vk_check("vkMapMemory", vkMapMemory(dr.device, stagingBufferMemory, 0, bufferSize, 0, &mappedMemory));
+
+        memcpy(imageData, mappedMemory, bufferSize);
+
+        vkUnmapMemory(dr.device, stagingBufferMemory);
+        vkFreeMemory(dr.device, stagingBufferMemory, 0);
+        vkDestroyBuffer(dr.device, stagingBuffer, 0);
+        mappedMemory = nullptr;
+        return imageData;
+    }
+    void image_free_copied_data(void* ptr)
+    {
+        free(ptr);
     }
 }

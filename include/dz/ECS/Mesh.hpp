@@ -123,7 +123,6 @@ vec3 GetMeshBitangent(in Mesh mesh) {
             std::vector<Reflectable*> reflectables;
             std::vector<std::shared_ptr<ReflectableGroup>> reflectable_children;
             int material_index = -1;
-            Image* image = nullptr;
             MeshReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),
                 name("Mesh")
@@ -160,17 +159,13 @@ vec3 GetMeshBitangent(in Mesh mesh) {
                     }));
                 }
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name << material_index;
                 if (!BackupGroupVector(serial, reflectable_children))
                     return false;
                 return true;
             }
-            bool restore(Serial& serial) override{
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override{
                 serial >> name >> material_index;
                 if (!RestoreGroupVector(serial, reflectable_children, buffer_group))
                     return false;

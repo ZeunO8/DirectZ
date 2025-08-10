@@ -132,6 +132,7 @@ namespace dz {
 			main_viewport->Size.x = width;
 			main_viewport->Size.y = height;
 			window->imguiViewport = main_viewport;
+			main_viewport->PlatformWindowCreated = false;
 #ifdef _WIN32
 			dr.hwnd_root = window->hwnd;
 #endif

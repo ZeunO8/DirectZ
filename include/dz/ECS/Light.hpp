@@ -164,15 +164,11 @@ LightingParams lParams;
                     }));
                 }
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name;
                 return true;
             }
-            bool restore(Serial& serial) override {
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override {
                 serial >> name;
                 return true;
             }

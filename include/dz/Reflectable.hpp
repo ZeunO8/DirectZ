@@ -10,6 +10,8 @@
 #include "GlobalUID.hpp"
 #include <iostreams/Serial.hpp>
 
+#define SRL_CHK(CALL) if (!CALL) return false
+
 namespace dz {
     struct BufferGroup;
 }
@@ -90,50 +92,62 @@ struct ReflectableGroup {
         return dummy_children;
     }
     virtual void UpdateChildren() {}
-    bool backup_internal(Serial& serial) const {
+    bool backup(Serial& serial) const {
         serial << cid << disabled << id << index << is_child << parent_id << tree_node_open;
+        SRL_CHK(backup_virtual(serial));
+        SRL_CHK(SerializeArgs(serial));
         return true;
     }
-    virtual bool backup(Serial& serial) const {
-        if (!backup_internal(serial))
-            return false;
+    virtual bool backup_virtual(Serial& serial) const {
         return true;
     }
-    bool restore_internal(Serial& serial) {
+    bool restore(Serial& serial) {
         serial >> cid >> disabled >> id >> index >> is_child >> parent_id >> tree_node_open;
+        SRL_CHK(restore_virtual(serial));
         return true;
     }
-    virtual bool restore(Serial& serial) {
-        if (!restore_internal(serial))
-            return false;
+    virtual bool restore_virtual(Serial& serial) {
         return true;
     }
+    bool IsDescendantOfRecurse(ReflectableGroup* current)
+    {
+        for (auto& child_ptr : current->GetChildren())
+        {
+            ReflectableGroup* child = child_ptr.get();
+            if (child == this)
+                return true;
+            if (IsDescendantOfRecurse(child))
+                return true;
+        }
+        return false;
+    }
+        
     bool IsDescendantOf(ReflectableGroup* other)
     {
         if (other == nullptr || other == this)
             return false;
 
-        std::function<bool(ReflectableGroup*)> recurse;
-        recurse = [&](ReflectableGroup* current) -> bool
-        {
-            for (auto& child_ptr : current->GetChildren())
-            {
-                ReflectableGroup* child = child_ptr.get();
-                if (child == this)
-                    return true;
-                if (recurse(child))
-                    return true;
-            }
-            return false;
-        };
-
-        return recurse(other);
+        return IsDescendantOfRecurse(other);
     }
 
     inline static std::recursive_mutex cid_restore_mutex = {};
     inline static std::unordered_map<size_t, std::function<std::shared_ptr<ReflectableGroup>(dz::BufferGroup*, Serial&)>>* cid_restore_map_ptr = nullptr;
     inline static std::map<size_t, std::vector<ReflectableGroup*>>* pid_reflectable_vecs_ptr = nullptr;
     inline static std::unordered_map<size_t, std::unordered_map<size_t, size_t>>* pid_id_index_maps_ptr = nullptr;
+
+    virtual bool SerializeArgs(Serial& serial) const {
+        return true;
+    }
+
+    template <typename TRG>
+    inline static auto RunDeserializeArgsToTuple(Serial& serial) {
+        if constexpr (requires { TRG::DeserializeArgsToTuple(serial); }) {
+            return TRG::DeserializeArgsToTuple(serial);
+        }
+        else {
+            return std::tuple<>{};
+        }
+    }
 };
 
 bool BackupGroupVector(Serial& serial, const std::vector<std::shared_ptr<ReflectableGroup>>& group_vector);

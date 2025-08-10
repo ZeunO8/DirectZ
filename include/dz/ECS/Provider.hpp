@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <tuple>
 #include <iostreams/Serial.hpp>
 
 namespace dz {
@@ -13,6 +14,19 @@ namespace dz {
         GPU
     };
 
+    template<typename Group, typename TECS, typename Data, typename Tuple>
+    struct HasInitializeTuple;
+
+    template<typename Group, typename TECS, typename Data, typename... Args>
+    struct HasInitializeTuple<Group, TECS, Data, std::tuple<Args...>>
+    {
+        static constexpr bool value = requires(Group& g, TECS& ecs, Data& data, Args&&... args)
+        {
+            g.Initialize(ecs, data, std::forward<Args>(args)...);
+        };
+    };
+
+
     template <typename T>
     struct Provider {
         inline static constexpr size_t GetPID() {
@@ -20,6 +34,13 @@ namespace dz {
                 return T::PID;
             }
             return 0;
+        }
+
+        inline static float GetPriority() {
+            if constexpr (requires { T::Priority; }) {
+                return T::Priority;
+            }
+            return 0.0f;
         }
 
         inline static constexpr bool GetIsComponent() {
@@ -130,13 +151,6 @@ namespace dz {
             return false;
         }
 
-        inline static float GetPriority() {
-            if constexpr (requires { T::Priority; }) {
-                return T::Priority;
-            }
-            return 0.0f;
-        }
-
         inline static const std::string& GetProviderName() {
             if constexpr (requires { T::ProviderName; }) {
                 return T::ProviderName;
@@ -194,8 +208,28 @@ namespace dz {
             return std::make_shared<typename T::ReflectableGroup>(buffer_group);
         }
 
-        inline static std::shared_ptr<ReflectableGroup> TryMakeGroupFromSerial(BufferGroup* buffer_group, Serial& serial) {
-            return std::make_shared<typename T::ReflectableGroup>(buffer_group, serial);
+        template<typename TECS>
+        inline static std::shared_ptr<ReflectableGroup> TryMakeGroupFromSerial(TECS& ecs, BufferGroup* buffer_group, Serial& serial) {
+            auto group_sh_ptr = std::make_shared<typename T::ReflectableGroup>(buffer_group, serial);
+            using RG = typename T::ReflectableGroup;
+            auto args = T::ReflectableGroup::template RunDeserializeArgsToTuple<RG>(serial);
+            auto& group = *group_sh_ptr;
+            auto& data = ecs.template GetProviderData<T>(group.id);
+
+            using ArgsTuple = decltype(args);
+
+            if constexpr (HasInitializeTuple<typename T::ReflectableGroup, TECS, decltype(data), ArgsTuple>::value)
+            {
+                std::apply(
+                    [&](auto&&... unpackedArgs)
+                    {
+                        group.Initialize(ecs, data, std::forward<decltype(unpackedArgs)>(unpackedArgs)...);
+                    },
+                    args
+                );
+            }
+
+            return group_sh_ptr;
         }
     };
 

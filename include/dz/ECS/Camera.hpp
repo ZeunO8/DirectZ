@@ -417,17 +417,19 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                 for (auto& shader : shader_vec)
                     shader_set_render_pass(shader, framebuffer);
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name << imgui_name;
                 return true;
             }
-            bool restore(Serial& serial) override {
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override {
                 serial >> name >> imgui_name;
                 return true;
+            }
+
+
+            template<typename TECS>
+            void Initialize(TECS& ecs, dz::ecs::Camera& camera) {
+                camera.Initialize();
             }
         };
 
@@ -444,11 +446,6 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
                 break;
             default: break;
             }
-        }
-
-        template<typename TECS>
-        void Initialize(TECS& ecs, ::ReflectableGroup& camera_group) {
-            Initialize();
         }
     };
 

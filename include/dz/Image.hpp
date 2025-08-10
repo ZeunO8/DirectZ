@@ -5,6 +5,7 @@
 #pragma once
 #include "Renderer.hpp"
 #include <cstdint>
+#include <iostreams/Serial.hpp>
 
 namespace dz
 {
@@ -89,7 +90,12 @@ namespace dz
     std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image* image, uint32_t mip_level = 0);
 
     /**
-    * @brief Gets the Channels and Size Of Type as a pair
+    * @brief Gets the per channel sizes from a VkFormat
+     */
+    std::vector<float> format_get_channels_size_of_t(VkFormat format);
+
+    /**
+    * @brief Gets the per channel sizes from an Image
     */
     std::vector<float> image_get_channels_size_of_t(Image* image);
 
@@ -165,4 +171,35 @@ namespace dz
      * @brief Ends the copy command buffer
      */
     void image_copy_end();
+
+    /**
+     * @brief Attempts to serialize an Image
+     * 
+     * @returns bool value indicating success
+     */
+    bool image_serialize(Image* image_ptr, Serial&);
+
+    /**
+     * @brief attempts to load an Image from Serial
+     * 
+     * @returns Image pointer as if created via `image_create`
+     */
+    Image* image_from_serial(Serial&);
+
+    /**
+     * @brief returns a ImageCreateInfo structure based on the given Image
+     */
+    ImageCreateInfo image_to_info(Image* image_ptr);
+
+    /**
+     * @brief copies a given mip level into CPU memory
+     * 
+     * @note must call image_free_copied_data when done using data
+     */
+    void* image_get_data(Image* image_ptr, int mip = 0);
+
+    /**
+     * @brief unmaps 
+     */
+    void image_free_copied_data(void* ptr);
 }

@@ -20,6 +20,7 @@ namespace dz {
         VkSampler sampler = VK_NULL_HANDLE;
         std::vector<VkImageLayout> current_layouts;
         VkSampleCountFlagBits multisampling;
+        bool is_framebuffer_attachment = false;
         std::vector<std::shared_ptr<void>> datas;
         SurfaceType surfaceType = SurfaceType::BaseColor;
         uint32_t mip_levels = 1;
@@ -46,6 +47,7 @@ namespace dz {
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkMemoryPropertyFlags memory_properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         VkSampleCountFlagBits multisampling = VK_SAMPLE_COUNT_1_BIT;
+        bool is_framebuffer_attachment = false;
         std::vector<std::shared_ptr<void>> datas;
         SurfaceType surfaceType = SurfaceType::BaseColor;
         uint32_t mip_levels = 1;

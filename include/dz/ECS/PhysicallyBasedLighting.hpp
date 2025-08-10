@@ -7,6 +7,7 @@ namespace dz::ecs {
     struct PhysicallyBasedLighting : Provider<PhysicallyBasedLighting> {
         inline static constexpr size_t PID = 9;
         inline static float Priority = 4.0f;
+        inline static constexpr BufferHost BufferHostType = BufferHost::NoBuffer;
         inline static std::string ProviderName = "PhysicallyBasedLighting";
         inline static std::string StructName = "PhysicallyBasedLighting";
         inline static std::unordered_map<ShaderModuleType, std::string> GLSLMethods = {
@@ -70,9 +71,7 @@ vec3 IBL(vec3 F0, vec3 N, vec3 V) {
 
     // --- BRDF LUT and Fresnel ---
     // clamp / bias coordinates to safe range
-    float safeNdotV = clamp(lParams.NdotV, 0.0001, 1.0); // avoid exact zero
-    float safeRoughness = clamp(mParams.roughness, 0.0, 1.0);
-    vec2 brdfUV = vec2(safeNdotV, safeRoughness);
+    vec2 brdfUV = vec2(lParams.NdotV, 1.0 - mParams.roughness);
 
     // Use explicit LOD 0 for BRDF LUT (typical LUT has no mips)
     vec2 brdf = textureLod(brdfLUT, brdfUV, 0.0).rg;
@@ -80,7 +79,7 @@ vec3 IBL(vec3 F0, vec3 N, vec3 V) {
     // ensure brdf components are sane (clamp to avoid negative / huge values)
     brdf = clamp(brdf, vec2(0.0), vec2(16.0));
 
-    vec3 F = fresnelSchlickRoughness(F0, safeNdotV, safeRoughness);
+    vec3 F = fresnelSchlickRoughness(F0, lParams.NdotV, mParams.roughness);
 
     // combine
     vec3 specular = radiance * (F * brdf.x + brdf.y);
@@ -96,8 +95,8 @@ vec3 IBL(vec3 F0, vec3 N, vec3 V) {
 
 vec3 PBDL(vec3 F0, in Light light) {
     vec3 result = vec3(0.0);
-    vec3 Li = -light.direction;
-    vec3 Lradiance = vec3(light.intensity);
+    vec3 Li = normalize(-light.direction);
+    vec3 Lradiance = light.color * (light.intensity / PI);
     vec3 Lh = normalize(Li + lParams.viewDirection);
 
     float cosLi = max(0.0, dot(lParams.normal, Li));
@@ -108,13 +107,51 @@ vec3 PBDL(vec3 F0, in Light light) {
     float G = gaSchlickGGX(cosLi, lParams.NdotV, mParams.roughness);
 
     vec3 kd = (1.0 - F) * (1.0 - mParams.metalness);
-    vec3 diffuseBRDF = kd * mParams.albedo;
 
+    vec3 diffuseBRDF = (kd * mParams.albedo) / (PI * 0.85);
     vec3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * lParams.NdotV);
 
     result += (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
 
     return result;
+    // vec3 result = vec3(0.0);
+    
+    // // Light direction vector (pointing from surface to light)
+    // vec3 L = light.direction;//light.position - lParams.worldPosition;
+    // // float distance = length(L);
+    // vec3 Li = normalize(L);
+
+    // // // Attenuation based on distance and range
+    // // float attenuation = 1.0 / max(distance * distance, Epsilon); // Inverse square attenuation
+    // // if (light.range > 0.0)
+    // // {
+    // //     float rangeAtten = clamp(1.0 - (distance * distance) / (light.range * light.range), 0.0, 1.0);
+    // //     attenuation *= rangeAtten;
+    // // }
+
+    // // Radiance from light color and intensity, apply attenuation
+    // vec3 Lradiance = light.color * (light.intensity / PI);// * attenuation;
+
+    // // Half vector between light direction and view direction
+    // vec3 Lh = normalize(Li + lParams.viewDirection);
+
+    // float cosLi = max(0.0, dot(lParams.normal, Li));
+    // float cosLh = max(0.0, dot(lParams.normal, Lh));
+
+    // vec3 F = fresnelSchlick(F0, max(0.0, dot(Lh, lParams.viewDirection)));
+    // float D = ndfGGX(cosLh, mParams.roughness);
+    // float G = gaSchlickGGX(cosLi, lParams.NdotV, mParams.roughness);
+
+    // vec3 kd = (1.0 - F) * (1.0 - mParams.metalness);
+
+    // // Diffuse and specular BRDF terms
+    // vec3 diffuseBRDF = (kd * mParams.albedo) / (PI * 0.85);
+    // vec3 specularBRDF = (F * D * G) / max(Epsilon, 4.0 * cosLi * lParams.NdotV);
+
+    // // Final light contribution scaled by radiance and angle cosine
+    // result += (diffuseBRDF + specularBRDF) * Lradiance * cosLi;
+
+    // return result;
 }
 vec3 PBL(vec3 F0) {
     vec3 result = vec3(0.0);
@@ -168,15 +205,11 @@ vec3 PBL(vec3 F0) {
             std::string& GetName() override {
                 return name;
             }
-            bool backup(Serial& serial) const override {
-                if (!backup_internal(serial))
-                    return false;
+            bool backup_virtual(Serial& serial) const override {
                 serial << name;
                 return true;
             }
-            bool restore(Serial& serial) override {
-                if (!restore_internal(serial))
-                    return false;
+            bool restore_virtual(Serial& serial) override {
                 serial >> name;
                 return true;
             }
