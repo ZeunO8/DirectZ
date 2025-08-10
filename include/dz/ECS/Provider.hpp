@@ -211,7 +211,7 @@ namespace dz {
         template<typename TECS>
         inline static std::shared_ptr<ReflectableGroup> TryMakeGroupFromSerial(TECS& ecs, BufferGroup* buffer_group, Serial& serial) {
             auto group_sh_ptr = std::make_shared<typename T::ReflectableGroup>(buffer_group, serial);
-            auto args = T::ReflectableGroup::RunDeserializeArgsToTuple<T::ReflectableGroup>(serial);
+            auto args = T::ReflectableGroup::RunDeserializeArgsToTuple<typename T::ReflectableGroup>(serial);
             auto& group = *group_sh_ptr;
             auto& data = ecs.template GetProviderData<T>(group.id);
 
