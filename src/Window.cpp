@@ -1163,6 +1163,9 @@ namespace dz {
 	void window_set_size(WINDOW* window_ptr, float width, float height) {
 		if (*window_ptr->width == width && *window_ptr->height == height)
 			return;
+		*window_ptr->width = width;
+		*window_ptr->height = height;
+		defer_recreate_swap_chain(window_ptr->renderer);
 #if defined(_WIN32)
 		if (!window_ptr || !window_ptr->hwnd)
 			return;
@@ -1186,9 +1189,6 @@ namespace dz {
 #elif defined(ANDROID)
 		// Android window sizing not controlled this way
 #endif
-		*window_ptr->width = width;
-		*window_ptr->height = height;
-		recreate_swap_chain(window_ptr->renderer);
 	}
 
 	ImVec2 window_get_position(WINDOW* window_ptr) {

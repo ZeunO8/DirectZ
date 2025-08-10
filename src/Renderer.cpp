@@ -1082,6 +1082,11 @@ _aquire:
 		}
 	}
 
+	void defer_recreate_swap_chain(Renderer* renderer)
+	{
+		renderer->recreate_swapchain_deferred = true;
+	}
+
 	bool recreate_swap_chain(Renderer* renderer)
 	{
 		destroy_swap_chain(renderer);
@@ -1147,6 +1152,7 @@ _aquire:
 		auto& device = dr.device;
 		if (device == VK_NULL_HANDLE)
 			return;
+		vkDeviceWaitIdle(device);
 		for (auto framebuffer : renderer->swapChainFramebuffers)
 		{
 			vkDestroyFramebuffer(device, framebuffer, 0);

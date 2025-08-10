@@ -32,7 +32,7 @@ namespace dz {
         std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> drawBuffers;
         std::map<size_t, std::pair<VkBuffer, VkDeviceMemory>> countBuffers;
         VkSurfaceTransformFlagBitsKHR currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-
+        bool recreate_swapchain_deferred = false;
         std::vector<DrawInformation*> vec_draw_information;
         std::vector<std::pair<ShaderDrawList*, std::function<void()>>> screen_draw_lists;
         std::vector<std::tuple<Framebuffer*, ShaderDrawList*, std::function<void()>>> fb_draw_lists;

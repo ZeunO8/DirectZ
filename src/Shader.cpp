@@ -1772,10 +1772,9 @@ namespace dz {
             computeInfo.basePipelineHandle = VK_NULL_HANDLE;
             computeInfo.basePipelineIndex = -1;
 
-            if (vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computeInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS)
-            {
-                throw std::runtime_error("Failed to create compute pipeline!");
-            }
+            vk_check("vkCreateComputePipelines",
+                vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &computeInfo, nullptr, &shader->graphics_pipeline)
+            );
 
             std::cout << "Created compute pipeline: " << shader->graphics_pipeline << std::endl;
             return;
@@ -1880,9 +1879,9 @@ namespace dz {
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
         pipelineInfo.basePipelineIndex = -1;
 
-        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create graphics pipeline!");
-        }
+        vk_check("vkCreateGraphicsPipelines",
+            vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &shader->graphics_pipeline)
+        );
 
         std::cout << "Created graphics pipeline: " << shader->graphics_pipeline << std::endl;
     }
@@ -1955,6 +1954,11 @@ namespace dz {
     void renderer_render(Renderer* renderer) {
 
         dr.currentRenderer = renderer;
+
+        if (renderer->recreate_swapchain_deferred) {
+            recreate_swap_chain(renderer);
+            renderer->recreate_swapchain_deferred = false;
+        }
 
         auto& window = *renderer->window;
 

@@ -530,6 +530,8 @@ namespace dz {
         if (!framebuffer_ptr)
             return false;
 
+		vkDeviceWaitIdle(dr.device);
+
         auto& framebuffer = *framebuffer_ptr;
 
         if ((framebuffer.width == width && framebuffer.height == height) ||
