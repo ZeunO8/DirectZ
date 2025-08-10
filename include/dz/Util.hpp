@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <cstdlib>
+#include <stdlib.h>
 #include <iostream>
 #include <cctype>
 
@@ -27,7 +27,7 @@ namespace dz {
         std::wstring wstr;
         size_t size;
         wstr.resize(str.length());
-        mbstowcs_s(&size,&wstr[0],wstr.size()+1,str.c_str(),str.size());
+        mbstowcs(wstr.data(), str.c_str(), str.size());
         return wstr;
     }
 
@@ -35,7 +35,7 @@ namespace dz {
         std::string str;
         size_t size;
         str.resize(wstr.length());
-        wcstombs_s(&size, &str[0], str.size() + 1, wstr.c_str(), wstr.size());
+        wcstombs(str.data(), wstr.c_str(), wstr.size());
         return str;
     }
 }
