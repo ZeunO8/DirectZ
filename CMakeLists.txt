@@ -107,6 +107,11 @@ elseif(MACOS)
 	target_link_libraries(DirectZ PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif()
 
+target_link_libraries(DirectZ PRIVATE ${DIRECTZ_LIBRARIES})
+target_link_libraries(dzp PRIVATE DirectZ ${DIRECTZ_LIBRARIES})
+
+include(./editor/Editor.cmake)
+
 include(./Tests.cmake)
 
 include(./cmake/Install.cmake)
