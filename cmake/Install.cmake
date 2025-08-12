@@ -58,6 +58,52 @@ else()
     )
 endif()
 
+# Install imported target's library file by querying IMPORTED_LOCATION
+function(install_imported_target_library tgt)
+    if (NOT TARGET ${tgt})
+        message(FATAL_ERROR "Target '${tgt}' does not exist.")
+    endif()
+
+    get_target_property(is_imported ${tgt} IMPORTED)
+    if(NOT is_imported)
+        message(WARNING "Target '${tgt}' is not imported, skipping install_imported_target_library.")
+        return()
+    endif()
+
+    # Try to get config-specific imported location if available
+    # Otherwise fall back to generic IMPORTED_LOCATION
+    get_target_property(loc_debug ${tgt} IMPORTED_LOCATION_DEBUG)
+    get_target_property(loc_release ${tgt} IMPORTED_LOCATION_RELEASE)
+    get_target_property(loc_generic ${tgt} IMPORTED_LOCATION)
+
+    set(lib_path "")
+
+    if (loc_debug AND EXISTS "${loc_debug}")
+        set(lib_path "${loc_debug}")
+    elseif (loc_release AND EXISTS "${loc_release}")
+        set(lib_path "${loc_release}")
+    elseif (loc_generic AND EXISTS "${loc_generic}")
+        set(lib_path "${loc_generic}")
+    else()
+        message(FATAL_ERROR "Could not find valid IMPORTED_LOCATION for target '${tgt}'")
+    endif()
+
+    # Install the library file
+    install(
+        FILES "${lib_path}"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        COMPONENT Core)
+endfunction()
+
+set(LLVM_Targets
+    ${CLANG_LIBS}
+    ${LLVM_LIBS}
+)
+
+foreach(llvm_tgt IN LISTS LLVM_Targets)
+    install_imported_target_library(${llvm_tgt})
+endforeach()
+
 foreach(TGT ${DirectZ_TGTS})
     if("${TGT}" STREQUAL "SPIRV-Tools-static")
         set(TGT "SPIRV-Tools")
