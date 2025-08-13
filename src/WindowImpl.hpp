@@ -28,7 +28,9 @@ namespace dz {
 			borderless(borderless),
 			vsync(vsync),
 			width(std::shared_ptr<float>(zmalloc<float>(1, _width), [](float* fp) { zfree(fp, 1); })),
-			height(std::shared_ptr<float>(zmalloc<float>(1, _height), [](float* fp) { zfree(fp, 1); }))
+			width_ptr(width.get()),
+			height(std::shared_ptr<float>(zmalloc<float>(1, _height), [](float* fp) { zfree(fp, 1); })),
+			height_ptr(height.get())
 	#ifdef ANDROID
 			, android_window(android_window), android_asset_manager(android_asset_manager)
 	#endif
@@ -57,15 +59,28 @@ namespace dz {
 		}
 
 		std::shared_ptr<float> width;
+		float* width_ptr = nullptr;
 		std::shared_ptr<float> height;
+		float* height_ptr = nullptr;
 		std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds> lastFrame;
 		std::shared_ptr<float> float_frametime;
+		float* float_frametime_ptr = nullptr;
 		std::shared_ptr<double> double_frametime;
+		double* double_frametime_ptr = nullptr;
 		std::shared_ptr<int32_t> keys;
+		int32_t* keys_ptr = nullptr;
 		std::shared_ptr<int32_t> buttons;
+		int32_t* buttons_ptr = nullptr;
 		std::shared_ptr<float> cursor;
+		float* cursor_ptr = nullptr;
 		std::shared_ptr<int32_t> mod;
+		int32_t* mod_ptr = nullptr;
 		std::shared_ptr<int32_t> focused;
+		int32_t* focused_ptr = nullptr;
+		std::shared_ptr<float> float_iTime;
+		float* float_iTime_ptr = nullptr;
+		std::shared_ptr<double> double_iTime;
+		double* double_iTime_ptr = nullptr;
 		vec<float, 4> clearColor = {0, 0, 0, 0};
 		bool minimized = false;
 		bool closed = false;
@@ -79,6 +94,7 @@ namespace dz {
 		bool drag_in_progress = false;
 		ImGuiViewport* imguiViewport = 0;
 		std::map<float, std::unordered_map<Shader*, std::function<int()>>> priority_shader_dispatches;
+		VkDescriptorSet headless_ds = VK_NULL_HANDLE;
 	#ifdef _WIN32
 		HINSTANCE hInstance;
 		HWND hwnd;

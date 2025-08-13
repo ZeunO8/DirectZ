@@ -366,6 +366,16 @@ namespace dz
     void window_set_height_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
 
     /**
+    * @brief Sets the underlying float iTime pointer, useful for binding to GPU memory.
+    */
+    void window_set_float_iTime_pointer(WINDOW*, const std::shared_ptr<float>& pointer);
+
+    /**
+    * @brief Sets the underlying double iTime pointer, useful for binding to GPU memory.
+    */
+    void window_set_double_iTime_pointer(WINDOW*, const std::shared_ptr<double>& pointer);
+
+    /**
     * @brief Gets a reference to the specified key in the underlying keys pointer.
     * 
     * @note If the keys pointer is updated (e.g., to GPU memory), a previously fetched reference becomes invalid.
@@ -403,6 +413,16 @@ namespace dz
     * @brief Gets a shared pointer reference to window height.
     */
     std::shared_ptr<float>& window_get_height_ref(WINDOW*);
+
+    /**
+    * @brief Gets a shared pointer reference to window float iTime.
+    */
+    std::shared_ptr<float>& window_get_float_iTime_ref(WINDOW*);
+
+    /**
+    * @brief Gets a shared pointer reference to window double iTime.
+    */
+    std::shared_ptr<double>& window_get_double_iTime_ref(WINDOW*);
 
     /**
     * @brief Adds a drawn buffer group.
@@ -505,4 +525,9 @@ namespace dz
      * @brief Sets the clear color of a Window
      */
     void window_set_clear_color(WINDOW* window_ptr, vec<float, 4> clearColor);
+
+    /**
+     * @brief Gets the Headless Descriptor set Useful for passing to ImGui
+     */
+    VkDescriptorSet window_get_headless_ds(WINDOW* window_ptr);
 }

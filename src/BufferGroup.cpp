@@ -246,9 +246,11 @@ namespace dz {
         for (auto& shader_pair : buffer_group->shaders) {
             auto shader = shader_pair.first;
             for (auto& shaderModulePair : shader->module_map) {
-                const ReflectedStruct& reflected_struct_def = getCanonicalStruct(shaderModulePair.second.reflection, buffer.element_type);
-                // Return the ReflectedStructView
-                return ReflectedStructView(element_base_ptr, reflected_struct_def);
+                const ReflectedStruct* reflected_struct_ptr = nullptr;
+                if (getCanonicalStruct(shaderModulePair.second.reflection, buffer.element_type, reflected_struct_ptr)) {
+                    auto& reflected_struct_def = *reflected_struct_ptr;
+                    return ReflectedStructView(element_base_ptr, reflected_struct_def);
+                }
             }
         }
         throw std::runtime_error("Could not get ReflectedStruct");

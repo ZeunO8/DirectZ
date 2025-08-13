@@ -27,8 +27,6 @@ DZ_EXPORT dz::WINDOW* api_window_create(const char* title, float width, float he
 
 SharedLibrary* current_sl = nullptr;
 dz::WINDOW* project_window = nullptr;
-dz::Image* headless_target = nullptr;
-VkDescriptorSet headless_ds = VK_NULL_HANDLE;
 #define TEST_WINDOW_WIDTH 640
 #define TEST_WINDOW_HEIGHT 480
 
@@ -51,17 +49,14 @@ APIPollEvents sl_api_poll_events = nullptr;
 APIUpdate sl_api_update = nullptr;
 APIRender sl_api_render = nullptr;
 
-void initialize_headless_target();
 void initialize_project_library(const char*);
 void initialize_imgui();
 
 DZ_EXPORT bool api_init(dz::WINDOW* window) {
-    initialize_headless_target();
-
     initialize_project_library("test-lib.dll");
     sl_api_set_direct_registry(get_direct_registry());
 
-    project_window = sl_api_window_create("Test", TEST_WINDOW_WIDTH, TEST_WINDOW_HEIGHT, true, headless_target);
+    project_window = sl_api_window_create("Test", TEST_WINDOW_WIDTH, TEST_WINDOW_HEIGHT, true, nullptr);
     sl_api_init(project_window);
 
     initialize_imgui();
@@ -78,16 +73,6 @@ DZ_EXPORT void api_update() {
 
 DZ_EXPORT void api_render() {
     windows_render();
-}
-
-void initialize_headless_target() {
-    headless_target = image_create({
-        .width = TEST_WINDOW_WIDTH,
-        .height = TEST_WINDOW_HEIGHT,
-        .is_framebuffer_attachment = true
-    });
-    auto [headless_layout, _headless_ds] = image_create_descriptor_set(headless_target);
-    headless_ds = _headless_ds;
 }
 
 void initialize_project_library(const char* lib_path) {
@@ -114,9 +99,10 @@ void initialize_imgui() {
         }
         auto panel_pos = ImGui::GetCursorScreenPos();
         auto panel_size = ImGui::GetContentRegionAvail();
+        
+        ImGui::Image((ImTextureID)window_get_headless_ds(project_window), panel_size, ImVec2(0, 1), ImVec2(1, 0));
+        window_set_size(project_window, panel_size.x, panel_size.y);
 
-        ImGui::Image((ImTextureID)headless_ds, panel_size, ImVec2(0, 1), ImVec2(1, 0));
-    
         ImGui::End();
     });
 }

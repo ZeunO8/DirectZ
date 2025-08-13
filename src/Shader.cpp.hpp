@@ -143,7 +143,7 @@ namespace dz {
         });
     };
 
-    const ReflectedStruct& getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type);
+    bool getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type, const ReflectedStruct*& out_ptr);
 
     struct ShaderModule {
         std::vector<uint32_t> spirv_vec;

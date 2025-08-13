@@ -94,12 +94,23 @@ namespace dz {
 		auto& height = *window->height;
 
 		window->float_frametime = std::shared_ptr<float>(zmalloc<float>(1, 0), [](float* fp) { zfree(fp, 1); });
+		window->float_frametime_ptr = window->float_frametime.get();
 		window->double_frametime = std::shared_ptr<double>(zmalloc<double>(1, 0), [](double* dp) { zfree(dp, 1); });
+		window->double_frametime_ptr = window->double_frametime.get();
 		window->keys = std::shared_ptr<int32_t>(zmalloc<int32_t>(256, 0), [](int32_t* bp) { zfree(bp, 256); });
+		window->keys_ptr = window->keys.get();
 		window->buttons = std::shared_ptr<int32_t>(zmalloc<int32_t>(8, 0), [](int32_t* bp) { zfree(bp, 8); });
+		window->buttons_ptr = window->buttons.get();
 		window->cursor = std::shared_ptr<float>(zmalloc<float>(2, 0), [](float* fp) { zfree(fp, 2); });
+		window->cursor_ptr = window->cursor.get();
 		window->mod = std::shared_ptr<int32_t>(zmalloc<int32_t>(1, 0), [](int32_t* up) { zfree(up, 1); });
+		window->mod_ptr = window->mod.get();
 		window->focused = std::shared_ptr<int32_t>(zmalloc<int32_t>(1, 0), [](int32_t* ip) { zfree(ip, 1); });
+		window->focused_ptr = window->focused.get();
+		window->float_iTime = std::shared_ptr<float>(zmalloc<float>(1, 0), [](float* fp) { zfree(fp, 1); });
+		window->float_iTime_ptr = window->float_iTime.get();
+		window->double_iTime = std::shared_ptr<double>(zmalloc<double>(1, 0), [](double* fp) { zfree(fp, 1); });
+		window->double_iTime_ptr = window->double_iTime.get();
 
 		auto& viewport = window->viewport;
 		viewport.x = 0.0f;
@@ -115,18 +126,29 @@ namespace dz {
 
 		dr_ptr->window_count++;
 
-		ImGuiLayer::Init();
+		dr_ptr->imguiLayer.Init();
 
 		auto& headless = window->headless;
 
 		if (headless) {
-			std::cout << "WINDOW::create_platform: window is headless, skipping" << std::endl;
+			if (!window->headless_image) {
+				window->headless_image = image_create({
+					.width = uint32_t(*window->width_ptr),
+					.height = uint32_t(*window->height_ptr),
+					.is_framebuffer_attachment = true
+				});
+			}
 		}
 		else {
 			window->create_platform();
 		}
 
 		window->renderer = renderer_init(window);
+
+		if (headless) {
+			auto [l, ds] = image_create_descriptor_set(window->headless_image);
+			window->headless_ds = ds;
+		}
 
 		if (!headless) {
 			window->post_init_platform();
@@ -236,7 +258,9 @@ namespace dz {
 		{
 			std::chrono::nanoseconds steady_duration_ns = now - window->lastFrame;
 			std::chrono::duration<double> steady_duration_seconds = steady_duration_ns;
-			*window->float_frametime = *window->double_frametime = steady_duration_seconds.count();
+			*window->float_frametime_ptr = *window->double_frametime_ptr = steady_duration_seconds.count();
+			*window->float_iTime_ptr += *window->double_frametime;
+			*window->double_iTime_ptr += *window->double_frametime;
 			window->lastFrame = now;
 		}
 		if (!poll_continue)
@@ -364,46 +388,67 @@ namespace dz {
 		auto old_float_frametime = *window->float_frametime;
 		window->float_frametime = pointer;
 		*window->float_frametime = old_float_frametime;
+		window->float_frametime_ptr = window->float_frametime_ptr;
 	}
 	void window_set_double_frametime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer) {
 		auto old_double_frametime = *window->double_frametime;
 		window->double_frametime = pointer;
 		*window->double_frametime = old_double_frametime;
+		window->double_frametime_ptr = window->double_frametime_ptr;
 	}
 	void window_set_keys_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_keys = window->keys;
 		window->keys = pointer;
 		memcpy(window->keys.get(), old_keys.get(), 256 * sizeof(int32_t));
+		window->keys_ptr = window->keys.get();
 	}
 	void window_set_buttons_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_buttons = window->buttons;
 		window->buttons = pointer;
 		memcpy(window->buttons.get(), old_buttons.get(), 8 * sizeof(int32_t));
+		window->buttons_ptr = window->buttons.get();
 	}
 	void window_set_cursor_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_cursor = window->cursor;
 		window->cursor = pointer;
 		memcpy(window->cursor.get(), old_cursor.get(), 2 * sizeof(float));
+		window->cursor_ptr = window->cursor.get();
 	}
 	void window_set_mod_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_mod = *window->mod;
 		window->mod = pointer;
 		*window->mod = old_mod;
+		window->mod_ptr = window->mod.get();
 	}
 	void window_set_focused_pointer(WINDOW* window, const std::shared_ptr<int32_t>& pointer) {
 		auto old_focused = *window->focused;
 		window->focused = pointer;
 		*window->focused = old_focused;
+		window->focused_ptr = window->focused.get();
 	}
 	void window_set_width_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_width = *window->width;
 		window->width = pointer;
 		*window->width = old_width;
+		window->width_ptr = window->width.get();
 	}
 	void window_set_height_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
 		auto old_height = *window->height;
 		window->height = pointer;
 		*window->height = old_height;
+		window->height_ptr = window->height.get();
+	}
+    void window_set_float_iTime_pointer(WINDOW* window, const std::shared_ptr<float>& pointer) {
+		auto old_float_iTime = *window->float_iTime;
+		window->float_iTime = pointer;
+		*window->float_iTime = old_float_iTime;
+		window->float_iTime_ptr = window->float_iTime.get();
+	}
+    void window_set_double_iTime_pointer(WINDOW* window, const std::shared_ptr<double>& pointer) {
+		auto old_double_iTime = *window->double_iTime;
+		window->double_iTime = pointer;
+		*window->double_iTime = old_double_iTime;
+		window->double_iTime_ptr = window->double_iTime.get();
 	}
 
 	int32_t& window_get_keypress_ref(WINDOW* window, uint8_t keycode) {
@@ -428,6 +473,12 @@ namespace dz {
 	}
 	std::shared_ptr<float>& window_get_height_ref(WINDOW* window) {
 		return window->height;
+	}
+    std::shared_ptr<float>& window_get_float_iTime_ref(WINDOW* window) {
+		return window->float_iTime;
+	}
+    std::shared_ptr<double>& window_get_double_iTime_ref(WINDOW* window) {
+		return window->double_iTime;
 	}
 
 	#ifdef _WIN32
@@ -1175,34 +1226,33 @@ namespace dz {
 	}
 
 	void window_set_size(WINDOW* window_ptr, float width, float height) {
-		if (*window_ptr->width == width && *window_ptr->height == height)
+		if (!window_ptr || *window_ptr->width == width && *window_ptr->height == height)
 			return;
 		*window_ptr->width = width;
 		*window_ptr->height = height;
 		defer_recreate_swap_chain(window_ptr->renderer);
+		if (!window_ptr->headless) {
 #if defined(_WIN32)
-		if (!window_ptr || !window_ptr->hwnd)
-			return;
+			if (!window_ptr->hwnd)
+				return;
+			RECT rect;
+			GetWindowRect(window_ptr->hwnd, &rect);
+			int x = rect.left;
+			int y = rect.top;
+			int w = static_cast<int>(width);
+			int h = static_cast<int>(height);
 
-		RECT rect;
-		GetWindowRect(window_ptr->hwnd, &rect);
-		int x = rect.left;
-		int y = rect.top;
-		int w = static_cast<int>(width);
-		int h = static_cast<int>(height);
-
-		MoveWindow(window_ptr->hwnd, x, y, w, h, TRUE);
-
+			MoveWindow(window_ptr->hwnd, x, y, w, h, TRUE);
 #elif defined(__linux) && !defined(ANDROID)
-		if (!window_ptr || !window_ptr->display || !window_ptr->window)
-			return;
+			if (!window_ptr->display || !window_ptr->window)
+				return;
 
-		XResizeWindow(window_ptr->display, window_ptr->window, static_cast<unsigned int>(width), static_cast<unsigned int>(height));
-		XFlush(window_ptr->display);
-
+			XResizeWindow(window_ptr->display, window_ptr->window, static_cast<unsigned int>(width), static_cast<unsigned int>(height));
+			XFlush(window_ptr->display);
 #elif defined(ANDROID)
 		// Android window sizing not controlled this way
 #endif
+		}
 	}
 
 	ImVec2 window_get_position(WINDOW* window_ptr) {
@@ -1268,7 +1318,7 @@ namespace dz {
 
     void window_set_focused(WINDOW* window_ptr, bool focused) {
 		*window_ptr->focused = focused;
-		ImGuiLayer::FocusWindow(window_ptr, focused);
+		dr_ptr->imguiLayer.FocusWindow(window_ptr, focused);
 	}
 	
 #if defined(_WIN32) || defined(__linux__)
@@ -1383,5 +1433,9 @@ namespace dz {
 
 	void window_set_clear_color(WINDOW* window_ptr, vec<float, 4> clearColor) {
 		window_ptr->clearColor = clearColor;
+	}
+
+    VkDescriptorSet window_get_headless_ds(WINDOW* window_ptr) {
+		return window_ptr->headless_ds;
 	}
 }

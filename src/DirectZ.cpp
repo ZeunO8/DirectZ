@@ -22,7 +22,7 @@ namespace dz
     {
         if (!free_dr_ptr)
             return;
-        ImGuiLayer::Shutdown(*free_dr_ptr);
+        free_dr_ptr->imguiLayer.Shutdown(*free_dr_ptr);
         while (!free_dr_ptr->layoutQueue.empty()) {
             auto layout = free_dr_ptr->layoutQueue.front();
             free_dr_ptr->layoutQueue.pop();

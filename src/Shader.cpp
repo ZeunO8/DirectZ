@@ -863,11 +863,13 @@ namespace dz {
         return (type.type_desc.struct_type_description != nullptr);
     }
 
-    const ReflectedStruct& getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type) {
+    bool getCanonicalStruct(const SPIRVReflection& reflection, const ReflectedType& type, const ReflectedStruct*& out_ptr) {
         const SpvReflectTypeDescription* struct_definition_desc = type.type_desc.struct_type_description;
         auto it = reflection.structs_by_name.find(struct_definition_desc->type_name);
-        assert (it != reflection.structs_by_name.end());
-        return it->second;
+        if (it == reflection.structs_by_name.end())
+            return false;
+        out_ptr = &(it->second);
+        return true;
     }
 
     void PrintType(const SPIRVReflection& reflection, const ReflectedType& type, int indent) {
@@ -875,9 +877,12 @@ namespace dz {
         if (hasCanonicalStruct(type)) {
             std::cout << pad << "ReflectedVariable '" << type.name << "' (Named Type ID: " << type.id << ")";
             std::cout << pad << " refers to canonical Struct Definition ID: " << type.type_desc.struct_type_description->id << std::endl;
-            auto& canonical_truct = getCanonicalStruct(reflection, type);
-            std::cout << pad << "Accessed canonical struct '" << canonical_truct.name << "' (ID: " << canonical_truct.id << ")" << std::endl;
-            PrintStruct(reflection, canonical_truct, indent + 2);
+            const ReflectedStruct* canonical_struct_ptr = nullptr;
+            if (getCanonicalStruct(reflection, type, canonical_struct_ptr)) {
+                auto& canonical_struct = *canonical_struct_ptr;
+                std::cout << pad << "Accessed canonical struct '" << canonical_struct.name << "' (ID: " << canonical_struct.id << ")" << std::endl;
+                PrintStruct(reflection, canonical_struct, indent + 2);
+            }
         }
         else
         {

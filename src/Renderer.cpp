@@ -25,7 +25,6 @@ namespace dz {
 			renderer->imageCount = 1;
 			ensure_headless_command_buffer(renderer);
 			create_headless_framebuffer(renderer);
-			renderer->swapChainExtent = {uint32_t(*window->width), uint32_t(*window->height)};
 			create_sync_objects(renderer, 1);
 		}
 		else {
@@ -40,7 +39,7 @@ namespace dz {
 			ensure_render_pass(renderer);
 			create_framebuffers(renderer);
 			create_sync_objects(renderer, MAX_FRAMES_IN_FLIGHT);
-			ImGuiLayer::VulkanInit();
+			dr_ptr->imguiLayer.VulkanInit();
 		}
 		renderer->waitStages[0] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 		renderer->submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1026,8 +1025,10 @@ namespace dz {
 		framebufferInfo.renderPass = dr_ptr->surfaceRenderPass;
 		framebufferInfo.attachmentCount = image_views.size();
 		framebufferInfo.pAttachments = image_views.data();
-		framebufferInfo.width = uint32_t(*window.width);
-		framebufferInfo.height = uint32_t(*window.height);
+		auto window_width = uint32_t(*window.width);
+		auto window_height = uint32_t(*window.height);
+		framebufferInfo.width = window_width;
+		framebufferInfo.height = window_height;
 		framebufferInfo.layers = 1;
 		vk_check("vkCreateFramebuffer",
 			vkCreateFramebuffer(
@@ -1037,6 +1038,7 @@ namespace dz {
 				&renderer->headless_framebuffer
 			)
 		);
+		renderer->swapChainExtent = {window_width, window_height};
 		
 	}
 
@@ -1159,10 +1161,23 @@ _aquire:
 	bool recreate_swap_chain(Renderer* renderer)
 	{
 		destroy_swap_chain(renderer);
-		if (create_swap_chain(renderer)) {
-			create_image_views(renderer);
-			create_framebuffers(renderer);
-			return true;
+		if (renderer->window->headless) {
+			image_free(renderer->window->headless_image);
+			renderer->window->headless_image = image_create({
+				.width = uint32_t(*renderer->window->width_ptr),
+				.height = uint32_t(*renderer->window->height_ptr),
+				.is_framebuffer_attachment = true
+			});
+			auto [l, ds] = image_create_descriptor_set(renderer->window->headless_image);
+			renderer->window->headless_ds = ds;
+			create_headless_framebuffer(renderer);
+		}
+		else {
+			if (create_swap_chain(renderer)) {
+				create_image_views(renderer);
+				create_framebuffers(renderer);
+				return true;
+			}
 		}
 		return false;
 	}
