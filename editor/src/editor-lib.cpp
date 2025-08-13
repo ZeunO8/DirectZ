@@ -21,7 +21,7 @@ DZ_EXPORT dz::WINDOW* api_window_create(const char* title, float width, float he
         .android_asset_manager = android_asset_manager,
 #endif
         .headless = headless,
-        .headless_image = headless_image
+        .headless_image = headless_image,
     });
 }
 
@@ -71,8 +71,8 @@ DZ_EXPORT void api_update() {
 
 }
 
-DZ_EXPORT void api_render() {
-    windows_render();
+DZ_EXPORT bool api_render() {
+    return windows_render();
 }
 
 void initialize_project_library(const char* lib_path) {

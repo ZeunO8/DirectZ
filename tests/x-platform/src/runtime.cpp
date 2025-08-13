@@ -9,7 +9,8 @@ int main()
     while (api_poll_events())
     {
         api_update();
-        api_render();
+        if (api_render())
+            break;
     }
 
     return 0;

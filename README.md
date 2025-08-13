@@ -120,9 +120,9 @@ DZ_EXPORT void api_update()
     // Do any CPU side logic
 }
 
-DZ_EXPORT void api_render()
+DZ_EXPORT bool api_render()
 {
-    windows_render();
+    return windows_render();
 }
 ```
 

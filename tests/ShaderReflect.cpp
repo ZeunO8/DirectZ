@@ -488,7 +488,7 @@ void main()
     {
         if (main_window_polling)
         {
-            main_window_polling = window_poll_events(main_window);
+            main_window_polling = windows_poll_events();
             if (main_window_polling)
             {
                 if (esc_pressed)
@@ -502,7 +502,8 @@ void main()
                     entity.set_model();
                 }
         
-                window_render(main_window);
+                if (windows_render())
+                    break;
 
             }
         }

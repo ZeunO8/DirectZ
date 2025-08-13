@@ -208,7 +208,7 @@ int main() {
         ImGui::End();
     });
 
-    while (window_poll_events(window)) {
-        window_render(window);
-    }
+    while (windows_poll_events())
+        if (windows_render())
+            break;
 }

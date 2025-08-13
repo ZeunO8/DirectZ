@@ -6,7 +6,7 @@ namespace dz
     struct EventInterface
     {
         friend void window_register_free_callback(WINDOW*, float priority, const std::function<void()>&);
-        friend void window_free(WINDOW* window);
+        friend bool window_free(WINDOW* window);
     private:
         WINDOW* window;
     protected:

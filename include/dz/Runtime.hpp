@@ -76,10 +76,9 @@ DZ_EXPORT void api_update();
  * 
  * @code
  * // Example implementation:
- * DZ_EXPORT void api_render()
- * {
- *     windows_render();
+ * DZ_EXPORT bool api_render() {
+ *     return windows_render();
  * }
  * @endcode
  */
-DZ_EXPORT void api_render();
+DZ_EXPORT bool api_render();

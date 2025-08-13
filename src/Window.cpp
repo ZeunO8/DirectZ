@@ -78,7 +78,11 @@ namespace dz {
 	}
 
 	WINDOW* window_create_internal(WINDOW* window) {
+		if (!dr_ptr->root_window)
+			dr_ptr->root_window = window;
+		dr_ptr->window_count++;
 		dr_ptr->window_ptrs.push_back(window);
+		dr_ptr->windows_data = dr_ptr->window_ptrs.data();
 		dr_ptr->window_reflectable_entries.push_back(new WindowReflectableGroup(window));
 
 		window->event_interface = new EventInterface(window);
@@ -123,8 +127,6 @@ namespace dz {
 		auto& scissor = window->scissor;
 		scissor.offset = {0, 0};
 		scissor.extent = {uint32_t(width), uint32_t(height)};
-
-		dr_ptr->window_count++;
 
 		dr_ptr->imguiLayer.Init();
 
@@ -205,17 +207,22 @@ namespace dz {
 		if (vect.empty())
 			window->draw_list_managers.erase(mgr);
 	}
-	void window_free(WINDOW* window) {
-		auto window_ptrs_end = dr_ptr->window_ptrs.end();
-		auto window_ptrs_begin = dr_ptr->window_ptrs.begin();
-		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
+	bool window_free(WINDOW* window) {
 		bool destroy_remaining = false;
-		if (window_it != window_ptrs_end) {
-			auto index = std::distance(window_ptrs_begin, window_it);
-			dr_ptr->window_ptrs.erase(window_it);
-			dr_ptr->window_reflectable_entries.erase(dr_ptr->window_reflectable_entries.begin() + index);
-			destroy_remaining = index == 0;
+		if (dr_ptr->window_count) {
+			auto window_ptrs_end = dr_ptr->window_ptrs.end();
+			auto window_ptrs_begin = dr_ptr->window_ptrs.begin();
+			auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
+			if (window_it != window_ptrs_end) {
+				auto index = std::distance(window_ptrs_begin, window_it);
+				dr_ptr->window_ptrs.erase(window_it);
+				dr_ptr->windows_data = dr_ptr->window_ptrs.data();
+				dr_ptr->window_reflectable_entries.erase(dr_ptr->window_reflectable_entries.begin() + index);
+				destroy_remaining = (dr_ptr->root_window == window);
+			}
 		}
+		dr_ptr->window_count--;
+		auto f_d_r = (dr_ptr->window_count == 0);
 		if (window->imguiViewport) {
 			auto& vp = *window->imguiViewport;
             vp.PlatformHandle = nullptr;
@@ -238,9 +245,13 @@ namespace dz {
 
 		if (destroy_remaining) {
 			for (size_t index = 0; index < dr_ptr->window_ptrs.size();) {
-				window_free(dr_ptr->window_ptrs[index]);
+				if (window_free(dr_ptr->window_ptrs[index]) && !f_d_r) {
+					f_d_r = true;
+				}
 			}
 		}
+
+		return f_d_r;
 	}
     void window_request_close(WINDOW* window_ptr) {
 		window_ptr->close_requested = true;
@@ -265,22 +276,17 @@ namespace dz {
 		}
 		if (!poll_continue)
 		{
-			dr_ptr->window_count--;
-			auto f_d_r = (dr_ptr->window_count == 0);
-			window_free(window);
-			if (f_d_r)
-			{
-				free_direct_registry(dr_ptr);
-			}
+			window->free_end_of_pass = true;
+			dr_ptr->free_window_end_of_pass = true;
 		}
 		return poll_continue;
 	}
 
     bool windows_poll_events() {
 		size_t stop_poll_count = 0;
-		auto original_size = dr_ptr->window_ptrs.size();
-		for (size_t index = 0; index < dr_ptr->window_ptrs.size(); index++) {
-			if (!window_poll_events(dr_ptr->window_ptrs[index])) {
+		auto original_size = dr_ptr->window_count.load();
+		for (size_t index = 0; index < dr_ptr->window_count; index++) {
+			if (!window_poll_events(dr_ptr->windows_data[index])) {
 				stop_poll_count++;
 			}
 		}
@@ -298,9 +304,39 @@ namespace dz {
 			renderer_render(window->renderer);
 	}
 
-	void windows_render() {
-		for (size_t index = 0; index < dr_ptr->window_ptrs.size(); index++)
-			window_render(dr_ptr->window_ptrs[index], true);
+	bool windows_render() {
+		for (size_t index = 0; index < dr_ptr->window_count; index++)
+			window_render(dr_ptr->windows_data[index], true);
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault(nullptr, nullptr);
+		for (auto i = 0; i < dr_ptr->window_count; i++) {
+			auto window_ptr = dr_ptr->windows_data[i];
+			if (!window_ptr->free_end_of_pass && window_ptr->renderer->recreate_swapchain_deferred) {
+				recreate_swap_chain(window_ptr->renderer);
+				window_ptr->renderer->recreate_swapchain_deferred = false;
+			}
+		}
+		static bool f_d_r = false;
+		if (dr_ptr->free_window_end_of_pass) {
+			for (auto i = 0; i < dr_ptr->window_ptrs.size(); i++) {
+				auto window_ptr = dr_ptr->window_ptrs[i];
+				if (window_ptr == dr_ptr->root_window) {
+					window_ptr->imguiViewport->PlatformHandle = nullptr;
+					window_ptr->imguiViewport->PlatformHandleRaw = nullptr;
+		        	dr_ptr->imguiLayer.Shutdown(*dr_ptr);
+				}
+				if (window_ptr->free_end_of_pass) {
+					if (window_free(window_ptr))
+					{
+						free_direct_registry(dr_ptr);
+						f_d_r = true;
+					}
+				}
+			}
+			if (!f_d_r)
+				dr_ptr->free_window_end_of_pass = false;
+		}
+		return f_d_r;
 	}
 
     const std::string& window_get_title_ref(WINDOW* window) {

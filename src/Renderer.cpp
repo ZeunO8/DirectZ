@@ -1162,7 +1162,6 @@ _aquire:
 	{
 		destroy_swap_chain(renderer);
 		if (renderer->window->headless) {
-			image_free(renderer->window->headless_image);
 			renderer->window->headless_image = image_create({
 				.width = uint32_t(*renderer->window->width_ptr),
 				.height = uint32_t(*renderer->window->height_ptr),
@@ -1221,19 +1220,17 @@ _aquire:
 			vkFreeMemory(device, countPair.second.second, 0);
 		}
 		destroy_swap_chain(renderer);
-		if (!window.headless) {
-			for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
-			{
-				vkDestroySemaphore(device, imageAvailableSemaphore, 0);
-			}
-			for (auto& renderFinishedSemaphore : renderer->renderFinishedSemaphores)
-			{
-				vkDestroySemaphore(device, renderFinishedSemaphore, 0);
-			}
-			for (auto& inFlightFence : renderer->inFlightFences)
-			{
-				vkDestroyFence(device, inFlightFence, 0);
-			}
+		for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
+		{
+			vkDestroySemaphore(device, imageAvailableSemaphore, 0);
+		}
+		for (auto& renderFinishedSemaphore : renderer->renderFinishedSemaphores)
+		{
+			vkDestroySemaphore(device, renderFinishedSemaphore, 0);
+		}
+		for (auto& inFlightFence : renderer->inFlightFences)
+		{
+			vkDestroyFence(device, inFlightFence, 0);
 		}
 	}
 
@@ -1246,6 +1243,7 @@ _aquire:
 		vkDeviceWaitIdle(device);
 		if (window.headless) {
 			vkDestroyFramebuffer(device, renderer->headless_framebuffer, 0);
+			image_free(renderer->window->headless_image);
 		}
 		else {
 			for (auto framebuffer : renderer->swapChainFramebuffers)

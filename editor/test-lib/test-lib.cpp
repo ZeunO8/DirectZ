@@ -86,8 +86,8 @@ DZ_EXPORT void api_update() {
 
 }
 
-DZ_EXPORT void api_render() {
-    windows_render();
+DZ_EXPORT bool api_render() {
+    return windows_render();
 }
 
 std::string GenerateArtQuadVertexShader() {

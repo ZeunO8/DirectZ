@@ -132,11 +132,13 @@ struct DirectRegistry
     VkCommandBuffer copyCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<WINDOW*> window_ptrs;
+    WINDOW** windows_data;
+    WINDOW* root_window = nullptr;
     std::vector<WindowReflectableGroup*> window_reflectable_entries;
     std::map<size_t, std::shared_ptr<Shader>> uid_shader_map;
     std::unordered_map<std::string, std::shared_ptr<BufferGroup>> buffer_groups;
     bool swiftshader_fallback = false;
-    std::atomic<uint32_t> window_count = 0;
+    std::atomic<size_t> window_count = 0;
 	ImGuiLayer imguiLayer;
     std::queue<VkDescriptorSetLayout> layoutQueue;
     std::unordered_map<VkFormat, 
@@ -151,6 +153,7 @@ struct DirectRegistry
     std::vector<std::tuple<Image*, VkImageLayout, int>> copySrcImages;
     std::vector<std::tuple<Image*, VkImageLayout, int>> copyDstImages;
     ColorSpace preferredColorSpace = ColorSpace::SRGB;
+    bool free_window_end_of_pass = false;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif

@@ -204,13 +204,6 @@ namespace dz
     WINDOW* window_create(const WindowCreateInfo& info);
 
     /**
-    * @brief Polls a window for events.
-    * 
-    * This should be called in a loop before any update and render code. Returns true if the window is still active, false if it has been closed.
-    */
-    bool window_poll_events(WINDOW*);
-
-    /**
     * @brief Polls all open windows for events.
     *
     * @note this should be used over the former due to compatibility with multi-viewports
@@ -220,14 +213,9 @@ namespace dz
     bool windows_poll_events();
 
     /**
-    * @brief Renders the specified window based on its context configuration.
-    */
-    void window_render(WINDOW*, bool multi_window_render = false);
-
-    /**
     * @brief Renders all open windows
     */
-    void windows_render();
+    bool windows_render();
 
     /**
     * @brief Gets the global ImGuiLayer

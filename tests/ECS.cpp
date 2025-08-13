@@ -687,7 +687,8 @@ int main() {
     });
 
     while (windows_poll_events()) {
-        windows_render();
+        if (windows_render())
+            break;
     }
 }
 

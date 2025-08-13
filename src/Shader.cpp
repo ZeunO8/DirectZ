@@ -1963,11 +1963,6 @@ namespace dz {
 
         dr_ptr->currentRenderer = renderer;
 
-        if (renderer->recreate_swapchain_deferred) {
-            recreate_swap_chain(renderer);
-            renderer->recreate_swapchain_deferred = false;
-        }
-
         auto& window = *renderer->window;
 
         size_t total_fb_draw_list = 0;

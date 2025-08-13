@@ -172,7 +172,7 @@ DZ_EXPORT bool api_init(dz::WINDOW* window)
 
 DZ_EXPORT bool api_poll_events()
 {
-    return window_poll_events(cached_window);
+    return windows_poll_events();
 }
 
 DZ_EXPORT void api_update()
@@ -184,8 +184,8 @@ DZ_EXPORT void api_update()
     // Do any CPU side logic
 }
 
-DZ_EXPORT void api_render()
+DZ_EXPORT bool api_render()
 {
     shader_dispatch(compute_shader, quad_ptrs.size(), 1, 1);
-    window_render(cached_window);
+    return windows_render();
 }

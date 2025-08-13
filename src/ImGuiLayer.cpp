@@ -109,7 +109,20 @@ namespace dz {
         platform_io.Renderer_SwapBuffers = nullptr;
 
         platform_io.Platform_DestroyWindow = [](ImGuiViewport* vp) {
-            window_free((WINDOW*)vp->PlatformHandle);
+            if (vp->PlatformWindowCreated) {
+                if (vp->PlatformHandle) {
+                    window_free((WINDOW*)vp->PlatformHandle);
+                }
+                else {
+                    vp->PlatformUserData = nullptr;
+                    vp->RendererUserData = nullptr;
+                }
+            }
+            else {
+                vp->RendererUserData = nullptr;
+                vp->PlatformUserData = nullptr;
+                vp->PlatformHandle = nullptr;
+            }
         };
 
         platform_io.Platform_ShowWindow = [](ImGuiViewport* vp) {
@@ -295,10 +308,10 @@ namespace dz {
     
             ImGui::Render();
 
-            if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-                ImGui::UpdatePlatformWindows();
-                ImGui::RenderPlatformWindowsDefault(nullptr, nullptr);
-            }
+            // if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+            //     ImGui::UpdatePlatformWindows();
+            //     ImGui::RenderPlatformWindowsDefault(nullptr, nullptr);
+            // }
         }
 
         auto DrawData = GetDrawData(window);

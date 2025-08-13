@@ -95,6 +95,7 @@ namespace dz {
 		ImGuiViewport* imguiViewport = 0;
 		std::map<float, std::unordered_map<Shader*, std::function<int()>>> priority_shader_dispatches;
 		VkDescriptorSet headless_ds = VK_NULL_HANDLE;
+		bool free_end_of_pass = false;
 	#ifdef _WIN32
 		HINSTANCE hInstance;
 		HWND hwnd;

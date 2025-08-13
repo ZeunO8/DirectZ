@@ -7,6 +7,8 @@ int main() {
     main_window = api_window_create("DirectZ Editor", 1280, 768);
     api_init(main_window);
     while(api_poll_events()) {
-        api_render();
+        if (api_render()) {
+            break;
+        }
     }
 }

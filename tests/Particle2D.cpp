@@ -545,7 +545,7 @@ void main()
 
     const uint32_t numDiffusionPasses = density_field_width / 2.f;
 
-    while (window_poll_events(window))
+    while (windows_poll_events())
     {
         shader_dispatch(image_clear_compute_shader, (*window_width_ptr + 31)/32, (*window_height_ptr + 31)/32, 1);
         shader_dispatch(clear_density_shader, (density_field_size + 127)/128, 1, 1);
@@ -555,7 +555,8 @@ void main()
         }
         shader_dispatch(gradient_force_shader, (uint32_t)(density_field_width + 31)/32, (uint32_t)(density_field_height + 31)/32, 1);
         shader_dispatch(gravity_motion_shader, dispatchX, 1, 1);
-        window_render(window);
+        if (windows_render())
+            break;
     }
     return 0;
 }
