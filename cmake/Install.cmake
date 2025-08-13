@@ -13,23 +13,6 @@ set(DirectZ_TGTS
     zlibstatic
 )
 
-function(set_output_dir TGT)
-    message(STATUS "Setting ${TGT} to ${CMAKE_BINARY_DIR}")
-    set_target_properties(${TGT} PROPERTIES
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Static libs (.a, .lib)
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Shared libs (.so, .dylib)
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"      # Executables (.exe) or Windows DLLs
-
-        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
-        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
-        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
-
-        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
-        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
-        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
-    )
-endfunction()
-
 foreach(TGT ${DirectZ_TGTS})
     set_output_dir(${TGT})
 endforeach()

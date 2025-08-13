@@ -79,7 +79,7 @@ namespace dz {
         }
     
         platform_io.Platform_CreateWindow = [](ImGuiViewport* vp) {
-            auto window_title = "Window #" + std::to_string(dr.window_ptrs.size() + 1);
+            auto window_title = "Window #" + std::to_string(dr_ptr->window_ptrs.size() + 1);
             auto new_window = window_create({
                 .title = window_title,
                 .x = vp->Pos.x,
@@ -223,19 +223,19 @@ namespace dz {
     
         ImGui_ImplVulkan_InitInfo init_info {};
         
-        init_info.Instance = dr.instance;
-        init_info.PhysicalDevice = dr.physicalDevice;
-        init_info.Device = dr.device;
-        DescriptorPool = init_info.DescriptorPool = CreateImGuiDescriptorPool(dr.device);
-        init_info.QueueFamily = dr.graphicsAndComputeFamily;
-        init_info.Queue = dr.graphicsQueue;
+        init_info.Instance = dr_ptr->instance;
+        init_info.PhysicalDevice = dr_ptr->physicalDevice;
+        init_info.Device = dr_ptr->device;
+        DescriptorPool = init_info.DescriptorPool = CreateImGuiDescriptorPool(dr_ptr->device);
+        init_info.QueueFamily = dr_ptr->graphicsAndComputeFamily;
+        init_info.Queue = dr_ptr->graphicsQueue;
         init_info.PipelineCache = VK_NULL_HANDLE;
         init_info.MinImageCount = 2;
         init_info.ImageCount = MAX_FRAMES_IN_FLIGHT;
         init_info.Subpass = 0;
         init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
         init_info.Allocator = nullptr;
-        init_info.RenderPass = dr.surfaceRenderPass;
+        init_info.RenderPass = dr_ptr->surfaceRenderPass;
 
         // 
         // 
@@ -257,12 +257,12 @@ namespace dz {
         return true;
     }
 
-    bool ImGuiLayer::Shutdown(DirectRegistry& direct_registry) {
+    bool ImGuiLayer::Shutdown(DirectRegistry& dr) {
         if (!initialized || !vulkan_initialized) {
             return false;
         }
 		ImGui_ImplVulkan_Shutdown();
-        DestroyImGuiDescriptorPool(direct_registry.device, DescriptorPool);
+        DestroyImGuiDescriptorPool(dr.device, DescriptorPool);
         ImGui::DestroyContext();
         initialized = false;
         vulkan_initialized = false;
@@ -270,7 +270,7 @@ namespace dz {
     }
 
     void ImGuiLayer::Render(WINDOW& window) {
-        auto root_window = &window == dr.window_ptrs[0];
+        auto root_window = &window == dr_ptr->window_ptrs[0];
         auto& io = ImGui::GetIO();
 
         io.DisplaySize = ImVec2(*window.width, *window.height);
@@ -304,7 +304,7 @@ namespace dz {
         auto DrawData = GetDrawData(window);
 
         if (DrawData)
-            ImGui_ImplVulkan_RenderDrawData(DrawData, *(dr.commandBuffer));
+            ImGui_ImplVulkan_RenderDrawData(DrawData, *(dr_ptr->commandBuffer));
     }
 
     ImDrawData* ImGuiLayer::GetDrawData(WINDOW& window) {

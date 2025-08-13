@@ -1,23 +1,16 @@
-#include <DirectZ.hpp>
+#include <dz/Runtime.hpp>
 int main()
 {
-    EventInterface* ei = 0;
+    auto main_window = api_window_create("Example Window", 640, 480);
 
-    // call app-lib implementation of init
-    if (!(ei = init({
-        .title = "Example Window",
-        .x = 128,
-        .y = 128,
-        .width = 640,
-        .height = 480
-    })))
+    if (!api_init(main_window))
         return 1;
 
-    //
-    while (poll_events())
+    while (api_poll_events())
     {
-        update();
-        render();
+        api_update();
+        api_render();
     }
+
     return 0;
 }

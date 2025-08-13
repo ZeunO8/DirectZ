@@ -1,4 +1,5 @@
 #include "RendererImpl.hpp"
+#include "Image.cpp.hpp"
 #include "Directz.cpp.hpp"
 
 namespace dz {
@@ -17,32 +18,42 @@ namespace dz {
 		auto renderer = new Renderer{
 			.window = window
 		};
-		//
+		direct_registry_ensure_instance(dr_ptr);
 		renderer->beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		auto& headless = window->headless;
+		if (headless) {
+			renderer->imageCount = 1;
+			ensure_headless_command_buffer(renderer);
+			create_headless_framebuffer(renderer);
+			renderer->swapChainExtent = {uint32_t(*window->width), uint32_t(*window->height)};
+			create_sync_objects(renderer, 1);
+		}
+		else {
+			//
+			create_surface(renderer);
+			direct_registry_ensure_physical_device(dr_ptr, renderer);
+			direct_registry_ensure_logical_device(dr_ptr, renderer);
+			create_swap_chain(renderer);
+			ensure_command_pool(renderer);
+			ensure_command_buffers(renderer);
+			create_image_views(renderer);
+			ensure_render_pass(renderer);
+			create_framebuffers(renderer);
+			create_sync_objects(renderer, MAX_FRAMES_IN_FLIGHT);
+			ImGuiLayer::VulkanInit();
+		}
 		renderer->waitStages[0] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 		renderer->submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		renderer->submitInfo.pNext = 0;
-		renderer->submitInfo.waitSemaphoreCount = 1;
+		renderer->submitInfo.waitSemaphoreCount = headless ? 0 : 1;
+		renderer->submitInfo.signalSemaphoreCount = headless ? 0 : 1;
 		renderer->submitInfo.commandBufferCount = 1;
 		renderer->presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 		renderer->presentInfo.pNext = 0;
-		renderer->presentInfo.waitSemaphoreCount = 1;
+		renderer->presentInfo.waitSemaphoreCount = headless ? 0 : 1;
 		renderer->presentInfo.swapchainCount = 1;
 		renderer->presentInfo.pResults = 0;
-		//
-		direct_registry_ensure_instance(dr_ptr);
-		create_surface(renderer);
-		direct_registry_ensure_physical_device(dr_ptr, renderer);
-		direct_registry_ensure_logical_device(dr_ptr, renderer);
-		create_swap_chain(renderer);
-		ensure_command_pool(renderer);
-		ensure_command_buffers(renderer);
-		create_image_views(renderer);
-		ensure_render_pass(renderer);
-		create_framebuffers(renderer);
-		renderer->renderPass = dr.surfaceRenderPass;
-		create_sync_objects(renderer);
-		ImGuiLayer::VulkanInit();
+		renderer->renderPass = dr_ptr->surfaceRenderPass;
 		return renderer;
 	}
 
@@ -162,7 +173,7 @@ namespace dz {
 
 	void direct_registry_ensure_instance(DirectRegistry* direct_registry)
 	{
-		if (dr.instance != VK_NULL_HANDLE)
+		if (dr_ptr->instance != VK_NULL_HANDLE)
 			return;
 
 		std::vector<const char*> possible_extensions;
@@ -205,7 +216,7 @@ namespace dz {
 		{
 			std::cout << "No Vulkan implementation found. Falling back to SwiftShader." << std::endl;
 			append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
-			dr.swiftshader_fallback = true;
+			dr_ptr->swiftshader_fallback = true;
 		}
 
 		std::cout << std::endl << "Available Extensions:" << std::endl;
@@ -259,15 +270,15 @@ namespace dz {
 		}
 	#endif
 	#endif
-		auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &dr.instance);
+		auto instance_create_result = vkCreateInstance(&createInfo, nullptr, &dr_ptr->instance);
 		if (instance_create_result == VK_SUCCESS)
 			return;
 		vk_log("vkCreateInstance", instance_create_result);
-		if (!dr.swiftshader_fallback)
+		if (!dr_ptr->swiftshader_fallback)
 		{
 			std::cout << "Vulkan instance creation failed. Falling back to SwiftShader." << std::endl;
 			append_vk_icd_filename((getProgramDirectoryPath() / "SwiftShader" / "vk_swiftshader_icd.json").string());
-			dr.swiftshader_fallback = true;
+			dr_ptr->swiftshader_fallback = true;
 			direct_registry_ensure_instance(dr_ptr);
 		}
 		else
@@ -281,37 +292,37 @@ namespace dz {
 	void create_surface(Renderer* renderer)
 	{
 		auto& window = *renderer->window;
-		auto& windowType = dr.windowType;
+		auto& windowType = dr_ptr->windowType;
 #if defined(__linux__) && !defined(__ANDROID__)
 		VkXlibSurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.dpy = window.display;
 		surfaceCreateInfo.window = window.window;
 		vk_check("vkCreateXlibSurfaceKHR",
-			vkCreateXlibSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+			vkCreateXlibSurfaceKHR(dr_ptr->instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(ANDROID)
 		VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.window = window.android_window;
 		vk_check("vkCreateAndroidSurfaceKHR",
-			vkCreateAndroidSurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+			vkCreateAndroidSurfaceKHR(dr_ptr->instance, &surfaceCreateInfo, 0, &renderer->surface));
 #elif defined(_WIN32)
 		VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{};
 		surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
 		surfaceCreateInfo.hinstance = window.hInstance;
 		surfaceCreateInfo.hwnd = window.hwnd;
 		vk_check("vkCreateWin32SurfaceKHR",
-			vkCreateWin32SurfaceKHR(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+			vkCreateWin32SurfaceKHR(dr_ptr->instance, &surfaceCreateInfo, 0, &renderer->surface));
 #endif
 	}
 #endif
 
 	void Renderer::destroy_surface()
 	{
-		vkDeviceWaitIdle(dr.device);
+		vkDeviceWaitIdle(dr_ptr->device);
 		if (surface != VK_NULL_HANDLE)
 		{
-			vkDestroySurfaceKHR(dr.instance, surface, nullptr);
+			vkDestroySurfaceKHR(dr_ptr->instance, surface, nullptr);
 			surface = VK_NULL_HANDLE;
 		}
 		cleanup_swapchain();
@@ -321,17 +332,17 @@ namespace dz {
 	{
 		for (auto framebuffer : swapChainFramebuffers)
 		{
-			vkDestroyFramebuffer(dr.device, framebuffer, 0);
+			vkDestroyFramebuffer(dr_ptr->device, framebuffer, 0);
 		}
 		swapChainFramebuffers.clear();
 		for (auto imageView : swapChainImageViews)
 		{
-			vkDestroyImageView(dr.device, imageView, 0);
+			vkDestroyImageView(dr_ptr->device, imageView, 0);
 		}
 		swapChainImageViews.clear();
 		if (swapChain)
 		{
-			vkDestroySwapchainKHR(dr.device, swapChain, 0);
+			vkDestroySwapchainKHR(dr_ptr->device, swapChain, 0);
 			swapChain = 0;
 		}
 	}
@@ -339,7 +350,7 @@ namespace dz {
 	VkSampleCountFlagBits get_max_usable_sample_count(DirectRegistry* direct_registry, Renderer* renderer)
 	{
 		VkPhysicalDeviceProperties physicalDeviceProperties;
-		vkGetPhysicalDeviceProperties(dr.physicalDevice, &physicalDeviceProperties);
+		vkGetPhysicalDeviceProperties(dr_ptr->physicalDevice, &physicalDeviceProperties);
 
 		VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts &
 			physicalDeviceProperties.limits.framebufferDepthSampleCounts;
@@ -366,7 +377,7 @@ namespace dz {
 	) {
 		VkImageFormatProperties formatProps = {};
 		VkResult result = vkGetPhysicalDeviceImageFormatProperties(
-			dr.physicalDevice,
+			dr_ptr->physicalDevice,
 			format,
 			imageType,
 			imageTiling,
@@ -374,7 +385,7 @@ namespace dz {
 			0,
 			&formatProps
 		);
-		dr.formats_supported_map[format][imageType][imageTiling][usageFlags] = (result == VK_SUCCESS);
+		dr_ptr->formats_supported_map[format][imageType][imageTiling][usageFlags] = (result == VK_SUCCESS);
 	}
 
 	void verify_format_support()
@@ -437,57 +448,57 @@ namespace dz {
 				}
 			}
 		}
-		dr.formats_supported.R8_UNORM = dr.formats_supported_map
+		dr_ptr->formats_supported.R8_UNORM = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8_UNORM][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8_UNORM = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8_UNORM = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8_UNORM][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8B8_UNORM = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8B8_UNORM = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8B8_UNORM][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8B8A8_UNORM = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8B8A8_UNORM = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8B8A8_UNORM][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 
-		dr.formats_supported.R8_SRGB = dr.formats_supported_map
+		dr_ptr->formats_supported.R8_SRGB = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8_SRGB][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8_SRGB = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8_SRGB = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8_SRGB][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8B8_SRGB = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8B8_SRGB = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8B8_SRGB][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R8G8B8A8_SRGB = dr.formats_supported_map
+		dr_ptr->formats_supported.R8G8B8A8_SRGB = dr_ptr->formats_supported_map
 			[VK_FORMAT_R8G8B8A8_SRGB][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 			
-		dr.formats_supported.R32_SFLOAT = dr.formats_supported_map
+		dr_ptr->formats_supported.R32_SFLOAT = dr_ptr->formats_supported_map
 			[VK_FORMAT_R32_SFLOAT][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R32G32_SFLOAT = dr.formats_supported_map
+		dr_ptr->formats_supported.R32G32_SFLOAT = dr_ptr->formats_supported_map
 			[VK_FORMAT_R32G32_SFLOAT][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R32G32B32_SFLOAT = dr.formats_supported_map
+		dr_ptr->formats_supported.R32G32B32_SFLOAT = dr_ptr->formats_supported_map
 			[VK_FORMAT_R32G32B32_SFLOAT][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
-		dr.formats_supported.R32G32B32A32_SFLOAT = dr.formats_supported_map
+		dr_ptr->formats_supported.R32G32B32A32_SFLOAT = dr_ptr->formats_supported_map
 			[VK_FORMAT_R32G32B32A32_SFLOAT][VK_IMAGE_TYPE_2D]
 			[VK_IMAGE_TILING_OPTIMAL][VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT];
 	}
 
 	void direct_registry_ensure_physical_device(DirectRegistry* direct_registry, Renderer* renderer)
 	{
-		if (dr.physicalDevice)
+		if (dr_ptr->physicalDevice)
 			return;
 		uint32_t deviceCount = 0;
-		vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(dr.instance, &deviceCount, 0));
+		vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(dr_ptr->instance, &deviceCount, 0));
 		if (deviceCount == 0)
 			throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find GPUs with Vulkan support!");
 		std::vector<VkPhysicalDevice> devices;
 		devices.resize(deviceCount);
-		vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(dr.instance, &deviceCount, devices.data()));
+		vk_check("vkEnumeratePhysicalDevices", vkEnumeratePhysicalDevices(dr_ptr->instance, &deviceCount, devices.data()));
 		std::map<uint32_t, VkPhysicalDevice> physicalDeviceScores;
 		for (auto& device : devices)
 		{
@@ -501,19 +512,19 @@ namespace dz {
 			auto device = iter->second;
 			if (is_device_suitable(dr_ptr, renderer, device))
 			{
-				dr.physicalDevice = device;
-				dr.maxMSAASamples = get_max_usable_sample_count(dr_ptr, renderer);
+				dr_ptr->physicalDevice = device;
+				dr_ptr->maxMSAASamples = get_max_usable_sample_count(dr_ptr, renderer);
 				selectedDeviceScore = iter->first;
 				break;
 			}
 			continue;
 		}
-		if (dr.physicalDevice == VK_NULL_HANDLE)
+		if (dr_ptr->physicalDevice == VK_NULL_HANDLE)
 		{
 			throw std::runtime_error("VulkanRenderer-getPhysicalDevice: failed to find a suitable GPU!");
 		}
-		vkGetPhysicalDeviceProperties(dr.physicalDevice, &dr.physicalDeviceProperties);
-		std::cout << "Selected Physical Device: '" << dr.physicalDeviceProperties.deviceName
+		vkGetPhysicalDeviceProperties(dr_ptr->physicalDevice, &dr_ptr->physicalDeviceProperties);
+		std::cout << "Selected Physical Device: '" << dr_ptr->physicalDeviceProperties.deviceName
 							<< "' with score of: " << selectedDeviceScore << std::endl;
 		verify_format_support();
 		return;
@@ -584,10 +595,10 @@ namespace dz {
 
 	void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer)
 	{
-		if (dr.device)
+		if (dr_ptr->device)
 			return;
 
-		QueueFamilyIndices indices = find_queue_families(dr_ptr, renderer, dr.physicalDevice);
+		QueueFamilyIndices indices = find_queue_families(dr_ptr, renderer, dr_ptr->physicalDevice);
 		std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 		std::vector<int32_t> uniqueQueueFamilies({indices.graphicsAndComputeFamily, indices.presentFamily});
 		float queuePriority = 1.0f;
@@ -607,9 +618,9 @@ namespace dz {
 
 		std::vector<const char*> extensions;
 		uint32_t extensionCount = 0;
-		vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(dr.physicalDevice, nullptr, &extensionCount, nullptr));
+		vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(dr_ptr->physicalDevice, nullptr, &extensionCount, nullptr));
 		std::vector<VkExtensionProperties> deviceExtensions(extensionCount);
-		vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(dr.physicalDevice, nullptr, &extensionCount, deviceExtensions.data()));
+		vk_check("vkEnumerateDeviceExtensionProperties", vkEnumerateDeviceExtensionProperties(dr_ptr->physicalDevice, nullptr, &extensionCount, deviceExtensions.data()));
 
 		auto is_supported = [&](const char* name) {
 			return std::any_of(deviceExtensions.begin(), deviceExtensions.end(), [&](const VkExtensionProperties& p) {
@@ -656,7 +667,7 @@ namespace dz {
 		supportedFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 		supportedFeatures.pNext = pNextFeatureChain;
 
-		vkGetPhysicalDeviceFeatures2(dr.physicalDevice, &supportedFeatures);
+		vkGetPhysicalDeviceFeatures2(dr_ptr->physicalDevice, &supportedFeatures);
 
 		// Prepare desired features but only enable if supported
 		shaderDrawParamsFeatures_query.shaderDrawParameters = shaderDrawParamsFeatures_query.shaderDrawParameters ? VK_TRUE : VK_FALSE;
@@ -687,24 +698,27 @@ namespace dz {
 		createInfo.enabledLayerCount = 0;
 		createInfo.pNext = &supportedFeatures;
 
-		vk_check("vkCreateDevice", vkCreateDevice(dr.physicalDevice, &createInfo, nullptr, &dr.device));
+		vk_check("vkCreateDevice", vkCreateDevice(dr_ptr->physicalDevice, &createInfo, nullptr, &dr_ptr->device));
 
-		dr.graphicsAndComputeFamily = indices.graphicsAndComputeFamily;
-		dr.presentFamily = indices.presentFamily;
+		dr_ptr->graphicsAndComputeFamily = indices.graphicsAndComputeFamily;
+		dr_ptr->presentFamily = indices.presentFamily;
 
-		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.graphicsQueue);
-		vkGetDeviceQueue(dr.device, dr.presentFamily, 0, &dr.presentQueue);
-		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.computeQueue);
-		vkGetDeviceQueue(dr.device, dr.graphicsAndComputeFamily, 0, &dr.copyQueue);
+		vkGetDeviceQueue(dr_ptr->device, dr_ptr->graphicsAndComputeFamily, 0, &dr_ptr->graphicsQueue);
+		vkGetDeviceQueue(dr_ptr->device, dr_ptr->presentFamily, 0, &dr_ptr->presentQueue);
+		vkGetDeviceQueue(dr_ptr->device, dr_ptr->graphicsAndComputeFamily, 0, &dr_ptr->computeQueue);
+		vkGetDeviceQueue(dr_ptr->device, dr_ptr->graphicsAndComputeFamily, 0, &dr_ptr->copyQueue);
 	}
 
 	bool create_swap_chain(Renderer* renderer)
 	{
-		SwapChainSupportDetails swapChainSupport = query_swap_chain_support(renderer, dr.physicalDevice);
-		if (dr.firstSurfaceFormat.format == 0)
+		auto swapChainSupport_op = query_swap_chain_support(renderer, dr_ptr->physicalDevice);
+		if (!swapChainSupport_op.has_value())
+			return false;
+		auto& swapChainSupport = swapChainSupport_op.value();
+		if (dr_ptr->firstSurfaceFormat.format == 0)
 		{
 			VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapChainSupport.formats);
-			dr.firstSurfaceFormat = surfaceFormat;
+			dr_ptr->firstSurfaceFormat = surfaceFormat;
 		}
 		VkPresentModeKHR presentMode = choose_swap_present_mode(renderer, swapChainSupport.presentModes);
 		VkExtent2D extent = choose_swap_extent(renderer, swapChainSupport.capabilities);
@@ -721,12 +735,12 @@ namespace dz {
 		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		createInfo.surface = renderer->surface;
 		createInfo.minImageCount = imageCount;
-		createInfo.imageFormat = dr.firstSurfaceFormat.format;
-		createInfo.imageColorSpace = dr.firstSurfaceFormat.colorSpace;
+		createInfo.imageFormat = dr_ptr->firstSurfaceFormat.format;
+		createInfo.imageColorSpace = dr_ptr->firstSurfaceFormat.colorSpace;
 		createInfo.imageExtent = extent;
 		createInfo.imageArrayLayers = 1;
 		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-		QueueFamilyIndices indices = find_queue_families(dr_ptr, renderer, dr.physicalDevice);
+		QueueFamilyIndices indices = find_queue_families(dr_ptr, renderer, dr_ptr->physicalDevice);
 		uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphicsAndComputeFamily, (uint32_t)indices.presentFamily};
 		if (indices.graphicsAndComputeFamily != indices.presentFamily)
 		{
@@ -741,7 +755,7 @@ namespace dz {
 		createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
 		VkSurfaceCapabilitiesKHR surfaceCapabilities;
 		vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dr.physicalDevice, renderer->surface, &surfaceCapabilities));
+			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dr_ptr->physicalDevice, renderer->surface, &surfaceCapabilities));
 		if (surfaceCapabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)
 		{
 			createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -757,45 +771,49 @@ namespace dz {
 		createInfo.presentMode = presentMode;
 		createInfo.clipped = VK_TRUE;
 		createInfo.oldSwapchain = VK_NULL_HANDLE;
-		vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(dr.device, &createInfo, 0, &renderer->swapChain));
-		vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(dr.device, renderer->swapChain, &imageCount, 0));
+		vk_check("vkCreateSwapchainKHR", vkCreateSwapchainKHR(dr_ptr->device, &createInfo, 0, &renderer->swapChain));
+		vk_check("vkGetSwapchainImagesKHR", vkGetSwapchainImagesKHR(dr_ptr->device, renderer->swapChain, &imageCount, 0));
 		renderer->swapChainImages.resize(imageCount);
 		vk_check("vkGetSwapchainImagesKHR",
-			vkGetSwapchainImagesKHR(dr.device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
+			vkGetSwapchainImagesKHR(dr_ptr->device, renderer->swapChain, &imageCount, renderer->swapChainImages.data()));
 		renderer->swapChainExtent = extent;
 		return true;
 	}
 
-	SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device)
+	std::optional<SwapChainSupportDetails> query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device)
 	{
-		SwapChainSupportDetails details;
-		vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
-			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dr.physicalDevice, renderer->surface, &details.capabilities));
-		uint32_t formatCount;
-		vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-			vkGetPhysicalDeviceSurfaceFormatsKHR(dr.physicalDevice, renderer->surface, &formatCount, 0));
-		if (formatCount != 0)
-		{
-			details.formats.resize(formatCount);
+		try {
+			SwapChainSupportDetails details;
+			vk_check("vkGetPhysicalDeviceSurfaceCapabilitiesKHR",
+				vkGetPhysicalDeviceSurfaceCapabilitiesKHR(dr_ptr->physicalDevice, renderer->surface, &details.capabilities));
+			uint32_t formatCount;
 			vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
-				vkGetPhysicalDeviceSurfaceFormatsKHR(dr.physicalDevice, renderer->surface, &formatCount, details.formats.data()));
-		}
-		uint32_t presentModeCount;
-		vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
-			vkGetPhysicalDeviceSurfacePresentModesKHR(dr.physicalDevice, renderer->surface, &presentModeCount, 0));
-		if (presentModeCount != 0)
-		{
-			details.presentModes.resize(presentModeCount);
+				vkGetPhysicalDeviceSurfaceFormatsKHR(dr_ptr->physicalDevice, renderer->surface, &formatCount, 0));
+			if (formatCount != 0)
+			{
+				details.formats.resize(formatCount);
+				vk_check("vkGetPhysicalDeviceSurfaceFormatsKHR",
+					vkGetPhysicalDeviceSurfaceFormatsKHR(dr_ptr->physicalDevice, renderer->surface, &formatCount, details.formats.data()));
+			}
+			uint32_t presentModeCount;
 			vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
-				vkGetPhysicalDeviceSurfacePresentModesKHR(dr.physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data()));
+				vkGetPhysicalDeviceSurfacePresentModesKHR(dr_ptr->physicalDevice, renderer->surface, &presentModeCount, 0));
+			if (presentModeCount != 0)
+			{
+				details.presentModes.resize(presentModeCount);
+				vk_check("vkGetPhysicalDeviceSurfacePresentModesKHR",
+					vkGetPhysicalDeviceSurfacePresentModesKHR(dr_ptr->physicalDevice, renderer->surface, &presentModeCount, details.presentModes.data()));
+			}
+			return details;
+		} catch (...) {
+			return std::nullopt;
 		}
-		return details;
 	}
 	VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats)
 	{
 		for (auto& availableFormat : availableFormats)
 		{
-			if (availableFormat.format == (VkFormat)dr.preferredColorSpace)
+			if (availableFormat.format == (VkFormat)dr_ptr->preferredColorSpace)
 			{
 				return availableFormat;
 			}
@@ -838,37 +856,46 @@ namespace dz {
 
 	void ensure_command_pool(Renderer* renderer)
 	{
-		if (dr.commandPool != VK_NULL_HANDLE)
+		if (dr_ptr->commandPool != VK_NULL_HANDLE)
 			return;
-		QueueFamilyIndices queueFamilyIndices = find_queue_families(dr_ptr, renderer, dr.physicalDevice);
+		QueueFamilyIndices queueFamilyIndices = find_queue_families(dr_ptr, renderer, dr_ptr->physicalDevice);
 		VkCommandPoolCreateInfo poolInfo{};
 		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 		poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
-		vk_check("vkCreateCommandPool", vkCreateCommandPool(dr.device, &poolInfo, 0, &dr.commandPool));
+		vk_check("vkCreateCommandPool", vkCreateCommandPool(dr_ptr->device, &poolInfo, 0, &dr_ptr->commandPool));
 		return;
 	}
 
 	void allocate_command_buffers(uint32_t count, VkCommandBuffer* pCommandBuffer, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocInfo.commandPool = dr.commandPool;
+		allocInfo.commandPool = dr_ptr->commandPool;
 		allocInfo.level = level;
 		allocInfo.commandBufferCount = count;
-		vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(dr.device, &allocInfo, pCommandBuffer));
+		vk_check("vkAllocateCommandBuffers", vkAllocateCommandBuffers(dr_ptr->device, &allocInfo, pCommandBuffer));
 	}
 
 	void ensure_command_buffers(Renderer* renderer)
 	{
-		if (!renderer->commandBuffers.empty())
-			return;
+		if (renderer->commandBuffers.empty()) {
+			renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+			allocate_command_buffers(renderer->commandBuffers.size(), &renderer->commandBuffers[0]);
+		}
 
-		renderer->commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-		allocate_command_buffers(renderer->commandBuffers.size(), &renderer->commandBuffers[0]);
+		if (!dr_ptr->computeCommandBuffer)
+			allocate_command_buffers(1, &dr_ptr->computeCommandBuffer);
+		if (!dr_ptr->copyCommandBuffer)
+			allocate_command_buffers(1, &dr_ptr->copyCommandBuffer);
 
-		allocate_command_buffers(1, &dr.computeCommandBuffer);
-		allocate_command_buffers(1, &dr.copyCommandBuffer);
+		return;
+	}
 
+	void ensure_headless_command_buffer(Renderer* renderer) {
+		if (renderer->commandBuffers.empty()) {
+			renderer->commandBuffers.resize(1);
+			allocate_command_buffers(renderer->commandBuffers.size(), &renderer->commandBuffers[0]);
+		}
 		return;
 	}
 
@@ -882,7 +909,7 @@ namespace dz {
 			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			createInfo.image = renderer->swapChainImages[index];
 			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			createInfo.format = dr.firstSurfaceFormat.format;
+			createInfo.format = dr_ptr->firstSurfaceFormat.format;
 			createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
 			createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
 			createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -892,14 +919,14 @@ namespace dz {
 			createInfo.subresourceRange.levelCount = 1;
 			createInfo.subresourceRange.baseArrayLayer = 0;
 			createInfo.subresourceRange.layerCount = 1;
-			vk_check("vkCreateImageView", vkCreateImageView(dr.device, &createInfo, 0, &(renderer->swapChainImageViews[index])));
+			vk_check("vkCreateImageView", vkCreateImageView(dr_ptr->device, &createInfo, 0, &(renderer->swapChainImageViews[index])));
 		}
 		return;
 	}
 
 	void ensure_render_pass(Renderer* renderer)
 	{
-		if (dr.surfaceRenderPass != VK_NULL_HANDLE)
+		if (dr_ptr->surfaceRenderPass != VK_NULL_HANDLE)
 			return;
 	#if defined(__ANDROID__)
 		VkAttachmentDescription colorAttachment{};
@@ -907,7 +934,7 @@ namespace dz {
 		VkAttachmentDescription2 colorAttachment{};
 		colorAttachment.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
 	#endif
-		colorAttachment.format = dr.firstSurfaceFormat.format;
+		colorAttachment.format = dr_ptr->firstSurfaceFormat.format;
 		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;//maxMSAASamples;
 		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -959,9 +986,9 @@ namespace dz {
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 	#if defined(__ANDROID__)
-		vk_check("vkCreateRenderPass", vkCreateRenderPass(dr.device, &renderPassInfo, 0, &dr.surfaceRenderPass));
+		vk_check("vkCreateRenderPass", vkCreateRenderPass(dr_ptr->device, &renderPassInfo, 0, &dr_ptr->surfaceRenderPass));
 	#else
-		vk_check("vkCreateRenderPass2", vkCreateRenderPass2(dr.device, &renderPassInfo, 0, &dr.surfaceRenderPass));
+		vk_check("vkCreateRenderPass2", vkCreateRenderPass2(dr_ptr->device, &renderPassInfo, 0, &dr_ptr->surfaceRenderPass));
 	#endif
 		return;
 	}
@@ -976,33 +1003,58 @@ namespace dz {
 			attachments[0] = renderer->swapChainImageViews[index];
 			VkFramebufferCreateInfo framebufferInfo{};
 			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = dr.surfaceRenderPass;
+			framebufferInfo.renderPass = dr_ptr->surfaceRenderPass;
 			framebufferInfo.attachmentCount = attachments.size();
 			framebufferInfo.pAttachments = attachments.data();
 			framebufferInfo.width = renderer->swapChainExtent.width;
 			framebufferInfo.height = renderer->swapChainExtent.height;
 			framebufferInfo.layers = 1;
 			vk_check("vkCreateFramebuffer",
-				vkCreateFramebuffer(dr.device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index])));
+				vkCreateFramebuffer(dr_ptr->device, &framebufferInfo, 0, &(renderer->swapChainFramebuffers[index])));
 		}
 		return;
 	}
 
-	void create_sync_objects(Renderer* renderer)
+	void create_headless_framebuffer(Renderer* renderer) {
+		auto& window = *renderer->window;
+		assert(window.headless);
+		assert(window.headless_image);
+		std::vector<VkImageView> image_views(1, VkImageView{});
+		image_views[0] = window.headless_image->imageViews[0];
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = dr_ptr->surfaceRenderPass;
+		framebufferInfo.attachmentCount = image_views.size();
+		framebufferInfo.pAttachments = image_views.data();
+		framebufferInfo.width = uint32_t(*window.width);
+		framebufferInfo.height = uint32_t(*window.height);
+		framebufferInfo.layers = 1;
+		vk_check("vkCreateFramebuffer",
+			vkCreateFramebuffer(
+				dr_ptr->device,
+				&framebufferInfo,
+				0,
+				&renderer->headless_framebuffer
+			)
+		);
+		
+	}
+
+	void create_sync_objects(Renderer* renderer, uint32_t count)
 	{
-		renderer->imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-		renderer->renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-		renderer->inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+		renderer->imageAvailableSemaphores.resize(count);
+		renderer->renderFinishedSemaphores.resize(count);
+		renderer->inFlightFences.resize(count);
 		VkSemaphoreCreateInfo semaphoreInfo{};
 		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 		VkFenceCreateInfo fenceInfo{};
 		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-		for (size_t j = 0; j < MAX_FRAMES_IN_FLIGHT; j++)
+		for (size_t j = 0; j < count; j++)
 		{
-			vk_check("vkCreateSemaphore", vkCreateSemaphore(dr.device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j]));
-			vk_check("vkCreateSemaphore", vkCreateSemaphore(dr.device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j]));
-			vk_check("vkCreateFence", vkCreateFence(dr.device, &fenceInfo, 0, &renderer->inFlightFences[j]));
+			vk_check("vkCreateSemaphore", vkCreateSemaphore(dr_ptr->device, &semaphoreInfo, 0, &renderer->imageAvailableSemaphores[j]));
+			vk_check("vkCreateSemaphore", vkCreateSemaphore(dr_ptr->device, &semaphoreInfo, 0, &renderer->renderFinishedSemaphores[j]));
+			vk_check("vkCreateFence", vkCreateFence(dr_ptr->device, &fenceInfo, 0, &renderer->inFlightFences[j]));
 		}
 		return;
 	}
@@ -1011,32 +1063,35 @@ namespace dz {
 	{
 		renderer->currentFrame = (renderer->currentFrame + 1) % renderer->imageCount;
 
-		vk_check("vkWaitForFences", vkWaitForFences(dr.device, 1,
-			&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+			vk_check("vkWaitForFences", vkWaitForFences(dr_ptr->device, 1,
+				&renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 
+		if (!renderer->window->headless) {
 _aquire:
-		VkResult res = vkAcquireNextImageKHR(dr.device,
-			renderer->swapChain, UINT64_MAX,
-			renderer->imageAvailableSemaphores[renderer->currentFrame],
-			VK_NULL_HANDLE, &renderer->imageIndex);
+			VkResult res = vkAcquireNextImageKHR(dr_ptr->device,
+				renderer->swapChain, UINT64_MAX,
+				renderer->imageAvailableSemaphores[renderer->currentFrame],
+				VK_NULL_HANDLE, &renderer->imageIndex);
 
-		if (res == VK_ERROR_OUT_OF_DATE_KHR)
-		{
-			recreate_swap_chain(renderer);
-			goto _aquire;
+			if (res == VK_ERROR_OUT_OF_DATE_KHR)
+			{
+				recreate_swap_chain(renderer);
+				goto _aquire;
+			}
+			else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
+			{
+				vk_check("vkAcquireNextImageKHR", res);
+			}
 		}
-		else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
-		{
-			vk_check("vkAcquireNextImageKHR", res);
+		else {
+			transition_image_layout(renderer->window->headless_image, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 		}
 
-		vk_check("vkResetFences", vkResetFences(dr.device, 1, &renderer->inFlightFences[renderer->currentFrame]));
-
-		dr.commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
-
-		vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*dr.commandBuffer, 0));
-
-		vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*dr.commandBuffer, &renderer->beginInfo));
+		vk_check("vkResetFences", vkResetFences(dr_ptr->device, 1, &renderer->inFlightFences[renderer->currentFrame]));
+	
+		dr_ptr->commandBuffer = &renderer->commandBuffers[renderer->currentFrame];
+		vk_check("vkResetCommandBuffer", vkResetCommandBuffer(*dr_ptr->commandBuffer, 0));
+		vk_check("vkBeginCommandBuffer", vkBeginCommandBuffer(*dr_ptr->commandBuffer, &renderer->beginInfo));
 	}
 
 	void begin_render_pass(Renderer* renderer)
@@ -1044,35 +1099,49 @@ _aquire:
 		VkRenderPassBeginInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderPassInfo.renderPass = renderer->renderPass;
-		renderPassInfo.framebuffer = renderer->swapChainFramebuffers[renderer->imageIndex];
+		renderPassInfo.framebuffer = renderer->window->headless ?
+			renderer->headless_framebuffer :
+			renderer->swapChainFramebuffers[renderer->imageIndex];
 		renderPassInfo.renderArea.offset = {0, 0};
 		renderPassInfo.renderArea.extent = renderer->swapChainExtent;
 		std::array<VkClearValue, 2> clearValues{};
-		clearValues[0].color = {{0.0f, 0.0f, 0.0f, 0.0f}};
+		clearValues[0].color = {{
+			renderer->window->clearColor.data[0],
+			renderer->window->clearColor.data[1],
+			renderer->window->clearColor.data[2],
+			renderer->window->clearColor.data[3]
+		}};
 		clearValues[1].depthStencil = {1.0f, 0};
 		renderPassInfo.clearValueCount = clearValues.size();
 		renderPassInfo.pClearValues = clearValues.data();
-		vkCmdBeginRenderPass(*dr.commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(*dr_ptr->commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
 	void post_render_pass(Renderer* renderer)
 	{
 		{
-			vkCmdEndRenderPass(*dr.commandBuffer);
-			vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*dr.commandBuffer));
+			vkCmdEndRenderPass(*dr_ptr->commandBuffer);
+			vk_check("vkEndCommandBuffer", vkEndCommandBuffer(*dr_ptr->commandBuffer));
 		}
 		VkSemaphore waitSemaphores[] = {renderer->imageAvailableSemaphores[renderer->currentFrame]};
 		{
-			renderer->submitInfo.pWaitSemaphores = waitSemaphores;
-			renderer->submitInfo.pWaitDstStageMask = renderer->waitStages;
-			renderer->submitInfo.pCommandBuffers = dr.commandBuffer;
-			renderer->signalSemaphores[0] = renderer->renderFinishedSemaphores[renderer->currentFrame];
-			renderer->submitInfo.signalSemaphoreCount = 1;
-			renderer->submitInfo.pSignalSemaphores = renderer->signalSemaphores;
-			vk_check("vkQueueSubmit", vkQueueSubmit(dr.graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
+			if (renderer->window->headless) {
+				renderer->submitInfo.pWaitSemaphores = 0;
+				renderer->submitInfo.pWaitDstStageMask = 0;
+				renderer->submitInfo.pCommandBuffers = dr_ptr->commandBuffer;
+				renderer->submitInfo.pSignalSemaphores =  0;
+			}
+			else {
+				renderer->submitInfo.pWaitSemaphores = waitSemaphores;
+				renderer->submitInfo.pWaitDstStageMask = renderer->waitStages;
+				renderer->submitInfo.pCommandBuffers = dr_ptr->commandBuffer;
+				renderer->signalSemaphores[0] = renderer->renderFinishedSemaphores[renderer->currentFrame];
+				renderer->submitInfo.pSignalSemaphores =  renderer->signalSemaphores;
+			}
+			vk_check("vkQueueSubmit", vkQueueSubmit(dr_ptr->graphicsQueue, 1, &renderer->submitInfo, renderer->inFlightFences[renderer->currentFrame]));
 		}
 		{
-			vk_check("vkWaitForFences", vkWaitForFences(dr.device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
+			vk_check("vkWaitForFences", vkWaitForFences(dr_ptr->device, 1, &renderer->inFlightFences[renderer->currentFrame], VK_TRUE, UINT64_MAX));
 		}
 		{
 			renderer->presentInfo.pWaitSemaphores = renderer->signalSemaphores;
@@ -1099,17 +1168,22 @@ _aquire:
 	}
 
 	bool swap_buffers(Renderer* renderer)
-	{    
-		auto result = vkQueuePresentKHR(dr.presentQueue, &renderer->presentInfo);
-		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-		{
-			if (!window_get_minimized(renderer->window))
-				return recreate_swap_chain(renderer);
-			// *viewportResized = false;
+	{
+		if (!renderer->window->headless) {
+			auto result = vkQueuePresentKHR(dr_ptr->presentQueue, &renderer->presentInfo);
+			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+			{
+				if (!window_get_minimized(renderer->window))
+					return recreate_swap_chain(renderer);
+				// *viewportResized = false;
+			}
+			else
+			{
+				vk_check("vkQueuePresentKHR", result);
+			}
 		}
-		else
-		{
-			vk_check("vkQueuePresentKHR", result);
+		else {
+			transition_image_layout(renderer->window->headless_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		}
 		return true;
 	}
@@ -1117,7 +1191,7 @@ _aquire:
 	void renderer_destroy(Renderer* renderer)
 	{
 		auto& window = *renderer->window;
-		auto& device = dr.device;
+		auto& device = dr_ptr->device;
 		if (device == VK_NULL_HANDLE)
 			return;
 		vkDeviceWaitIdle(device);
@@ -1132,41 +1206,48 @@ _aquire:
 			vkFreeMemory(device, countPair.second.second, 0);
 		}
 		destroy_swap_chain(renderer);
-		for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
-		{
-			vkDestroySemaphore(device, imageAvailableSemaphore, 0);
+		if (!window.headless) {
+			for (auto& imageAvailableSemaphore : renderer->imageAvailableSemaphores)
+			{
+				vkDestroySemaphore(device, imageAvailableSemaphore, 0);
+			}
+			for (auto& renderFinishedSemaphore : renderer->renderFinishedSemaphores)
+			{
+				vkDestroySemaphore(device, renderFinishedSemaphore, 0);
+			}
+			for (auto& inFlightFence : renderer->inFlightFences)
+			{
+				vkDestroyFence(device, inFlightFence, 0);
+			}
 		}
-		for (auto& renderFinishedSemaphore : renderer->renderFinishedSemaphores)
-		{
-			vkDestroySemaphore(device, renderFinishedSemaphore, 0);
-		}
-		for (auto& inFlightFence : renderer->inFlightFences)
-		{
-			vkDestroyFence(device, inFlightFence, 0);
-		}
-		// callDestroyAtRenderPassEndOrDestroy();
 	}
 
 	void destroy_swap_chain(Renderer* renderer)
 	{
-		auto& device = dr.device;
+		auto& window = *renderer->window;
+		auto& device = dr_ptr->device;
 		if (device == VK_NULL_HANDLE)
 			return;
 		vkDeviceWaitIdle(device);
-		for (auto framebuffer : renderer->swapChainFramebuffers)
-		{
-			vkDestroyFramebuffer(device, framebuffer, 0);
+		if (window.headless) {
+			vkDestroyFramebuffer(device, renderer->headless_framebuffer, 0);
 		}
-		renderer->swapChainFramebuffers.clear();
-		for (auto imageView : renderer->swapChainImageViews)
-		{
-			vkDestroyImageView(device, imageView, 0);
-		}
-		renderer->swapChainImageViews.clear();
-		if (renderer->swapChain)
-		{
-			vkDestroySwapchainKHR(device, renderer->swapChain, 0);
-			renderer->swapChain = 0;
+		else {
+			for (auto framebuffer : renderer->swapChainFramebuffers)
+			{
+				vkDestroyFramebuffer(device, framebuffer, 0);
+			}
+			renderer->swapChainFramebuffers.clear();
+			for (auto imageView : renderer->swapChainImageViews)
+			{
+				vkDestroyImageView(device, imageView, 0);
+			}
+			renderer->swapChainImageViews.clear();
+			if (renderer->swapChain)
+			{
+				vkDestroySwapchainKHR(device, renderer->swapChain, 0);
+				renderer->swapChain = 0;
+			}
 		}
 	}
 
@@ -1192,25 +1273,25 @@ _aquire:
 		bufferInfo.usage = usage;
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-		if (!vk_check("vkCreateBuffer", vkCreateBuffer(dr.device, &bufferInfo, 0, &buffer)))
+		if (!vk_check("vkCreateBuffer", vkCreateBuffer(dr_ptr->device, &bufferInfo, 0, &buffer)))
 		{
 			throw std::runtime_error("failed to create buffer!");
 		}
 
 		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(dr.device, buffer, &memRequirements);
+		vkGetBufferMemoryRequirements(dr_ptr->device, buffer, &memRequirements);
 
 		VkMemoryAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = FindMemoryType(dr.physicalDevice, memRequirements.memoryTypeBits, properties);
+		allocInfo.memoryTypeIndex = FindMemoryType(dr_ptr->physicalDevice, memRequirements.memoryTypeBits, properties);
 
-		if (!vk_check("vkAllocateMemory", vkAllocateMemory(dr.device, &allocInfo, 0, &bufferMemory)))
+		if (!vk_check("vkAllocateMemory", vkAllocateMemory(dr_ptr->device, &allocInfo, 0, &bufferMemory)))
 		{
 			throw std::runtime_error("failed to allocate buffer memory!");
 		}
 
-		vkBindBufferMemory(dr.device, buffer, bufferMemory, 0);
+		vkBindBufferMemory(dr_ptr->device, buffer, bufferMemory, 0);
 	}
 
 	std::string vk_result_string(VkResult result)
@@ -1389,7 +1470,7 @@ _aquire:
 	uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
 	{
 		VkPhysicalDeviceMemoryProperties mem_properties;
-		vkGetPhysicalDeviceMemoryProperties(dr.physicalDevice, &mem_properties);
+		vkGetPhysicalDeviceMemoryProperties(dr_ptr->physicalDevice, &mem_properties);
 
 		for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
 		{
@@ -1407,11 +1488,11 @@ _aquire:
 		VkCommandBufferAllocateInfo alloc_info{};
 		alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		alloc_info.commandPool = dr.commandPool;
+		alloc_info.commandPool = dr_ptr->commandPool;
 		alloc_info.commandBufferCount = 1;
 
 		VkCommandBuffer command_buffer;
-		vkAllocateCommandBuffers(dr.device, &alloc_info, &command_buffer);
+		vkAllocateCommandBuffers(dr_ptr->device, &alloc_info, &command_buffer);
 
 		VkCommandBufferBeginInfo begin_info{};
 		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1431,9 +1512,9 @@ _aquire:
 		submit_info.commandBufferCount = 1;
 		submit_info.pCommandBuffers = &command_buffer;
 
-		vkQueueSubmit(dr.graphicsQueue, 1, &submit_info, VK_NULL_HANDLE);
-		vkQueueWaitIdle(dr.graphicsQueue);
+		vkQueueSubmit(dr_ptr->graphicsQueue, 1, &submit_info, VK_NULL_HANDLE);
+		vkQueueWaitIdle(dr_ptr->graphicsQueue);
 
-		vkFreeCommandBuffers(dr.device, dr.commandPool, 1, &command_buffer);
+		vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &command_buffer);
 	}
 }

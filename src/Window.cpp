@@ -78,16 +78,16 @@ namespace dz {
 	}
 
 	WINDOW* window_create_internal(WINDOW* window) {
-		dr.window_ptrs.push_back(window);
-		dr.window_reflectable_entries.push_back(new WindowReflectableGroup(window));
+		dr_ptr->window_ptrs.push_back(window);
+		dr_ptr->window_reflectable_entries.push_back(new WindowReflectableGroup(window));
 
 		window->event_interface = new EventInterface(window);
 
 	#ifdef __ANDROID__
-		if (!dr.android_asset_manager)
-			dr.android_asset_manager = window->android_asset_manager;
-		if (!dr.android_config)
-			AConfiguration_fromAssetManager(dr.android_config, dr.android_asset_manager);
+		if (!dr_ptr->android_asset_manager)
+			dr_ptr->android_asset_manager = window->android_asset_manager;
+		if (!dr_ptr->android_config)
+			AConfiguration_fromAssetManager(dr_ptr->android_config, dr_ptr->android_asset_manager);
 	#endif
 
 		auto& width = *window->width;
@@ -113,17 +113,26 @@ namespace dz {
 		scissor.offset = {0, 0};
 		scissor.extent = {uint32_t(width), uint32_t(height)};
 
-		dr.window_count++;
+		dr_ptr->window_count++;
 
 		ImGuiLayer::Init();
 
-		window->create_platform();
+		auto& headless = window->headless;
+
+		if (headless) {
+			std::cout << "WINDOW::create_platform: window is headless, skipping" << std::endl;
+		}
+		else {
+			window->create_platform();
+		}
 
 		window->renderer = renderer_init(window);
 
-		window->post_init_platform();
+		if (!headless) {
+			window->post_init_platform();
+		}
 
-		if (dr.window_ptrs.size() == 1) {
+		if (!headless && dr_ptr->window_ptrs.size() == 1) {
 			ImGuiViewport* main_viewport = ImGui::GetMainViewport();
 			main_viewport->PlatformHandleRaw = window_get_native_handle(window);
 			main_viewport->PlatformHandle = window;
@@ -134,7 +143,7 @@ namespace dz {
 			window->imguiViewport = main_viewport;
 			main_viewport->PlatformWindowCreated = false;
 #ifdef _WIN32
-			dr.hwnd_root = window->hwnd;
+			dr_ptr->hwnd_root = window->hwnd;
 #endif
 		}
 
@@ -155,13 +164,14 @@ namespace dz {
 #ifdef ANDROID
 			, info.android_window, info.android_asset_manager
 #endif
+			, info.headless, info.headless_image
 		);
 
 		return window_create_internal(window);
 	}
 	
 	ImGuiLayer& get_ImGuiLayer() {
-		return dr.imguiLayer;
+		return dr_ptr->imguiLayer;
 	}
 
 	void window_add_drawn_buffer_group(WINDOW* window, IDrawListManager* mgr, BufferGroup* buffer_group) {
@@ -174,14 +184,14 @@ namespace dz {
 			window->draw_list_managers.erase(mgr);
 	}
 	void window_free(WINDOW* window) {
-		auto window_ptrs_end = dr.window_ptrs.end();
-		auto window_ptrs_begin = dr.window_ptrs.begin();
+		auto window_ptrs_end = dr_ptr->window_ptrs.end();
+		auto window_ptrs_begin = dr_ptr->window_ptrs.begin();
 		auto window_it = std::find(window_ptrs_begin, window_ptrs_end, window);
 		bool destroy_remaining = false;
 		if (window_it != window_ptrs_end) {
 			auto index = std::distance(window_ptrs_begin, window_it);
-			dr.window_ptrs.erase(window_it);
-			dr.window_reflectable_entries.erase(dr.window_reflectable_entries.begin() + index);
+			dr_ptr->window_ptrs.erase(window_it);
+			dr_ptr->window_reflectable_entries.erase(dr_ptr->window_reflectable_entries.begin() + index);
 			destroy_remaining = index == 0;
 		}
 		if (window->imguiViewport) {
@@ -205,8 +215,8 @@ namespace dz {
 		delete window;
 
 		if (destroy_remaining) {
-			for (size_t index = 0; index < dr.window_ptrs.size();) {
-				window_free(dr.window_ptrs[index]);
+			for (size_t index = 0; index < dr_ptr->window_ptrs.size();) {
+				window_free(dr_ptr->window_ptrs[index]);
 			}
 		}
 	}
@@ -231,12 +241,12 @@ namespace dz {
 		}
 		if (!poll_continue)
 		{
-			dr.window_count--;
-			auto f_d_r = (dr.window_count == 0);
+			dr_ptr->window_count--;
+			auto f_d_r = (dr_ptr->window_count == 0);
 			window_free(window);
 			if (f_d_r)
 			{
-				free_direct_registry();
+				free_direct_registry(dr_ptr);
 			}
 		}
 		return poll_continue;
@@ -244,10 +254,12 @@ namespace dz {
 
     bool windows_poll_events() {
 		size_t stop_poll_count = 0;
-		auto original_size = dr.window_ptrs.size();
-		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
-			if (!window_poll_events(dr.window_ptrs[index]))
+		auto original_size = dr_ptr->window_ptrs.size();
+		for (size_t index = 0; index < dr_ptr->window_ptrs.size(); index++) {
+			if (!window_poll_events(dr_ptr->window_ptrs[index])) {
 				stop_poll_count++;
+			}
+		}
 		return stop_poll_count != original_size;
 	}
 
@@ -263,8 +275,8 @@ namespace dz {
 	}
 
 	void windows_render() {
-		for (size_t index = 0; index < dr.window_ptrs.size(); index++)
-			window_render(dr.window_ptrs[index], true);
+		for (size_t index = 0; index < dr_ptr->window_ptrs.size(); index++)
+			window_render(dr_ptr->window_ptrs[index], true);
 	}
 
     const std::string& window_get_title_ref(WINDOW* window) {
@@ -499,13 +511,15 @@ namespace dz {
 		// SetupPixelFormat(hDeviceContext);
 	}
 	bool WINDOW::poll_events_platform() {
-		MSG msg;
-		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
-		{
-			if (msg.message == WM_QUIT)
-				return false;
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+		if (!headless) {
+			static MSG msg = {};
+			while (PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
+			{
+				if (msg.message == WM_QUIT)
+					return false;
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
 		}
 		return true;
 	}
@@ -767,7 +781,7 @@ namespace dz {
 			}
 			break;
 		case WM_DESTROY:
-			if (hwnd == dr.hwnd_root)
+			if (hwnd == dr_ptr->hwnd_root)
 				PostQuitMessage(0);
 			else
 				return 0;
@@ -1365,5 +1379,9 @@ namespace dz {
 		if (it == shader_dispatches.end())
 			return;
 		shader_dispatches.erase(it);
+	}
+
+	void window_set_clear_color(WINDOW* window_ptr, vec<float, 4> clearColor) {
+		window_ptr->clearColor = clearColor;
 	}
 }

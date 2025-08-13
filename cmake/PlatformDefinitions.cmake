@@ -16,6 +16,8 @@ if(ANDROID)
     set(DZ_LIB_PREFIX "lib")
     set(SHARED_DZ_LIB_SUFFIX ".so")
     set(STATIC_DZ_LIB_SUFFIX ".a")
+    set(MOBILE TRUE)
+    add_definitions(-DMOBILE)
 elseif(IOS)
     message(STATUS "Determined iOS Host")
     set(IOS ON)
@@ -31,6 +33,8 @@ elseif(IOS)
     set(ENABLE_ZLIB OFF)
     set(ENABLE_BZip2 OFF)
     set(ENABLE_LIBXML2 OFF)
+    set(MOBILE TRUE)
+    add_definitions(-DMOBILE)
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     set(LINUX ON)
     set(DZ_LIB_PREFIX "lib")
@@ -48,6 +52,8 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
         message(FATAL_ERROR ">>>> Found unknown distribution <<<<")
     endif()
     set(ZG_LNX_INSTALL_PREFIX /usr/local)
+    set(DESKTOP TRUE)
+    add_definitions(-DDESKTOP)
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
     message(STATUS "Determined MacOS Host")
     set(MACOS ON)
@@ -56,6 +62,8 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
     set(SHARED_DZ_LIB_SUFFIX ".dylib")
     set(STATIC_DZ_LIB_SUFFIX ".a")
     set(ZG_OSX_INSTALL_PREFIX /usr/local)
+    set(DESKTOP TRUE)
+    add_definitions(-DDESKTOP)
 elseif(WIN32)
     message(STATUS "Determined Windows Host")
     set(WINDOWS ON)
@@ -73,6 +81,10 @@ elseif(WIN32)
             set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         endif()
     endif()
+    set(DESKTOP TRUE)
+    add_definitions(-DDESKTOP)
+else()
+    message(WARNING "Unsupported OS, compile with caution")
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -128,3 +140,20 @@ if(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/fix_format_security.bat")
         COMMENT "Running format-security fixup batch script"
     )
 endif()
+
+function(set_output_dir TGT)
+    message(STATUS "Setting ${TGT} to ${CMAKE_BINARY_DIR}")
+    set_target_properties(${TGT} PROPERTIES
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}"
+
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
+    )
+endfunction()

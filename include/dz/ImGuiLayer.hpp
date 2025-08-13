@@ -24,7 +24,7 @@ namespace dz {
         static void FocusWindow(WINDOW*, bool);
         static bool Init();
         static bool VulkanInit();
-        static bool Shutdown(DirectRegistry&);
+        static bool Shutdown(DirectRegistry& dr);
         void Render(WINDOW& window);
         size_t AddImmediateDrawFunction(float priority, const std::string& key, const ImmediateDrawFunction& fn);
         bool RemoveImmediateDrawFunction(size_t id);

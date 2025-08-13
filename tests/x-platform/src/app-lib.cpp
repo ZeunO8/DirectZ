@@ -39,9 +39,9 @@ std::vector<Quad*> quad_ptrs;
 std::vector<Window*> window_ptrs;
 std::vector<Camera*> camera_ptrs;
 
-DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
+DZ_EXPORT bool api_init(dz::WINDOW* window)
 {
-    cached_window = window_create(window_info);
+    cached_window = window;
 
     FileHandle asset_pack_handle{
         .location = FileHandle::ASSET,
@@ -167,15 +167,15 @@ DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
 
     free_asset_pack(asset_pack);
 
-    return window_get_event_interface(cached_window);
+    return true;
 }
 
-DZ_EXPORT bool poll_events()
+DZ_EXPORT bool api_poll_events()
 {
     return window_poll_events(cached_window);
 }
 
-DZ_EXPORT void update()
+DZ_EXPORT void api_update()
 {
     auto& window = *window_ptrs[0];
     auto dt = window.deltaTime;
@@ -184,7 +184,7 @@ DZ_EXPORT void update()
     // Do any CPU side logic
 }
 
-DZ_EXPORT void render()
+DZ_EXPORT void api_render()
 {
     shader_dispatch(compute_shader, quad_ptrs.size(), 1, 1);
     window_render(cached_window);

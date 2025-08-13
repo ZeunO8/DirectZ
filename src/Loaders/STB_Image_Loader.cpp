@@ -7,8 +7,8 @@
 
 int STB_Image_minChannelsu() {
     int minChannels = 4;
-    if (dr.formats_supported.R8G8B8A8_SRGB && dr.formats_supported.R8G8B8_SRGB &&
-        dr.formats_supported.R8G8_SRGB && dr.formats_supported.R8_SRGB) {
+    if (dr_ptr->formats_supported.R8G8B8A8_SRGB && dr_ptr->formats_supported.R8G8B8_SRGB &&
+        dr_ptr->formats_supported.R8G8_SRGB && dr_ptr->formats_supported.R8_SRGB) {
         minChannels = 0;
     }
     return minChannels;
@@ -16,8 +16,8 @@ int STB_Image_minChannelsu() {
 
 int STB_Image_minChannelsf() {
     int minChannels = 4;
-    if (dr.formats_supported.R32G32B32A32_SFLOAT && dr.formats_supported.R32G32B32_SFLOAT &&
-        dr.formats_supported.R32G32_SFLOAT && dr.formats_supported.R32_SFLOAT) {
+    if (dr_ptr->formats_supported.R32G32B32A32_SFLOAT && dr_ptr->formats_supported.R32G32B32_SFLOAT &&
+        dr_ptr->formats_supported.R32G32_SFLOAT && dr_ptr->formats_supported.R32_SFLOAT) {
         minChannels = 0;
     }
     return minChannels;

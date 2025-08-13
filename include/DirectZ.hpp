@@ -28,12 +28,8 @@
 #include <dz/TypeLoader.hpp>
 #include <dz/Loaders/STB_Image_Loader.hpp>
 #include <dz/Loaders/Assimp_Loader.hpp>
-
-#ifdef _WIN32
-#define DZ_EXPORT extern "C" __declspec(dllexport)
-#else
-#define DZ_EXPORT extern "C" __attribute__((visibility("default")))
-#endif
+#include <dz/SharedLibrary.hpp>
+#include <dz/Runtime.hpp>
 
 using namespace dz;
 
@@ -42,68 +38,6 @@ namespace dz {
 }
 
 inline static std::string DZ_GLSL_VERSION = "#version 450\n";
-
-/**
- * @brief Initializes the runtime environment.
- * 
- * This function should be implemented by the platform-specific runtime (e.g., PC, Android, iOS).
- * It typically creates the main window, caches it for later use, and sets up runtime resources such as shaders and images.
- * 
- * @code
- * // Example implementation:
- * WINDOW* cached_window = 0;
- * DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
- * {
- *     cached_window = window_create(window_info);
- *     
- *     // shader & image setup
- *     return window_get_event_interface(cached_window);
- * }
- * @endcode
- * 
- * @param window_info Structure containing window creation parameters.
- * @return int Status code indicating success or failure.
- */
-DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info);
-
-/**
- * @brief Polls for runtime events.
- * 
- * This function should be implemented by the runtime. It may simply wrap a call to window_poll_events.
- * 
- * @code
- * // Example implementation:
- * DZ_EXPORT bool poll_events()
- * {
- *     return window_poll_events(cached_window);
- * }
- * @endcode
- * 
- * @return true if events are still being processed; false if the application should exit.
- */
-DZ_EXPORT bool poll_events();
-
-/**
- * @brief Performs per-frame logic before rendering.
- * 
- * This function is intended for compute shader invocations and any CPU-side logic that should occur before rendering.
- */
-DZ_EXPORT void update();
-
-/**
- * @brief Renders the current frame.
- * 
- * This function should render the frame, typically by calling a platform-specific window render function.
- * 
- * @code
- * // Example implementation:
- * DZ_EXPORT void render()
- * {
- *     window_render(cached_window);
- * }
- * @endcode
- */
-DZ_EXPORT void render();
 
 #ifdef __ANDROID__
 #define LOG_TAG "DirectZ"

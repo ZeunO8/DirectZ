@@ -22,6 +22,7 @@ namespace dz
     struct EventInterface;
     struct ImGuiLayer;
     struct Shader;
+    struct Image;
 
     struct WindowCreateInfo
     {
@@ -33,9 +34,11 @@ namespace dz
         bool borderless = false;
         bool vsync = true;
 #ifdef __ANDROID__
-        ANativeWindow* android_window = 0;
-        AAssetManager* android_asset_manager = 0;
+        ANativeWindow* android_window = nullptr;
+        AAssetManager* android_asset_manager = nullptr;
 #endif
+        bool headless = false;
+        Image* headless_image = nullptr;
     };
 
     struct WindowReflectableGroup : ::ReflectableGroup {
@@ -497,4 +500,9 @@ namespace dz
     * @brief Dergisters a Compute shader dispatch
     */
     void window_deregister_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader);
+
+    /**
+     * @brief Sets the clear color of a Window
+     */
+    void window_set_clear_color(WINDOW* window_ptr, vec<float, 4> clearColor);
 }

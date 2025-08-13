@@ -101,9 +101,9 @@ namespace dz {
     Shader* shader_create(ShaderTopology topology) {
         auto shader = new Shader{
             .topology = topology,
-            .renderPass = dr.surfaceRenderPass
+            .renderPass = dr_ptr->surfaceRenderPass
         };
-        dr.uid_shader_map[GlobalUID::GetNew("Shader")] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
+        dr_ptr->uid_shader_map[GlobalUID::GetNew("Shader")] = std::shared_ptr<Shader>(shader, [](Shader* shader) {
             shader_destroy(shader);
             delete shader;
         });
@@ -1348,7 +1348,7 @@ namespace dz {
         }
         
         if (!descriptor_writes.empty()) {
-            vkUpdateDescriptorSets(dr.device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(dr_ptr->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
         }
 
         return true;
@@ -1383,7 +1383,7 @@ namespace dz {
     }
 
     void shader_create_resources(Shader* shader) {
-        auto& device = dr.device;
+        auto& device = dr_ptr->device;
 
         if (!CreateDescriptorSetLayouts(device, shader)) return;
         if (!CreateDescriptorPool(device, shader, 15)) return; // Max 10 sets of each type
@@ -1503,7 +1503,7 @@ namespace dz {
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         create_info.codeSize = 4 * shader_module.spirv_vec.size();
         create_info.pCode = shader_module.spirv_vec.data();
-        vkCreateShaderModule(dr.device, &create_info, 0, &shader_module.vk_module);
+        vkCreateShaderModule(dr_ptr->device, &create_info, 0, &shader_module.vk_module);
     }
 
     void shader_add_buffer_group(Shader* shader, BufferGroup* buffer_group) {
@@ -1557,11 +1557,14 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL}, {VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
         {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL}, {VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT}},
         {{VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
+
+        {{VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR}, {VK_ACCESS_SHADER_READ_BIT, 0, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT}},
+        {{VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {0, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
     void transition_image_layout(Image* image_ptr, VkImageLayout new_layout, int mip) {
         auto image = image_ptr->image;
-        auto device = dr.device;
+        auto device = dr_ptr->device;
         auto command_buffer = begin_single_time_commands();
 
         VkImageMemoryBarrier barrier{};
@@ -1628,13 +1631,13 @@ namespace dz {
     void shader_dispatch(Shader* shader, uint32_t x, uint32_t y, uint32_t z, void(*shader_pre_dispatch)(Shader*, void*), void(*shader_post_dispatch)(Shader*, void*), void* user_data) {
         shader_ensure_image_layouts(shader);
 
-        dr.commandBuffer = &dr.computeCommandBuffer;
+        dr_ptr->commandBuffer = &dr_ptr->computeCommandBuffer;
 
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        vkBeginCommandBuffer(dr.computeCommandBuffer, &beginInfo);
+        vkBeginCommandBuffer(dr_ptr->computeCommandBuffer, &beginInfo);
         vkCmdBindPipeline(
-            dr.computeCommandBuffer,
+            dr_ptr->computeCommandBuffer,
             VK_PIPELINE_BIND_POINT_COMPUTE,
             shader->graphics_pipeline
         );
@@ -1646,7 +1649,7 @@ namespace dz {
         }
 
         vkCmdBindDescriptorSets(
-            dr.computeCommandBuffer,
+            dr_ptr->computeCommandBuffer,
             VK_PIPELINE_BIND_POINT_COMPUTE,
             shader->pipeline_layout,
             0,
@@ -1659,27 +1662,27 @@ namespace dz {
             shader_pre_dispatch(shader, user_data);
 
         vkCmdDispatch(
-            dr.computeCommandBuffer,
+            dr_ptr->computeCommandBuffer,
             x,
             y,
             z
         );
-        vkEndCommandBuffer(dr.computeCommandBuffer);
+        vkEndCommandBuffer(dr_ptr->computeCommandBuffer);
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &dr.computeCommandBuffer;
-        vkQueueSubmit(dr.computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(dr.computeQueue);
+        submitInfo.pCommandBuffers = &dr_ptr->computeCommandBuffer;
+        vkQueueSubmit(dr_ptr->computeQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(dr_ptr->computeQueue);
 
-        dr.commandBuffer = VK_NULL_HANDLE;
+        dr_ptr->commandBuffer = VK_NULL_HANDLE;
 
         if (shader_post_dispatch)
             shader_post_dispatch(shader, user_data);
     }
 
     void shader_compile(Shader* shader) {
-        auto device = dr.device;
+        auto device = dr_ptr->device;
 
         // --- Create Pipeline Layout ---
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -1892,7 +1895,7 @@ namespace dz {
             return;
         }
         vkCmdBindPipeline(
-            *dr.commandBuffer,
+            *dr_ptr->commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             shader->graphics_pipeline
         );
@@ -1913,7 +1916,7 @@ namespace dz {
     void shader_ensure_push_constants(Shader* shader) {
         for (auto& [pc_index, pc] : shader->push_constants) {
             vkCmdPushConstants(
-                *dr.commandBuffer,
+                *dr_ptr->commandBuffer,
                 shader->pipeline_layout,
                 pc.stageFlags,
                 pc.offset,
@@ -1953,7 +1956,7 @@ namespace dz {
 
     void renderer_render(Renderer* renderer) {
 
-        dr.currentRenderer = renderer;
+        dr_ptr->currentRenderer = renderer;
 
         if (renderer->recreate_swapchain_deferred) {
             recreate_swap_chain(renderer);
@@ -2082,7 +2085,7 @@ namespace dz {
             .minDepth = 0.0F,
             .maxDepth = 1.0F,
         };
-        vkCmdSetViewport(*dr.commandBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(*dr_ptr->commandBuffer, 0, 1, &viewport);
 
         const VkRect2D scissor = {
             .offset =
@@ -2096,7 +2099,7 @@ namespace dz {
                     .height = (uint32_t)viewportData[3],
                 },
         };
-        vkCmdSetScissor(*dr.commandBuffer, 0, 1, &scissor);
+        vkCmdSetScissor(*dr_ptr->commandBuffer, 0, 1, &scissor);
         
         for (auto& [screen_draw_list, camera_pre_render_fn] : renderer->screen_draw_lists) {
             if (camera_pre_render_fn)
@@ -2104,19 +2107,19 @@ namespace dz {
             draw_shader_draw_list(renderer, *screen_draw_list);
         }
 
-        dr.imguiLayer.Render(window);
+        dr_ptr->imguiLayer.Render(window);
 
         post_render_pass(renderer);
         swap_buffers(renderer);
 
-        dr.currentRenderer = nullptr;
+        dr_ptr->currentRenderer = nullptr;
     }
 
     void renderer_draw_commands(Renderer* renderer, Shader* shader, const std::vector<DrawIndirectCommand>& commands) {
         auto drawsSize = commands.size();
         auto drawBufferSize = sizeof(VkDrawIndirectCommand) * drawsSize;
         auto buffer_hash = drawBufferSize ^ size_t(shader) << 2;
-        VkCommandBuffer passCB = *dr.commandBuffer;
+        VkCommandBuffer passCB = *dr_ptr->commandBuffer;
 
         auto& drawBufferPair = renderer->drawBuffers[buffer_hash];
         if (!drawBufferPair.first) {
@@ -2147,16 +2150,16 @@ namespace dz {
 
         // Write draw commands to GPU-visible indirect buffer
         void* drawBufferData;
-        vkMapMemory(dr.device, drawBufferPair.second, 0, VK_WHOLE_SIZE, 0, &drawBufferData);
+        vkMapMemory(dr_ptr->device, drawBufferPair.second, 0, VK_WHOLE_SIZE, 0, &drawBufferData);
         memcpy(drawBufferData, i_commands.data(), drawBufferSize);
-        vkUnmapMemory(dr.device, drawBufferPair.second);
+        vkUnmapMemory(dr_ptr->device, drawBufferPair.second);
 
         // Write draw count to count buffer
         uint32_t drawCount = static_cast<uint32_t>(drawsSize);
         void* countBufferData;
-        vkMapMemory(dr.device, countBufferPair.second, 0, VK_WHOLE_SIZE, 0, &countBufferData);
+        vkMapMemory(dr_ptr->device, countBufferPair.second, 0, VK_WHOLE_SIZE, 0, &countBufferData);
         memcpy(countBufferData, &drawCount, sizeof(uint32_t));
-        vkUnmapMemory(dr.device, countBufferPair.second);
+        vkUnmapMemory(dr_ptr->device, countBufferPair.second);
 
         // Descriptor sets
         std::vector<VkDescriptorSet> sets;
@@ -2194,9 +2197,9 @@ namespace dz {
             // Manually read count from mapped memory
             uint32_t fallbackDrawCount = 0;
             void* mappedCount = nullptr;
-            vkMapMemory(dr.device, countBufferPair.second, 0, sizeof(uint32_t), 0, &mappedCount);
+            vkMapMemory(dr_ptr->device, countBufferPair.second, 0, sizeof(uint32_t), 0, &mappedCount);
             memcpy(&fallbackDrawCount, mappedCount, sizeof(uint32_t));
-            vkUnmapMemory(dr.device, countBufferPair.second);
+            vkUnmapMemory(dr_ptr->device, countBufferPair.second);
             fallbackDrawCount = std::min(drawCount, fallbackDrawCount);
 
             for (uint32_t i = 0; i < fallbackDrawCount; ++i)
@@ -2208,7 +2211,7 @@ namespace dz {
     }
 
     void shader_destroy(Shader* shader) {
-        auto& device = dr.device;
+        auto& device = dr_ptr->device;
         for (auto& pair : shader->descriptor_set_layouts)
             vkDestroyDescriptorSetLayout(device, pair.second, 0);
         if (shader->descriptor_pool != VK_NULL_HANDLE)

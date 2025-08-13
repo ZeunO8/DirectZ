@@ -6,10 +6,6 @@ namespace dz
     {
         return dr_ptr;
     }
-    inline void set_direct_registry(DirectRegistry* ptr)
-    {
-        get_direct_registry() = ptr;
-    }
     uint8_t get_window_type_platform();
     void direct_registry_ensure_instance(DirectRegistry* direct_registry);
     DirectRegistry* make_direct_registry()
@@ -22,39 +18,40 @@ namespace dz
         return dr;
     }
     
-    void free_direct_registry()
+    void free_direct_registry(DirectRegistry* free_dr_ptr)
     {
-        ImGuiLayer::Shutdown(dr);
-        while (!dr.layoutQueue.empty()) {
-            auto layout = dr.layoutQueue.front();
-            dr.layoutQueue.pop();
-            vkDestroyDescriptorSetLayout(dr.device, layout, 0);
+        if (!free_dr_ptr)
+            return;
+        ImGuiLayer::Shutdown(*free_dr_ptr);
+        while (!free_dr_ptr->layoutQueue.empty()) {
+            auto layout = free_dr_ptr->layoutQueue.front();
+            free_dr_ptr->layoutQueue.pop();
+            vkDestroyDescriptorSetLayout(free_dr_ptr->device, layout, 0);
         }
 #ifdef __ANDROID__
-        AConfiguration_delete(dr.android_config);
+        AConfiguration_delete(free_dr_ptr->android_config);
 #endif
-        dr.buffer_groups.clear();
-        dr.uid_shader_map.clear();
-        if (dr.device)
+        free_dr_ptr->buffer_groups.clear();
+        free_dr_ptr->uid_shader_map.clear();
+        if (free_dr_ptr->device)
         {
-            vkDestroyCommandPool(dr.device, dr.commandPool, 0);
-            vkDestroyRenderPass(dr.device, dr.surfaceRenderPass, 0);
-            vkDestroyDevice(dr.device, 0);
+            vkDestroyCommandPool(free_dr_ptr->device, free_dr_ptr->commandPool, 0);
+            vkDestroyRenderPass(free_dr_ptr->device, free_dr_ptr->surfaceRenderPass, 0);
+            vkDestroyDevice(free_dr_ptr->device, 0);
         }
-        auto direct_registry = get_direct_registry();
-        delete direct_registry;
+        delete free_dr_ptr;
     }
     std::vector<WINDOW*>::iterator dr_get_windows_begin() {
-        return dr.window_ptrs.begin();
+        return dr_ptr->window_ptrs.begin();
     }
     std::vector<WINDOW*>::iterator dr_get_windows_end() {
-        return dr.window_ptrs.end();
+        return dr_ptr->window_ptrs.end();
     }
     std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_begin() {
-        return dr.window_reflectable_entries.begin();
+        return dr_ptr->window_reflectable_entries.begin();
     }
     std::vector<WindowReflectableGroup*>::iterator dr_get_window_reflectable_entries_end() {
-        return dr.window_reflectable_entries.end();
+        return dr_ptr->window_reflectable_entries.end();
     }
 }
 
@@ -89,6 +86,8 @@ namespace dz
 
 #include "Loaders/STB_Image_Loader.cpp"
 #include "Loaders/Assimp_Loader.cpp"
+
+#include "SharedLibrary.cpp"
 
 #include "runtime.cpp"
 

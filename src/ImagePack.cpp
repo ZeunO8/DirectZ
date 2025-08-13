@@ -51,7 +51,7 @@ void dz::ImagePack::repack()
 
 	if (image_vec_size > 1)
 	{
-		const int max_side = dr.physicalDeviceProperties.limits.maxImageDimension2D;
+		const int max_side = dr_ptr->physicalDeviceProperties.limits.maxImageDimension2D;
 		const int discard_step = -4;
 		auto report_successful = [](rect_type&) { return rectpack2D::callback_result::CONTINUE_PACKING; };
 		auto report_unsuccessful = [](rect_type&) { return rectpack2D::callback_result::ABORT_PACKING; };

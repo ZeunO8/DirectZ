@@ -17,6 +17,7 @@ namespace dz {
         std::vector<VkImage> swapChainImages;
         std::vector<VkImageView> swapChainImageViews;
         std::vector<VkFramebuffer> swapChainFramebuffers;
+        VkFramebuffer headless_framebuffer = VK_NULL_HANDLE;
         VkExtent2D swapChainExtent;
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;

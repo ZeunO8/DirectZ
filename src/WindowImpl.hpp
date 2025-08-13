@@ -2,6 +2,7 @@
 #include <dz/GlobalUID.hpp>
 #include <dz/State.hpp>
 namespace dz {
+	struct Image;
 	struct WINDOW : Restorable
 	{
 		std::string title;
@@ -9,6 +10,8 @@ namespace dz {
 		float y;
 		bool borderless;
 		bool vsync;
+		bool headless;
+		Image* headless_image = nullptr;
 		WINDOW(
 			const std::string& title,
 			float x, float y,
@@ -17,6 +20,7 @@ namespace dz {
 	#ifdef ANDROID
 			, ANativeWindow* android_window, AAssetManager* android_asset_manager
 	#endif
+			, bool headless, Image* headless_image
 		):
 			title(title),
 			x(x),
@@ -28,6 +32,7 @@ namespace dz {
 	#ifdef ANDROID
 			, android_window(android_window), android_asset_manager(android_asset_manager)
 	#endif
+			, headless(headless), headless_image(headless_image)
 		{};
 
 		WINDOW(Serial& serial) {
@@ -61,6 +66,7 @@ namespace dz {
 		std::shared_ptr<float> cursor;
 		std::shared_ptr<int32_t> mod;
 		std::shared_ptr<int32_t> focused;
+		vec<float, 4> clearColor = {0, 0, 0, 0};
 		bool minimized = false;
 		bool closed = false;
 		bool close_requested = false;

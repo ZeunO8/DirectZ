@@ -99,31 +99,30 @@ endif()
 ```cpp
 #include <DirectZ.hpp>
 
-WINDOW* cached_window = 0;
+dz::WINDOW* cached_window = 0;
 
-DZ_EXPORT EventInterface* init(const WindowCreateInfo& window_info)
+DZ_EXPORT bool api_init(dz::WINDOW* window)
 {
-    cached_window = window_create(window_info);
     Shader* compute_shader = shader_create();
     Shader* raster_shader = shader_create();
-
     // See "Shaders" section for information on creating shaders
-    return window_get_event_interface(cached_window);
+
+    return true;
 }
 
-DZ_EXPORT bool poll_events()
+DZ_EXPORT bool api_poll_events()
 {
-    return window_poll_events(cached_window);
+    return windows_poll_events();
 }
 
-DZ_EXPORT void update()
+DZ_EXPORT void api_update()
 {
     // Do any CPU side logic
 }
 
-DZ_EXPORT void render()
+DZ_EXPORT void api_render()
 {
-    window_render(cached_window);
+    windows_render();
 }
 ```
 

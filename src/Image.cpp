@@ -169,19 +169,19 @@ namespace dz {
         imageInfo.samples = image.multisampling;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateImage(dr.device, &imageInfo, nullptr, &image.image);
+        vkCreateImage(dr_ptr->device, &imageInfo, nullptr, &image.image);
 
         // Allocate memory
         VkMemoryRequirements memRequirements;
-        vkGetImageMemoryRequirements(dr.device, image.image, &memRequirements);
+        vkGetImageMemoryRequirements(dr_ptr->device, image.image, &memRequirements);
 
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = find_memory_type(memRequirements.memoryTypeBits, image.memory_properties);
 
-        vkAllocateMemory(dr.device, &allocInfo, nullptr, &image.memory);
-        vkBindImageMemory(dr.device, image.image, image.memory, 0);
+        vkAllocateMemory(dr_ptr->device, &allocInfo, nullptr, &image.memory);
+        vkBindImageMemory(dr_ptr->device, image.image, image.memory, 0);
 
         image.datas.resize(image.mip_levels);
         for (auto mip = 0; mip < image.mip_levels; mip++) {
@@ -211,7 +211,7 @@ namespace dz {
                 }
             };
 
-            vkCreateImageView(dr.device, &mipViewInfo, nullptr, &image.imageViews[mip]);
+            vkCreateImageView(dr_ptr->device, &mipViewInfo, nullptr, &image.imageViews[mip]);
         }
         // Conditionally create sampler if image will be sampled
         if (image.usage & VK_IMAGE_USAGE_SAMPLED_BIT)
@@ -234,7 +234,7 @@ namespace dz {
             samplerInfo.minLod = 0.0f;
             samplerInfo.maxLod = float(image.mip_levels);
 
-            vkCreateSampler(dr.device, &samplerInfo, nullptr, &image.sampler);
+            vkCreateSampler(dr_ptr->device, &samplerInfo, nullptr, &image.sampler);
         }
     }
     
@@ -305,18 +305,18 @@ namespace dz {
         buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateBuffer(dr.device, &buffer_info, nullptr, &staging_buffer);
+        vkCreateBuffer(dr_ptr->device, &buffer_info, nullptr, &staging_buffer);
 
         VkMemoryRequirements mem_requirements;
-        vkGetBufferMemoryRequirements(dr.device, staging_buffer, &mem_requirements);
+        vkGetBufferMemoryRequirements(dr_ptr->device, staging_buffer, &mem_requirements);
 
         VkMemoryAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         alloc_info.allocationSize = mem_requirements.size;
         alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        vkAllocateMemory(dr.device, &alloc_info, nullptr, &staging_buffer_memory);
-        vkBindBufferMemory(dr.device, staging_buffer, staging_buffer_memory, 0);
+        vkAllocateMemory(dr_ptr->device, &alloc_info, nullptr, &staging_buffer_memory);
+        vkBindBufferMemory(dr_ptr->device, staging_buffer, staging_buffer_memory, 0);
 
         auto& sh_ptr = image.datas[mip];
         auto ptr = sh_ptr.get();
@@ -325,9 +325,9 @@ namespace dz {
         }
 
         void* mapped_data;
-        vkMapMemory(dr.device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
+        vkMapMemory(dr_ptr->device, staging_buffer_memory, 0, image_size, 0, &mapped_data);
         memcpy(mapped_data, ptr, static_cast<size_t>(image_size));
-        vkUnmapMemory(dr.device, staging_buffer_memory);
+        vkUnmapMemory(dr_ptr->device, staging_buffer_memory);
 
         VkCommandBuffer command_buffer = begin_single_time_commands();
 
@@ -400,8 +400,8 @@ namespace dz {
 
         end_single_time_commands(command_buffer);
 
-        vkDestroyBuffer(dr.device, staging_buffer, nullptr);
-        vkFreeMemory(dr.device, staging_buffer_memory, nullptr);
+        vkDestroyBuffer(dr_ptr->device, staging_buffer, nullptr);
+        vkFreeMemory(dr_ptr->device, staging_buffer_memory, nullptr);
 
         image.data_is_gpu_side = true;
     }
@@ -410,7 +410,7 @@ namespace dz {
         if (!image_ptr)
             return;
         auto& image = *image_ptr;
-        auto& device = dr.device;
+        auto& device = dr_ptr->device;
         if (device == VK_NULL_HANDLE)
             return;
         if (image.image != VK_NULL_HANDLE) {
@@ -455,16 +455,16 @@ namespace dz {
         layoutInfo.pBindings = &binding;
 
         VkDescriptorSetLayout layout;
-        vkCreateDescriptorSetLayout(dr.device, &layoutInfo, nullptr, &layout);
+        vkCreateDescriptorSetLayout(dr_ptr->device, &layoutInfo, nullptr, &layout);
 
         VkDescriptorSetAllocateInfo allocInfo = {};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = dr.imguiLayer.DescriptorPool;
+        allocInfo.descriptorPool = dr_ptr->imguiLayer.DescriptorPool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &layout;
 
         VkDescriptorSet descriptorSet;
-        vkAllocateDescriptorSets(dr.device, &allocInfo, &descriptorSet);
+        vkAllocateDescriptorSets(dr_ptr->device, &allocInfo, &descriptorSet);
 
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageView = image->imageViews[mip_level];
@@ -479,9 +479,9 @@ namespace dz {
         descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         descriptorWrite.pImageInfo = &imageInfo;
 
-        vkUpdateDescriptorSets(dr.device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(dr_ptr->device, 1, &descriptorWrite, 0, nullptr);
 
-        dr.layoutQueue.push(layout);
+        dr_ptr->layoutQueue.push(layout);
 
         return {layout, descriptorSet};
     }
@@ -751,40 +751,40 @@ namespace dz {
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
         };
 
-        vkBeginCommandBuffer(dr.copyCommandBuffer, &beginInfo);
+        vkBeginCommandBuffer(dr_ptr->copyCommandBuffer, &beginInfo);
 
-        dr.copyRegions.clear();
-        dr.copySrcImages.clear();
-        dr.copyDstImages.clear();
+        dr_ptr->copyRegions.clear();
+        dr_ptr->copySrcImages.clear();
+        dr_ptr->copyDstImages.clear();
     }
 
     void image_copy_reserve_regions(uint32_t count) {
-        dr.copyRegions.reserve(count);
-        dr.copySrcImages.reserve(count);
-        dr.copyDstImages.reserve(count);
+        dr_ptr->copyRegions.reserve(count);
+        dr_ptr->copySrcImages.reserve(count);
+        dr_ptr->copyDstImages.reserve(count);
     }
 
     void image_copy_image(Image* dstImage, Image* srcImage, VkImageCopy region) {
-        auto index = dr.copyRegions.size();
-        dr.copyRegions.push_back(region);
+        auto index = dr_ptr->copyRegions.size();
+        dr_ptr->copyRegions.push_back(region);
         auto dst_mip = region.dstSubresource.mipLevel;
         auto src_mip = region.srcSubresource.mipLevel;
         auto& dst_current_layout = dstImage->current_layouts[dst_mip];
         auto& src_current_layout = srcImage->current_layouts[src_mip];
-        auto copy_dst_it = std::find_if(dr.copyDstImages.begin(), dr.copyDstImages.end(), [&](auto& tuple) {
+        auto copy_dst_it = std::find_if(dr_ptr->copyDstImages.begin(), dr_ptr->copyDstImages.end(), [&](auto& tuple) {
             auto& image_ptr = std::get<0>(tuple);
             auto mip = std::get<2>(tuple);
             return image_ptr == dstImage && mip == dst_mip;
         });
-        auto copy_src_it = std::find_if(dr.copySrcImages.begin(), dr.copySrcImages.end(), [&](auto& tuple) {
+        auto copy_src_it = std::find_if(dr_ptr->copySrcImages.begin(), dr_ptr->copySrcImages.end(), [&](auto& tuple) {
             auto& image_ptr = std::get<0>(tuple);
             auto mip = std::get<2>(tuple);
             return image_ptr == srcImage && mip == src_mip;
         });
-        auto dst_original_layout = copy_dst_it != dr.copyDstImages.end() ? std::get<1>(*copy_dst_it) : dst_current_layout;
-        auto src_original_layout = copy_src_it != dr.copySrcImages.end() ? std::get<1>(*copy_src_it) : src_current_layout;
-        dr.copyDstImages.push_back({dstImage, dst_original_layout, dst_mip});
-        dr.copySrcImages.push_back({srcImage, src_original_layout, src_mip});
+        auto dst_original_layout = copy_dst_it != dr_ptr->copyDstImages.end() ? std::get<1>(*copy_dst_it) : dst_current_layout;
+        auto src_original_layout = copy_src_it != dr_ptr->copySrcImages.end() ? std::get<1>(*copy_src_it) : src_current_layout;
+        dr_ptr->copyDstImages.push_back({dstImage, dst_original_layout, dst_mip});
+        dr_ptr->copySrcImages.push_back({srcImage, src_original_layout, src_mip});
         static auto src_new_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         static auto dst_new_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         if (dst_current_layout != dst_new_layout)
@@ -792,41 +792,41 @@ namespace dz {
         if (src_current_layout != src_new_layout)
             transition_image_layout(srcImage, src_new_layout, src_mip);
         vkCmdCopyImage(
-            dr.copyCommandBuffer,
+            dr_ptr->copyCommandBuffer,
             srcImage->image,
             src_new_layout,
             dstImage->image,
             dst_new_layout,
             1,
-            dr.copyRegions.data() + index
+            dr_ptr->copyRegions.data() + index
         );
     }
 
     void image_copy_end() {
-        vkEndCommandBuffer(dr.copyCommandBuffer);
+        vkEndCommandBuffer(dr_ptr->copyCommandBuffer);
 
         static VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .commandBufferCount = 1
         };
-        submitInfo.pCommandBuffers = &dr.copyCommandBuffer;
+        submitInfo.pCommandBuffers = &dr_ptr->copyCommandBuffer;
 
-        vkQueueSubmit(dr.copyQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(dr.copyQueue);
+        vkQueueSubmit(dr_ptr->copyQueue, 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(dr_ptr->copyQueue);
 
-        for (auto& [image_ptr, original_layout, original_mip] : dr.copySrcImages) {
+        for (auto& [image_ptr, original_layout, original_mip] : dr_ptr->copySrcImages) {
             if (image_ptr->current_layouts[original_mip] != original_layout)
                 transition_image_layout(image_ptr, original_layout, original_mip);
         }
 
-        for (auto& [image_ptr, original_layout, original_mip] : dr.copyDstImages) {
+        for (auto& [image_ptr, original_layout, original_mip] : dr_ptr->copyDstImages) {
             if (image_ptr->current_layouts[original_mip] != original_layout)
                 transition_image_layout(image_ptr, original_layout, original_mip);
         }
 
-        dr.copyRegions.clear();
-        dr.copySrcImages.clear();
-        dr.copyDstImages.clear();
+        dr_ptr->copyRegions.clear();
+        dr_ptr->copySrcImages.clear();
+        dr_ptr->copyDstImages.clear();
     }
 
     bool serialize_ImageCreateInfo(Serial& serial, const ImageCreateInfo& info) {
@@ -926,7 +926,7 @@ namespace dz {
         VkBuffer stagingBuffer = VK_NULL_HANDLE;
         VkDeviceMemory stagingBufferMemory = VK_NULL_HANDLE;
         VkMemoryRequirements imageMemRequirements;
-        vkGetImageMemoryRequirements(dr.device, image_ptr->image, &imageMemRequirements);
+        vkGetImageMemoryRequirements(dr_ptr->device, image_ptr->image, &imageMemRequirements);
         VkDeviceSize bufferSize = imageMemRequirements.size;
         char* imageData = (char*)malloc(bufferSize);
 
@@ -936,20 +936,20 @@ namespace dz {
         bufferInfo.size = bufferSize;
         bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT; // We copy from image TO this buffer
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        vk_check("vkCreateBuffer", vkCreateBuffer(dr.device, &bufferInfo, nullptr, &stagingBuffer));
+        vk_check("vkCreateBuffer", vkCreateBuffer(dr_ptr->device, &bufferInfo, nullptr, &stagingBuffer));
 
         // 3. Allocate memory for staging buffer
         VkMemoryRequirements stagingMemRequirements;
-        vkGetBufferMemoryRequirements(dr.device, stagingBuffer, &stagingMemRequirements);
+        vkGetBufferMemoryRequirements(dr_ptr->device, stagingBuffer, &stagingMemRequirements);
         VkMemoryAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = stagingMemRequirements.size; // Use actual requirements for staging buffer
         allocInfo.memoryTypeIndex = find_memory_type(stagingMemRequirements.memoryTypeBits,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        vk_check("vkAllocateMemory", vkAllocateMemory(dr.device, &allocInfo, nullptr, &stagingBufferMemory));
+        vk_check("vkAllocateMemory", vkAllocateMemory(dr_ptr->device, &allocInfo, nullptr, &stagingBufferMemory));
 
         // 4. Bind staging buffer memory
-        vk_check("vkBindBufferMemory", vkBindBufferMemory(dr.device, stagingBuffer, stagingBufferMemory, 0));
+        vk_check("vkBindBufferMemory", vkBindBufferMemory(dr_ptr->device, stagingBuffer, stagingBufferMemory, 0));
 
         // 5. Record and execute copy commands
         VkCommandBuffer commandBuffer = begin_single_time_commands();
@@ -1040,13 +1040,13 @@ namespace dz {
         transition_image_layout(image_ptr, originalLayout, mip);
         
         void* mappedMemory = nullptr;
-        vk_check("vkMapMemory", vkMapMemory(dr.device, stagingBufferMemory, 0, bufferSize, 0, &mappedMemory));
+        vk_check("vkMapMemory", vkMapMemory(dr_ptr->device, stagingBufferMemory, 0, bufferSize, 0, &mappedMemory));
 
         memcpy(imageData, mappedMemory, bufferSize);
 
-        vkUnmapMemory(dr.device, stagingBufferMemory);
-        vkFreeMemory(dr.device, stagingBufferMemory, 0);
-        vkDestroyBuffer(dr.device, stagingBuffer, 0);
+        vkUnmapMemory(dr_ptr->device, stagingBufferMemory);
+        vkFreeMemory(dr_ptr->device, stagingBufferMemory, 0);
+        vkDestroyBuffer(dr_ptr->device, stagingBuffer, 0);
         mappedMemory = nullptr;
         return imageData;
     }

@@ -48,7 +48,7 @@ namespace dz {
     WINDOW* window_create_from_serial(Serial& serial);
 
     DirectRegistry* make_direct_registry();
-    void free_direct_registry();
+    void free_direct_registry(DirectRegistry* free_dr_ptr);
 
     void set_env(const std::string& key, const std::string& value);
     std::string get_env(const std::string& key);
@@ -170,6 +170,7 @@ namespace dz
     bool create_swap_chain(Renderer* renderer);
     void create_image_views(Renderer* renderer);
     void create_framebuffers(Renderer* renderer);
+    void create_headless_framebuffer(Renderer* renderer);
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
@@ -201,14 +202,15 @@ namespace dz
 	bool is_device_suitable(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
 	QueueFamilyIndices find_queue_families(DirectRegistry* direct_registry, Renderer* renderer, VkPhysicalDevice device);
 	void direct_registry_ensure_logical_device(DirectRegistry* direct_registry, Renderer* renderer);
-	SwapChainSupportDetails query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device);
+	std::optional<SwapChainSupportDetails> query_swap_chain_support(Renderer* renderer, VkPhysicalDevice device);
 	VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 	VkPresentModeKHR choose_swap_present_mode(Renderer* renderer, const std::vector<VkPresentModeKHR>& availablePresentModes);
 	VkExtent2D choose_swap_extent(Renderer* renderer, VkSurfaceCapabilitiesKHR capabilities);
 	void ensure_command_pool(Renderer* renderer);
 	void ensure_command_buffers(Renderer* renderer);
+	void ensure_headless_command_buffer(Renderer* renderer);
 	void ensure_render_pass(Renderer* renderer);
-	void create_sync_objects(Renderer* renderer);
+	void create_sync_objects(Renderer* renderer, uint32_t count);
 	void pre_begin_render_pass(Renderer* renderer);
 	void begin_render_pass(Renderer* renderer);
 	void post_render_pass(Renderer* renderer);

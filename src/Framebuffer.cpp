@@ -42,19 +42,19 @@ namespace dz {
         VkCommandBufferAllocateInfo allocInfo = {};
 
         allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.commandPool = dr.commandPool;
+        allocInfo.commandPool = dr_ptr->commandPool;
         allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
         allocInfo.commandBufferCount = 1;
 
         vk_check("vkAllocateCommandBuffers",
-            vkAllocateCommandBuffers(dr.device, &allocInfo, &framebuffer.commandBuffer));
+            vkAllocateCommandBuffers(dr_ptr->device, &allocInfo, &framebuffer.commandBuffer));
 
         VkEventCreateInfo eventCreateInfo{};
 
         eventCreateInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
         eventCreateInfo.flags = 0;
 
-        vkCreateEvent(dr.device, &eventCreateInfo, 0, &framebuffer.event);
+        vkCreateEvent(dr_ptr->device, &eventCreateInfo, 0, &framebuffer.event);
 
         std::vector<UsingAttachmentDescription> clearAttachments;
         std::vector<UsingAttachmentReference> clearColorAttachmentRefs;
@@ -287,10 +287,10 @@ namespace dz {
 
 #ifdef USING_VULKAN_1_2
         vk_check("vkCreateRenderPass2",
-            vkCreateRenderPass2(dr.device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
+            vkCreateRenderPass2(dr_ptr->device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
 #else
         vk_check("vkCreateRenderPass",
-            vkCreateRenderPass(dr.device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
+            vkCreateRenderPass(dr_ptr->device, &clearRenderPassInfo, nullptr, &framebuffer.clearRenderPass));
 #endif
         
         auto loadRenderPassInfo = clearRenderPassInfo;
@@ -298,10 +298,10 @@ namespace dz {
 
 #ifdef USING_VULKAN_1_2
         vk_check("vkCreateRenderPass2",
-            vkCreateRenderPass2(dr.device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
+            vkCreateRenderPass2(dr_ptr->device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
 #else
         vk_check("vkCreateRenderPass",
-            vkCreateRenderPass(dr.device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
+            vkCreateRenderPass(dr_ptr->device, &loadRenderPassInfo, nullptr, &framebuffer.loadRenderPass));
 #endif
 
         VkFramebufferCreateInfo framebufferInfo{};
@@ -314,7 +314,7 @@ namespace dz {
         framebufferInfo.layers = 1;
 
         vk_check("vkCreateFramebuffer",
-            vkCreateFramebuffer(dr.device, &framebufferInfo, nullptr, &framebuffer.framebuffer));
+            vkCreateFramebuffer(dr_ptr->device, &framebufferInfo, nullptr, &framebuffer.framebuffer));
 
         framebuffer_set_clear_color(framebuffer_ptr);
         framebuffer_set_clear_depth_stencil(framebuffer_ptr);
@@ -351,7 +351,7 @@ namespace dz {
 
         if (framebuffer.new_pImages) {
             assert(framebuffer.new_framebuffer);
-            vkDestroyFramebuffer(dr.device, framebuffer.framebuffer, 0);
+            vkDestroyFramebuffer(dr_ptr->device, framebuffer.framebuffer, 0);
             framebuffer.framebuffer = framebuffer.new_framebuffer;
             framebuffer.new_framebuffer = VK_NULL_HANDLE;
             for (auto image_index = 0; image_index < framebuffer.imagesCount; image_index++)
@@ -428,7 +428,7 @@ namespace dz {
 
         vec<float, 4> viewportData;
 
-        auto renderer = dr.currentRenderer;
+        auto renderer = dr_ptr->currentRenderer;
         assert(renderer);
 
         switch (renderer->currentTransform) {
@@ -470,7 +470,7 @@ namespace dz {
         };
         vkCmdSetScissor(framebuffer.commandBuffer, 0, 1, &scissor);
 
-        dr.commandBuffer = &framebuffer.commandBuffer;
+        dr_ptr->commandBuffer = &framebuffer.commandBuffer;
     }
 
     void framebuffer_unbind(Framebuffer* framebuffer_ptr) {
@@ -493,11 +493,11 @@ namespace dz {
             framebuffer.submitInfo.pCommandBuffers = &framebuffer.commandBuffer;
         }
 
-	    vkQueueSubmit(dr.graphicsQueue, 1, &framebuffer.submitInfo, VK_NULL_HANDLE);	
+	    vkQueueSubmit(dr_ptr->graphicsQueue, 1, &framebuffer.submitInfo, VK_NULL_HANDLE);	
         // currentFramebufferImpl = 0;
-        vkQueueWaitIdle(dr.graphicsQueue);
+        vkQueueWaitIdle(dr_ptr->graphicsQueue);
 
-        dr.commandBuffer = nullptr;
+        dr_ptr->commandBuffer = nullptr;
     }
 
     bool framebuffer_destroy(Framebuffer*& framebuffer_ptr) {
@@ -514,11 +514,11 @@ namespace dz {
                 free(framebuffer.pImages);
             if (framebuffer.pAttachmentTypes)
                 free(framebuffer.pAttachmentTypes);
-            vkDestroyRenderPass(dr.device, framebuffer.clearRenderPass, 0);
-            vkDestroyRenderPass(dr.device, framebuffer.loadRenderPass, 0);
-            vkDestroyFramebuffer(dr.device, framebuffer.framebuffer, 0);
-            vkDestroyEvent(dr.device, framebuffer.event, 0);
-            vkFreeCommandBuffers(dr.device, dr.commandPool, 1, &framebuffer.commandBuffer);
+            vkDestroyRenderPass(dr_ptr->device, framebuffer.clearRenderPass, 0);
+            vkDestroyRenderPass(dr_ptr->device, framebuffer.loadRenderPass, 0);
+            vkDestroyFramebuffer(dr_ptr->device, framebuffer.framebuffer, 0);
+            vkDestroyEvent(dr_ptr->device, framebuffer.event, 0);
+            vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &framebuffer.commandBuffer);
         }
 
         delete framebuffer_ptr;
@@ -530,7 +530,7 @@ namespace dz {
         if (!framebuffer_ptr)
             return false;
 
-		vkDeviceWaitIdle(dr.device);
+		vkDeviceWaitIdle(dr_ptr->device);
 
         auto& framebuffer = *framebuffer_ptr;
 
@@ -587,7 +587,7 @@ namespace dz {
 
         // create fb
         vk_check("vkCreateFramebuffer",
-            vkCreateFramebuffer(dr.device, &framebufferInfo, nullptr, &framebuffer.new_framebuffer));
+            vkCreateFramebuffer(dr_ptr->device, &framebufferInfo, nullptr, &framebuffer.new_framebuffer));
 
         return true;
     }
@@ -660,8 +660,8 @@ namespace dz {
         barrier.oldLayout = oldLayout;
         barrier.newLayout = newLayout;
         
-        barrier.srcQueueFamilyIndex = dr.graphicsAndComputeFamily;
-        barrier.dstQueueFamilyIndex = dr.graphicsAndComputeFamily;
+        barrier.srcQueueFamilyIndex = dr_ptr->graphicsAndComputeFamily;
+        barrier.dstQueueFamilyIndex = dr_ptr->graphicsAndComputeFamily;
         barrier.image = image;
         barrier.subresourceRange.aspectMask = aspectMask;
         barrier.subresourceRange.baseMipLevel = 0;

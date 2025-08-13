@@ -24,7 +24,7 @@ namespace dz
 	void create_surface(Renderer* renderer) {
 		auto& window = *renderer->window;
 		auto& dr = *get_direct_registry();
-		auto& windowType = dr.windowType;
+		auto& windowType = dr_ptr->windowType;
 
 		auto metalLayer = [(MetalView*)window.metalView metalLayer];
 
@@ -35,12 +35,12 @@ namespace dz
 		surfaceCreateInfo.pLayer = metalLayer;
 
 		vk_check("vkCreateMetalSurfaceEXT",
-			vkCreateMetalSurfaceEXT(dr.instance, &surfaceCreateInfo, nullptr, &renderer->surface));
+			vkCreateMetalSurfaceEXT(dr_ptr->instance, &surfaceCreateInfo, nullptr, &renderer->surface));
 		// VkMacOSSurfaceCreateInfoMVK surfaceCreateInfo{};
 		// surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_HEADLESS_SURFACE_CREATE_INFO_EXT;
 		// surfaceCreateInfo.pView = (NSView*)window.nsView;
 		// vk_check("vkCreateMacOSSurfaceMVK",
-		// 	vkCreateMacOSSurfaceMVK(dr.instance, &surfaceCreateInfo, 0, &renderer->surface));
+		// 	vkCreateMacOSSurfaceMVK(dr_ptr->instance, &surfaceCreateInfo, 0, &renderer->surface));
 	}
 }
 namespace dz

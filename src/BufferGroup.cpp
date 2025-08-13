@@ -6,7 +6,7 @@
 
 namespace dz {
     BufferGroup* buffer_group_create(const std::string& group_name) {
-        auto& bg = (dr.buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
+        auto& bg = (dr_ptr->buffer_groups[group_name] = std::shared_ptr<BufferGroup>(
             new BufferGroup{
                 .group_name = group_name
             },
@@ -255,7 +255,7 @@ namespace dz {
     }
 
     void buffer_group_destroy(BufferGroup* buffer_group) {
-        auto& device = dr.device;
+        auto& device = dr_ptr->device;
         if (device == VK_NULL_HANDLE)
             return;
         for (auto& bufferPair : buffer_group->buffers) {
@@ -294,25 +294,25 @@ namespace dz {
         buffer_info.usage = usage;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(dr_ptr->device, &buffer_info, nullptr, &buffer.gpu_buffer.buffer) != VK_SUCCESS) {
             throw std::runtime_error("Failed to create buffer for " + name);
         }
 
         VkMemoryRequirements mem_reqs;
-        vkGetBufferMemoryRequirements(dr.device, buffer.gpu_buffer.buffer, &mem_reqs);
+        vkGetBufferMemoryRequirements(dr_ptr->device, buffer.gpu_buffer.buffer, &mem_reqs);
         
         VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
         alloc_info.allocationSize = mem_reqs.size;
-        alloc_info.memoryTypeIndex = FindMemoryType(dr.physicalDevice, mem_reqs.memoryTypeBits, 
+        alloc_info.memoryTypeIndex = FindMemoryType(dr_ptr->physicalDevice, mem_reqs.memoryTypeBits, 
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
-        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(dr_ptr->device, &alloc_info, nullptr, &buffer.gpu_buffer.memory) != VK_SUCCESS) {
             throw std::runtime_error("Failed to allocate memory for buffer " + name);
         }
-        vkBindBufferMemory(dr.device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
+        vkBindBufferMemory(dr_ptr->device, buffer.gpu_buffer.buffer, buffer.gpu_buffer.memory, 0);
 
         // Persistently map the memory
-        vkMapMemory(dr.device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
+        vkMapMemory(dr_ptr->device, buffer.gpu_buffer.memory, 0, buffer_size, 0, &buffer.gpu_buffer.mapped_memory);
         buffer.gpu_buffer.size = buffer_size;
 
         // Copy from CPU staging pointer to mapped GPU pointer
@@ -349,38 +349,38 @@ namespace dz {
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VkBuffer new_buffer;
-        if (vkCreateBuffer(dr.device, &buffer_info, nullptr, &new_buffer) != VK_SUCCESS) {
+        if (vkCreateBuffer(dr_ptr->device, &buffer_info, nullptr, &new_buffer) != VK_SUCCESS) {
             std::cerr << "Failed to create new buffer for resize: " << name << std::endl;
             return false;
         }
 
         VkMemoryRequirements mem_reqs;
-        vkGetBufferMemoryRequirements(dr.device, new_buffer, &mem_reqs);
+        vkGetBufferMemoryRequirements(dr_ptr->device, new_buffer, &mem_reqs);
 
         VkMemoryAllocateInfo alloc_info{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
         alloc_info.allocationSize = mem_reqs.size;
-        alloc_info.memoryTypeIndex = FindMemoryType(dr.physicalDevice, mem_reqs.memoryTypeBits,
+        alloc_info.memoryTypeIndex = FindMemoryType(dr_ptr->physicalDevice, mem_reqs.memoryTypeBits,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
 
         VkDeviceMemory new_memory;
-        if (vkAllocateMemory(dr.device, &alloc_info, nullptr, &new_memory) != VK_SUCCESS) {
+        if (vkAllocateMemory(dr_ptr->device, &alloc_info, nullptr, &new_memory) != VK_SUCCESS) {
             std::cerr << "Failed to allocate memory for new buffer: " << name << std::endl;
-            vkDestroyBuffer(dr.device, new_buffer, nullptr);
+            vkDestroyBuffer(dr_ptr->device, new_buffer, nullptr);
             return false;
         }
 
-        if (vkBindBufferMemory(dr.device, new_buffer, new_memory, 0) != VK_SUCCESS) {
+        if (vkBindBufferMemory(dr_ptr->device, new_buffer, new_memory, 0) != VK_SUCCESS) {
             std::cerr << "Failed to bind new buffer memory: " << name << std::endl;
-            vkDestroyBuffer(dr.device, new_buffer, nullptr);
-            vkFreeMemory(dr.device, new_memory, nullptr);
+            vkDestroyBuffer(dr_ptr->device, new_buffer, nullptr);
+            vkFreeMemory(dr_ptr->device, new_memory, nullptr);
             return false;
         }
 
         void* new_mapped_memory;
-        if (vkMapMemory(dr.device, new_memory, 0, new_size, 0, &new_mapped_memory) != VK_SUCCESS) {
+        if (vkMapMemory(dr_ptr->device, new_memory, 0, new_size, 0, &new_mapped_memory) != VK_SUCCESS) {
             std::cerr << "Failed to map new memory for buffer: " << name << std::endl;
-            vkDestroyBuffer(dr.device, new_buffer, nullptr);
-            vkFreeMemory(dr.device, new_memory, nullptr);
+            vkDestroyBuffer(dr_ptr->device, new_buffer, nullptr);
+            vkFreeMemory(dr_ptr->device, new_memory, nullptr);
             return false;
         }
 
@@ -389,9 +389,9 @@ namespace dz {
             std::cout << "Copied " << old_size << " bytes from old to new buffer for '" << name << "'." << std::endl;
         }
 
-        vkUnmapMemory(dr.device, buffer.gpu_buffer.memory);
-        vkDestroyBuffer(dr.device, buffer.gpu_buffer.buffer, nullptr);
-        vkFreeMemory(dr.device, buffer.gpu_buffer.memory, nullptr);
+        vkUnmapMemory(dr_ptr->device, buffer.gpu_buffer.memory);
+        vkDestroyBuffer(dr_ptr->device, buffer.gpu_buffer.buffer, nullptr);
+        vkFreeMemory(dr_ptr->device, buffer.gpu_buffer.memory, nullptr);
 
         buffer.gpu_buffer.buffer = new_buffer;
         buffer.gpu_buffer.memory = new_memory;

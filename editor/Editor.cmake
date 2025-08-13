@@ -1,16 +1,27 @@
-set(DZ_EDIT_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/src/Entry.cpp
-)
+set(DZEL DirectZEditorLib)
+add_library(${DZEL} SHARED ${CMAKE_CURRENT_LIST_DIR}/src/editor-lib.cpp)
+target_compile_features(${DZEL} PRIVATE cxx_std_20)
+target_include_directories(${DZEL} PRIVATE ${DIRECTZ_INCLUDE_DIRS})
+target_include_directories(${DZEL} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(${DZEL} PRIVATE DirectZ ${DIRECTZ_LIBRARIES})
+set_output_dir(${DZEL})
 
-add_executable(DirectZEditor ${DZ_EDIT_SOURCES})
+if (DESKTOP)
+    set(DZE DirectZEditor)
+    add_executable(${DZE} ${CMAKE_CURRENT_LIST_DIR}/src/editor-desktop.cpp)
+    target_compile_features(${DZE} PRIVATE cxx_std_20)
+    list(APPEND DirectZ_EXES ${DZE})
+    set_target_properties(${DZE} PROPERTIES DEBUG_POSTFIX "d")
+    target_include_directories(${DZE} PRIVATE ${DIRECTZ_INCLUDE_DIRS})
+    target_include_directories(${DZE} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+    target_link_libraries(${DZE} PRIVATE ${DZEL} DirectZ ${DIRECTZ_LIBRARIES})
+    set_output_dir(${DZE})
+endif()
 
-target_compile_features(DirectZEditor PRIVATE cxx_std_20)
-
-list(APPEND DirectZ_EXES DirectZEditor)
-
-set_target_properties(DirectZEditor PROPERTIES DEBUG_POSTFIX "d")
-
-target_include_directories(DirectZEditor PRIVATE ${DIRECTZ_INCLUDE_DIRS})
-target_include_directories(DirectZEditor PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
-
-target_link_libraries(DirectZEditor PRIVATE DirectZ ${DIRECTZ_LIBRARIES})
+set(TLN test-lib)
+add_library(${TLN} SHARED ${CMAKE_CURRENT_LIST_DIR}/test-lib/test-lib.cpp)
+target_compile_features(${TLN} PRIVATE cxx_std_20)
+target_include_directories(${TLN} PRIVATE ${DIRECTZ_INCLUDE_DIRS})
+target_include_directories(${TLN} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(${TLN} PRIVATE DirectZ ${DIRECTZ_LIBRARIES})
+set_output_dir(${TLN})
