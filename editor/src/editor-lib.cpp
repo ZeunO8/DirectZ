@@ -15,7 +15,7 @@ DZ_EXPORT dz::WINDOW* api_window_create(const char* title, float width, float he
         .width = width,
         .height = height,
         .borderless = true,
-        .vsync = true,
+        .vsync = false,
 #if defined(ANDROID)
         .android_window = android_window,
         .android_asset_manager = android_asset_manager,
