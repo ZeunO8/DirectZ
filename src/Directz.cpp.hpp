@@ -130,6 +130,7 @@ struct DirectRegistry
     VkCommandBuffer* commandBuffer = 0;
     VkCommandBuffer computeCommandBuffer = VK_NULL_HANDLE;
     VkCommandBuffer copyCommandBuffer = VK_NULL_HANDLE;
+    VkCommandBuffer transitionCommandBuffer = VK_NULL_HANDLE;
     VkSampleCountFlagBits maxMSAASamples = VK_SAMPLE_COUNT_1_BIT;
     std::vector<WINDOW*> window_ptrs;
     WINDOW** windows_data;

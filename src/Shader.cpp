@@ -1567,10 +1567,32 @@ namespace dz {
         {{VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL}, {0, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT}},
     };
 
+    VkCommandBuffer begin_transition_cb() {
+		VkCommandBufferBeginInfo begin_info{};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(dr_ptr->transitionCommandBuffer, &begin_info);
+
+        return dr_ptr->transitionCommandBuffer;
+    }
+
+    void end_transition_cb() {
+		vkEndCommandBuffer(dr_ptr->transitionCommandBuffer);
+
+		VkSubmitInfo submit_info{};
+		submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submit_info.commandBufferCount = 1;
+		submit_info.pCommandBuffers = &dr_ptr->transitionCommandBuffer;
+
+		vkQueueSubmit(dr_ptr->graphicsQueue, 1, &submit_info, VK_NULL_HANDLE);
+		vkQueueWaitIdle(dr_ptr->graphicsQueue);
+    }
+
     void transition_image_layout(Image* image_ptr, VkImageLayout new_layout, int mip) {
         auto image = image_ptr->image;
         auto device = dr_ptr->device;
-        auto command_buffer = begin_single_time_commands();
+        auto command_buffer = begin_transition_cb();
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1605,7 +1627,7 @@ namespace dz {
             1, &barrier
         );
 
-        end_single_time_commands(command_buffer);
+        end_transition_cb();
 
         current_layout = new_layout;
     }

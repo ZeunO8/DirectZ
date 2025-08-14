@@ -886,6 +886,8 @@ namespace dz {
 			allocate_command_buffers(1, &dr_ptr->computeCommandBuffer);
 		if (!dr_ptr->copyCommandBuffer)
 			allocate_command_buffers(1, &dr_ptr->copyCommandBuffer);
+		if (!dr_ptr->transitionCommandBuffer)
+			allocate_command_buffers(1, &dr_ptr->transitionCommandBuffer);
 
 		return;
 	}
@@ -1241,6 +1243,9 @@ _aquire:
 		if (device == VK_NULL_HANDLE)
 			return;
 		vkDeviceWaitIdle(device);
+		for (auto& cb : renderer->commandBuffers) {
+			vkFreeCommandBuffers(device, dr_ptr->commandPool, 1, &cb);
+		}
 		for (auto& drawPair : renderer->drawBuffers)
 		{
 			vkDestroyBuffer(device, drawPair.second.first, 0);

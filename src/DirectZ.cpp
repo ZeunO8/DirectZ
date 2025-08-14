@@ -34,6 +34,13 @@ namespace dz
         free_dr_ptr->uid_shader_map.clear();
         if (free_dr_ptr->device)
         {
+            if (dr_ptr->computeCommandBuffer)
+    		    vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &dr_ptr->computeCommandBuffer);
+            if (dr_ptr->copyCommandBuffer)
+    		    vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &dr_ptr->copyCommandBuffer);
+            if (dr_ptr->transitionCommandBuffer)
+    		    vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &dr_ptr->transitionCommandBuffer);
+
             vkDestroyCommandPool(free_dr_ptr->device, free_dr_ptr->commandPool, 0);
             vkDestroyRenderPass(free_dr_ptr->device, free_dr_ptr->surfaceRenderPass, 0);
             vkDestroyDevice(free_dr_ptr->device, 0);
