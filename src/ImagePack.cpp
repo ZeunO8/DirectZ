@@ -234,7 +234,7 @@ void ImagePack::GPU_Image_Copy(int atlas_width, int atlas_height, size_t pixel_s
 				}
 
                 VkImageCopy region{};
-                region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                region.srcSubresource.aspectMask = image_get_aspect_mask(atlas);
                 region.srcSubresource.mipLevel = mip;
                 region.srcSubresource.baseArrayLayer = 0;
                 region.srcSubresource.layerCount = 1;
