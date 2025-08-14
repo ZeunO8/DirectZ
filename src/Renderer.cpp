@@ -1160,13 +1160,45 @@ _aquire:
 
 	bool recreate_swap_chain(Renderer* renderer)
 	{
-		destroy_swap_chain(renderer);
+		Image* new_headless_image = nullptr;
 		if (renderer->window->headless) {
-			renderer->window->headless_image = image_create({
+			new_headless_image = image_create({
 				.width = uint32_t(*renderer->window->width_ptr),
 				.height = uint32_t(*renderer->window->height_ptr),
 				.is_framebuffer_attachment = true
 			});
+			if (renderer->window->headless_image) {
+				auto srcImage = *renderer->window->headless_image;
+				auto dstImage = *new_headless_image;
+
+				VkImageCopy region{};{};
+
+                region.srcSubresource.aspectMask = image_get_aspect_mask(&srcImage);
+                region.srcSubresource.mipLevel = 0;
+                region.srcSubresource.baseArrayLayer = 0;
+                region.srcSubresource.layerCount = 1;
+                region.srcOffset = { 0, 0, 0 };
+
+                region.dstSubresource = region.srcSubresource;
+				region.dstSubresource.mipLevel = 0;
+                region.dstOffset = { 0, 0, 0 };
+
+				auto min_width = (std::min)(srcImage.width, dstImage.width);
+				auto min_height = (std::min)(srcImage.height, dstImage.height);
+				auto min_depth = (std::min)(srcImage.depth, dstImage.depth);
+
+                region.extent.width = min_width;
+                region.extent.height = min_height;
+                region.extent.depth = min_depth;
+				
+				image_copy_begin();
+				image_copy_image(&dstImage, &srcImage, region);
+				image_copy_end();
+			}
+		}
+		destroy_swap_chain(renderer);
+		if (renderer->window->headless) {
+			renderer->window->headless_image = new_headless_image;
 			auto [l, ds] = image_create_descriptor_set(renderer->window->headless_image);
 			renderer->window->headless_ds = ds;
 			create_headless_framebuffer(renderer);
