@@ -1,4 +1,5 @@
 #include <DirectZ.hpp>
+#include "CodeEditor.cpp"
 
 DZ_EXPORT void api_set_direct_registry(DirectRegistry* new_dr_ptr) {
     set_direct_registry(new_dr_ptr);
@@ -104,5 +105,8 @@ void initialize_imgui() {
         window_set_size(project_window, panel_size.x, panel_size.y);
 
         ImGui::End();
+    });
+    imgui.AddImmediateDrawFunction(3.0, "Code Editor", [](auto& layer) {
+        dz::editor::DemoWindow();
     });
 }

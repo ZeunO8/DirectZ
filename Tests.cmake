@@ -2,19 +2,7 @@ include(CTest)
 function(add_dz_test TEST_NAME TEST_SRC)
     add_executable(${TEST_NAME} ${TEST_SRC})
     target_include_directories(${TEST_NAME} PRIVATE ${DIRECTZ_INCLUDE_DIRS})
-    target_link_libraries(${TEST_NAME} PRIVATE DirectZ zlibstatic)
-    if(ANDROID)
-        target_link_libraries(${TEST_NAME} PRIVATE android log)
-    elseif(IOS)
-        target_link_libraries(${TEST_NAME} PRIVATE
-            "-framework UIKit"
-            "-framework Foundation"
-            "-framework QuartzCore"
-            "-framework Metal"
-        )
-    elseif(MACOS)
-        target_link_libraries(${TEST_NAME} PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
-    endif()
+    target_link_libraries(${TEST_NAME} PRIVATE DirectZ ${DirectZ_LIBRARIES})
     target_compile_features(${TEST_NAME} PRIVATE cxx_std_20)
     set_output_dir(${TEST_NAME})
     add_test(NAME ${TEST_NAME} COMMAND $<TARGET_FILE_DIR:${TEST_NAME}>/${TEST_NAME}${TEST_EXT})

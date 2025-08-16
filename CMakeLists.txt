@@ -44,6 +44,8 @@ target_compile_features(dzp PRIVATE cxx_std_20)
 
 include(cmake/dz-targets.cmake)
 
+message(STATUS "LLVM_INCLUDE_DIR: ${LLVM_INCLUDE_DIR}")
+
 set(DIRECTZ_INCLUDE_DIRS
 	include
 	${Vulkan_INCLUDE_DIRS}
@@ -54,13 +56,14 @@ set(DIRECTZ_INCLUDE_DIRS
 	${rectpack_SOURCE_DIR}/src
 	${stb_SOURCE_DIR}
 	${assimp_SOURCE_DIR}/include
+	${LLVM_INCLUDE_DIR}
 )
 
 target_include_directories(DirectZ PRIVATE ${DIRECTZ_INCLUDE_DIRS})
 
 target_include_directories(dzp PRIVATE ${DIRECTZ_INCLUDE_DIRS})
 
-target_link_libraries(DirectZ PRIVATE
+list(APPEND DIRECTZ_LIBRARIES
 	Vulkan::Vulkan
 	shaderc
 	shaderc_util
@@ -74,37 +77,35 @@ target_link_libraries(DirectZ PRIVATE
 	archive_static
 	assimp
 	zlibstatic
+	${LLVM_LIBS}
 )
 
-target_link_libraries(dzp PRIVATE DirectZ)
 if(ANDROID)
-	target_link_libraries(dzp PRIVATE android log)
+	list(APPEND DIRECTZ_LIBRARIES android log)
 endif()
 
-target_link_libraries(DirectZ PRIVATE)
-
 if(WIN32)
-	target_link_libraries(DirectZ PRIVATE gdi32 ole32 advapi32)
+	list(APPEND DIRECTZ_LIBRARIES gdi32 ole32 advapi32)
 elseif(LINUX)
-	target_link_libraries(DirectZ PRIVATE xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
+	list(APPEND DIRECTZ_LIBRARIES xcb xkbcommon xcb-util xcb-keysyms xcb-xfixes X11 Xrandr Xext Xfixes xkbcommon Xrender)
 	if(USE_WAYLAND)
-		target_link_libraries(DirectZ PRIVATE wayland-client)
+		list(APPEND DIRECTZ_LIBRARIES wayland-client)
 	endif()
-	target_link_libraries(DirectZ PRIVATE drm)
+	list(APPEND DIRECTZ_LIBRARIES drm)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-3.0)
 	if(GTKMM_FOUND)
-		target_link_libraries(DirectZ PRIVATE PkgConfig::GTKMM)
+		list(APPEND DIRECTZ_LIBRARIES PkgConfig::GTKMM)
 	endif()
 elseif(IOS)
-	target_link_libraries(DirectZ PRIVATE
+	list(APPEND DIRECTZ_LIBRARIES
 		"-framework UIKit"
 		"-framework Foundation"
 		"-framework QuartzCore"
 		"-framework Metal"
 	)
 elseif(MACOS)
-	target_link_libraries(DirectZ PRIVATE "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
+	list(APPEND DIRECTZ_LIBRARIES "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif()
 
 target_link_libraries(DirectZ PRIVATE ${DIRECTZ_LIBRARIES})
