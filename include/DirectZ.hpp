@@ -29,6 +29,7 @@
 #include <dz/Loaders/STB_Image_Loader.hpp>
 #include <dz/Loaders/Assimp_Loader.hpp>
 #include <dz/SharedLibrary.hpp>
+#include <dz/SharedMemory.hpp>
 #include <dz/Runtime.hpp>
 
 using namespace dz;
