@@ -16,7 +16,6 @@
 #include <chrono>
 #include <set>
 #include <queue>
-#include <dz/GlobalUID.hpp>
 #include <spirv_reflect.h>
 #include <shaderc/shaderc.hpp>
 #include <vulkan/vulkan.h>
@@ -47,8 +46,8 @@ namespace dz {
     */
     WINDOW* window_create_from_serial(Serial& serial);
 
-    DirectRegistry* make_direct_registry();
-    void free_direct_registry(DirectRegistry* free_dr_ptr);
+    bool init_direct_registry(SharedMemoryPtr<DirectRegistry>& dr_shm);
+    void free_direct_registry();
 
     void set_env(const std::string& key, const std::string& value);
     std::string get_env(const std::string& key);
@@ -154,7 +153,11 @@ struct DirectRegistry
     std::vector<std::tuple<Image*, VkImageLayout, int>> copySrcImages;
     std::vector<std::tuple<Image*, VkImageLayout, int>> copyDstImages;
     ColorSpace preferredColorSpace = ColorSpace::SRGB;
-    bool free_window_end_of_pass = false;
+    bool free_window_begin_of_pass = false;
+    size_t GlobalUIDCount = 0;     /**< Global counter shared across threads. */
+    std::unordered_map<std::string, size_t> GlobalUIDKeyedCounts = {};
+    std::mutex GlobalUIDMutex = {};/**< Mutex used for thread-safety. */
+    _GUID_ guid;
 #ifdef _WIN32
     HWND hwnd_root;
 #endif
@@ -226,5 +229,6 @@ namespace dz
 		VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 }
+extern "C" std::string dr_guid;
+extern "C" SharedMemoryPtr<DirectRegistry> dr_shm;
 extern "C" DirectRegistry* dr_ptr;
-extern "C" DirectRegistry& dr;

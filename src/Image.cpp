@@ -60,32 +60,58 @@ namespace dz {
             .is_framebuffer_attachment = info.is_framebuffer_attachment,
             .datas = info.datas,
             .surfaceType = info.surfaceType,
-            .mip_levels = info.mip_levels
+            .mip_levels = info.mip_levels,
+            .create_shared = info.create_shared,
         };
         return image_create_internal(internal_info);
     }
 
     Image* image_create_internal(const ImageCreateInfoInternal& info) {
-        Image* result = new Image{
-            .width = info.width,
-            .height = info.height,
-            .depth = info.depth,
-            .format = info.format,
-            .usage = info.usage,
-            .image_type = info.image_type,
-            .view_type = info.view_type,
-            .tiling = info.tiling,
-            .memory_properties = info.memory_properties,
-            .multisampling = info.multisampling,
-            .is_framebuffer_attachment = info.is_framebuffer_attachment,
-            .datas = info.datas,
-            .surfaceType = info.surfaceType,
-            .mip_levels = info.mip_levels
-        };
+        Image* image = nullptr;
+        
+        size_t id = 0;
+        try {
+            id = GlobalUID::GetNew("DZ:Image");
+        }
+        catch (const std::exception& e) {
+            std::cout << "Failed to get Image ID: " << e.what() << std::endl;
+            return nullptr;
+        }
 
-        image_init(result);
+        std::cout << "Got Image ID: " << id << std::endl;
 
-        return result;
+        if (info.create_shared) {
+			auto image_shm = new SharedMemoryPtr<Image>();
+			auto shm_name = ("Image_" + std::to_string(id));
+			if (!image_shm->Create(shm_name)) {
+				throw std::runtime_error("Unable to create shared Image!");
+			}
+			image = image_shm->ptr;
+			image->image_shm = image_shm;            
+        }
+        else {
+            image = new Image();
+        }
+
+        image->id = id;
+        image->width = info.width;
+        image->height = info.height;
+        image->depth = info.depth;
+        image->format = info.format;
+        image->usage = info.usage;
+        image->image_type = info.image_type;
+        image->view_type = info.view_type;
+        image->tiling = info.tiling;
+        image->memory_properties = info.memory_properties;
+        image->multisampling = info.multisampling;
+        image->is_framebuffer_attachment = info.is_framebuffer_attachment;
+        image->datas = info.datas;
+        image->surfaceType = info.surfaceType;
+        image->mip_levels = info.mip_levels;
+
+        image_init(image);
+
+        return image;
     }
 
     void image_free_internal(Image* image_ptr);
@@ -169,7 +195,8 @@ namespace dz {
         imageInfo.samples = image.multisampling;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        vkCreateImage(dr_ptr->device, &imageInfo, nullptr, &image.image);
+        vk_check("vkCreateImage",
+            vkCreateImage(dr_ptr->device, &imageInfo, nullptr, &image.image));
 
         // Allocate memory
         VkMemoryRequirements memRequirements;
@@ -433,10 +460,16 @@ namespace dz {
         }
     }
 
-    void image_free(Image* image_ptr)
+    void image_free(Image* image)
     {
-        image_free_internal(image_ptr);
-        delete image_ptr;
+        image_free_internal(image);
+        
+		if (image->image_shm) {
+			delete image->image_shm;
+		} else {
+			delete image;
+		}
+
         return;
     }
 

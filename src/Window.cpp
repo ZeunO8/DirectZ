@@ -180,16 +180,41 @@ namespace dz {
 	}
 
 	WINDOW* window_create(const WindowCreateInfo& info) {
-		auto window = new WINDOW(
-			info.title,
-			info.x, info.y,
-			info.borderless, info.vsync,
-			info.width, info.height
-#ifdef ANDROID
-			, info.android_window, info.android_asset_manager
-#endif
-			, info.headless, info.headless_image
-		);
+		WINDOW* window = nullptr;
+		auto id = GlobalUID::GetNew("DZ:WINDOW");
+		if (info.create_shared) {
+			auto window_shm = new SharedMemoryPtr<WINDOW>();
+			auto shm_name = ("WINDOW_" + std::to_string(id));
+			replaceAll(shm_name, " ", "_");
+			if (!window_shm->Create(shm_name,
+				info.title,
+				info.x, info.y,
+				info.borderless, info.vsync,
+				info.width, info.height
+	#ifdef ANDROID
+				, info.android_window, info.android_asset_manager
+	#endif
+				, info.headless, info.headless_image
+			)) {
+				throw std::runtime_error("Unable to create shared WINDOW!");
+			}
+			window = window_shm->ptr;
+			window->window_shm = window_shm;
+		}
+		else {
+			window = new WINDOW(
+				info.title,
+				info.x, info.y,
+				info.borderless, info.vsync,
+				info.width, info.height
+	#ifdef ANDROID
+				, info.android_window, info.android_asset_manager
+	#endif
+				, info.headless, info.headless_image
+			);
+		}
+
+		window->id = id;
 
 		return window_create_internal(window);
 	}
@@ -241,7 +266,12 @@ namespace dz {
 			}
 		}
 		renderer_free(window->renderer);
-		delete window;
+
+		if (window->window_shm) {
+			delete window->window_shm;
+		} else {
+			delete window;
+		}
 
 		if (destroy_remaining) {
 			for (size_t index = 0; index < dr_ptr->window_ptrs.size();) {
@@ -276,8 +306,8 @@ namespace dz {
 		}
 		if (!poll_continue)
 		{
-			window->free_end_of_pass = true;
-			dr_ptr->free_window_end_of_pass = true;
+			window->free_begin_of_pass = true;
+			dr_ptr->free_window_begin_of_pass = true;
 		}
 		return poll_continue;
 	}
@@ -287,10 +317,31 @@ namespace dz {
 		auto original_size = dr_ptr->window_count.load();
 		for (size_t index = 0; index < dr_ptr->window_count; index++) {
 			if (!window_poll_events(dr_ptr->windows_data[index])) {
+				dr_ptr->windows_data[index]->free_begin_of_pass = true;
 				stop_poll_count++;
 			}
 		}
-		return stop_poll_count != original_size;
+		static bool f_d_r = false;
+		if (dr_ptr->free_window_begin_of_pass) {
+			for (auto i = 0; i < dr_ptr->window_ptrs.size(); i++) {
+				auto window_ptr = dr_ptr->window_ptrs[i];
+				if (window_ptr == dr_ptr->root_window) {
+					window_ptr->imguiViewport->PlatformHandle = nullptr;
+					window_ptr->imguiViewport->PlatformHandleRaw = nullptr;
+		        	dr_ptr->imguiLayer.Shutdown(*dr_ptr);
+				}
+				if (window_ptr->free_begin_of_pass) {
+					if (window_free(window_ptr)) {
+						free_direct_registry();
+						f_d_r = true;
+						break;
+					}
+				}
+			}
+			if (!f_d_r)
+				dr_ptr->free_window_begin_of_pass = false;
+		}
+		return !f_d_r;
 	}
 
 	void window_render(WINDOW* window, bool multi_window_render) {
@@ -311,32 +362,12 @@ namespace dz {
 		ImGui::RenderPlatformWindowsDefault(nullptr, nullptr);
 		for (auto i = 0; i < dr_ptr->window_count; i++) {
 			auto window_ptr = dr_ptr->windows_data[i];
-			if (!window_ptr->free_end_of_pass && window_ptr->renderer->recreate_swapchain_deferred) {
+			if (!window_ptr->free_begin_of_pass && window_ptr->renderer->recreate_swapchain_deferred) {
 				recreate_swap_chain(window_ptr->renderer);
 				window_ptr->renderer->recreate_swapchain_deferred = false;
 			}
 		}
-		static bool f_d_r = false;
-		if (dr_ptr->free_window_end_of_pass) {
-			for (auto i = 0; i < dr_ptr->window_ptrs.size(); i++) {
-				auto window_ptr = dr_ptr->window_ptrs[i];
-				if (window_ptr == dr_ptr->root_window) {
-					window_ptr->imguiViewport->PlatformHandle = nullptr;
-					window_ptr->imguiViewport->PlatformHandleRaw = nullptr;
-		        	dr_ptr->imguiLayer.Shutdown(*dr_ptr);
-				}
-				if (window_ptr->free_end_of_pass) {
-					if (window_free(window_ptr))
-					{
-						free_direct_registry(dr_ptr);
-						f_d_r = true;
-					}
-				}
-			}
-			if (!f_d_r)
-				dr_ptr->free_window_end_of_pass = false;
-		}
-		return f_d_r;
+		return false;
 	}
 
     const std::string& window_get_title_ref(WINDOW* window) {
@@ -847,8 +878,7 @@ namespace dz {
 					// Check bit 30 of lParam: 1 if key was already down (i.e., autorepeat), 0 if it was previously up
 					bool isAutoRepeat = (lParam & (1 << 30)) != 0;
 
-					if (isAutoRepeat)
-					{
+					if (isAutoRepeat) {
 						goto _default;
 					}
 				}
@@ -1041,8 +1071,7 @@ namespace dz {
 				int32_t mod = 0;
 				if (keycode == KEYCODES::NUL)
 				{
-					switch (keysym)
-					{
+					switch (keysym) {
 						case XK_Up: keycode = KEYCODES::UP; break;
 						case XK_Down: keycode = KEYCODES::DOWN; break;
 						case XK_Left: keycode = KEYCODES::LEFT; break;

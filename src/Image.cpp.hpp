@@ -28,6 +28,8 @@ namespace dz {
         bool data_is_cpu_side = false;
         bool data_is_gpu_side = false;
         bool data_synced_gpu_to_cpu = false;
+        SharedMemoryPtr<Image>* image_shm = nullptr;
+        size_t id = 0;
         void reset_layouts() {
             current_layouts.resize(mip_levels);
             for (auto& current_layout : current_layouts)
@@ -51,6 +53,7 @@ namespace dz {
         std::vector<std::shared_ptr<void>> datas;
         SurfaceType surfaceType = SurfaceType::BaseColor;
         uint32_t mip_levels = 1;
+        bool create_shared = false;
     };
 
     void init_empty_image_data(Image*, uint32_t mip = 0);

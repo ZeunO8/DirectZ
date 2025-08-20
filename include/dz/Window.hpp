@@ -39,6 +39,7 @@ namespace dz
 #endif
         bool headless = false;
         Image* headless_image = nullptr;
+        bool create_shared = false;
     };
 
     struct WindowReflectableGroup : ::ReflectableGroup {

@@ -2,37 +2,52 @@
 #include "Directz.cpp.hpp"
 namespace dz
 {
-    DirectRegistry*& get_direct_registry()
-    {
+    DirectRegistry* get_direct_registry() {
         return dr_ptr;
+    }
+    uint8_t get_direct_registry_window_type() {
+        return dr_ptr->windowType;
+    }
+    _GUID_ get_direct_registry_guid() {
+        return dr_ptr->guid;
+    }
+    void load_direct_registry_guid(const std::string& guid) {
+        if (!dr_shm.Open("DZ_DirectRegistry" + guid)) {
+            throw std::runtime_error("Unable to open shared DirectRegistry!");
+        }
+        dr_ptr = dr_shm.ptr;
     }
     uint8_t get_window_type_platform();
     void direct_registry_ensure_instance(DirectRegistry* direct_registry);
-    DirectRegistry* make_direct_registry()
+    bool init_direct_registry(SharedMemoryPtr<DirectRegistry>& dr_shm)
     {
-        auto dr = new DirectRegistry;
-        dr->windowType = get_window_type_platform();
+        auto guid = GlobalGUID::GetNew();
+        if (!dr_shm.Create("DZ_DirectRegistry" + guid.to_string())) {
+            throw std::runtime_error("Unable to create shared DirectRegistry!");
+        }
+        dr_shm.ptr->windowType = get_window_type_platform();
 #ifdef __ANDROID__
-        dr->android_config = AConfiguration_new();
+        dr_shm.ptr->android_config = AConfiguration_new();
 #endif
-        return dr;
+        dr_shm.ptr->guid = guid;
+        return true;
     }
     
-    void free_direct_registry(DirectRegistry* free_dr_ptr)
+    void free_direct_registry()
     {
-        if (!free_dr_ptr)
+        if (!dr_ptr)
             return;
-        while (!free_dr_ptr->layoutQueue.empty()) {
-            auto layout = free_dr_ptr->layoutQueue.front();
-            free_dr_ptr->layoutQueue.pop();
-            vkDestroyDescriptorSetLayout(free_dr_ptr->device, layout, 0);
+        while (!dr_ptr->layoutQueue.empty()) {
+            auto layout = dr_ptr->layoutQueue.front();
+            dr_ptr->layoutQueue.pop();
+            vkDestroyDescriptorSetLayout(dr_ptr->device, layout, 0);
         }
 #ifdef __ANDROID__
-        AConfiguration_delete(free_dr_ptr->android_config);
+        AConfiguration_delete(dr_ptr->android_config);
 #endif
-        free_dr_ptr->buffer_groups.clear();
-        free_dr_ptr->uid_shader_map.clear();
-        if (free_dr_ptr->device)
+        dr_ptr->buffer_groups.clear();
+        dr_ptr->uid_shader_map.clear();
+        if (dr_ptr->device)
         {
             if (dr_ptr->computeCommandBuffer)
     		    vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &dr_ptr->computeCommandBuffer);
@@ -41,11 +56,13 @@ namespace dz
             if (dr_ptr->transitionCommandBuffer)
     		    vkFreeCommandBuffers(dr_ptr->device, dr_ptr->commandPool, 1, &dr_ptr->transitionCommandBuffer);
 
-            vkDestroyCommandPool(free_dr_ptr->device, free_dr_ptr->commandPool, 0);
-            vkDestroyRenderPass(free_dr_ptr->device, free_dr_ptr->surfaceRenderPass, 0);
-            vkDestroyDevice(free_dr_ptr->device, 0);
+            vkDestroyCommandPool(dr_ptr->device, dr_ptr->commandPool, 0);
+            vkDestroyRenderPass(dr_ptr->device, dr_ptr->surfaceRenderPass, 0);
+            vkDestroyDevice(dr_ptr->device, 0);
         }
-        delete free_dr_ptr;
+
+        dr_shm.Destroy();
+        dr_ptr = nullptr;
     }
     std::vector<WINDOW*>::iterator dr_get_windows_begin() {
         return dr_ptr->window_ptrs.begin();
@@ -95,9 +112,14 @@ namespace dz
 
 #include "SharedLibrary.cpp"
 
+#include "GlobalUID.cpp"
+#include "GlobalGUID.cpp"
+
 #include "runtime.cpp"
 
 #include "Compiler/Clang.cpp"
+
+#include "CMake.cpp"
 
 template<typename T>
 mat<T, 4, 4> window_mvp_T(WINDOW* window, const mat<T, 4, 4>& mvp)

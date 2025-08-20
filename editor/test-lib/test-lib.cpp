@@ -1,9 +1,5 @@
 #include <DirectZ.hpp>
 
-DZ_EXPORT void api_set_direct_registry(DirectRegistry* new_dr_ptr) {
-    set_direct_registry(new_dr_ptr);
-}
-
 DZ_EXPORT dz::WINDOW* api_window_create(const char* title, float width, float height
 #if defined(ANDROID)
 , ANativeWindow* android_window, AAssetManager* android_asset_manager

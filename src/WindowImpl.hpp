@@ -95,7 +95,9 @@ namespace dz {
 		ImGuiViewport* imguiViewport = 0;
 		std::map<float, std::unordered_map<Shader*, std::function<int()>>> priority_shader_dispatches;
 		VkDescriptorSet headless_ds = VK_NULL_HANDLE;
-		bool free_end_of_pass = false;
+		bool free_begin_of_pass = false;
+		SharedMemoryPtr<WINDOW>* window_shm = nullptr;
+		size_t id = 0;
 	#ifdef _WIN32
 		HINSTANCE hInstance;
 		HWND hwnd;
@@ -132,8 +134,6 @@ namespace dz {
 	#ifdef __ANDROID__
 		void recreate_android(ANativeWindow* android_window, float width, float height);
 	#endif
-
-		size_t id = GlobalUID::GetNew("Window");
 	};
 	inline static constexpr uint8_t WINDOW_TYPE_WIN32 = 1;
 	inline static constexpr uint8_t WINDOW_TYPE_MACOS = 2;

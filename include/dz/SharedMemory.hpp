@@ -71,7 +71,7 @@ namespace dz
 #endif
         }
 
-        SharedMemory &operator=(SharedMemory &&o) noexcept
+        SharedMemory &operator=(SharedMemory &&o)
         {
             if (this != &o)
             {
@@ -99,9 +99,6 @@ namespace dz
             }
             return *this;
         }
-
-        SharedMemory(const SharedMemory &) = delete;
-        SharedMemory &operator=(const SharedMemory &) = delete;
 
         static std::string NormalizeName(const std::string &n)
         {

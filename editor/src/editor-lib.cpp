@@ -1,10 +1,6 @@
 #include <DirectZ.hpp>
 #include "CodeEditor.cpp"
 
-DZ_EXPORT void api_set_direct_registry(DirectRegistry* new_dr_ptr) {
-    set_direct_registry(new_dr_ptr);
-}
-
 DZ_EXPORT dz::WINDOW* api_window_create(const char* title, float width, float height
 #if defined(ANDROID)
 , ANativeWindow* android_window, AAssetManager* android_asset_manager
@@ -45,7 +41,6 @@ using APIRender = void(*)();
 
 APIWindowCreate sl_api_window_create = nullptr;
 APIInit sl_api_init = nullptr;
-APISetDirectRegistry sl_api_set_direct_registry = nullptr;
 APIPollEvents sl_api_poll_events = nullptr;
 APIUpdate sl_api_update = nullptr;
 APIRender sl_api_render = nullptr;
@@ -55,7 +50,6 @@ void initialize_imgui();
 
 DZ_EXPORT bool api_init(dz::WINDOW* window) {
     initialize_project_library("test-lib.dll");
-    sl_api_set_direct_registry(get_direct_registry());
 
     project_window = sl_api_window_create("Test", TEST_WINDOW_WIDTH, TEST_WINDOW_HEIGHT, true, nullptr);
     sl_api_init(project_window);
@@ -80,7 +74,6 @@ void initialize_project_library(const char* lib_path) {
     current_sl = sl_create(lib_path);
     sl_api_window_create = sl_get_proc_tmpl<APIWindowCreate>(current_sl, "api_window_create");
     sl_api_init = sl_get_proc_tmpl<APIInit>(current_sl, "api_init");
-    sl_api_set_direct_registry = sl_get_proc_tmpl<APISetDirectRegistry>(current_sl, "api_set_direct_registry");
     sl_api_poll_events = sl_get_proc_tmpl<APIPollEvents>(current_sl, "api_poll_events");
     sl_api_update = sl_get_proc_tmpl<APIUpdate>(current_sl, "api_update");
     sl_api_render = sl_get_proc_tmpl<APIRender>(current_sl, "api_render");

@@ -77,7 +77,6 @@ list(APPEND DIRECTZ_LIBRARIES
 	archive_static
 	assimp
 	zlibstatic
-	${LLVM_LIBS}
 )
 
 if(ANDROID)
@@ -108,7 +107,12 @@ elseif(MACOS)
 	list(APPEND DIRECTZ_LIBRARIES "-framework Cocoa" "-framework QuartzCore" "-framework Metal")
 endif()
 
-target_link_libraries(DirectZ PRIVATE ${DIRECTZ_LIBRARIES})
+target_link_libraries(DirectZ PRIVATE
+	${DIRECTZ_LIBRARIES}
+	${LLVM_LIBS})
+if(MSVC)
+	target_link_options(DirectZ PRIVATE /IGNORE:4217)
+endif()
 target_link_libraries(dzp PRIVATE DirectZ ${DIRECTZ_LIBRARIES})
 
 include(./editor/Editor.cmake)

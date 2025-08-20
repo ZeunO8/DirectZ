@@ -257,7 +257,6 @@ namespace dz::editor
         Cursor b;
     };
 
-
     struct CodeEditor
     {
         EditorConfig cfg;

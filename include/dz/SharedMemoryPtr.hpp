@@ -8,16 +8,28 @@ namespace dz
     {
         SharedMemory shm;
         T *ptr;
+        bool created = false;
 
         SharedMemoryPtr() : shm(), ptr(nullptr) {}
 
-        bool Create(const std::string &name)
+        ~SharedMemoryPtr() {
+            if (created) {
+                Destroy();
+            }
+            else {
+                Close();
+            }
+        }
+
+        template <typename... Args>
+        bool Create(const std::string &name, const Args&... args)
         {
             if (!shm.Create(name, sizeof(T)))
                 return false;
             if (!shm.Map())
                 return false;
-            ptr = ::new (shm.Data()) T(); // placement new, default ctor
+            ptr = ::new (shm.Data()) T(args...);
+            created = true;
             return true;
         }
 
@@ -53,5 +65,11 @@ namespace dz
         const T &operator*() const { return *ptr; }
 
         bool Valid() const { return ptr != nullptr && shm.Valid(); }
+
+        SharedMemoryPtr& operator=(SharedMemoryPtr&& other) {
+            shm = std::move(other.shm);
+            ptr = other.ptr;
+            return *this;
+        }
     };
 }

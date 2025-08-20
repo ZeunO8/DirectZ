@@ -39,6 +39,7 @@ namespace dz
         std::vector<std::shared_ptr<void>> datas;
         SurfaceType surfaceType = SurfaceType::BaseColor;
         uint32_t mip_levels = 1;
+        bool create_shared = false;
     };
 
     /**

@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <dz/Runtime.hpp>
 #include <dz/Renderer.hpp>
 #include <filesystem>
 #include <dz/BufferGroup.hpp>
@@ -30,12 +31,18 @@
 #include <dz/Loaders/Assimp_Loader.hpp>
 #include <dz/SharedLibrary.hpp>
 #include <dz/SharedMemory.hpp>
-#include <dz/Runtime.hpp>
+#include <dz/SharedMemoryPtr.hpp>
+#include <dz/Process.hpp>
+#include <dz/GlobalUID.hpp>
+#include <dz/GlobalGUID.hpp>
 
 using namespace dz;
 
 namespace dz {
-    DirectRegistry*& get_direct_registry();
+    DirectRegistry* get_direct_registry();
+    _GUID_ get_direct_registry_guid();
+    uint8_t get_direct_registry_window_type();
+    void load_direct_registry_guid(const std::string& guid);
 }
 
 inline static std::string DZ_GLSL_VERSION = "#version 450\n";
