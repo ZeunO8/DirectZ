@@ -10,9 +10,11 @@
 #include <cctype>
 #include <iostream>
 #include <filesystem>
+#include <functional>
 
 namespace dz::cmake
 {
+    struct Project;
 
     struct Command
     {
@@ -28,7 +30,8 @@ namespace dz::cmake
         virtual const std::vector<std::string> &getArguments() const = 0;
     };
 
-    enum class CMakeMessageType {
+    enum class CMakeMessageType
+    {
         UNSET,
         STATUS,
         WARNING,
@@ -69,6 +72,8 @@ namespace dz::cmake
         std::string name;
         std::vector<std::string> params;
         std::vector<dz::cmake::Command> body;
+
+        void execute(Project &project, const Command &cmd, std::unordered_map<std::string, std::string> &vars) const;
     };
 
     struct Project
@@ -76,11 +81,39 @@ namespace dz::cmake
         std::string name;
         std::unordered_map<std::string, std::shared_ptr<Target>> targets;
         std::unordered_map<std::string, Macro> macros;
-        void addCommand(const Command &cmd, const std::unordered_map<std::string, std::string> &vars);
+        
+        Project();
 
-        std::string determineFindPackageDir(const std::string& pkg, const std::unordered_map<std::string, std::string> &vars);
+        void addCommand(const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+        
+    private:
 
-        void findPackage(const std::string& pkg, bool required, const std::unordered_map<std::string, std::string> &vars);
+        using DSL_Fn = std::function<void(size_t, const Command&, std::unordered_map<std::string, std::string>&)>;
+        using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
+
+        DSL_Map dsl_map;
+
+        DSL_Map generate_dsl_map();
+
+    private:
+
+        
+
+        std::string determineFindPackageDir(const std::string &pkg, const std::unordered_map<std::string, std::string> &vars);
+
+        void add_lib_or_exe(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void target_include_directories(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void target_link_libraries(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void find_package(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void message(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void get_filename_component(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
+
+        void project(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars);
     };
 
     enum class ConditionOp
@@ -99,9 +132,9 @@ namespace dz::cmake
         std::string value;
         std::vector<std::shared_ptr<ConditionNode>> children;
 
-        bool BoolVar(const std::string& var) const;
+        bool BoolVar(const std::string &var) const;
 
-        bool Evaluate(const std::unordered_map<std::string, std::string> &vars) const;
+        bool Evaluate(std::unordered_map<std::string, std::string> &vars) const;
     };
 
     struct ConditionalBlock
@@ -109,16 +142,16 @@ namespace dz::cmake
         std::vector<std::pair<std::shared_ptr<ConditionNode>, std::vector<Command>>> branches;
         std::vector<Command> elseBranch;
 
-        void EvaluateAndAdd(Project &proj, const std::unordered_map<std::string, std::string> &vars);
+        void EvaluateAndAdd(Project &proj, std::unordered_map<std::string, std::string> &vars);
     };
 
     struct CommandParser
     {
-        static Project parseFile(const std::string &path, const std::unordered_map<std::string, std::string> &env);
+        static Project parseFile(const std::string &path, std::unordered_map<std::string, std::string> &env);
 
-        static void parseContentWithProject(Project& project, const std::string& content, const std::unordered_map<std::string, std::string>& env);
+        static void parseContentWithProject(Project &project, const std::string &content, std::unordered_map<std::string, std::string> &env);
 
-        static Project parseContent(const std::string &content, const std::unordered_map<std::string, std::string> &env);
+        static Project parseContent(const std::string &content, std::unordered_map<std::string, std::string> &env);
 
     private:
         static std::shared_ptr<ConditionNode> parseCondition(const std::string &expr);
@@ -129,7 +162,7 @@ namespace dz::cmake
 
         static void tokenize(const std::string &s, std::vector<std::string> &out);
 
-        static void varize(Command& cmd, const std::unordered_map<std::string, std::string>& env);
+        static void varize(Command &cmd, const std::unordered_map<std::string, std::string> &env);
 
         static size_t findMatchingParen(const std::string &s, size_t open);
     };

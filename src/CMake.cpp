@@ -1,51 +1,52 @@
 #include <dz/CMake.hpp>
 #include <dz/Util.hpp>
 
-void dz::cmake::Project::addCommand(const Command &cmd, const std::unordered_map<std::string, std::string> &vars)
+void dz::cmake::Macro::execute(Project &project, const Command &cmd, std::unordered_map<std::string, std::string> &vars) const
 {
-    auto it_macro = macros.find(cmd.name);
-    if (it_macro != macros.end())
+    std::unordered_map<std::string, std::string> localVars = vars;
+    for (size_t i = 0; i < params.size() && i < cmd.arguments.size(); ++i)
+        localVars[params[i]] = cmd.arguments[i];
+    for (auto &macroCmd : body)
     {
-        const Macro &m = it_macro->second;
-        std::unordered_map<std::string, std::string> localVars = vars;
-        for (size_t i = 0; i < m.params.size() && i < cmd.arguments.size(); ++i)
-            localVars[m.params[i]] = cmd.arguments[i];
-        for (auto &macroCmd : m.body)
+        Command expanded = macroCmd;
+        for (auto &arg : expanded.arguments)
         {
-            Command expanded = macroCmd;
-            for (auto &arg : expanded.arguments)
+            size_t start = 0;
+            while (true)
             {
-                size_t start = 0;
-                while (true)
-                {
-                    size_t pos = arg.find("${", start);
-                    if (pos == std::string::npos)
-                        break;
-                    size_t end = arg.find('}', pos + 2);
-                    if (end == std::string::npos)
-                        break;
-                    std::string varName = arg.substr(pos + 2, end - (pos + 2));
-                    auto itv = localVars.find(varName);
-                    if (itv != localVars.end())
-                        arg.replace(pos, end - pos + 1, itv->second);
-                    start = pos + 1;
-                }
+                size_t pos = arg.find("${", start);
+                if (pos == std::string::npos)
+                    break;
+                size_t end = arg.find('}', pos + 2);
+                if (end == std::string::npos)
+                    break;
+                std::string varName = arg.substr(pos + 2, end - (pos + 2));
+                auto itv = localVars.find(varName);
+                if (itv != localVars.end())
+                    arg.replace(pos, end - pos + 1, itv->second);
+                start = pos + 1;
             }
-            addCommand(expanded, localVars);
         }
-        return;
+        project.addCommand(expanded, localVars);
     }
+}
 
-    auto cmd_arguments_size = cmd.arguments.size();
-    if (cmd.name == "add_library" || cmd.name == "add_executable")
+dz::cmake::Project::Project():
+    dsl_map(generate_dsl_map())
+{}
+
+void dz::cmake::Project::add_lib_or_exe(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+
+    if (!cmd_arguments_size)
+        return;
+    Target::Type type = (cmd.name == "add_library") ? Target::Type::Library : Target::Type::Executable;
+    auto target = std::make_shared<Target>(type, cmd.arguments[0]);
+    for (size_t i = 1; i < cmd_arguments_size; ++i)
     {
-        if (!cmd_arguments_size)
-            return;
-        Target::Type type = (cmd.name == "add_library") ? Target::Type::Library : Target::Type::Executable;
-        auto target = std::make_shared<Target>(type, cmd.arguments[0]);
-        for (size_t i = 1; i < cmd_arguments_size; ++i)
+        auto &arg = cmd.arguments[i];
+        if (type == Target::Type::Library)
         {
-            auto &arg = cmd.arguments[i];
             if (arg == "SHARED")
             {
                 target->setShared();
@@ -56,124 +57,289 @@ void dz::cmake::Project::addCommand(const Command &cmd, const std::unordered_map
                 target->setStatic();
                 continue;
             }
-            target->addArgument(arg);
         }
-        targets[target->getName()] = std::move(target);
+        target->addArgument(arg);
     }
-    else if (cmd.name == "target_include_directories")
+    targets[target->getName()] = std::move(target);
+}
+
+void dz::cmake::Project::target_include_directories(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    if (cmd_arguments_size < 2)
+        return;
+    auto it = targets.find(cmd.arguments[0]);
+    if (it == targets.end())
+        return;
+    for (size_t i = 1; i < cmd_arguments_size; ++i)
     {
-        if (cmd_arguments_size < 2)
-            return;
-        auto it = targets.find(cmd.arguments[0]);
-        if (it == targets.end())
-            return;
-        for (size_t i = 1; i < cmd_arguments_size; ++i)
+        auto &arg = cmd.arguments[i];
+        if (arg == "PRIVATE" || arg == "PUBLIC")
+            continue;
+        it->second->addIncludeDir(arg);
+    }
+}
+
+void dz::cmake::Project::target_link_libraries(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    if (cmd_arguments_size < 2)
+        return;
+    auto it = targets.find(cmd.arguments[0]);
+    if (it == targets.end())
+        return;
+    for (size_t i = 1; i < cmd_arguments_size; ++i)
+    {
+        auto &arg = cmd.arguments[i];
+        if (arg == "PRIVATE" || arg == "PUBLIC")
+            continue;
+        it->second->addLinkLib(arg);
+    }
+}
+
+void dz::cmake::Project::message(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    if (cmd_arguments_size < 1)
+    {
+        std::cout << std::endl;
+        return;
+    }
+    auto msg_type_str = cmd.arguments[0];
+    CMakeMessageType cmake_msg_type = CMakeMessageType::UNSET;
+    if (msg_type_str == "STATUS")
+    {
+        cmake_msg_type = CMakeMessageType::STATUS;
+    }
+    else if (msg_type_str == "WARNING")
+    {
+        cmake_msg_type = CMakeMessageType::WARNING;
+    }
+    else if (msg_type_str == "FATAL_ERROR")
+    {
+        cmake_msg_type = CMakeMessageType::FATAL_ERROR;
+    }
+    std::string args_concat;
+    for (auto i = (cmake_msg_type == CMakeMessageType::UNSET ? 0 : 1); i < cmd_arguments_size; i++)
+    {
+        args_concat += cmd.arguments[i];
+        if (i < cmd_arguments_size - 1)
         {
-            auto &arg = cmd.arguments[i];
-            if (arg == "PRIVATE" || arg == "PUBLIC")
-                continue;
-            it->second->addIncludeDir(arg);
+            args_concat += " ";
         }
     }
-    else if (cmd.name == "target_link_libraries")
+    switch (cmake_msg_type)
     {
-        if (cmd_arguments_size < 2)
-            return;
-        auto it = targets.find(cmd.arguments[0]);
-        if (it == targets.end())
-            return;
-        for (size_t i = 1; i < cmd_arguments_size; ++i)
-        {
-            auto &arg = cmd.arguments[i];
-            if (arg == "PRIVATE" || arg == "PUBLIC")
-                continue;
-            it->second->addLinkLib(arg);
-        }
-    }
-    else if (cmd.name == "project")
-    {
-        if (cmd_arguments_size < 1)
-            return;
-        name = cmd.arguments[0];
-    }
-    else if (cmd.name == "find_package")
-    {
-        if (cmd_arguments_size < 1)
-            return;
-        auto find_pkg = cmd.arguments[0];
-        bool required = cmd_arguments_size > 1 && cmd.arguments[1] == "REQUIRED";
-        findPackage(find_pkg, required, vars);
-    }
-    else if (cmd.name == "message")
-    {
-        if (cmd_arguments_size < 1)
-        {
-            std::cout << std::endl;
-            return;
-        }
-        auto msg_type_str = cmd.arguments[0];
-        CMakeMessageType cmake_msg_type = CMakeMessageType::UNSET;
-        if (msg_type_str == "STATUS")
-        {
-            cmake_msg_type = CMakeMessageType::STATUS;
-        }
-        else if (msg_type_str == "WARNING")
-        {
-            cmake_msg_type = CMakeMessageType::WARNING;
-        }
-        else if (msg_type_str == "FATAL_ERROR")
-        {
-            cmake_msg_type = CMakeMessageType::FATAL_ERROR;
-        }
-        std::string args_concat;
-        for (auto i = (cmake_msg_type == CMakeMessageType::UNSET ? 0 : 1); i < cmd_arguments_size; i++)
-        {
-            args_concat += cmd.arguments[i];
-            if (i < cmd_arguments_size - 1)
-            {
-                args_concat += " ";
-            }
-        }
-        switch (cmake_msg_type)
-        {
-        case CMakeMessageType::UNSET:
-            std::cout << "[cmake] " << args_concat << std::endl;
-            break;
-        case CMakeMessageType::STATUS:
-            std::cout << "[cmake] -- " << args_concat << std::endl;
-            break;
-        case CMakeMessageType::WARNING:
-            std::cout << R"([cmake] CMake Warning:
+    case CMakeMessageType::UNSET:
+        std::cout << "[cmake] " << args_concat << std::endl;
+        break;
+    case CMakeMessageType::STATUS:
+        std::cout << "[cmake] -- " << args_concat << std::endl;
+        break;
+    case CMakeMessageType::WARNING:
+        std::cout << R"([cmake] CMake Warning:
 [cmake]   )" << args_concat
-                      << std::endl;
-            break;
-        case CMakeMessageType::FATAL_ERROR:
-            throw std::runtime_error(R"([cmake] CMake Error:
+                  << std::endl;
+        break;
+    case CMakeMessageType::FATAL_ERROR:
+        throw std::runtime_error(R"([cmake] CMake Error:
 [cmake]   )" + args_concat);
-        }
     }
+}
+
+void dz::cmake::Project::get_filename_component(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    if (cmd_arguments_size < 3)
+        return;
+
+    const std::string &varName = cmd.arguments[0];
+    std::string inputPath = cmd.arguments[1];
+    const std::string &mode = cmd.arguments[2];
+
+    // Expand variables inside inputPath first
+    size_t start = 0;
+    while (true)
+    {
+        size_t pos = inputPath.find("${", start);
+        if (pos == std::string::npos)
+            break;
+        size_t end = inputPath.find('}', pos + 2);
+        if (end == std::string::npos)
+            break;
+        std::string varNameSub = inputPath.substr(pos + 2, end - (pos + 2));
+        auto itv = vars.find(varNameSub);
+        if (itv != vars.end())
+            inputPath.replace(pos, end - pos + 1, itv->second);
+        start = pos + 1;
+    }
+
+    std::filesystem::path p(inputPath);
+
+    if (mode == "ABSOLUTE")
+    {
+        p = std::filesystem::absolute(p).lexically_normal();
+        vars[varName] = p.string();
+    }
+    else if (mode == "PATH")
+    {
+        vars[varName] = p.parent_path().string();
+    }
+    else if (mode == "NAME")
+    {
+        vars[varName] = p.filename().string();
+    }
+    else
+    {
+        // fallback: just assign raw path
+        vars[varName] = p.string();
+    }
+}
+
+void dz::cmake::Project::project(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    if (cmd_arguments_size < 1)
+        return;
+    name = cmd.arguments[0];
+}
+
+void dz::cmake::Project::addCommand(const Command &cmd, std::unordered_map<std::string, std::string> &vars)
+{
+    auto it_macro = macros.find(cmd.name);
+    if (it_macro != macros.end())
+    {
+        const Macro &m = it_macro->second;
+        m.execute(*this, cmd, vars);
+        return;
+    }
+
+    auto cmd_arguments_size = cmd.arguments.size();
+
+    auto cmd_it = dsl_map.find(cmd.name);
+    if (cmd_it == dsl_map.end()) {
+        throw std::runtime_error(R"(
+[cmake] CMake Error:
+[cmake]   Unknown CMake command ")" + cmd.name + R"(".
+)");
+    }
+
+    cmd_it->second(cmd_arguments_size, cmd, vars);
+}
+
+dz::cmake::Project::DSL_Map dz::cmake::Project::generate_dsl_map() {
+    DSL_Map map = {
+        {
+            "add_library",
+            std::bind(&Project::add_lib_or_exe, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "add_executable",
+            std::bind(&Project::add_lib_or_exe, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "target_include_directories",
+            std::bind(&Project::target_include_directories, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "target_link_libraries",
+            std::bind(&Project::target_link_libraries, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "project",
+            std::bind(&Project::project, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "find_package",
+            std::bind(&Project::find_package, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "message",
+            std::bind(&Project::message, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        },
+        {
+            "get_filename_component",
+            std::bind(&Project::get_filename_component, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+        }
+    };
+    return map;
 }
 
 std::string dz::cmake::Project::determineFindPackageDir(const std::string &pkg, const std::unordered_map<std::string, std::string> &vars)
 {
     auto x_dir = pkg + "_DIR";
     auto it = vars.find(x_dir);
-    if (it == vars.end())
-    {
-#if defined(_WIN32)
-        return "C:/Program Files/" + pkg + "/lib/cmake/" + pkg;
-#else
-
-#endif
-    }
-    else
+    if (it != vars.end())
     {
         return it->second;
     }
+
+#if defined(_WIN32)
+    {
+        std::vector<std::string> candidates = {
+            "C:/Program Files/" + pkg + "/lib/cmake/" + pkg,
+            "C:/Program Files (x86)/" + pkg + "/lib/cmake/" + pkg};
+        for (auto &c : candidates)
+        {
+            if (std::filesystem::exists(c))
+                return c;
+        }
+        return "C:/Program Files/" + pkg + "/lib/cmake/" + pkg;
+    }
+#elif defined(__linux__)
+    {
+        std::vector<std::string> candidates = {
+            "/usr/lib/cmake/" + pkg,
+            "/usr/local/lib/cmake/" + pkg,
+            "/usr/share/cmake/" + pkg};
+        for (auto &c : candidates)
+        {
+            if (std::filesystem::exists(c))
+                return c;
+        }
+        return "/usr/lib/cmake/" + pkg; // fallback
+    }
+
+#elif defined(__APPLE__) && !defined(TARGET_OS_IPHONE)
+    {
+        std::vector<std::string> candidates = {
+            "/usr/local/lib/cmake/" + pkg,
+            "/opt/homebrew/lib/cmake/" + pkg,
+            "/usr/lib/cmake/" + pkg};
+        for (auto &c : candidates)
+        {
+            if (std::filesystem::exists(c))
+                return c;
+        }
+        return "/usr/local/lib/cmake/" + pkg; // fallback
+    }
+
+#elif defined(__APPLE__) && defined(TARGET_OS_IPHONE)
+    // iOS runtime: inside app bundle (Resources)
+    // e.g. <AppBundle>/Resources/cmake/<Pkg>
+    {
+        auto it_prefix = vars.find("CMAKE_RUNTIME_PREFIX");
+        if (it_prefix != vars.end())
+            return it_prefix->second + "/cmake/" + pkg;
+        return "cmake/" + pkg; // relative to bundle Resources
+    }
+
+#elif defined(__ANDROID__)
+    // Android runtime: inside APK assets or app files dir
+    // e.g. /data/data/<app>/files/cmake/<Pkg> or assets/cmake/<Pkg>
+    {
+        auto it_prefix = vars.find("CMAKE_RUNTIME_PREFIX");
+        if (it_prefix != vars.end())
+            return it_prefix->second + "/cmake/" + pkg;
+        return "assets/cmake/" + pkg; // relative to APK assets
+    }
+
+#else
+    return "./" + pkg + "/lib/cmake/" + pkg;
+#endif
 }
 
-void dz::cmake::Project::findPackage(const std::string &pkg, bool required, const std::unordered_map<std::string, std::string> &vars)
+void dz::cmake::Project::find_package(size_t cmd_arguments_size, const Command &cmd, std::unordered_map<std::string, std::string> &vars)
 {
+    if (cmd_arguments_size < 1)
+        return;
+    auto pkg = cmd.arguments[0];
+    bool required = cmd_arguments_size > 1 && cmd.arguments[1] == "REQUIRED";
     auto dir = determineFindPackageDir(pkg, vars);
     if (dir.empty() || !std::filesystem::exists(dir))
     {
@@ -231,7 +397,7 @@ bool dz::cmake::ConditionNode::BoolVar(const std::string &var) const
     return var != "false" && var != "FALSE" && var != "off" && var != "OFF";
 }
 
-bool dz::cmake::ConditionNode::Evaluate(const std::unordered_map<std::string, std::string> &vars) const
+bool dz::cmake::ConditionNode::Evaluate(std::unordered_map<std::string, std::string> &vars) const
 {
     switch (op)
     {
@@ -254,7 +420,7 @@ bool dz::cmake::ConditionNode::Evaluate(const std::unordered_map<std::string, st
     return false;
 }
 
-void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &proj, const std::unordered_map<std::string, std::string> &vars)
+void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &proj, std::unordered_map<std::string, std::string> &vars)
 {
     bool executed = false;
     for (auto &b : branches)
@@ -274,7 +440,7 @@ void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &proj, const std::unord
     }
 }
 
-dz::cmake::Project dz::cmake::CommandParser::parseFile(const std::string &path, const std::unordered_map<std::string, std::string> &env)
+dz::cmake::Project dz::cmake::CommandParser::parseFile(const std::string &path, std::unordered_map<std::string, std::string> &env)
 {
     std::ifstream in(path);
     if (!in.is_open())
@@ -283,7 +449,7 @@ dz::cmake::Project dz::cmake::CommandParser::parseFile(const std::string &path, 
     return parseContent(content, env);
 }
 
-void dz::cmake::CommandParser::parseContentWithProject(Project &project, const std::string &content, const std::unordered_map<std::string, std::string> &env)
+void dz::cmake::CommandParser::parseContentWithProject(Project &project, const std::string &content, std::unordered_map<std::string, std::string> &env)
 {
     size_t pos = 0;
     std::stack<ConditionalBlock *> condStack;
@@ -369,13 +535,13 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
             Command cmd;
             cmd.name = name;
             tokenize(args, cmd.arguments);
-            varize(cmd, env);
             if (insideMacro)
             {
                 macroBody.push_back(cmd);
             }
             else if (currentBlock && !currentBlock->branches.empty())
             {
+                varize(cmd, env);
                 if (!currentBlock->branches.back().first)
                     currentBlock->elseBranch.push_back(cmd);
                 else
@@ -387,7 +553,7 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
     }
 }
 
-dz::cmake::Project dz::cmake::CommandParser::parseContent(const std::string &content, const std::unordered_map<std::string, std::string> &env)
+dz::cmake::Project dz::cmake::CommandParser::parseContent(const std::string &content, std::unordered_map<std::string, std::string> &env)
 {
     Project project;
     parseContentWithProject(project, content, env);
