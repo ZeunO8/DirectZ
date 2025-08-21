@@ -109,7 +109,7 @@ endif()
 
 target_link_libraries(DirectZ PRIVATE
 	${DIRECTZ_LIBRARIES}
-	${LLVM_LIBS})
+	LLVM_Interface)
 if(MSVC)
 	target_link_options(DirectZ PRIVATE /IGNORE:4217)
 endif()

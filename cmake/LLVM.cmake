@@ -235,3 +235,6 @@ set(LLVM_LIBS
     ${CLANG_LIBS}
     LLDB::lldb
 )
+
+add_library(LLVM_Interface INTERFACE)
+target_link_libraries(LLVM_Interface INTERFACE ${LLVM_LIBS})

@@ -1,6 +1,16 @@
 
 set(DIRECTZ_INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/DirectZ")
 
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(CMAKE_SHORT_BUILD_TYPE d)
+elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(CMAKE_SHORT_BUILD_TYPE r)
+else()
+    message(WARNING "Unsupported CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}, defaulting CMAKE_INSTALL_DZ_LIBDIR to \"${CMAKE_INSTALL_LIBDIR}/x\"")
+    set(CMAKE_SHORT_BUILD_TYPE x)
+endif()
+set(CMAKE_INSTALL_DZ_LIBDIR "${CMAKE_INSTALL_LIBDIR}/${CMAKE_SHORT_BUILD_TYPE}")
+
 set(DirectZ_TGTS 
     DirectZ
     shaderc shaderc_util spirv-reflect-static
@@ -37,9 +47,18 @@ else()
         EXPORT DirectZTargets
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_DZ_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_DZ_LIBDIR}
         COMPONENT Core
     )
 endif()
+
+install(TARGETS LLVM_Interface
+    EXPORT DirectZTargets
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    COMPONENT Core
+)
 
 # Install imported target's library file by querying IMPORTED_LOCATION
 function(install_imported_target_library tgt)
@@ -74,7 +93,7 @@ function(install_imported_target_library tgt)
     # Install the library file
     install(
         FILES "${lib_path}"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        DESTINATION ${CMAKE_INSTALL_DZ_LIBDIR}
         COMPONENT Core)
 endfunction()
 
@@ -100,7 +119,7 @@ foreach(TGT ${DirectZ_TGTS})
 endforeach()
 
 install(FILES ${TGT_LOCATIONS}
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    DESTINATION ${CMAKE_INSTALL_DZ_LIBDIR}
     COMPONENT Core
 )
 
