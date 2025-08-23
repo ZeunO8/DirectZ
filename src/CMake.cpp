@@ -563,9 +563,9 @@ void dz::cmake::Project::mark_as_advanced(size_t cmd_arguments_size, const Comma
     auto mark_as_advanced_impl = [&](auto cmd_arguments_size, const Command& cmd)
     {
         auto& clear = context.vars["___MARK_AS_ADVANCED_CLEAR"];
-        auto mark_bool = clear != "ON";
+        auto mark_bool = clear != "TRUE";
         auto& force = context.vars["___MARK_AS_ADVANCED_FORCE"];
-        auto force_bool = force == "ON";
+        auto force_bool = force == "TRUE";
         for (size_t i = 0; i < cmd_arguments_size; i++)
         {
             auto& var_name = cmd.arguments[i];
