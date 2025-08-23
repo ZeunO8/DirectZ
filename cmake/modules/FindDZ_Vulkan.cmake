@@ -1,5 +1,3 @@
-message(STATUS "Upon Woke, Touchedj.")
-
 cmake_policy(PUSH)
 cmake_policy(SET CMP0057 NEW)
 
