@@ -159,6 +159,7 @@ namespace dz::editor
                     {
                         PushSpan(out, s, i, colKeyword);
                     }
+                    // TODO: reduce this to an ir lookup expression
                     else if (ident == "size_t" || ident == "int32_t" || ident == "int64_t" || ident == "uint32_t" || ident == "uint64_t" || ident == "float" || ident == "double" || ident == "bool" || ident == "char" || ident == "wchar_t" || ident == "std" || ident == "string" || ident == "u8string" || ident == "u16string" || ident == "u32string")
                     {
                         PushSpan(out, s, i, colType);

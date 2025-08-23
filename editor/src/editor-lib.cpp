@@ -49,10 +49,10 @@ void initialize_project_library(const char*);
 void initialize_imgui();
 
 DZ_EXPORT bool api_init(dz::WINDOW* window) {
-    initialize_project_library("test-lib.dll");
+    // initialize_project_library("test-lib.dll");
 
-    project_window = sl_api_window_create("Test", TEST_WINDOW_WIDTH, TEST_WINDOW_HEIGHT, true, nullptr);
-    sl_api_init(project_window);
+    // project_window = sl_api_window_create("Test", TEST_WINDOW_WIDTH, TEST_WINDOW_HEIGHT, true, nullptr);
+    // sl_api_init(project_window);
 
     initialize_imgui();
     return true;
@@ -94,8 +94,8 @@ void initialize_imgui() {
         auto panel_pos = ImGui::GetCursorScreenPos();
         auto panel_size = ImGui::GetContentRegionAvail();
         
-        ImGui::Image((ImTextureID)window_get_headless_ds(project_window), panel_size, ImVec2(0, 1), ImVec2(1, 0));
-        window_set_size(project_window, panel_size.x, panel_size.y);
+        // ImGui::Image((ImTextureID)window_get_headless_ds(project_window), panel_size, ImVec2(0, 1), ImVec2(1, 0));
+        // window_set_size(project_window, panel_size.x, panel_size.y);
 
         ImGui::End();
     });

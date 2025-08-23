@@ -1,12 +1,4 @@
-#include <dz/CMake.hpp>
-#include <dz/Util.hpp>
-#include <filesystem>
 
-static std::filesystem::path path("CMakeLists.test.txt");
-int main() {
-    {
-        std::ofstream o(path, std::ios::out | std::ios::binary);
-        o << std::string(R"(
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/modules")
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
@@ -36,14 +28,3 @@ if(WIN32)
 elseif(ANDROID)
     target_link_libraries(test PRIVATE DirectZ-android)
 endif()
-)");
-    }
-    try {
-        auto project = dz::cmake::CommandParser::parseFile(path.string());
-        project->print();
-    }
-    catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
-    }
-    return 0;
-}

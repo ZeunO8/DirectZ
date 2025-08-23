@@ -78,8 +78,6 @@ namespace dz {
             return nullptr;
         }
 
-        std::cout << "Got Image ID: " << id << std::endl;
-
         if (info.create_shared) {
 			auto image_shm = new SharedMemoryPtr<Image>();
 			auto shm_name = ("Image_" + std::to_string(id));
@@ -87,7 +85,7 @@ namespace dz {
 				throw std::runtime_error("Unable to create shared Image!");
 			}
 			image = image_shm->ptr;
-			image->image_shm = image_shm;            
+			image->image_shm = image_shm;
         }
         else {
             image = new Image();
@@ -108,6 +106,7 @@ namespace dz {
         image->datas = info.datas;
         image->surfaceType = info.surfaceType;
         image->mip_levels = info.mip_levels;
+        image->creator_pid = Process::GetCurrentPID();
 
         image_init(image);
 

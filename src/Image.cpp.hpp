@@ -13,23 +13,34 @@ namespace dz {
         VkImageViewType view_type;
         VkImageTiling tiling;
         VkMemoryPropertyFlags memory_properties;
+
         VkImage image = VK_NULL_HANDLE;
         // VkImageView imageView = VK_NULL_HANDLE;
         VkBuffer buffer = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkSampler sampler = VK_NULL_HANDLE;
         std::vector<VkImageLayout> current_layouts;
+
         VkSampleCountFlagBits multisampling;
+
         bool is_framebuffer_attachment = false;
+        
         std::vector<std::shared_ptr<void>> datas;
+
         SurfaceType surfaceType = SurfaceType::BaseColor;
         uint32_t mip_levels = 1;
+
         std::vector<VkImageView> imageViews;
+
         bool data_is_cpu_side = false;
         bool data_is_gpu_side = false;
         bool data_synced_gpu_to_cpu = false;
+
         SharedMemoryPtr<Image>* image_shm = nullptr;
+
         size_t id = 0;
+
+        unsigned long long creator_pid = 0;
         void reset_layouts() {
             current_layouts.resize(mip_levels);
             for (auto& current_layout : current_layouts)

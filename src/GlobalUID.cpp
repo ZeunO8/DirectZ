@@ -3,17 +3,17 @@
 
 size_t dz::GlobalUID::GetNew()
 {
-    // if (!dr_ptr)
-    //     throw std::runtime_error("dr_ptr not set!");
-    // std::lock_guard lock(dr_ptr->GlobalUIDMutex);
+    if (!dr_ptr)
+        throw std::runtime_error("dr_ptr not set!");
+    std::lock_guard lock(dr_ptr->GlobalUIDMutex);
     return ++dr_ptr->GlobalUIDCount;
 }
 
 size_t dz::GlobalUID::GetNew(const std::string& key)
 {
-    // if (!dr_ptr)
-    throw std::runtime_error("dr_ptr not set!");
-    // std::lock_guard lock(dr_ptr->GlobalUIDMutex);
+    if (!dr_ptr)
+        throw std::runtime_error("dr_ptr not set!");
+    std::lock_guard lock(dr_ptr->GlobalUIDMutex);
     return ++dr_ptr->GlobalUIDKeyedCounts[key];
 }
 

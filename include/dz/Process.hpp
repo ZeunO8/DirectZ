@@ -26,16 +26,21 @@ namespace dz
 #else
             int fd;
 #endif
-            ~Stream() {
+            ~Stream()
+            {
 #if defined(_WIN32)
-                if(h) CloseHandle(h);
+                if (h)
+                    CloseHandle(h);
 #else
-                if(fd >= 0) close(fd);
+                if (fd >= 0)
+                    close(fd);
 #endif
             }
         };
-        struct ReadStream : Stream {
-            ReadStream& operator >> (std::string& output) {
+        struct ReadStream : Stream
+        {
+            ReadStream &operator>>(std::string &output)
+            {
                 char buffer[4096];
 #if defined(_WIN32)
                 DWORD read;
@@ -55,8 +60,10 @@ namespace dz
                 return *this;
             }
         };
-        struct WriteStream : Stream {
-            WriteStream& operator << (const std::string& input) {
+        struct WriteStream : Stream
+        {
+            WriteStream &operator<<(const std::string &input)
+            {
 #if defined(_WIN32)
                 DWORD written;
                 WriteFile(h, input.c_str(), (DWORD)input.size(), &written, NULL);
@@ -163,12 +170,23 @@ namespace dz
 #endif
         }
 
-        unsigned long GetPID() const
+        unsigned long long GetPID() const
         {
 #if defined(_WIN32)
-            return static_cast<unsigned long>(pi.dwProcessId);
+            return static_cast<unsigned long long>(pi.dwProcessId);
 #else
-            return static_cast<unsigned long>(pid);
+            return static_cast<unsigned long long>(pid);
+#endif
+        }
+
+        inline static unsigned long long GetCurrentPID()
+        {
+#if defined(_WIN32)
+            return static_cast<unsigned long long>(::GetCurrentProcessId());
+#elif defined(__unix__) || defined(__APPLE__)
+            return static_cast<unsigned long long>(::getpid());
+#else
+#error "Unsupported platform"
 #endif
         }
     };

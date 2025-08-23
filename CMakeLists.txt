@@ -150,3 +150,9 @@ crossplatform_cpack_helper(
     "dev.zeucor.DirectZ"
     "${DZ_COMPONENTS}"
 )
+
+
+message(STATUS
+		"Ignoring unknown component 'FATAL_ERROR'.\n"
+		"The find_package() command documents no such argument."
+)
