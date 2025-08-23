@@ -72,9 +72,9 @@ void dz::cmake::ParseContext::restore_marked_vars(const VariableMap& old_vars)
     marked_vars.clear();
 }
 
-void dz::cmake::ParseContext::mark_var(const std::string& var)
+void dz::cmake::ParseContext::mark_var(const std::string& var, bool mark_bool)
 {
-    marked_vars[var] = true;
+    marked_vars[var] = mark_bool;
 }
 
 dz::cmake::VariableMap dz::cmake::ParseContext::generate_default_system_vars_map()
@@ -474,12 +474,14 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
             dz::cmake::Command new_cmd = cmd;
             new_cmd.arguments = new_arguments;
             auto& context = *context_sh_ptr;
+            auto old_marked_vars = context.marked_vars;
             auto old_context_vars = context.vars;
             insert_to_map_from_map(context.vars, all_keys_and_vals);
             run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
             auto new_context_vars = context.vars;
             context.vars = old_context_vars;
             context.restore_marked_vars(new_context_vars);
+            context.marked_vars = old_marked_vars;
         }
     };
 }
@@ -535,11 +537,39 @@ void dz::cmake::Project::find_path(size_t cmd_arguments_size, const Command &cmd
                 if (std::filesystem::exists(concat_path))
                 {
                     context.vars[var_name] = hint_dir;
+                    context.mark_var(var_name);
                     return;
                 }
             }
         }
         context.vars[var_name] = (var_name + "-NOTFOUND");
+        context.mark_var(var_name);
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_package_impl);
+    context_function(cmd_arguments_size, cmd);
+    return;
+}
+
+void dz::cmake::Project::mark_as_advanced(size_t cmd_arguments_size, const Command &cmd)
+{
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___MARK_AS_ADVANCED";
+    static ValueVector options = {
+        "CLEAR",
+        "FORCE",
+    };
+    static ValueVector one_value_keywords = {};
+    static ValueVector multi_value_keywords = {};
+    auto find_package_impl = [&](auto cmd_arguments_size, const Command& cmd)
+    {
+        if (cmd_arguments_size < 1)
+            return;
+        auto& var_name = cmd.arguments[0];
+        auto& clear = context.vars["___MARK_AS_ADVANCED_CLEAR"];
+        auto mark_bool = clear != "ON";
+        auto& force = context.vars["___MARK_AS_ADVANCED_FORCE"];
+        auto force_bool = force == "ON";
+        context.mark_var(var_name, mark_bool || force_bool);
     };
     auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_package_impl);
     context_function(cmd_arguments_size, cmd);
@@ -604,6 +634,8 @@ dz::cmake::Project::DSL_Map dz::cmake::Project::generate_dsl_map()
          std::bind(&Project::set, this, std::placeholders::_1, std::placeholders::_2)},
         {"find_path",
          std::bind(&Project::find_path, this, std::placeholders::_1, std::placeholders::_2)},
+        {"mark_as_advanced",
+         std::bind(&Project::mark_as_advanced, this, std::placeholders::_1, std::placeholders::_2)},
     };
     return map;
 }

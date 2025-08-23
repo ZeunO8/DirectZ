@@ -138,7 +138,7 @@ namespace dz::cmake
 
         void restore_marked_vars(const VariableMap& old_vars);
 
-        void mark_var(const std::string& var);
+        void mark_var(const std::string& var, bool mark_bool = true);
 
         static VariableMap generate_default_system_vars_map();
 
@@ -192,6 +192,8 @@ namespace dz::cmake
         void set(size_t cmd_arguments_size, const Command &cmd);
 
         void find_path(size_t cmd_arguments_size, const Command &cmd);
+
+        void mark_as_advanced(size_t cmd_arguments_size, const Command &cmd);
     };
 
     enum class ConditionOp

@@ -99,5 +99,8 @@ find_path(Vulkan_INCLUDE_DIR
         HINTS
         ${_Vulkan_hint_include_search_paths}
 )
+mark_as_advanced(Vulkan_INCLUDE_DIR)
+
+message(STATUS "Vulkan_INCLUDE_DIR: ${Vulkan_INCLUDE_DIR}")
 
 cmake_policy(POP)
