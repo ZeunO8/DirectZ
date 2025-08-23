@@ -151,6 +151,91 @@ void dz::cmake::Project::add_lib_or_exe(size_t cmd_arguments_size, const Command
     targets[target->getName()] = std::move(target);
 }
 
+template<typename F>
+std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function(
+    const std::shared_ptr<dz::cmake::ParseContext>& context_sh_ptr,
+    const std::string& prefix,
+    const dz::cmake::ValueVector& options,
+    const dz::cmake::ValueVector& one_value_keywords,
+    const dz::cmake::ValueVector& multi_value_keywords,
+    F run_with_abstract_set,
+    size_t parse_argv = 0
+)
+{
+    static auto in_vec = [](const auto vec, const auto& str) -> bool {
+        auto vec_begin = vec.begin();
+        auto vec_end = vec.end();
+        return std::find(vec_begin, vec_end, str) != vec_end;
+    };
+    static auto in_map = [](const auto& map, const auto& str) -> bool {
+        return map.find(str) != map.end();
+    };
+    static auto insert_to_map_from_vec_with_prefix_prepended = [](auto& map_to, const auto& vec_from, const std::string& prefix) {
+        for (auto& var_str : vec_from) {
+            map_to[prefix + "_" + var_str];
+        }
+    };
+    static auto insert_to_map_from_map = [](auto& map_to, const auto& map_from) {
+        map_to.insert(map_from.begin(), map_from.end());
+    };
+    return [=](auto cmd_arguments_size, const auto& cmd){
+        dz::cmake::VariableMap all_keys_and_vals;
+
+        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, multi_value_keywords, prefix);
+        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, one_value_keywords, prefix);
+        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, options, prefix);
+
+        std::string parsing_key;
+        std::string* parsing_val = nullptr;
+        dz::cmake::ValueVector new_arguments;
+
+        for (size_t i = 0; i < cmd_arguments_size; i++)
+        {
+            auto& current_arg = cmd.arguments[i];
+            if (in_map(all_keys_and_vals, prefix + "_" + current_arg)) {
+                parsing_key = current_arg;
+                parsing_val = &all_keys_and_vals[prefix + "_" + parsing_key];
+                if (in_vec(options, parsing_key))
+                {
+                    (*parsing_val) = "TRUE";
+                }
+            }
+            else if (parsing_key.empty()) {
+                if ((parse_argv != 0 && new_arguments.size() < parse_argv) || !parse_argv) {
+                    new_arguments.push_back(current_arg);
+                }
+            }
+            else if (in_vec(one_value_keywords, parsing_key))
+            {
+                if (parsing_val->empty()) {
+                    (*parsing_val) = current_arg;
+                    parsing_key.clear();
+                }
+                else {
+                    throw std::runtime_error("[cmake] '" + parsing_key + "' expects one value)");
+                }
+            }
+            else if (in_vec(multi_value_keywords, parsing_key))
+            {
+                (*parsing_val) += ((parsing_val->empty() ? "" : ";") + current_arg);
+            }
+        }
+        {
+            dz::cmake::Command new_cmd = cmd;
+            new_cmd.arguments = new_arguments;
+            auto& context = *context_sh_ptr;
+            auto old_marked_vars = context.marked_vars;
+            auto old_context_vars = context.vars;
+            insert_to_map_from_map(context.vars, all_keys_and_vals);
+            run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
+            auto new_context_vars = context.vars;
+            context.vars = old_context_vars;
+            context.restore_marked_vars(new_context_vars);
+            context.marked_vars = old_marked_vars;
+        }
+    };
+}
+
 void dz::cmake::Project::target_include_directories(size_t cmd_arguments_size, const Command &cmd)
 {
     if (cmd_arguments_size < 2)
@@ -399,91 +484,6 @@ void dz::cmake::Project::set(size_t cmd_arguments_size, const Command &cmd)
         auto &var_val = cmd.arguments[i];
         var += dequote(var_val);
     }
-}
-
-template<typename F>
-std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function(
-    const std::shared_ptr<dz::cmake::ParseContext>& context_sh_ptr,
-    const std::string& prefix,
-    const dz::cmake::ValueVector& options,
-    const dz::cmake::ValueVector& one_value_keywords,
-    const dz::cmake::ValueVector& multi_value_keywords,
-    F run_with_abstract_set,
-    size_t parse_argv = 0
-)
-{
-    static auto in_vec = [](const auto vec, const auto& str) -> bool {
-        auto vec_begin = vec.begin();
-        auto vec_end = vec.end();
-        return std::find(vec_begin, vec_end, str) != vec_end;
-    };
-    static auto in_map = [](const auto& map, const auto& str) -> bool {
-        return map.find(str) != map.end();
-    };
-    static auto insert_to_map_from_vec_with_prefix_prepended = [](auto& map_to, const auto& vec_from, const std::string& prefix) {
-        for (auto& var_str : vec_from) {
-            map_to[prefix + "_" + var_str];
-        }
-    };
-    static auto insert_to_map_from_map = [](auto& map_to, const auto& map_from) {
-        map_to.insert(map_from.begin(), map_from.end());
-    };
-    return [=](auto cmd_arguments_size, const auto& cmd){
-        dz::cmake::VariableMap all_keys_and_vals;
-
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, multi_value_keywords, prefix);
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, one_value_keywords, prefix);
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, options, prefix);
-
-        std::string parsing_key;
-        std::string* parsing_val = nullptr;
-        dz::cmake::ValueVector new_arguments;
-
-        for (size_t i = 0; i < cmd_arguments_size; i++)
-        {
-            auto& current_arg = cmd.arguments[i];
-            if (in_map(all_keys_and_vals, prefix + "_" + current_arg)) {
-                parsing_key = current_arg;
-                parsing_val = &all_keys_and_vals[prefix + "_" + parsing_key];
-                if (in_vec(options, parsing_key))
-                {
-                    (*parsing_val) = "ON";
-                }
-            }
-            else if (parsing_key.empty()) {
-                if ((parse_argv != 0 && new_arguments.size() < parse_argv) || !parse_argv) {
-                    new_arguments.push_back(current_arg);
-                }
-            }
-            else if (in_vec(one_value_keywords, parsing_key))
-            {
-                if (parsing_val->empty()) {
-                    (*parsing_val) = current_arg;
-                    parsing_key.clear();
-                }
-                else {
-                    throw std::runtime_error("[cmake] " + parsing_key + "expects one value)");
-                }
-            }
-            else if (in_vec(multi_value_keywords, parsing_key))
-            {
-                (*parsing_val) += ((parsing_val->empty() ? "" : ";") + current_arg);
-            }
-        }
-        {
-            dz::cmake::Command new_cmd = cmd;
-            new_cmd.arguments = new_arguments;
-            auto& context = *context_sh_ptr;
-            auto old_marked_vars = context.marked_vars;
-            auto old_context_vars = context.vars;
-            insert_to_map_from_map(context.vars, all_keys_and_vals);
-            run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
-            auto new_context_vars = context.vars;
-            context.vars = old_context_vars;
-            context.restore_marked_vars(new_context_vars);
-            context.marked_vars = old_marked_vars;
-        }
-    };
 }
 
 void dz::cmake::Project::find_path(size_t cmd_arguments_size, const Command &cmd)
