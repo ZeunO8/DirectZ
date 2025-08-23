@@ -75,4 +75,24 @@ else()
     )
 endif()
 
+if(APPLE AND DEFINED Vulkan_Target_SDK)
+    message(STATUS "is \"APPLE AND DEFINED Vulkan_Target_SDK\"")
+    list(APPEND _Vulkan_hint_include_search_paths
+            "${Vulkan_Target_SDK}/macOS/include"
+    )
+    if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
+        list(APPEND _Vulkan_hint_library_search_paths
+                "${Vulkan_Target_SDK}/iOS/lib"
+        )
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "tvOS")
+        list(APPEND _Vulkan_hint_library_search_paths
+                "${Vulkan_Target_SDK}/tvOS/lib"
+        )
+    else()
+        list(APPEND _Vulkan_hint_library_search_paths
+                "${Vulkan_Target_SDK}/lib"
+        )
+    endif()
+endif()
+
 cmake_policy(POP)

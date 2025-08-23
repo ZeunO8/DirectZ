@@ -218,6 +218,7 @@ namespace dz::cmake
         BranchEvaluableVector elseBranch;
 
         BranchEvaluableVector* current_branch;
+        ConditionalBlock* parent_block = nullptr;
 
         void Evaluate(Project &project) override;
         void Varize(Project &project) override;

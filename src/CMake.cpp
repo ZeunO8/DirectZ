@@ -2,6 +2,7 @@
 #include <dz/Util.hpp>
 #include <queue>
 #include <unordered_set>
+#include <cassert>
 
 void dz::cmake::Command::Evaluate(Project& project)
 {
@@ -988,6 +989,7 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
         else if (name == "if" || name == "elseif")
         {
             auto is_if = (name == "if");
+            auto is_elseif = (name == "elseif");
             if (is_if)
                 if_depth++;
             auto condition = parseCondition(args);
@@ -996,12 +998,19 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
                 currentBlock = new ConditionalBlock();
                 condDeque.push_front(currentBlock);
             }
-            else if (if_depth > 1)
+            else if (if_depth > 1 && is_if)
             {
-                auto innerBlock = std::make_shared<ConditionalBlock>();
+                auto innerBlock = new ConditionalBlock();
+                auto innerBlock_sh_ptr = std::shared_ptr<ConditionalBlock>(innerBlock, [](auto p){});
                 innerBlock->branches.push_back({condition, {}});
-                currentBlock->current_branch->push_back(innerBlock);
-                currentBlock = innerBlock.get();
+                currentBlock->current_branch->push_back(innerBlock_sh_ptr);
+                innerBlock->parent_block = currentBlock;
+                currentBlock = innerBlock;
+                currentBlock->current_branch = &currentBlock->branches.back().second;
+            }
+            else if (is_elseif)
+            {
+                currentBlock->branches.push_back({condition, {}});
                 currentBlock->current_branch = &currentBlock->branches.back().second;
             }
             if (if_depth == 1)
@@ -1027,11 +1036,22 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
                 current_else_depth_stack.pop();
             if (if_depth == 1)
             {
-                ConditionalBlock *finished = condDeque.back();
+                auto finished = condDeque.back();
                 condDeque.pop_back();
                 finished->Evaluate(project);
                 delete finished;
-                currentBlock = condDeque.empty() ? nullptr : condDeque.back();
+                while (!condDeque.empty())
+                {
+                    auto next = condDeque.back();
+                    condDeque.pop_back();
+                    delete next;
+                }
+                currentBlock = nullptr;
+            }
+            else
+            {
+                assert(!condDeque.empty());
+                currentBlock = condDeque.back();
             }
             if_depth--;
         }
@@ -1178,28 +1198,38 @@ void dz::cmake::CommandParser::tokenize(const std::string &s, std::vector<std::s
     std::string current;
     int parenDepth = 0;
     bool inQuotes = false;
+    bool wasEscape = false;
     for (size_t i = 0; i < s.size(); ++i)
     {
         char c = s[i];
 
-        if (c == '"')
+        if (c == '\\')
         {
-            if (inQuotes)
+            if (!wasEscape)
+                wasEscape = true;
+            else
+                wasEscape = false;
+        }
+        else if (c == '"')
+        {
+            if (inQuotes && !wasEscape)
             {
                 current.push_back(c);
-                out.push_back(current);
+                out.push_back('"' + current + '"');
                 current.clear();
                 inQuotes = false;
             }
             else
             {
-                if (!current.empty())
+                if (!wasEscape && !current.empty())
                 {
                     out.push_back(current);
                     current.clear();
                 }
                 current.push_back(c);
                 inQuotes = true;
+                if (wasEscape)
+                    wasEscape = false;
             }
         }
         else if (!inQuotes && isspace(c) && parenDepth == 0)
@@ -1220,7 +1250,7 @@ void dz::cmake::CommandParser::tokenize(const std::string &s, std::vector<std::s
         }
     }
     if (!current.empty())
-        out.push_back(current);
+        out.push_back('"' + current + '"');
 }
 
 void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_context)
@@ -1228,6 +1258,7 @@ void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_
     str = dequote(str);
     size_t off = 0;
     replace(str, "\\n", "\n");
+    replace(str, "\\\"", "\"");
     auto& vars = parse_context.vars;
     while (true)
     {
