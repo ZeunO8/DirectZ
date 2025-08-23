@@ -4,7 +4,7 @@
 #include <unordered_set>
 #include <cassert>
 
-void dz::cmake::Command::Evaluate(Project& project)
+void dz::cmake::Command::Evaluate(Project &project)
 {
     auto it_macro = project.macros.find(name);
     if (it_macro != project.macros.end())
@@ -29,14 +29,14 @@ void dz::cmake::Command::Evaluate(Project& project)
     cmd_it->second(cmd_arguments_size, *this);
 }
 
-void dz::cmake::Command::Varize(Project& project)
+void dz::cmake::Command::Varize(Project &project)
 {
     CommandParser::varize(*this, *project.context_sh_ptr);
 }
 
 void dz::cmake::Macro::execute(Project &project, const Command &cmd) const
 {
-    auto& context = *project.context_sh_ptr;
+    auto &context = *project.context_sh_ptr;
     auto vars_copy = context.vars;
     auto local_vars = vars_copy;
     auto env_copy = context.env;
@@ -75,19 +75,18 @@ dz::cmake::CMakeVariableMap dz::cmake::ParseContext::generate_default_system_var
         {"CMAKE_CURRENT_LIST_DIR", std::filesystem::absolute(".").string()},
         {"CMAKE_SYSTEM_NAME",
 #if defined(_WIN32)
-            "Windows"
+         "Windows"
 #elif defined(__linux__) && !defined(_ANDROID_)
-            "Linux"
+         "Linux"
 #elif defined(MACOS)
-            "Darwin"
+         "Darwin"
 #elif defined(IOS)
-            "iOS"
+         "iOS"
 #elif defined(ANDROID)
-            "Android"
+         "Android"
 #endif
         },
-        {"CMAKE_SIZEOF_VOID_P", std::to_string(sizeof(void*))}
-    };
+        {"CMAKE_SIZEOF_VOID_P", std::to_string(sizeof(void *))}};
 }
 
 dz::cmake::CMakeVariableMap dz::cmake::ParseContext::get_env_map()
@@ -95,10 +94,10 @@ dz::cmake::CMakeVariableMap dz::cmake::ParseContext::get_env_map()
     return get_all_env_vars();
 }
 
-dz::cmake::ParseContext::ParseContext():
-    vars(generate_default_system_vars_map()),
-    env(get_env_map())
-{}
+dz::cmake::ParseContext::ParseContext() : vars(generate_default_system_vars_map()),
+                                          env(get_env_map())
+{
+}
 
 dz::cmake::Project::Project(const std::shared_ptr<ParseContext> &context_sh_ptr) : dsl_map(generate_dsl_map()),
                                                                                    context_sh_ptr(context_sh_ptr)
@@ -213,14 +212,16 @@ void dz::cmake::Project::message(size_t cmd_arguments_size, const Command &cmd)
         std::cout << args_concat << std::endl;
         break;
     case CMakeMessageType::WARNING:
-        std::cout << "[cmake] CMake Warning:\n" << args_concat << std::endl;
+        std::cout << "[cmake] CMake Warning:\n"
+                  << args_concat << std::endl;
         fflush(stdout);
         break;
     case CMakeMessageType::FATAL_ERROR:
         throw std::runtime_error(R"([cmake] CMake Error:
 )" + args_concat);
     case CMakeMessageType::AUTHOR_WARNING:
-        std::cout << "[cmake] CMake Warning (dev)\n" << args_concat << "\n[cmake] This warning is for project developers.  Use -Wno-dev to suppress it." << std::endl;
+        std::cout << "[cmake] CMake Warning (dev)\n"
+                  << args_concat << "\n[cmake] This warning is for project developers.  Use -Wno-dev to suppress it." << std::endl;
         fflush(stdout);
         break;
     }
@@ -238,7 +239,7 @@ void dz::cmake::Project::get_filename_component(size_t cmd_arguments_size, const
     // Expand variables inside inputPath first
     // cmake::CommandParser::varize_str(inputPath, *context_sh_ptr);
 
-    auto& vars = context_sh_ptr->vars;
+    auto &vars = context_sh_ptr->vars;
 
     std::filesystem::path p(inputPath);
 
@@ -291,7 +292,7 @@ void dz::cmake::Project::list(size_t cmd_arguments_size, const Command &cmd)
     auto &var_name = arguments_data[1];
     if (var_name.empty())
         return;
-    auto& vars = context_sh_ptr->vars;
+    auto &vars = context_sh_ptr->vars;
     auto &var = vars[var_name];
     for (size_t i = 2; i < cmd_arguments_size; i++)
     {
@@ -370,8 +371,8 @@ void dz::cmake::Project::set(size_t cmd_arguments_size, const Command &cmd)
     auto &var_name = cmd.arguments[0];
     if (var_name.empty())
         return;
-    auto& vars = context_sh_ptr->vars;
-    auto& var = vars[var_name];
+    auto &vars = context_sh_ptr->vars;
+    auto &var = vars[var_name];
     for (size_t i = 1; i < cmd_arguments_size; i++)
     {
         if (!var.empty())
@@ -526,7 +527,7 @@ dz::cmake::Project::DSL_Map dz::cmake::Project::generate_dsl_map()
 std::vector<std::string> dz::cmake::Project::determine_find_package_dirs(const std::string &pkg)
 {
     auto x_dir = pkg + "_DIR";
-    auto& vars = context_sh_ptr->vars;
+    auto &vars = context_sh_ptr->vars;
     auto it = vars.find(x_dir);
     if (it != vars.end())
     {
@@ -658,7 +659,7 @@ _continue:
         config_content.resize(len);
         i.read(config_content.data(), len);
     }
-    auto& vars = context_sh_ptr->vars;
+    auto &vars = context_sh_ptr->vars;
     auto &current_list_dir = vars["CMAKE_CURRENT_LIST_DIR"];
     auto old_list_dir = current_list_dir;
     current_list_dir = f_dir;
@@ -671,9 +672,9 @@ bool dz::cmake::ConditionNode::BoolVar(const std::string &var) const
     return var != "false" && var != "FALSE" && var != "off" && var != "OFF";
 }
 
-bool dz::cmake::ConditionNode::Evaluate(Project& project) const
+bool dz::cmake::ConditionNode::Evaluate(Project &project) const
 {
-    auto& vars = project.context_sh_ptr->vars;
+    auto &vars = project.context_sh_ptr->vars;
     switch (op)
     {
     case ConditionOp::Group:
@@ -779,9 +780,10 @@ bool dz::cmake::ConditionNode::Evaluate(Project& project) const
             {
                 size_t idx = 0;
 
-                char* p;
+                char *p;
                 long converted = strtol(var_value.c_str(), &p, 10);
-                if (!(*p)) {
+                if (!(*p))
+                {
                     return true;
                 }
             }
@@ -799,7 +801,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project& project) const
 
             return false;
         };
-        auto is_var = [&](const auto& var_value)
+        auto is_var = [&](const auto &var_value)
         {
             auto start_pos = var_value.find("${");
             auto end_pos = var_value.find("}");
@@ -977,13 +979,14 @@ bool dz::cmake::ConditionNode::Evaluate(Project& project) const
 void dz::cmake::ConditionalBlock::Evaluate(Project &project)
 {
     bool executed = false;
-    auto& context = *project.context_sh_ptr;
+    auto &context = *project.context_sh_ptr;
     for (auto &b : branches)
     {
         if (b.first->Evaluate(project))
         {
-            for (auto &evaluable_sh_ptr : b.second) {
-                auto& evaluable = *evaluable_sh_ptr;
+            for (auto &evaluable_sh_ptr : b.second)
+            {
+                auto &evaluable = *evaluable_sh_ptr;
                 evaluable.Varize(project);
                 evaluable.Evaluate(project);
             }
@@ -993,16 +996,18 @@ void dz::cmake::ConditionalBlock::Evaluate(Project &project)
     }
     if (!executed)
     {
-        for (auto &evaluable_sh_ptr : elseBranch) {
-            auto& evaluable = *evaluable_sh_ptr;
+        for (auto &evaluable_sh_ptr : elseBranch)
+        {
+            auto &evaluable = *evaluable_sh_ptr;
             evaluable.Varize(project);
             evaluable.Evaluate(project);
         }
     }
 }
 
-void dz::cmake::ConditionalBlock::Varize(Project& project)
-{}
+void dz::cmake::ConditionalBlock::Varize(Project &project)
+{
+}
 
 std::shared_ptr<dz::cmake::Project> dz::cmake::CommandParser::parseFile(const std::string &path)
 {
@@ -1025,7 +1030,7 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
     std::vector<std::string> macroParams;
     std::vector<Command> macroBody;
 
-    auto& context = *project.context_sh_ptr;
+    auto &context = *project.context_sh_ptr;
 
     while (pos < content.size())
     {
@@ -1083,7 +1088,7 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
             else if (if_depth > 1 && is_if)
             {
                 auto innerBlock = new ConditionalBlock();
-                auto innerBlock_sh_ptr = std::shared_ptr<ConditionalBlock>(innerBlock, [](auto p){});
+                auto innerBlock_sh_ptr = std::shared_ptr<ConditionalBlock>(innerBlock, [](auto p) {});
                 innerBlock->branches.push_back({condition, {}});
                 currentBlock->current_branch->push_back(innerBlock_sh_ptr);
                 innerBlock->parent_block = currentBlock;
@@ -1140,7 +1145,7 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
         else
         {
             auto cmd_sh_ptr = std::make_shared<Command>();
-            auto& cmd = *cmd_sh_ptr;
+            auto &cmd = *cmd_sh_ptr;
             cmd.name = name;
             tokenize(args, cmd.arguments);
             if (insideMacro)
@@ -1171,8 +1176,7 @@ std::shared_ptr<dz::cmake::Project> dz::cmake::CommandParser::parseContent(const
 
 std::shared_ptr<dz::cmake::Project> dz::cmake::CommandParser::parseContent(
     const std::string &content,
-    const std::shared_ptr<dz::cmake::ParseContext> &context_sh_ptr
-)
+    const std::shared_ptr<dz::cmake::ParseContext> &context_sh_ptr)
 {
     auto project_sh_ptr = std::make_shared<Project>(context_sh_ptr);
     context_sh_ptr->root_project = project_sh_ptr;
@@ -1341,7 +1345,7 @@ void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_
     size_t off = 0;
     replace(str, "\\n", "\n");
     replace(str, "\\\"", "\"");
-    auto& vars = parse_context.vars;
+    auto &vars = parse_context.vars;
     while (true)
     {
         static std::string start_var = "${";
@@ -1386,7 +1390,7 @@ void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_
 void dz::cmake::CommandParser::envize_str(std::string &str, ParseContext &parse_context)
 {
     size_t off = 0;
-    auto& env = parse_context.env;
+    auto &env = parse_context.env;
     while (true)
     {
         static std::string start_var = "$ENV{";
