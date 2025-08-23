@@ -34,4 +34,45 @@ if(NOT glslangValidator IN_LIST Vulkan_FIND_COMPONENTS)
     message(STATUS "Appended glslangValidator to Vulkan_FIND_COMPONENTS")
 endif()
 
+if(WIN32)
+    set(_Vulkan_library_name vulkan-1)
+    set(_Vulkan_hint_include_search_paths
+            "$ENV{VULKAN_SDK}/include"
+    )
+    message(STATUS "About to check CMAKE_SIZEOF_VOID_P: ${CMAKE_SIZEOF_VOID_P}")
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        message(STATUS "CMAKE_SIZEOF_VOID_P: ${CMAKE_SIZEOF_VOID_P}")
+        set(_Vulkan_hint_executable_search_paths
+                "$ENV{VULKAN_SDK}/bin"
+        )
+        set(_Vulkan_hint_library_search_paths
+                "$ENV{VULKAN_SDK}/lib"
+                "$ENV{VULKAN_SDK}/bin"
+        )
+        message(STATUS "_Vulkan_hint_library_search_paths: ${_Vulkan_hint_library_search_paths}")
+    else()
+        set(_Vulkan_hint_executable_search_paths
+                "$ENV{VULKAN_SDK}/bin32"
+                "$ENV{VULKAN_SDK}/bin"
+        )
+        set(_Vulkan_hint_library_search_paths
+                "$ENV{VULKAN_SDK}/lib32"
+                "$ENV{VULKAN_SDK}/bin32"
+                "$ENV{VULKAN_SDK}/lib"
+                "$ENV{VULKAN_SDK}/bin"
+        )
+    endif()
+else()
+    set(_Vulkan_library_name vulkan)
+    set(_Vulkan_hint_include_search_paths
+            "$ENV{VULKAN_SDK}/include"
+    )
+    set(_Vulkan_hint_executable_search_paths
+            "$ENV{VULKAN_SDK}/bin"
+    )
+    set(_Vulkan_hint_library_search_paths
+            "$ENV{VULKAN_SDK}/lib"
+    )
+endif()
+
 cmake_policy(POP)

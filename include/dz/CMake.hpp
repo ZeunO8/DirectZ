@@ -17,10 +17,19 @@ namespace dz::cmake
 {
     struct Project;
 
-    struct Command
+    struct Evaluable
+    {
+        virtual ~Evaluable() = default;
+        virtual void Evaluate(Project& project) = 0;
+        virtual void Varize(Project& project) = 0;
+    };
+
+    struct Command : Evaluable
     {
         std::string name;
         std::vector<std::string> arguments;
+        void Evaluate(Project& project) override;
+        void Varize(Project& project) override;
     };
 
     struct ICMakeEntity
@@ -131,11 +140,16 @@ namespace dz::cmake
 
     struct Project
     {
+        using DSL_Fn = std::function<void(size_t, const Command &)>;
+        using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
+
         std::string name;
         std::unordered_map<std::string, std::shared_ptr<Target>> targets;
         std::unordered_map<std::string, Macro> macros;
 
         std::shared_ptr<ParseContext> context_sh_ptr;
+
+        DSL_Map dsl_map;
 
         Project(const std::shared_ptr<ParseContext> &context_sh_ptr);
 
@@ -144,10 +158,6 @@ namespace dz::cmake
         void print();
 
     private:
-        using DSL_Fn = std::function<void(size_t, const Command &)>;
-        using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
-
-        DSL_Map dsl_map;
 
         DSL_Map generate_dsl_map();
 
@@ -184,6 +194,7 @@ namespace dz::cmake
         Literal,
         Group,
         Strequal,
+        Equal,
         IdentifierOrLiteral,
         InList,
         Defined
@@ -200,12 +211,16 @@ namespace dz::cmake
         bool Evaluate(Project& project) const;
     };
 
-    struct ConditionalBlock
+    struct ConditionalBlock : Evaluable
     {
-        std::vector<std::pair<std::shared_ptr<ConditionNode>, std::vector<Command>>> branches;
-        std::vector<Command> elseBranch;
+        using BranchEvaluableVector = std::vector<std::shared_ptr<Evaluable>>;
+        std::vector<std::pair<std::shared_ptr<ConditionNode>, BranchEvaluableVector>> branches;
+        BranchEvaluableVector elseBranch;
 
-        void EvaluateAndAdd(Project &project);
+        BranchEvaluableVector* current_branch;
+
+        void Evaluate(Project &project) override;
+        void Varize(Project &project) override;
     };
 
     struct CommandParser

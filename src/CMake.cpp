@@ -3,6 +3,36 @@
 #include <queue>
 #include <unordered_set>
 
+void dz::cmake::Command::Evaluate(Project& project)
+{
+    auto it_macro = project.macros.find(name);
+    if (it_macro != project.macros.end())
+    {
+        const Macro &m = it_macro->second;
+        m.execute(project, *this);
+        return;
+    }
+
+    auto cmd_arguments_size = arguments.size();
+
+    auto cmd_it = project.dsl_map.find(name);
+    if (cmd_it == project.dsl_map.end())
+    {
+        throw std::runtime_error(R"(
+[cmake] CMake Error:
+[cmake]   Unknown CMake command ")" +
+                                 name + R"(".
+)");
+    }
+
+    cmd_it->second(cmd_arguments_size, *this);
+}
+
+void dz::cmake::Command::Varize(Project& project)
+{
+    CommandParser::varize(*this, *project.context_sh_ptr);
+}
+
 void dz::cmake::Macro::execute(Project &project, const Command &cmd) const
 {
     auto& context = *project.context_sh_ptr;
@@ -21,7 +51,7 @@ void dz::cmake::Macro::execute(Project &project, const Command &cmd) const
         {
             CommandParser::varize_str(arg, context);
         }
-        project.addCommand(expanded);
+        expanded.Evaluate(project);
     }
     context.vars = vars_copy;
     context.env = env_copy;
@@ -54,7 +84,8 @@ dz::cmake::CMakeVariableMap dz::cmake::ParseContext::generate_default_system_var
 #elif defined(ANDROID)
             "Android"
 #endif
-        }
+        },
+        {"CMAKE_SIZEOF_VOID_P", std::to_string(sizeof(void*))}
     };
 }
 
@@ -338,34 +369,15 @@ void dz::cmake::Project::set(size_t cmd_arguments_size, const Command &cmd)
     auto &var_name = cmd.arguments[0];
     if (var_name.empty())
         return;
-    auto &var_val = cmd.arguments[1];
     auto& vars = context_sh_ptr->vars;
-    vars[var_name] = dequote(var_val);
-}
-
-void dz::cmake::Project::addCommand(const Command &cmd)
-{
-    auto it_macro = macros.find(cmd.name);
-    if (it_macro != macros.end())
+    auto& var = vars[var_name];
+    for (size_t i = 1; i < cmd_arguments_size; i++)
     {
-        const Macro &m = it_macro->second;
-        m.execute(*this, cmd);
-        return;
+        if (!var.empty())
+            var += ";";
+        auto &var_val = cmd.arguments[i];
+        var += dequote(var_val);
     }
-
-    auto cmd_arguments_size = cmd.arguments.size();
-
-    auto cmd_it = dsl_map.find(cmd.name);
-    if (cmd_it == dsl_map.end())
-    {
-        throw std::runtime_error(R"(
-[cmake] CMake Error:
-[cmake]   Unknown CMake command ")" +
-                                 cmd.name + R"(".
-)");
-    }
-
-    cmd_it->second(cmd_arguments_size, cmd);
 }
 
 void dz::cmake::Project::print()
@@ -747,7 +759,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project& project) const
             if (i >= children.size())
                 break;
             bool term = false;
-            if (i + 1 < children.size() && children[i + 1]->op == ConditionOp::Strequal)
+            if (i + 1 < children.size() && (children[i + 1]->op == ConditionOp::Strequal || children[i + 1]->op == ConditionOp::Equal))
             {
                 std::string lhs = toString(*children[i]);
                 i += 2;
@@ -879,7 +891,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project& project) const
     }
 }
 
-void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &project)
+void dz::cmake::ConditionalBlock::Evaluate(Project &project)
 {
     bool executed = false;
     auto& context = *project.context_sh_ptr;
@@ -887,9 +899,10 @@ void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &project)
     {
         if (b.first->Evaluate(project))
         {
-            for (auto &cmd : b.second) {
-                CommandParser::varize(cmd, context);
-                project.addCommand(cmd);
+            for (auto &evaluable_sh_ptr : b.second) {
+                auto& evaluable = *evaluable_sh_ptr;
+                evaluable.Varize(project);
+                evaluable.Evaluate(project);
             }
             executed = true;
             break;
@@ -897,12 +910,16 @@ void dz::cmake::ConditionalBlock::EvaluateAndAdd(Project &project)
     }
     if (!executed)
     {
-        for (auto &cmd : elseBranch) {
-            CommandParser::varize(cmd, context);
-            project.addCommand(cmd);
+        for (auto &evaluable_sh_ptr : elseBranch) {
+            auto& evaluable = *evaluable_sh_ptr;
+            evaluable.Varize(project);
+            evaluable.Evaluate(project);
         }
     }
 }
+
+void dz::cmake::ConditionalBlock::Varize(Project& project)
+{}
 
 std::shared_ptr<dz::cmake::Project> dz::cmake::CommandParser::parseFile(const std::string &path)
 {
@@ -916,10 +933,11 @@ std::shared_ptr<dz::cmake::Project> dz::cmake::CommandParser::parseFile(const st
 void dz::cmake::CommandParser::parseContentWithProject(Project &project, const std::string &content)
 {
     size_t pos = 0;
-    std::stack<ConditionalBlock *> condStack;
+    std::deque<ConditionalBlock *> condDeque;
     ConditionalBlock *currentBlock = nullptr;
     bool insideMacro = false;
-    bool insideElse = false;
+    int if_depth = 0;
+    std::stack<int> current_else_depth_stack;
     std::string macroName;
     std::vector<std::string> macroParams;
     std::vector<Command> macroBody;
@@ -969,40 +987,58 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
         }
         else if (name == "if" || name == "elseif")
         {
+            auto is_if = (name == "if");
+            if (is_if)
+                if_depth++;
             auto condition = parseCondition(args);
             if (!currentBlock)
             {
                 currentBlock = new ConditionalBlock();
-                condStack.push(currentBlock);
+                condDeque.push_front(currentBlock);
             }
-            currentBlock->branches.push_back({condition, {}});
+            else if (if_depth > 1)
+            {
+                auto innerBlock = std::make_shared<ConditionalBlock>();
+                innerBlock->branches.push_back({condition, {}});
+                currentBlock->current_branch->push_back(innerBlock);
+                currentBlock = innerBlock.get();
+                currentBlock->current_branch = &currentBlock->branches.back().second;
+            }
+            if (if_depth == 1)
+            {
+                currentBlock->branches.push_back({condition, {}});
+                currentBlock->current_branch = &currentBlock->branches.back().second;
+            }
         }
         else if (name == "else")
         {
             if (!currentBlock)
             {
                 currentBlock = new ConditionalBlock();
-                condStack.push(currentBlock);
+                condDeque.push_front(currentBlock);
             }
             currentBlock->elseBranch.clear();
-            insideElse = true;
+            currentBlock->current_branch = &currentBlock->elseBranch;
+            current_else_depth_stack.push(if_depth);
         }
         else if (name == "endif")
         {
-            if (insideElse)
-                insideElse = false;
-            if (!condStack.empty())
+            if (!current_else_depth_stack.empty() && current_else_depth_stack.top() == if_depth)
+                current_else_depth_stack.pop();
+            if (if_depth == 1)
             {
-                ConditionalBlock *finished = condStack.top();
-                condStack.pop();
-                finished->EvaluateAndAdd(project);
+                ConditionalBlock *finished = condDeque.back();
+                condDeque.pop_back();
+                finished->Evaluate(project);
                 delete finished;
-                currentBlock = condStack.empty() ? nullptr : condStack.top();
+                currentBlock = condDeque.empty() ? nullptr : condDeque.back();
             }
+            if_depth--;
         }
         else
         {
-            Command cmd;
+            auto cmd_sh_ptr = std::make_shared<Command>();
+            auto& cmd = *cmd_sh_ptr;
             cmd.name = name;
             tokenize(args, cmd.arguments);
             if (insideMacro)
@@ -1011,15 +1047,15 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
             }
             else if (currentBlock && !currentBlock->branches.empty())
             {
-                if (insideElse)
-                    currentBlock->elseBranch.push_back(cmd);
+                if (!current_else_depth_stack.empty() && current_else_depth_stack.top() == if_depth)
+                    currentBlock->elseBranch.push_back(cmd_sh_ptr);
                 else
-                    currentBlock->branches.back().second.push_back(cmd);
+                    currentBlock->branches.back().second.push_back(cmd_sh_ptr);
             }
             else
             {
                 varize(cmd, context);
-                project.addCommand(cmd);
+                cmd.Evaluate(project);
             }
         }
     }
@@ -1049,6 +1085,7 @@ std::shared_ptr<dz::cmake::ConditionNode> dz::cmake::CommandParser::parseConditi
         {"NOT", ConditionOp::Not},
         {"OR", ConditionOp::Or},
         {"STREQUAL", ConditionOp::Strequal},
+        {"EQUAL", ConditionOp::Equal},
         {"IN_LIST", ConditionOp::InList},
         {"DEFINED", ConditionOp::Defined},
     };
@@ -1066,7 +1103,8 @@ std::shared_ptr<dz::cmake::ConditionNode> dz::cmake::CommandParser::parseConditi
         auto cond_it = condition_op_map.find(arg);
         if (cond_it != condition_op_map.end())
         {
-            cond_node->op = cond_it->second;
+            auto op = cond_it->second;
+            cond_node->op = op;
             cond_node->value = arg;
         }
         else
