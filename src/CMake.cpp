@@ -560,18 +560,19 @@ void dz::cmake::Project::mark_as_advanced(size_t cmd_arguments_size, const Comma
     };
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
-    auto find_package_impl = [&](auto cmd_arguments_size, const Command& cmd)
+    auto mark_as_advanced_impl = [&](auto cmd_arguments_size, const Command& cmd)
     {
-        if (cmd_arguments_size < 1)
-            return;
-        auto& var_name = cmd.arguments[0];
         auto& clear = context.vars["___MARK_AS_ADVANCED_CLEAR"];
         auto mark_bool = clear != "ON";
         auto& force = context.vars["___MARK_AS_ADVANCED_FORCE"];
         auto force_bool = force == "ON";
-        context.mark_var(var_name, mark_bool || force_bool);
+        for (size_t i = 0; i < cmd_arguments_size; i++)
+        {
+            auto& var_name = cmd.arguments[i];
+            context.mark_var(var_name, mark_bool || force_bool);
+        }
     };
-    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_package_impl);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, mark_as_advanced_impl);
     context_function(cmd_arguments_size, cmd);
     return;
 }
