@@ -14,6 +14,7 @@ if(DEFINED CMAKE_FIND_FRAMEWORK)
     set(CMAKE_FIND_FRAMEWORK FIRST)
 endif()
 
+message(STATUS "About to check IOS")
 if(IOS)
     message(STATUS "An iOS host")
     get_filename_component(Vulkan_Target_SDK "$ENV{VULKAN_SDK}/.." REALPATH)

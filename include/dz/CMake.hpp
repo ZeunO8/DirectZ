@@ -17,6 +17,9 @@ namespace dz::cmake
 {
     struct Project;
 
+    using VariableMap = std::unordered_map<std::string, std::string>;
+    using ValueVector = std::vector<std::string>;
+
     struct Evaluable
     {
         virtual ~Evaluable() = default;
@@ -27,7 +30,7 @@ namespace dz::cmake
     struct Command : Evaluable
     {
         std::string name;
-        std::vector<std::string> arguments;
+        ValueVector arguments;
         void Evaluate(Project& project) override;
         void Varize(Project& project) override;
     };
@@ -37,7 +40,7 @@ namespace dz::cmake
         virtual ~ICMakeEntity() = default;
         virtual std::string getName() const = 0;
         virtual void addArgument(const std::string &arg) = 0;
-        virtual const std::vector<std::string> &getArguments() const = 0;
+        virtual const ValueVector &getArguments() const = 0;
     };
 
     enum class CMakeMessageType
@@ -65,7 +68,7 @@ namespace dz::cmake
         Target(Type t, const std::string &n) : targetType(t), name(n) {}
         std::string getName() const override { return name; }
         void addArgument(const std::string &arg) override { sources.push_back(arg); }
-        const std::vector<std::string> &getArguments() const override { return sources; }
+        const ValueVector &getArguments() const override { return sources; }
         void addIncludeDir(const std::string &dir) { includeDirs.push_back(dir); }
         void addLinkLib(const std::string &lib) { linkLibs.push_back(lib); }
         void setShared() { linkType = LinkType::Shared; }
@@ -100,15 +103,15 @@ namespace dz::cmake
         Type targetType;
         LinkType linkType;
         std::string name;
-        std::vector<std::string> sources;
-        std::vector<std::string> includeDirs;
-        std::vector<std::string> linkLibs;
+        ValueVector sources;
+        ValueVector includeDirs;
+        ValueVector linkLibs;
     };
 
     struct Macro
     {
         std::string name;
-        std::vector<std::string> params;
+        ValueVector params;
         std::vector<dz::cmake::Command> body;
 
         void execute(Project &project, const Command &cmd) const;
@@ -120,8 +123,6 @@ namespace dz::cmake
         std::string policy_value;
     };
 
-    using CMakeVariableMap = std::unordered_map<std::string, std::string>;
-
     struct ParseContext
     {
         std::shared_ptr<Project> root_project;
@@ -129,13 +130,19 @@ namespace dz::cmake
         std::deque<std::shared_ptr<Policy>> policy_stack;
         bool policy_push_just_called = false;
 
-        CMakeVariableMap vars;
-        CMakeVariableMap env;
+        VariableMap vars;
+        VariableMap env;
+        std::unordered_map<std::string, bool> marked_vars;
 
         ParseContext();
 
-        static CMakeVariableMap generate_default_system_vars_map();
-        static CMakeVariableMap get_env_map();
+        void restore_marked_vars(const VariableMap& old_vars);
+
+        void mark_var(const std::string& var);
+
+        static VariableMap generate_default_system_vars_map();
+
+        static VariableMap get_env_map();
     };
 
     struct Project
@@ -162,7 +169,7 @@ namespace dz::cmake
         DSL_Map generate_dsl_map();
 
     private:
-        std::vector<std::string> determine_find_package_dirs(const std::string &pkg);
+        ValueVector determine_find_package_dirs(const std::string &pkg);
 
         void add_lib_or_exe(size_t cmd_arguments_size, const Command &cmd);
 
@@ -219,8 +226,9 @@ namespace dz::cmake
         std::vector<std::pair<std::shared_ptr<ConditionNode>, BranchEvaluableVector>> branches;
         BranchEvaluableVector elseBranch;
 
-        BranchEvaluableVector* current_branch;
         ConditionalBlock* parent_block = nullptr;
+
+        bool owned_by_sh_ptr = false;
 
         void Evaluate(Project &project) override;
         void Varize(Project &project) override;
@@ -249,7 +257,7 @@ namespace dz::cmake
 
         static void trim(std::string &s);
 
-        static void tokenize(const std::string &s, std::vector<std::string> &out);
+        static void tokenize(const std::string &s, ValueVector &out);
 
         static size_t findMatchingParen(const std::string &s, size_t open);
     };
