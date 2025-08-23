@@ -381,6 +381,86 @@ void dz::cmake::Project::set(size_t cmd_arguments_size, const Command &cmd)
     }
 }
 
+void dz::cmake::Project::find_path(size_t cmd_arguments_size, const Command &cmd)
+{
+    if (cmd_arguments_size < 1)
+        return;
+    auto &var_name = cmd.arguments[0];
+    std::vector<std::string> names;
+    std::vector<std::string> hints;
+    int i = 0;
+    bool parsing_names = false, parsing_hints = false;
+    std::function<void()> parse_next;
+    auto parse_name = [&]()
+    {
+        i++;
+        if (i >= cmd_arguments_size)
+            return;
+        auto& current_arg = cmd.arguments[i];
+        if (current_arg == "NAMES") {
+            return;
+        }
+        else if (current_arg == "HINTS") {
+            return;
+        }
+        names.push_back(current_arg);
+    };
+    auto parse_hint = [&]()
+    {
+        i++;
+        if (i >= cmd_arguments_size)
+            return;
+        auto& current_arg = cmd.arguments[i];
+        if (current_arg == "NAMES") {
+            return;
+        }
+        else if (current_arg == "HINTS") {
+            return;
+        }
+        hints.push_back(current_arg);
+    };
+    parse_next = [&]()
+    {
+        i++;
+        if (i >= cmd_arguments_size)
+            return;
+        auto& current_arg = cmd.arguments[i];
+        if (current_arg == "NAMES") {
+            parsing_names = true;
+            parsing_hints = false;
+        }
+        else if (current_arg == "HINTS") {
+            parsing_hints = true;
+            parsing_names = false;
+        }
+        if (parsing_names)
+            parse_name();
+        else if (parsing_hints)
+            parse_hint();
+        parse_next();
+    };
+    auto& context = *context_sh_ptr;
+    auto do_find_path = [&]()
+    {
+        for (auto& hint_dir : hints)
+        {
+            auto hint_path = std::filesystem::path(hint_dir);
+            for (auto& name_path : names)
+            {
+                auto concat_path = (hint_path / name_path);
+                if (std::filesystem::exists(concat_path))
+                {
+                    context.vars[var_name] = hint_dir;
+                    return;
+                }
+            }
+        }
+        context.vars[var_name] = (var_name + "-NOTFOUND");
+    };
+    parse_next();
+    do_find_path();
+}
+
 void dz::cmake::Project::print()
 {
     std::cout << "Project Name: " << name << std::endl;
@@ -437,6 +517,8 @@ dz::cmake::Project::DSL_Map dz::cmake::Project::generate_dsl_map()
          std::bind(&Project::cmake_policy, this, std::placeholders::_1, std::placeholders::_2)},
         {"set",
          std::bind(&Project::set, this, std::placeholders::_1, std::placeholders::_2)},
+        {"find_path",
+         std::bind(&Project::find_path, this, std::placeholders::_1, std::placeholders::_2)},
     };
     return map;
 }

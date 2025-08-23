@@ -183,6 +183,8 @@ namespace dz::cmake
         void cmake_policy(size_t cmd_arguments_size, const Command &cmd);
 
         void set(size_t cmd_arguments_size, const Command &cmd);
+
+        void find_path(size_t cmd_arguments_size, const Command &cmd);
     };
 
     enum class ConditionOp

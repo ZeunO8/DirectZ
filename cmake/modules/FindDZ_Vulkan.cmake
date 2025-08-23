@@ -93,4 +93,10 @@ if(APPLE AND DEFINED Vulkan_Target_SDK)
     endif()
 endif()
 
+find_path(Vulkan_INCLUDE_DIR
+        NAMES vulkan/vulkan.h
+        HINTS
+        ${_Vulkan_hint_include_search_paths}
+)
+
 cmake_policy(POP)
