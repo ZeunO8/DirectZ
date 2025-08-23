@@ -22,6 +22,8 @@ if(IOS)
     set (CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH)
     set (CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
     set (CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+else()
+    message(STATUS "Not an iOS host")
 endif()
 
 if(NOT glslc IN_LIST Vulkan_FIND_COMPONENTS)
