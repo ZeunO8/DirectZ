@@ -370,51 +370,68 @@ void dz::cmake::Project::message(size_t cmd_arguments_size, const Command &cmd)
 
 void dz::cmake::Project::get_filename_component(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 3)
-        return;
-
-    const std::string &varName = cmd.arguments[0];
-    std::string inputPath = cmd.arguments[1];
-    const std::string &mode = cmd.arguments[2];
-
-    // Expand variables inside inputPath first
-    // cmake::CommandParser::varize_str(inputPath, *context_sh_ptr);
-
-    auto &vars = context_sh_ptr->vars;
-
-    std::filesystem::path p(inputPath);
-
-    if (mode == "ABSOLUTE")
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___GET_FILE_NAME_COMPONENT";
+    static ValueVector options = {
+        "ABSOLUTE",
+        "REALPATH",
+        "PATH",
+        "NAME"
+    };
+    static ValueVector one_value_keywords = {
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto get_filename_component_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
     {
-        p = std::filesystem::absolute(p).lexically_normal();
-        vars[varName] = p.string();
-    }
-    else if (mode == "REALPATH")
-    {
-        try
-        {
-            p = std::filesystem::weakly_canonical(p);
-        }
-        catch (const std::exception &)
-        {
-            // If even weakly_canonical somehow fails, fallback to absolute normalized
-            p = std::filesystem::absolute(p).lexically_normal();
-        }
-        vars[varName] = p.string();
-    }
-    else if (mode == "PATH")
-    {
-        vars[varName] = p.parent_path().string();
-    }
-    else if (mode == "NAME")
-    {
-        vars[varName] = p.filename().string();
-    }
-    else
-    {
-        // fallback: just assign raw path
-        vars[varName] = p.string();
-    }
+        static std::unordered_map<std::string, std::function<void(size_t, const Command &, ParseContext&, const std::string&, const std::filesystem::path&)>> gfc_actions = {
+            { "", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
+                context.vars[varName] = p.string();
+                return;
+            } },
+            { "ABSOLUTE", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
+                context.vars[varName] = std::filesystem::absolute(p).lexically_normal().string();
+                return;
+            } },
+            { "REALPATH", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
+                try
+                {
+                    context.vars[varName] = std::filesystem::weakly_canonical(p).string();
+                }
+                catch (const std::exception &)
+                {
+                    // If even weakly_canonical somehow fails, fallback to absolute normalized
+                    context.vars[varName] = std::filesystem::absolute(p).lexically_normal().string();
+                }
+                return;
+            } },
+            { "PATH", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
+                context.vars[varName] = p.parent_path().string();
+                return;
+            } },
+            { "NAME", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
+                context.vars[varName] = p.filename().string();
+                return;
+            } },
+        };
+
+        if (cmd_arguments_size < 2)
+            return;
+
+        const std::string &varName = cmd.arguments[0];
+        std::string inputPath = cmd.arguments[1];
+
+        std::string mode;
+        if (!options_set.empty())
+            mode = options_set.front();
+
+        auto p = std::filesystem::path(inputPath);
+
+        gfc_actions[mode](cmd_arguments_size, cmd, context, varName, p);
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, get_filename_component_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::project(size_t cmd_arguments_size, const Command &cmd)
