@@ -155,6 +155,11 @@ namespace dz::cmake
         using DSL_Map_With_Context = std::unordered_map<std::string, DSL_Fn_With_Context>;
 
         std::string name;
+        std::string version;
+        std::string compat_version;
+        std::string description;
+        std::string homepage_url;
+        std::vector<std::string> languages;
         std::unordered_map<std::string, std::shared_ptr<Target>> targets;
         std::unordered_map<std::string, Macro> macros;
 

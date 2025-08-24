@@ -436,9 +436,39 @@ void dz::cmake::Project::get_filename_component(size_t cmd_arguments_size, const
 
 void dz::cmake::Project::project(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 1)
-        return;
-    name = cmd.arguments[0];
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___PROJECT";
+    static ValueVector options = {
+    };
+    static ValueVector one_value_keywords = {
+        "VERSION",
+        "COMPAT_VERSION",
+        "DESCRIPTION",
+        "HOMEPAGE_URL"
+    };
+    static ValueVector multi_value_keywords = {
+        "LANGUAGES"
+    };
+    auto project_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
+    {
+        if (cmd_arguments_size < 1)
+            return;
+        name = cmd.arguments[0];
+
+        if (in_vec(one_value_keywords_set, "VERSION"))
+            version = context.vars["___PROJECT_VERSION"];
+        if (in_vec(one_value_keywords_set, "COMPAT_VERSION"))
+            compat_version = context.vars["___PROJECT_COMPAT_VERSION"];
+        if (in_vec(one_value_keywords_set, "DESCRIPTION"))
+            description = context.vars["___PROJECT_DESCRIPTION"];
+        if (in_vec(one_value_keywords_set, "HOMEPAGE_URL"))
+            homepage_url = context.vars["___PROJECT_HOMEPAGE_URL"];
+        if (in_vec(multi_value_keywords_set, "LANGUAGES"))
+            languages = split_string(context.vars["___PROJECT_LANGUAGES"], ";");
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, project_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::list(size_t cmd_arguments_size, const Command &cmd)
