@@ -9,7 +9,7 @@ void dz::ecs::set_radiance_control_block(Shader* shader, void* user_data) {
 
 }
 
-dz::ecs::HDRI::HDRIReflectable::HDRIReflectable(const std::function<HDRI*()>& get_hdri_function):
+dz::ecs::HDRI::HDRIReflectable::HDRIReflectable(const dz::function<HDRI*()>& get_hdri_function):
     get_hdri_function(get_hdri_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("HDRI")

@@ -19,8 +19,8 @@ dz::ecs::Camera dz::ecs::Camera::DefaultOrthographic = {
 };
 
 dz::ecs::Camera::CameraMetaReflectable::CameraMetaReflectable(
-    const std::function<Camera*()>& get_camera_function,
-    const std::function<void()>& reset_reflectables_function
+    const dz::function<Camera*()>& get_camera_function,
+    const dz::function<void()>& reset_reflectables_function
 ):
     get_camera_function(get_camera_function),
     reset_reflectables_function(reset_reflectables_function),
@@ -61,7 +61,7 @@ void dz::ecs::Camera::CameraMetaReflectable::NotifyChange(int prop_index) {
     }
 }
 
-dz::ecs::Camera::CameraViewReflectable::CameraViewReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraViewReflectable::CameraViewReflectable(const dz::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("View Transform")
@@ -108,7 +108,7 @@ void dz::ecs::Camera::CameraViewReflectable::NotifyChange(int prop_index) {
     }
 }
 
-dz::ecs::Camera::CameraPerspectiveReflectable::CameraPerspectiveReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraPerspectiveReflectable::CameraPerspectiveReflectable(const dz::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Perspective")
@@ -145,7 +145,7 @@ void dz::ecs::Camera::CameraPerspectiveReflectable::NotifyChange(int prop_index)
     }
 }
 
-dz::ecs::Camera::CameraOrthographicReflectable::CameraOrthographicReflectable(const std::function<Camera*()>& get_camera_function):
+dz::ecs::Camera::CameraOrthographicReflectable::CameraOrthographicReflectable(const dz::function<Camera*()>& get_camera_function):
     get_camera_function(get_camera_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Orthographic")

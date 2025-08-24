@@ -25,7 +25,6 @@
 #include "ImagePack.hpp"
 #include <string>
 #include <vector>
-#include <functional>
 #include <map>
 #include <set>
 #include <iostreams/Serial.hpp>
@@ -109,7 +108,7 @@ namespace dz {
         std::map<size_t, std::vector<ReflectableGroup*>> pid_reflectable_vecs; // !
         std::unordered_map<size_t, std::unordered_map<size_t, size_t>> pid_id_index_maps; // !
 
-        std::unordered_map<size_t, std::function<std::shared_ptr<ReflectableGroup>(BufferGroup*, Serial&)>> pid_create_from_serial; // !
+        std::unordered_map<size_t, dz::function<std::shared_ptr<ReflectableGroup>(BufferGroup*, Serial&)>> pid_create_from_serial; // !
 
         std::map<size_t, ProviderReflectableGroup> pid_provider_groups; // !
         std::map<float, std::vector<size_t>> prioritized_provider_ids; // !
@@ -204,7 +203,7 @@ namespace dz {
                     &current_parent_group_ptr->GetChildren() :
                     &reflectable_group_root_vector;
 
-                std::function<void(std::vector<int>&, const std::vector<std::shared_ptr<ReflectableGroup>>*, int)> add_child_entries;
+                dz::function<void(std::vector<int>&, const std::vector<std::shared_ptr<ReflectableGroup>>*, int)> add_child_entries;
 
                 add_child_entries = [&](auto& visible, auto node_ptr, auto scenes_hit) {
                     for (auto& ref_group_sh_ptr : *node_ptr) {
@@ -271,7 +270,7 @@ namespace dz {
                     &current_parent_group_ptr->GetChildren() :
                     &reflectable_group_root_vector;
 
-                std::function<void(std::vector<int>&, const std::vector<std::shared_ptr<ReflectableGroup>>*, int)> add_child_entries;
+                dz::function<void(std::vector<int>&, const std::vector<std::shared_ptr<ReflectableGroup>>*, int)> add_child_entries;
 
                 add_child_entries = [&](auto& visible, auto node_ptr, auto scenes_hit) {
                     for (auto& ref_group_sh_ptr : *node_ptr) {

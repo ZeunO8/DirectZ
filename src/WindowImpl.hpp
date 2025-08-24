@@ -93,7 +93,7 @@ namespace dz {
 		bool capture = false;
 		bool drag_in_progress = false;
 		ImGuiViewport* imguiViewport = 0;
-		std::map<float, std::unordered_map<Shader*, std::function<int()>>> priority_shader_dispatches;
+		std::map<float, std::unordered_map<Shader*, dz::function<int()>>> priority_shader_dispatches;
 		VkDescriptorSet headless_ds = VK_NULL_HANDLE;
 		bool free_begin_of_pass = false;
 		SharedMemoryPtr<WINDOW>* window_shm = nullptr;

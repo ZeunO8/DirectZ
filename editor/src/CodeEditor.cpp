@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
-#include <functional>
+#include <dz/function.hpp>
 #include <algorithm>
 #include <cctype>
 #include <imgui_internal.h>

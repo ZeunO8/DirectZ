@@ -33,7 +33,7 @@ dz::compiler::AST dz::compiler::GenerateAST(const std::filesystem::path &filePat
 
 void dz::compiler::PrintAST(const dz::compiler::AST &ast, int indent)
 {
-    std::function<void(const dz::compiler::ASTNode *, int)> recurse =
+    dz::function<void(const dz::compiler::ASTNode *, int)> recurse =
         [&](const dz::compiler::ASTNode *node, int level)
     {
         if (!node)

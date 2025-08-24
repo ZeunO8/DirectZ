@@ -2,7 +2,7 @@
 #include <dz/GlobalUID.hpp>
 #include <cassert>
 
-dz::ecs::Entity::EntityTransformReflectable::EntityTransformReflectable(const std::function<Entity*()>& get_entity_function):
+dz::ecs::Entity::EntityTransformReflectable::EntityTransformReflectable(const dz::function<Entity*()>& get_entity_function):
     get_entity_function(get_entity_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Transform")

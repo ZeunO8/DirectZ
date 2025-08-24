@@ -94,7 +94,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
         struct EntityTransformReflectable : Reflectable {
 
         private:
-            std::function<Entity*()> get_entity_function;
+            dz::function<Entity*()> get_entity_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -119,7 +119,7 @@ void GetEntityModel(int entity_index, out mat4 out_model, out int parent_index, 
             };
 
         public:
-            EntityTransformReflectable(const std::function<Entity*()>& get_entity_function);
+            EntityTransformReflectable(const dz::function<Entity*()>& get_entity_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);

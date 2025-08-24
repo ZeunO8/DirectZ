@@ -30,6 +30,15 @@ int main()
         auto _12byte2 = _12byte;
         FN_Def my_13_set(&_12byte2, &_12Byte::set);
         std::cout << (my_13_set(131, 42.) ? "true" : "false") << std::endl;
+
+        {
+            FN_Def my_int_second_triple([_12byte, _12byte2](int i, const double& o) -> bool {
+                ((double&)o) *= 3;
+                std::cout << "i: " << i << ", o: " << o << std::endl;
+                return true;
+            });
+            std::cout << (my_int_second_triple(3, 84.) ? "true" : "false") << std::endl;
+        }
     }
     return 0;
 }

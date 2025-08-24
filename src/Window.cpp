@@ -1153,7 +1153,7 @@ namespace dz {
 		return window->event_interface;
 	}
 
-    void window_register_free_callback(WINDOW* window, float priority, const std::function<void()>& callback) {
+    void window_register_free_callback(WINDOW* window, float priority, const dz::function<void()>& callback) {
 		window->event_interface->window_free_priorities[priority].push(callback);
 	}
 
@@ -1481,7 +1481,7 @@ namespace dz {
 	}
 #endif
 
-    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const std::function<int()>& dispatch_count_fn) {
+    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const dz::function<int()>& dispatch_count_fn) {
 		window_ptr->priority_shader_dispatches[priority][shader] = dispatch_count_fn;
 	}
 

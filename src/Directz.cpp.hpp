@@ -73,7 +73,7 @@ struct StateHolder {
         bool owned_by_state_holder = false;
         int cid = 0;
     };
-    inline static std::unordered_map<int, std::function<Restorable*(Serial&)>> c_id_fn_map = { 
+    inline static std::unordered_map<int, dz::function<Restorable*(Serial&)>> c_id_fn_map = { 
         { CID_WINDOW, [](Serial& serial) -> Restorable* {
             return window_create_from_serial(serial);
         } }
@@ -84,10 +84,10 @@ struct StateHolder {
     std::ostream* ostream_ptr = nullptr;
     bool use_ostream = false;
     std::vector<Restorer> restorables;
-    std::map<int, std::function<bool(Serial&)>> static_restores = {
+    std::map<int, dz::function<bool(Serial&)>> static_restores = {
         { GlobalUID::SID, GlobalUID::RestoreFunction }
     };
-    std::map<int, std::function<bool(Serial&)>> static_backups = {
+    std::map<int, dz::function<bool(Serial&)>> static_backups = {
         { GlobalUID::SID, GlobalUID::BackupFunction }
     };
     bool loaded = false;

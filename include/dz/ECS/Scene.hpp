@@ -84,7 +84,7 @@ void GetSceneModel(int scene_index, out mat4 out_model, out int parent_index, ou
 
         struct SceneTransformReflectable : ::Reflectable {
         private:
-            std::function<Scene*()> get_scene_function;
+            dz::function<Scene*()> get_scene_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -109,7 +109,7 @@ void GetSceneModel(int scene_index, out mat4 out_model, out int parent_index, ou
             };
 
         public:
-            SceneTransformReflectable(const std::function<Scene*()>& get_scene_function);
+            SceneTransformReflectable(const dz::function<Scene*()>& get_scene_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);

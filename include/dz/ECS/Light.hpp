@@ -65,7 +65,7 @@ LightingParams lParams;
         struct LightMetaReflectable : Reflectable {
             
         private:
-            std::function<Light*()> get_light_function;
+            dz::function<Light*()> get_light_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -111,7 +111,7 @@ LightingParams lParams;
 
         public:
             LightMetaReflectable(
-                const std::function<Light*()>& get_light_function
+                const dz::function<Light*()>& get_light_function
             );
             int GetID() override;
             std::string& GetName() override;

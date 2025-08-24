@@ -6,7 +6,7 @@
 
 #include <cstddef>
 #include <cstdlib>
-#include <functional>
+#include <dz/function.hpp>
 
 namespace dz
 {

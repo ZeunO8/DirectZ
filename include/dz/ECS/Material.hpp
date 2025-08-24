@@ -155,7 +155,7 @@ layout(binding = @BINDING@) uniform sampler2D brdfLUT;
         struct MaterialReflectable : ::Reflectable {
 
         private:
-            std::function<Material*()> get_material_function;
+            dz::function<Material*()> get_material_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -180,7 +180,7 @@ layout(binding = @BINDING@) uniform sampler2D brdfLUT;
             };
 
         public:
-            MaterialReflectable(const std::function<Material*()>& get_material_function);
+            MaterialReflectable(const dz::function<Material*()>& get_material_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);

@@ -77,7 +77,7 @@ vec3 GetMeshBitangent(in Mesh mesh) {
         struct MeshReflectable : ::Reflectable {
 
         private:
-            std::function<Mesh*()> get_mesh_function;
+            dz::function<Mesh*()> get_mesh_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -106,7 +106,7 @@ vec3 GetMeshBitangent(in Mesh mesh) {
             };
 
         public:
-            MeshReflectable(const std::function<Mesh*()>& get_mesh_function);
+            MeshReflectable(const dz::function<Mesh*()>& get_mesh_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);

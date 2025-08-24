@@ -4,6 +4,7 @@
 #include <rectpack2D/finders_interface.h>
 #include <vector>
 #include "Image.hpp"
+#include "function.hpp"
 namespace dz {
 	struct ImagePack
 	{
@@ -52,7 +53,7 @@ namespace dz {
 
 	private:
 
-		using ConvertFunc = std::function<void(const void*, void*)>;
+		using ConvertFunc = dz::function<void(const void*, void*)>;
 
 		// Conversion helpers
 		static void copy_bytes(const void* src, void* dst, size_t size);

@@ -4,7 +4,6 @@
  */
 #pragma once
 #include "DrawList.hpp"
-#include <functional>
 #include <tuple>
 #include "Shader.hpp"
 
@@ -36,9 +35,9 @@ namespace dz
     template<typename DrawT>
     struct DrawListManager : IDrawListManager
     {
-        using Determine_DrawT_DrawTuple_Function = std::function<DrawTuple(BufferGroup*, DrawT&)>;
-        using Determine_CameraTuple_Function = std::function<CameraTuple(BufferGroup*, int)>;
-        using Determine_VisibleDraws_Function = std::function<std::vector<int>(BufferGroup*, int camera_index)>;
+        using Determine_DrawT_DrawTuple_Function = dz::function<DrawTuple(BufferGroup*, DrawT&)>;
+        using Determine_CameraTuple_Function = dz::function<CameraTuple(BufferGroup*, int)>;
+        using Determine_VisibleDraws_Function = dz::function<std::vector<int>(BufferGroup*, int camera_index)>;
     private:
         Determine_DrawT_DrawTuple_Function fn_determine_DrawT_DrawTuple;
         Determine_CameraTuple_Function fn_determine_CameraTuple;

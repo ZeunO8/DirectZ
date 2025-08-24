@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <ostream>
 #include <iostreams/Serial.hpp>
+#include "function.hpp"
 
 #define CID_WINDOW 1
 #define CID_MIN 2
@@ -12,8 +13,8 @@ namespace dz {
 
     void track_static_state(
         int sid,
-        const std::function<bool(Serial&)>& restore,
-        const std::function<bool(Serial&)>& backup
+        const dz::function<bool(Serial&)>& restore,
+        const dz::function<bool(Serial&)>& backup
     );
 
     struct StaticRestorable {
@@ -86,7 +87,7 @@ namespace dz {
     /**
     * @brief Registers a constructor function such that State can accurately restore
     */
-    void register_restorable_constructor(int c_id, const std::function<Restorable*(Serial&)>& constructor_fn);
+    void register_restorable_constructor(int c_id, const dz::function<Restorable*(Serial&)>& constructor_fn);
 
     /**
     * @brief Returns a bool value indicating whether the state has date

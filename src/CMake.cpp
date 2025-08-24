@@ -152,7 +152,7 @@ void dz::cmake::Project::add_lib_or_exe(size_t cmd_arguments_size, const Command
 }
 
 template<typename F>
-std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function(
+dz::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function(
     const std::shared_ptr<dz::cmake::ParseContext>& context_sh_ptr,
     const std::string& prefix,
     const dz::cmake::ValueVector& options,
@@ -163,12 +163,34 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
     bool new_scope = true
 )
 {
-    return [=](auto cmd_arguments_size, const auto& cmd){
+    struct abstract_context
+    {
+        std::shared_ptr<dz::cmake::ParseContext> context_sh_ptr;
+        std::string prefix;
+        dz::cmake::ValueVector options;
+        dz::cmake::ValueVector one_value_keywords;
+        dz::cmake::ValueVector multi_value_keywords;
+        F run_with_abstract_set;
+        size_t parse_argv;
+        bool new_scope;
+    };
+    auto abstract_context_ptr = new abstract_context{
+        .context_sh_ptr = context_sh_ptr,
+        .prefix = prefix,
+        .options = options,
+        .one_value_keywords = one_value_keywords,
+        .multi_value_keywords = multi_value_keywords,
+        .run_with_abstract_set = run_with_abstract_set,
+        .parse_argv = parse_argv,
+        .new_scope = new_scope,
+    };
+    return [abstract_context_ptr](auto cmd_arguments_size, const auto& cmd){
+        auto& abs_con = *abstract_context_ptr;
         dz::cmake::VariableMap all_keys_and_vals;
 
-        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, multi_value_keywords, prefix);
-        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, one_value_keywords, prefix);
-        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, options, prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, abs_con.multi_value_keywords, abs_con.prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, abs_con.one_value_keywords, abs_con.prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, abs_con.options, abs_con.prefix);
 
         std::string parsing_key;
         std::string* parsing_val = nullptr;
@@ -179,16 +201,16 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
         for (size_t i = 0; i < cmd_arguments_size; i++)
         {
             auto& current_arg = cmd.arguments[i];
-            if (in_map(all_keys_and_vals, prefix + "_" + current_arg)) {
+            if (in_map(all_keys_and_vals, abs_con.prefix + "_" + current_arg)) {
                 parsing_key = current_arg;
-                parsing_val = &all_keys_and_vals[prefix + "_" + parsing_key];
-                if (in_vec(options, parsing_key))
+                parsing_val = &all_keys_and_vals[abs_con.prefix + "_" + parsing_key];
+                if (in_vec(abs_con.options, parsing_key))
                 {
                     (*parsing_val) = "TRUE";
                     options_set.push_back(parsing_key);
                     parsing_key.clear();
                 }
-                else if (in_vec(one_value_keywords, parsing_key))
+                else if (in_vec(abs_con.one_value_keywords, parsing_key))
                 {
                     one_value_keywords_set.push_back(parsing_key);
                 }
@@ -198,11 +220,11 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
                 }
             }
             else if (parsing_key.empty()) {
-                if ((parse_argv != 0 && new_arguments.size() < parse_argv) || !parse_argv) {
+                if ((abs_con.parse_argv != 0 && new_arguments.size() < abs_con.parse_argv) || !abs_con.parse_argv) {
                     new_arguments.push_back(current_arg);
                 }
             }
-            else if (in_vec(one_value_keywords, parsing_key))
+            else if (in_vec(abs_con.one_value_keywords, parsing_key))
             {
                 if (parsing_val->empty()) {
                     (*parsing_val) = current_arg;
@@ -212,7 +234,7 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
                     throw std::runtime_error("[cmake] '" + parsing_key + "' expects one value)");
                 }
             }
-            else if (in_vec(multi_value_keywords, parsing_key))
+            else if (in_vec(abs_con.multi_value_keywords, parsing_key))
             {
                 (*parsing_val) += ((parsing_val->empty() ? "" : ";") + current_arg);
             }
@@ -220,19 +242,19 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
         {
             dz::cmake::Command new_cmd = cmd;
             new_cmd.arguments = new_arguments;
-            auto& context = *context_sh_ptr;
+            auto& context = *abs_con.context_sh_ptr;
             auto old_marked_vars = context.marked_vars;
             auto old_context_vars = context.vars;
             insert_to_map_from_map(context.vars, all_keys_and_vals);
-            if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); } )
+            if constexpr (requires { abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); } )
             {
-                run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
+                abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
             }
-            else if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd); } )
+            else if constexpr (requires { abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd); } )
             {
-                run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
+                abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
             }
-            if (new_scope) {
+            if (abs_con.new_scope) {
                 auto new_context_vars = context.vars;
                 context.vars = old_context_vars;
                 context.restore_marked_vars(new_context_vars);
@@ -242,6 +264,7 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
                 remove_to_map_from_map(context.vars, all_keys_and_vals);
             }
         }
+        delete abstract_context_ptr;
     };
 }
 
@@ -384,7 +407,7 @@ void dz::cmake::Project::get_filename_component(size_t cmd_arguments_size, const
     };
     auto get_filename_component_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
     {
-        static std::unordered_map<std::string, std::function<void(size_t, const Command &, ParseContext&, const std::string&, const std::filesystem::path&)>> gfc_actions = {
+        static std::unordered_map<std::string, dz::function<void(size_t, const Command &, ParseContext&, const std::string&, const std::filesystem::path&)>> gfc_actions = {
             { "", [](auto cmd_arguments_size, auto& cmd, auto& context, const auto& varName, const auto& p) {
                 context.vars[varName] = p.string();
                 return;
@@ -771,31 +794,31 @@ dz::cmake::Project::DSL_Map dz::cmake::Project::generate_dsl_map()
 {
     DSL_Map map = {
         {"add_library",
-         std::bind(&Project::add_lib_or_exe, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::add_lib_or_exe } },
         {"add_executable",
-         std::bind(&Project::add_lib_or_exe, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::add_lib_or_exe } },
         {"target_include_directories",
-         std::bind(&Project::target_include_directories, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::target_include_directories } },
         {"target_link_libraries",
-         std::bind(&Project::target_link_libraries, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::target_link_libraries } },
         {"project",
-         std::bind(&Project::project, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::project } },
         {"find_package",
-         std::bind(&Project::find_package, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::find_package } },
         {"message",
-         std::bind(&Project::message, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::message } },
         {"get_filename_component",
-         std::bind(&Project::get_filename_component, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::get_filename_component } },
         {"list",
-         std::bind(&Project::list, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::list } },
         {"cmake_policy",
-         std::bind(&Project::cmake_policy, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::cmake_policy } },
         {"set",
-         std::bind(&Project::set, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::set } },
         {"find_path",
-         std::bind(&Project::find_path, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::find_path } },
         {"mark_as_advanced",
-         std::bind(&Project::mark_as_advanced, this, std::placeholders::_1, std::placeholders::_2)},
+         { this, &Project::mark_as_advanced } },
     };
     return map;
 }
@@ -970,7 +993,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
                 return false;
             return true;
         };
-        std::function<std::string(const ConditionNode &)> toString = [&](const ConditionNode &n)
+        dz::function<std::string(const ConditionNode &)> toString = [&](const ConditionNode &n)
         {
             switch (n.op)
             {
@@ -993,7 +1016,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
             }
             }
         };
-        std::function<bool(const ConditionNode &)> toBool = [&](const ConditionNode &n)
+        dz::function<bool(const ConditionNode &)> toBool = [&](const ConditionNode &n)
         {
             switch (n.op)
             {

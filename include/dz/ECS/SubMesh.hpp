@@ -37,7 +37,7 @@ struct SubMesh {
         struct SubMeshReflectable : ::Reflectable {
 
         private:
-            std::function<SubMesh*()> get_submesh_function;
+            dz::function<SubMesh*()> get_submesh_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -58,7 +58,7 @@ struct SubMesh {
             };
 
         public:
-            SubMeshReflectable(const std::function<SubMesh*()>& get_submesh_function);
+            SubMeshReflectable(const dz::function<SubMesh*()>& get_submesh_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);

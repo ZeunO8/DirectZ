@@ -4,7 +4,7 @@
  */
 #pragma once
 #include <string>
-#include <functional>
+#include "function.hpp"
 #include "math.hpp"
 #include "DrawListManager.hpp"
 #include "Reflectable.hpp"
@@ -433,7 +433,7 @@ namespace dz
     /**
     * @brief Adds a destroy event callback function
     */
-    void window_register_free_callback(WINDOW*, float priority, const std::function<void()>&);
+    void window_register_free_callback(WINDOW*, float priority, const dz::function<void()>&);
 
     /**
     * @brief sets Window mouse capture (for mouse capture outside window)
@@ -503,7 +503,7 @@ namespace dz
     *
     * @note shader dispatch will be called during window_render
     */
-    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const std::function<int()>& dispatch_count_fn);
+    void window_register_compute_dispatch(WINDOW* window_ptr, float priority, Shader* shader, const dz::function<int()>& dispatch_count_fn);
 
     /**
     * @brief Dergisters a Compute shader dispatch

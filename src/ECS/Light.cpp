@@ -2,7 +2,7 @@
 #include <dz/GlobalUID.hpp>
 
 dz::ecs::Light::LightMetaReflectable::LightMetaReflectable(
-    const std::function<Light*()>& get_light_function
+    const dz::function<Light*()>& get_light_function
 ):
     get_light_function(get_light_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),

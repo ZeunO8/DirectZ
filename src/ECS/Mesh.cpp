@@ -2,7 +2,7 @@
 #include <dz/GlobalUID.hpp>
 #include <cassert>
 
-dz::ecs::Mesh::MeshReflectable::MeshReflectable(const std::function<Mesh*()>& get_mesh_function):
+dz::ecs::Mesh::MeshReflectable::MeshReflectable(const dz::function<Mesh*()>& get_mesh_function):
     get_mesh_function(get_mesh_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Mesh")

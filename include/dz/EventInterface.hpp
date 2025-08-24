@@ -1,16 +1,17 @@
 #pragma once
 #include "Window.hpp"
 #include <queue>
+#include "function.hpp"
 namespace dz
 {
     struct EventInterface
     {
-        friend void window_register_free_callback(WINDOW*, float priority, const std::function<void()>&);
+        friend void window_register_free_callback(WINDOW*, float priority, const dz::function<void()>&);
         friend bool window_free(WINDOW* window);
     private:
         WINDOW* window;
     protected:
-        std::map<float, std::queue<std::function<void()>>> window_free_priorities;
+        std::map<float, std::queue<dz::function<void()>>> window_free_priorities;
     public:
         EventInterface(WINDOW* window);
 #ifdef __ANDROID__

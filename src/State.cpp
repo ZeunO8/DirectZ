@@ -4,8 +4,8 @@
 
 void dz::track_static_state(
     int sid,
-    const std::function<bool(Serial&)>& restore,
-    const std::function<bool(Serial&)>& backup
+    const dz::function<bool(Serial&)>& restore,
+    const dz::function<bool(Serial&)>& backup
 ) {
     dr_ptr->stateHolder.static_restores[sid] = restore;
     dr_ptr->stateHolder.static_backups[sid] = backup;
@@ -25,7 +25,7 @@ void dz::set_state_ostream(std::ostream& ostream) {
     dr_ptr->stateHolder.use_ostream = true;
 }
 
-void dz::register_restorable_constructor(int c_id, const std::function<Restorable*(Serial&)>& constructor_fn) {
+void dz::register_restorable_constructor(int c_id, const dz::function<Restorable*(Serial&)>& constructor_fn) {
     StateHolder::c_id_fn_map[c_id] = constructor_fn;
 }
 

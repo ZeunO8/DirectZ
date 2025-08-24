@@ -1,7 +1,7 @@
 #include <dz/ECS/Material.hpp>
 #include <dz/GlobalUID.hpp>
 
-dz::ecs::Material::MaterialReflectable::MaterialReflectable(const std::function<Material*()>& get_material_function):
+dz::ecs::Material::MaterialReflectable::MaterialReflectable(const dz::function<Material*()>& get_material_function):
     get_material_function(get_material_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Material")

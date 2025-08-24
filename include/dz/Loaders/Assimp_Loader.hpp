@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
-#include <functional>
+#include <dz/function.hpp>
 #include <vector>
 #include <dz/math.hpp>
 #include <dz/Image.hpp>
@@ -26,14 +26,14 @@ namespace dz::loaders {
     using TColor = vec<float, 4>;
     using TMetalness = float;
     using TRoughness = float;
-    using AddSceneFunction = std::function<SceneID(
+    using AddSceneFunction = dz::function<SceneID(
         ParentID,
         const std::string&,
         TPosition,
         TRotation,
         TScale
     )>;
-    using AddEntityFunction = std::function<EntityID(
+    using AddEntityFunction = dz::function<EntityID(
         ParentID,
         const std::string&,
         const std::vector<int>&,
@@ -41,14 +41,14 @@ namespace dz::loaders {
         TRotation,
         TScale
     )>;
-    using AddMaterialFunction = std::function<MaterialPair(
+    using AddMaterialFunction = dz::function<MaterialPair(
         const std::string&,
         const std::vector<Image*>&,
         TColor,
         TMetalness,
         TRoughness
     )>; 
-    using AddMeshFunction = std::function<MeshPair(
+    using AddMeshFunction = dz::function<MeshPair(
         const std::string&,
         MaterialIndex,
         const std::vector<TPosition>&,

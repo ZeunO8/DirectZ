@@ -10,7 +10,6 @@
 #include <cctype>
 #include <iostream>
 #include <filesystem>
-#include <functional>
 #include <deque>
 #include <dz/function.hpp>
 

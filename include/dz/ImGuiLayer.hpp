@@ -1,6 +1,7 @@
 #pragma once
 #include "Window.hpp"
 #include "DirectRegistry.hpp"
+#include "function.hpp"
 #include <map>
 #include <queue>
 #define ICON_CLOSE   ICON_FA_XMARK
@@ -10,7 +11,7 @@ namespace dz {
     struct ImGuiLayer {
         friend WINDOW;
         friend std::pair<VkDescriptorSetLayout, VkDescriptorSet> image_create_descriptor_set(Image*, uint32_t);
-        using ImmediateDrawFunction = std::function<void(ImGuiLayer&)>;
+        using ImmediateDrawFunction = dz::function<void(ImGuiLayer&)>;
         using ImmediateDrawPair = std::pair<std::string, ImmediateDrawFunction>;
     private:
         bool initialized = false;

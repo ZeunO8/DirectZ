@@ -5,6 +5,7 @@
 #include "../Framebuffer.hpp"
 #include "../Shader.hpp"
 #include "../math.hpp"
+#include "../function.hpp"
 
 namespace dz::ecs {
     struct Camera : Provider<Camera> {
@@ -134,8 +135,8 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         struct CameraMetaReflectable : ::Reflectable {
             
         private:
-            std::function<Camera*()> get_camera_function;
-            std::function<void()> reset_reflectables_function;
+            dz::function<Camera*()> get_camera_function;
+            dz::function<void()> reset_reflectables_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -157,8 +158,8 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
 
         public:
             CameraMetaReflectable(
-                const std::function<Camera*()>& get_camera_function,
-                const std::function<void()>& reset_reflectables_function
+                const dz::function<Camera*()>& get_camera_function,
+                const dz::function<void()>& reset_reflectables_function
             );
             int GetID() override;
             std::string& GetName() override;
@@ -173,7 +174,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         struct CameraViewReflectable : Reflectable {
             
         private:
-            std::function<Camera*()> get_camera_function;
+            dz::function<Camera*()> get_camera_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -206,7 +207,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             };
 
         public:
-            CameraViewReflectable(const std::function<Camera*()>& get_camera_function);
+            CameraViewReflectable(const dz::function<Camera*()>& get_camera_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -220,7 +221,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         struct CameraPerspectiveReflectable : Reflectable {
             
         private:
-            std::function<Camera*()> get_camera_function;
+            dz::function<Camera*()> get_camera_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -237,7 +238,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             };
 
         public:
-            CameraPerspectiveReflectable(const std::function<Camera*()>& get_camera_function);
+            CameraPerspectiveReflectable(const dz::function<Camera*()>& get_camera_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -251,7 +252,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
         struct CameraOrthographicReflectable : Reflectable {
             
         private:
-            std::function<Camera*()> get_camera_function;
+            dz::function<Camera*()> get_camera_function;
             int uid;
             std::string name;
             inline static std::unordered_map<std::string, std::pair<int, int>> prop_name_indexes = {
@@ -272,7 +273,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             };
 
         public:
-            CameraOrthographicReflectable(const std::function<Camera*()>& get_camera_function);
+            CameraOrthographicReflectable(const dz::function<Camera*()>& get_camera_function);
             int GetID() override;
             std::string& GetName() override;
             DEF_GET_PROPERTY_INDEX_BY_NAME(prop_name_indexes);
@@ -295,7 +296,7 @@ void GetCameraModel(int camera_index, out mat4 out_model, out int parent_index, 
             VkDescriptorSet frame_image_ds = VK_NULL_HANDLE;
             bool open_in_editor = true;
 
-            std::function<void()> update_draw_list_fn;
+            dz::function<void()> update_draw_list_fn;
 
             CameraReflectableGroup(BufferGroup* buffer_group):
                 buffer_group(buffer_group),

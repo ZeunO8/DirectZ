@@ -4,6 +4,7 @@
  */
 #pragma once
 
+#include <dz/function.hpp>
 #include <dz/Runtime.hpp>
 #include <dz/Renderer.hpp>
 #include <filesystem>

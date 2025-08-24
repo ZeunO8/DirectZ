@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 #include <tuple>
+#include "function.hpp"
 
 namespace dz
 {
@@ -55,7 +56,7 @@ namespace dz
     /**
     * @brief A CameraTuple is the information required to draw from a cameras perspective
     */
-    using CameraTuple = std::tuple<int, Framebuffer*, std::function<void()>, bool>;
+    using CameraTuple = std::tuple<int, Framebuffer*, dz::function<void()>, bool>;
 
     /**
     * @brief Information for a single Camera draw
@@ -63,7 +64,7 @@ namespace dz
     struct CameraDrawInformation {
         int camera_index;
         Framebuffer* framebuffer;
-        std::function<void()> pre_render_fn;
+        dz::function<void()> pre_render_fn;
         ShaderDrawList shaderDrawList;
         bool inactive = false;
     };

@@ -2,7 +2,7 @@
 #include <dz/GlobalUID.hpp>
 #include <cassert>
 
-dz::ecs::Scene::SceneTransformReflectable::SceneTransformReflectable(const std::function<Scene*()>& get_scene_function):
+dz::ecs::Scene::SceneTransformReflectable::SceneTransformReflectable(const dz::function<Scene*()>& get_scene_function):
     get_scene_function(get_scene_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("Transform")

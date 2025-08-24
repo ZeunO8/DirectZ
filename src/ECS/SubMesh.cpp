@@ -1,7 +1,7 @@
 #include <dz/ECS/SubMesh.hpp>
 #include <dz/GlobalUID.hpp>
 
-dz::ecs::SubMesh::SubMeshReflectable::SubMeshReflectable(const std::function<SubMesh*()>& get_submesh_function):
+dz::ecs::SubMesh::SubMeshReflectable::SubMeshReflectable(const dz::function<SubMesh*()>& get_submesh_function):
     get_submesh_function(get_submesh_function),
     uid(int(GlobalUID::GetNew("Reflectable"))),
     name("SubMesh")
