@@ -159,7 +159,8 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
     const dz::cmake::ValueVector& one_value_keywords,
     const dz::cmake::ValueVector& multi_value_keywords,
     F run_with_abstract_set,
-    size_t parse_argv = 0
+    size_t parse_argv = 0,
+    bool new_scope = true
 )
 {
     static auto in_vec = [](const auto vec, const auto& str) -> bool {
@@ -178,6 +179,11 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
     static auto insert_to_map_from_map = [](auto& map_to, const auto& map_from) {
         map_to.insert(map_from.begin(), map_from.end());
     };
+    static auto remove_to_map_from_map = [](auto& map_to, const auto& map_from) {
+        for (auto& [var_key, var_val] : map_from) {
+            map_to.erase(var_key);
+        }
+    };
     return [=](auto cmd_arguments_size, const auto& cmd){
         dz::cmake::VariableMap all_keys_and_vals;
 
@@ -189,6 +195,8 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
         std::string* parsing_val = nullptr;
         dz::cmake::ValueVector new_arguments;
 
+        dz::cmake::ValueVector options_set, one_value_keywords_set, multi_value_keywords_set;
+
         for (size_t i = 0; i < cmd_arguments_size; i++)
         {
             auto& current_arg = cmd.arguments[i];
@@ -198,6 +206,16 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
                 if (in_vec(options, parsing_key))
                 {
                     (*parsing_val) = "TRUE";
+                    options_set.push_back(parsing_key);
+                    parsing_key.clear();
+                }
+                else if (in_vec(one_value_keywords, parsing_key))
+                {
+                    one_value_keywords_set.push_back(parsing_key);
+                }
+                else // only possible other vec is multi
+                {
+                    multi_value_keywords_set.push_back(parsing_key);
                 }
             }
             else if (parsing_key.empty()) {
@@ -227,45 +245,85 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
             auto old_marked_vars = context.marked_vars;
             auto old_context_vars = context.vars;
             insert_to_map_from_map(context.vars, all_keys_and_vals);
-            run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
-            auto new_context_vars = context.vars;
-            context.vars = old_context_vars;
-            context.restore_marked_vars(new_context_vars);
-            context.marked_vars = old_marked_vars;
+            if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); } )
+            {
+                run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
+            }
+            else if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd); } )
+            {
+                run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
+            }
+            if (new_scope) {
+                auto new_context_vars = context.vars;
+                context.vars = old_context_vars;
+                context.restore_marked_vars(new_context_vars);
+                context.marked_vars = old_marked_vars;
+            }
+            else {
+                remove_to_map_from_map(context.vars, all_keys_and_vals);
+            }
         }
     };
 }
 
 void dz::cmake::Project::target_include_directories(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 2)
-        return;
-    auto it = targets.find(cmd.arguments[0]);
-    if (it == targets.end())
-        return;
-    for (size_t i = 1; i < cmd_arguments_size; ++i)
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___TARGET_INCLUDE_DIRECTORIES";
+    static ValueVector options = {
+        "PRIVATE",
+        "PUBLIC"
+    };
+    static ValueVector one_value_keywords = {
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto target_include_directories_impl = [&](auto cmd_arguments_size, const Command& cmd)
     {
-        auto &arg = cmd.arguments[i];
-        if (arg == "PRIVATE" || arg == "PUBLIC")
-            continue;
-        it->second->addIncludeDir(arg);
-    }
+        if (cmd_arguments_size < 2)
+            return;
+        auto it = targets.find(cmd.arguments[0]);
+        if (it == targets.end())
+            return;
+        for (size_t i = 1; i < cmd_arguments_size; ++i)
+        {
+            auto &arg = cmd.arguments[i];
+            it->second->addIncludeDir(arg);
+        }
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_include_directories_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::target_link_libraries(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 2)
-        return;
-    auto it = targets.find(cmd.arguments[0]);
-    if (it == targets.end())
-        return;
-    for (size_t i = 1; i < cmd_arguments_size; ++i)
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___TARGET_LINK_LIBRARIES";
+    static ValueVector options = {
+        "PRIVATE",
+        "PUBLIC"
+    };
+    static ValueVector one_value_keywords = {
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto target_link_libraries_impl = [&](auto cmd_arguments_size, const Command& cmd)
     {
-        auto &arg = cmd.arguments[i];
-        if (arg == "PRIVATE" || arg == "PUBLIC")
-            continue;
-        it->second->addLinkLib(arg);
-    }
+        if (cmd_arguments_size < 2)
+            return;
+        auto it = targets.find(cmd.arguments[0]);
+        if (it == targets.end())
+            return;
+        for (size_t i = 1; i < cmd_arguments_size; ++i)
+        {
+            auto &arg = cmd.arguments[i];
+            it->second->addLinkLib(arg);
+        }
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_link_libraries_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::message(size_t cmd_arguments_size, const Command &cmd)
@@ -422,68 +480,117 @@ void dz::cmake::Project::list(size_t cmd_arguments_size, const Command &cmd)
 
 void dz::cmake::Project::cmake_policy(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size == 0)
-        return;
 
-    auto &context = *context_sh_ptr;
-    auto &action = cmd.arguments[0];
-
-    if (action == "PUSH")
+    
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___CMAKE_POLICY";
+    static ValueVector options = {
+        "PUSH",
+        "POP",
+        "SET",
+        "GET"
+    };
+    static ValueVector one_value_keywords = {
+        "VERSION"
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto set_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
     {
-        context.policy_stack.emplace_front(); // push empty scope
-        context.policy_push_just_called = true;
-        return;
-    }
-    else if (action == "POP")
-    {
-        if (context.policy_stack.empty())
-            return;
+        static DSL_Map_With_Context policy_actions = {
+            { "PUSH", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                context.policy_stack.emplace_front(); // push empty scope
+                context.policy_push_just_called = true;
+                return;
+            } },
+            { "POP", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                if (context.policy_stack.empty())
+                    return;
 
-        auto policy_sh_ptr = context.policy_stack.front();
-        context.policy_stack.pop_front(); // discard scope
-        auto &policy = *policy_sh_ptr;
-        context.policy_set_map.erase(policy.policy_name);
-        return;
-    }
-    else if (action == "SET")
-    {
-        if (cmd_arguments_size < 3)
-            return;
+                auto policy_sh_ptr = context.policy_stack.front();
+                context.policy_stack.pop_front(); // discard scope
+                auto &policy = *policy_sh_ptr;
+                context.policy_set_map.erase(policy.policy_name);
+                return;
+            } },
+            { "SET", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                if (cmd_arguments_size < 2)
+                    return;
 
-        auto &policy_name = cmd.arguments[1];
-        auto &policy_value = cmd.arguments[2];
+                auto &policy_name = cmd.arguments[0];
+                auto &policy_value = cmd.arguments[1];
 
-        auto policy_sh_ptr = std::make_shared<Policy>();
-        auto &policy = *policy_sh_ptr;
-        policy.policy_name = policy_name;
-        policy.policy_value = policy_value;
+                auto policy_sh_ptr = std::make_shared<Policy>();
+                auto &policy = *policy_sh_ptr;
+                policy.policy_name = policy_name;
+                policy.policy_value = policy_value;
 
-        if (context.policy_push_just_called)
+                if (context.policy_push_just_called)
+                {
+                    context.policy_stack.front() = policy_sh_ptr;
+                    context.policy_push_just_called = false;
+                }
+                context.policy_set_map[policy_name] = policy_sh_ptr;
+                return;
+            } },
+            { "GET", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                
+            } },
+            { "VERSION", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+
+            } }
+        };
+
+        auto &context = *context_sh_ptr;
+
+        for (auto& option : options_set)
         {
-            context.policy_stack.front() = policy_sh_ptr;
-            context.policy_push_just_called = false;
+            policy_actions[option](cmd_arguments_size, cmd, context);
         }
-        context.policy_set_map[policy_name] = policy_sh_ptr;
-        return;
-    }
+
+        for (auto& one_value_keyword : one_value_keywords_set)
+        {
+            policy_actions[one_value_keyword](cmd_arguments_size, cmd, context);
+        }
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, set_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::set(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 2)
-        return;
-    auto &var_name = cmd.arguments[0];
-    if (var_name.empty())
-        return;
-    auto &vars = context_sh_ptr->vars;
-    auto &var = vars[var_name];
-    for (size_t i = 1; i < cmd_arguments_size; i++)
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___SET";
+    static ValueVector options = {
+        "PARENT_SCOPE"
+    };
+    static ValueVector one_value_keywords = {
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto set_impl = [&](auto cmd_arguments_size, const Command& cmd)
     {
-        if (!var.empty())
-            var += ";";
-        auto &var_val = cmd.arguments[i];
-        var += dequote(var_val);
-    }
+        if (cmd_arguments_size < 2)
+            return;
+        auto parent_scope = context.vars["___SET_PARENT_SCOPE"] == "TRUE";
+        auto &var_name = cmd.arguments[0];
+        if (var_name.empty())
+            return;
+        auto &vars = context_sh_ptr->vars;
+        auto &var = vars[var_name];
+        for (size_t i = 1; i < cmd_arguments_size; i++)
+        {
+            if (!var.empty())
+                var += ";";
+            auto &var_val = cmd.arguments[i];
+            var += dequote(var_val);
+        }
+        context.mark_var(var_name, parent_scope);
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, set_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::find_path(size_t cmd_arguments_size, const Command &cmd)
@@ -946,6 +1053,13 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
             }
         };
         truthize();
+        auto identifyVar = [&](auto& child) -> std::string&
+        {
+            if (child.op == ConditionOp::Identifier) {
+                return vars[child.value];
+            }
+            return child.value;
+        };
         size_t i = 0;
         bool have = false;
         bool result = false;
@@ -963,11 +1077,13 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
             bool term = false;
             if (i + 1 < children.size() && (children[i + 1]->op == ConditionOp::Strequal || children[i + 1]->op == ConditionOp::Equal))
             {
-                std::string lhs = toString(*children[i]);
+                auto& l_child = *children[i];
+                auto& lhs = identifyVar(l_child);
                 i += 2;
                 if (i >= children.size())
                     break;
-                std::string rhs = toString(*children[i]);
+                auto& r_child = *children[i];
+                auto& rhs = identifyVar(r_child);
                 ++i;
                 term = (lhs == rhs);
                 if (invert)
@@ -975,12 +1091,13 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
             }
             else if (i + 1 < children.size() && children[i + 1]->op == ConditionOp::InList)
             {
-                auto lhs = toString(*children[i]);
+                auto& l_child = *children[i];
+                auto& lhs = identifyVar(l_child);
                 i += 2;
                 if (i >= children.size())
                     break;
-                auto rhs = toString(*children[i]);
-                auto var = vars[rhs];
+                auto& r_child = *children[i];
+                auto& var = identifyVar(r_child);
                 ++i;
                 auto var_split = split_string(var, ";");
                 auto f_it = std::find(var_split.begin(), var_split.end(), lhs);
@@ -993,7 +1110,8 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
                 i += 1;
                 if (i >= children.size())
                     break;
-                auto var_name = toString(*children[i]);
+                auto& r_child = *children[i];
+                auto& var_name = r_child.value;
                 ++i;
                 auto var_it = vars.find(var_name);
                 term = (var_it != vars.end());

@@ -149,6 +149,9 @@ namespace dz::cmake
     {
         using DSL_Fn = std::function<void(size_t, const Command &)>;
         using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
+        
+        using DSL_Fn_With_Context = std::function<void(size_t, const Command &, ParseContext&)>;
+        using DSL_Map_With_Context = std::unordered_map<std::string, DSL_Fn_With_Context>;
 
         std::string name;
         std::unordered_map<std::string, std::shared_ptr<Target>> targets;
