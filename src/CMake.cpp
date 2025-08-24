@@ -163,33 +163,12 @@ std::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_functio
     bool new_scope = true
 )
 {
-    static auto in_vec = [](const auto vec, const auto& str) -> bool {
-        auto vec_begin = vec.begin();
-        auto vec_end = vec.end();
-        return std::find(vec_begin, vec_end, str) != vec_end;
-    };
-    static auto in_map = [](const auto& map, const auto& str) -> bool {
-        return map.find(str) != map.end();
-    };
-    static auto insert_to_map_from_vec_with_prefix_prepended = [](auto& map_to, const auto& vec_from, const std::string& prefix) {
-        for (auto& var_str : vec_from) {
-            map_to[prefix + "_" + var_str];
-        }
-    };
-    static auto insert_to_map_from_map = [](auto& map_to, const auto& map_from) {
-        map_to.insert(map_from.begin(), map_from.end());
-    };
-    static auto remove_to_map_from_map = [](auto& map_to, const auto& map_from) {
-        for (auto& [var_key, var_val] : map_from) {
-            map_to.erase(var_key);
-        }
-    };
     return [=](auto cmd_arguments_size, const auto& cmd){
         dz::cmake::VariableMap all_keys_and_vals;
 
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, multi_value_keywords, prefix);
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, one_value_keywords, prefix);
-        insert_to_map_from_vec_with_prefix_prepended(all_keys_and_vals, options, prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, multi_value_keywords, prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, one_value_keywords, prefix);
+        insert_to_map_from_vec_with_string_prefix_prepended(all_keys_and_vals, options, prefix);
 
         std::string parsing_key;
         std::string* parsing_val = nullptr;
