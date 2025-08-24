@@ -473,41 +473,68 @@ void dz::cmake::Project::project(size_t cmd_arguments_size, const Command &cmd)
 
 void dz::cmake::Project::list(size_t cmd_arguments_size, const Command &cmd)
 {
-    if (cmd_arguments_size < 3)
-        return;
-    auto arguments_data = cmd.arguments.data();
-    auto &action = arguments_data[0];
-    auto &var_name = arguments_data[1];
-    if (var_name.empty())
-        return;
-    auto &vars = context_sh_ptr->vars;
-    auto &var = vars[var_name];
-    for (size_t i = 2; i < cmd_arguments_size; i++)
+    auto& context = *context_sh_ptr;
+    static auto prefix = "___LIST";
+    static ValueVector options = {
+        "APPEND",
+        "REMOVE_ITEM"
+    };
+    static ValueVector one_value_keywords = {
+    };
+    static ValueVector multi_value_keywords = {
+    };
+    auto list_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
     {
-        auto &val = arguments_data[i];
-        if (action == "APPEND")
+        static DSL_Map_With_Context list_actions = {
+            { "APPEND", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                if (cmd_arguments_size < 1)
+                    return;
+                auto arguments_data = cmd.arguments.data();
+                auto &var_name = arguments_data[0];
+                auto &var = context.vars[var_name];
+                for (size_t i = 1; i < cmd_arguments_size; i++)
+                {
+                    auto &val = arguments_data[i];
+                    if (!var.empty())
+                        var += ";";
+                    var += val;
+                }
+                return;
+            } },
+            { "REMOVE_ITEM", [](auto cmd_arguments_size, auto& cmd, auto& context) {
+                if (cmd_arguments_size < 1)
+                    return;
+                auto arguments_data = cmd.arguments.data();
+                auto &var_name = arguments_data[0];
+                auto &var = context.vars[var_name];
+                for (size_t i = 1; i < cmd_arguments_size; i++)
+                {
+                    auto &val = arguments_data[i];
+                    auto var_split = split_string(var, ";");
+                    auto f_it = std::find(var_split.begin(), var_split.end(), val);
+                    if (f_it != var_split.end())
+                    {
+                        var_split.erase(f_it);
+                        var = join_string_vec(var_split, ";");
+                    }
+                }
+                return;
+            } }
+        };
+
+        if (!options_set.empty())
         {
-            if (!var.empty())
-                var += ";";
-            var += dequote(val);
+            auto& option = options_set.front();
+            list_actions[option](cmd_arguments_size, cmd, context);
         }
-        else if (action == "REMOVE_ITEM")
-        {
-            auto var_split = split_string(var, ";");
-            auto f_it = std::find(var_split.begin(), var_split.end(), val);
-            if (f_it != var_split.end())
-            {
-                var_split.erase(f_it);
-                var = join_string_vec(var_split, ";");
-            }
-        }
-    }
+    };
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, list_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    return;
 }
 
 void dz::cmake::Project::cmake_policy(size_t cmd_arguments_size, const Command &cmd)
 {
-
-    
     auto& context = *context_sh_ptr;
     static auto prefix = "___CMAKE_POLICY";
     static ValueVector options = {
@@ -521,7 +548,7 @@ void dz::cmake::Project::cmake_policy(size_t cmd_arguments_size, const Command &
     };
     static ValueVector multi_value_keywords = {
     };
-    auto set_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
+    auto policy_impl = [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set)
     {
         static DSL_Map_With_Context policy_actions = {
             { "PUSH", [](auto cmd_arguments_size, auto& cmd, auto& context) {
@@ -560,22 +587,21 @@ void dz::cmake::Project::cmake_policy(size_t cmd_arguments_size, const Command &
                 return;
             } },
             { "GET", [](auto cmd_arguments_size, auto& cmd, auto& context) {
-                
+                // TODO:
             } },
             { "VERSION", [](auto cmd_arguments_size, auto& cmd, auto& context) {
-
+                // TODO:
             } }
         };
 
-        auto &context = *context_sh_ptr;
-
-        for (auto& option : options_set)
+        if (!options_set.empty())
         {
+            auto& option = options_set.front();
             policy_actions[option](cmd_arguments_size, cmd, context);
         }
-
-        for (auto& one_value_keyword : one_value_keywords_set)
+        else if (!one_value_keywords.empty())
         {
+            auto& one_value_keyword = one_value_keywords_set.front();
             policy_actions[one_value_keyword](cmd_arguments_size, cmd, context);
         }
     };
