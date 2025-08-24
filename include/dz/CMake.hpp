@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <functional>
 #include <deque>
+#include <dz/function.hpp>
 
 namespace dz::cmake
 {
@@ -147,10 +148,10 @@ namespace dz::cmake
 
     struct Project
     {
-        using DSL_Fn = std::function<void(size_t, const Command &)>;
+        using DSL_Fn = dz::function<void(size_t, const Command &)>;
         using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
         
-        using DSL_Fn_With_Context = std::function<void(size_t, const Command &, ParseContext&)>;
+        using DSL_Fn_With_Context = dz::function<void(size_t, const Command &, ParseContext&)>;
         using DSL_Map_With_Context = std::unordered_map<std::string, DSL_Fn_With_Context>;
 
         std::string name;
