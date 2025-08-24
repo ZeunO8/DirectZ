@@ -21,7 +21,7 @@ elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Android")
     message(STATUS "Determined Host Android")
 endif()
 
-project(test-project)
+project(test-project VERSION 3.2.1.0 COMPAT_VERSION 3.2 DESCRIPTION "This is a test project for DirectZ cmake" HOMEPAGE_URL "https://github.com/ZeunO8/DirectZ" LANGUAGES C CXX OBJC OBJCXX ASM)
 
 message(STATUS "WIN32: ${WIN32}")
 
