@@ -605,7 +605,7 @@ void dz::cmake::Project::cmake_policy(size_t cmd_arguments_size, const Command &
             policy_actions[one_value_keyword](cmd_arguments_size, cmd, context);
         }
     };
-    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, set_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, policy_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
     return;
 }
