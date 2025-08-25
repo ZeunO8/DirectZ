@@ -1749,51 +1749,19 @@ void dz::cmake::CommandParser::parseContentWithProject(Project &project, const s
         //         macroBody.clear();
         //     }
         // }
-        // else if (name == "if" || name == "elseif")
-        // {
-        // }
-        // else if (name == "else")
-        // {
-        //     if (!currentBlock)
-        //     {
-        //         throw std::runtime_error("[cmake] -- else without opening if");
-        //     }
-        //     currentBlock->elseBranch.clear();
-        //     current_else_depth_stack.push(if_depth);
-        // }
-        // else if (name == "endif")
-        // {
-        //     if (!current_else_depth_stack.empty() && current_else_depth_stack.top() == if_depth)
-        //         current_else_depth_stack.pop();
-        //     if (if_depth == 1)
-        //     {
-        //         currentBlock->Evaluate(project);
-        //         if (!currentBlock->owned_by_sh_ptr)
-        //             delete currentBlock;
-        //         currentBlock = nullptr;
-        //     }
-        //     else
-        //     {
-        //         currentBlock = currentBlock->parent_block;
-        //     }
-        //     if_depth--;
-        // }
-        // else
-        // {
-            auto cmd_sh_ptr = std::make_shared<Command>();
-            auto &cmd = *cmd_sh_ptr;
-            cmd.name = name;
-            tokenize(args, cmd.arguments);
-            if (context.insideMacro)
-            {
-                context.macroBody.push_back(cmd);
-            }
-            else
-            {
-                varize(cmd, context);
-                cmd.Evaluate(project);
-            }
-        // }
+        auto cmd_sh_ptr = std::make_shared<Command>();
+        auto &cmd = *cmd_sh_ptr;
+        cmd.name = name;
+        tokenize(args, cmd.arguments);
+        if (context.insideMacro)
+        {
+            context.macroBody.push_back(cmd);
+        }
+        else
+        {
+            varize(cmd, context);
+            cmd.Evaluate(project);
+        }
     }
 }
 
