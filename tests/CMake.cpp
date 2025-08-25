@@ -11,6 +11,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/modules")
 
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
     message(STATUS "Determined Host Windows")
+    set(Yo TRUE)
+    if(DEFINED Yo)
+        message(STATUS "Yo DEFINED")
+    else()
+        message(STATUS "Yo not DEFINED")
+    endif()
+    message(STATUS "End of Windows block")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
     message(STATUS "Determined Host Linux")
 elseif("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
@@ -25,17 +32,13 @@ project(test-project VERSION 3.2.1.0 COMPAT_VERSION 3.2 DESCRIPTION "This is a t
 
 message(STATUS "WIN32: ${WIN32}")
 
-find_package(DZ_Vulkan REQUIRED)
-
-# find_package(DirectZ REQUIRED)
+find_package(DZ_Vulkan REQUIRED COMPONENTS glslc)
 
 add_library(test STATIC test.cpp)
-target_link_libraries(test PRIVATE DirectZ)
-if(WIN32)
-    target_link_libraries(test PRIVATE DirectZ-win)
-elseif(ANDROID)
-    target_link_libraries(test PRIVATE DirectZ-android)
-endif()
+
+target_include_directories(test PRIVATE ${Vulkan_INCLUDE_DIR})
+
+target_link_libraries(test PRIVATE DirectZ "${Vulkan_LIBRARY}")
 )");
     }
     try {

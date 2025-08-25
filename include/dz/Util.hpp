@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cctype>
+#include <unordered_set>
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -113,15 +114,22 @@ namespace dz
         return joined_str;
     }
 
+    inline static bool is_quoted(const auto& var_value)
+    {
+        return (var_value.size() >= 2 && var_value[0] == '"' && var_value[var_value.size() - 1] == '"');
+    }
+
     inline static std::string dequote(const std::string &quoted_str)
     {
+        if (!is_quoted(quoted_str))
+            return quoted_str;
         auto new_str = quoted_str;
         if (new_str.empty())
-            return new_str;
+            assert(false);
         if (new_str[0] == '"')
             new_str.erase(0, 1);
         if (new_str.empty())
-            return new_str;
+            assert(false);
         if (new_str[new_str.size() - 1] == '"')
             new_str.erase(new_str.size() - 1, 1);
         return new_str;
@@ -202,4 +210,75 @@ namespace dz
             map_to.erase(key);
         }
     }
+
+    inline static auto is_var(const auto &var_value)
+    {
+        auto start_pos = var_value.find("${");
+        if (start_pos == std::string::npos)
+            return false;
+        auto end_pos = var_value.find("}", start_pos);
+        return end_pos != std::string::npos;
+    }
+
+    inline static auto is_env_var(const auto &var_value)
+    {
+        auto start_pos = var_value.find("${ENV");
+        if (start_pos == std::string::npos)
+            return false;
+        auto end_pos = var_value.find("}", start_pos);
+        return end_pos != std::string::npos;
+    }
+
+    inline static bool is_numeric(const auto& var_value)
+    {
+        try
+        {
+            size_t idx = 0;
+
+            char *p;
+            long converted = strtol(var_value.c_str(), &p, 10);
+            if (!(*p))
+            {
+                return true;
+            }
+        }
+        catch (...)
+        {
+        }
+        return false;
+    }
+
+    inline static auto is_literal(const auto &var_value)
+    {
+        static const std::unordered_set<std::string> lit_map = {
+            "TRUE", "true", "FALSE", "false",
+            "ON", "on", "OFF", "off",
+            "YES", "yes", "NO", "no",
+            "Y", "y", "N", "n",
+            "IGNORE", "ignore",
+            "NOTFOUND", "notfound"};
+
+        // Exact match in known literal set
+        if (lit_map.find(var_value) != lit_map.end())
+            return true;
+
+        // Special case: anything ending with -NOTFOUND is a literal
+        if (var_value.size() >= 9)
+        {
+            std::string suffix = var_value.substr(var_value.size() - 9);
+            std::transform(suffix.begin(), suffix.end(), suffix.begin(), ::toupper);
+            if (suffix == "-NOTFOUND")
+                return true;
+        }
+
+        // Numeric literal (decimal, hex, octal)
+        if (is_numeric(var_value))
+            return true;
+
+        // String literal ("val")
+        if (is_quoted(var_value))
+            return true;
+
+        return false;
+    };
 }

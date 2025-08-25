@@ -26,13 +26,39 @@ namespace dz::cmake
         virtual void Evaluate(Project& project) = 0;
         virtual void Varize(Project& project) = 0;
     };
-
     struct Command : Evaluable
     {
         std::string name;
         ValueVector arguments;
         void Evaluate(Project& project) override;
         void Varize(Project& project) override;
+    };
+
+    enum class ConditionOp
+    {
+        And,
+        Or,
+        Not,
+        Identifier,
+        Literal,
+        Group,
+        Strequal,
+        Equal,
+        IdentifierOrLiteral,
+        InList,
+        Defined
+    };
+
+    struct ConditionNode
+    {
+        ConditionOp op;
+        std::string value;
+        std::vector<std::shared_ptr<ConditionNode>> children;
+
+        bool BoolVar(const std::string &var) const;
+
+        bool Evaluate(Project& project) const;
+        void ParseConditions(Project& project, size_t cmd_arguments_size, const Command& cmd);
     };
 
     struct ICMakeEntity
@@ -100,8 +126,8 @@ namespace dz::cmake
             return "<unknown>";
         }
 
-        Type targetType;
-        LinkType linkType;
+        Type targetType = (Type)0;
+        LinkType linkType = (LinkType)0;
         std::string name;
         ValueVector sources;
         ValueVector includeDirs;
@@ -126,6 +152,7 @@ namespace dz::cmake
     struct ParseContext
     {
         std::shared_ptr<Project> root_project;
+
         std::unordered_map<std::string, std::shared_ptr<Policy>> policy_set_map;
         std::deque<std::shared_ptr<Policy>> policy_stack;
         bool policy_push_just_called = false;
@@ -133,6 +160,15 @@ namespace dz::cmake
         VariableMap vars;
         VariableMap env;
         std::unordered_map<std::string, bool> marked_vars;
+
+        std::shared_ptr<ConditionNode> current_condition_sh_ptr;
+        bool insideMacro = false;
+        int if_depth = 0;
+        int valid_if_depth = 0;
+        std::stack<int> current_else_depth_stack;
+        std::string macroName;
+        dz::cmake::ValueVector macroParams;
+        std::vector<Command> macroBody;
 
         ParseContext();
 
@@ -179,7 +215,19 @@ namespace dz::cmake
     private:
         ValueVector determine_find_package_dirs(const std::string &pkg);
 
-        void add_lib_or_exe(size_t cmd_arguments_size, const Command &cmd);
+        void ___macro(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___endmacro(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___if(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___else(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___endif(size_t cmd_arguments_size, const Command& cmd);
+
+        void add_library(size_t cmd_arguments_size, const Command &cmd);
+
+        void add_executable(size_t cmd_arguments_size, const Command &cmd);
 
         void target_include_directories(size_t cmd_arguments_size, const Command &cmd);
 
@@ -199,49 +247,17 @@ namespace dz::cmake
 
         void set(size_t cmd_arguments_size, const Command &cmd);
 
+        void unset(size_t cmd_arguments_size, const Command &cmd);
+
         void find_path(size_t cmd_arguments_size, const Command &cmd);
 
+        void find_library(size_t cmd_arguments_size, const Command &cmd);
+
+        void find_program(size_t cmd_arguments_size, const Command &cmd);
+
         void mark_as_advanced(size_t cmd_arguments_size, const Command &cmd);
-    };
 
-    enum class ConditionOp
-    {
-        And,
-        Or,
-        Not,
-        Identifier,
-        Literal,
-        Group,
-        Strequal,
-        Equal,
-        IdentifierOrLiteral,
-        InList,
-        Defined
-    };
 
-    struct ConditionNode
-    {
-        ConditionOp op;
-        std::string value;
-        std::vector<std::shared_ptr<ConditionNode>> children;
-
-        bool BoolVar(const std::string &var) const;
-
-        bool Evaluate(Project& project) const;
-    };
-
-    struct ConditionalBlock : Evaluable
-    {
-        using BranchEvaluableVector = std::vector<std::shared_ptr<Evaluable>>;
-        std::vector<std::pair<std::shared_ptr<ConditionNode>, BranchEvaluableVector>> branches;
-        BranchEvaluableVector elseBranch;
-
-        ConditionalBlock* parent_block = nullptr;
-
-        bool owned_by_sh_ptr = false;
-
-        void Evaluate(Project &project) override;
-        void Varize(Project &project) override;
     };
 
     struct CommandParser
@@ -256,12 +272,11 @@ namespace dz::cmake
 
         static void varize(Command &cmd, ParseContext &parse_context);
 
-        static void varize_str(std::string &str, ParseContext &parse_context);
+        static void varize_str(std::string &str, ParseContext &parse_context, bool dequite = false);
 
         static void envize_str(std::string &str, ParseContext &parse_context);
 
     private:
-        static std::shared_ptr<ConditionNode> parseCondition(const std::string &expr);
 
         static void skipWhitespaceAndComments(const std::string &s, size_t &pos);
 
