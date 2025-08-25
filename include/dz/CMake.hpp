@@ -26,12 +26,53 @@ namespace dz::cmake
         virtual void Evaluate(Project& project) = 0;
         virtual void Varize(Project& project) = 0;
     };
+
     struct Command : Evaluable
     {
         std::string name;
         ValueVector arguments;
         void Evaluate(Project& project) override;
         void Varize(Project& project) override;
+    };
+
+    struct Block
+    {
+        enum Type
+        {
+            function,
+            macro,
+            foreach,
+            block,
+        };
+        Type type;
+        ValueVector arguments;
+        std::vector<Command> body;
+        Block(Type type);
+        virtual ~Block() = default;
+        void DefineArguments(size_t offset, size_t cmd_arguments_size, const Command& cmd);
+        virtual void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) = 0;
+    };
+
+    struct foreach_Block : Block
+    {
+        foreach_Block();
+        void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) override;
+    };
+
+    struct function_Block : Block
+    {
+        std::string name;
+
+        function_Block();
+        void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) override;
+    };
+
+    struct macro_Block : Block
+    {
+        std::string name;
+
+        macro_Block();
+        void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) override;
     };
 
     enum class ConditionOp
@@ -134,15 +175,6 @@ namespace dz::cmake
         ValueVector linkLibs;
     };
 
-    struct Macro
-    {
-        std::string name;
-        ValueVector params;
-        std::vector<dz::cmake::Command> body;
-
-        void execute(Project &project, const Command &cmd) const;
-    };
-
     struct Policy
     {
         std::string policy_name;
@@ -162,13 +194,15 @@ namespace dz::cmake
         std::unordered_map<std::string, bool> marked_vars;
 
         std::shared_ptr<ConditionNode> current_condition_sh_ptr;
-        bool insideMacro = false;
+
         int if_depth = 0;
         int valid_if_depth = 0;
-        std::stack<int> current_else_depth_stack;
-        std::string macroName;
-        dz::cmake::ValueVector macroParams;
-        std::vector<Command> macroBody;
+
+        std::unordered_map<std::string, std::shared_ptr<Block>> block_map;
+        std::stack<std::shared_ptr<Block>> block_stack;
+
+        Block* evaluating_block = nullptr;
+        const Command* evaluating_block_cmd = nullptr;
 
         ParseContext();
 
@@ -196,7 +230,6 @@ namespace dz::cmake
         std::string homepage_url;
         std::vector<std::string> languages;
         std::unordered_map<std::string, std::shared_ptr<Target>> targets;
-        std::unordered_map<std::string, Macro> macros;
 
         std::shared_ptr<ParseContext> context_sh_ptr;
 
@@ -218,6 +251,14 @@ namespace dz::cmake
         void ___macro(size_t cmd_arguments_size, const Command& cmd);
 
         void ___endmacro(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___function(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___endfunction(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___foreach(size_t cmd_arguments_size, const Command& cmd);
+
+        void ___endforeach(size_t cmd_arguments_size, const Command& cmd);
 
         void ___if(size_t cmd_arguments_size, const Command& cmd);
 
@@ -269,6 +310,8 @@ namespace dz::cmake
         static std::shared_ptr<Project> parseContent(const std::string &content);
 
         static std::shared_ptr<Project> parseContent(const std::string &content, const std::shared_ptr<ParseContext> &context_sh_ptr);
+
+        static void process_cmd(ParseContext& context, Project& project, Command& cmd);
 
         static void varize(Command &cmd, ParseContext &parse_context);
 

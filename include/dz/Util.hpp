@@ -100,6 +100,17 @@ namespace dz
         return result;
     }
 
+    inline static std::vector<std::vector<std::string>> split_ranges(const std::vector<std::string> &ranges, const std::string &split_str)
+    {
+        std::vector<std::vector<std::string>> split;
+        split.reserve(ranges.size());
+        for (auto& str : ranges)
+        {
+            split.push_back(split_string(str, split_str));
+        }
+        return split;
+    }
+
     inline static std::string join_string_vec(const std::vector<std::string> &vec, const std::string &join_str)
     {
         std::string joined_str;
@@ -194,8 +205,9 @@ namespace dz
 
     inline static auto insert_to_map_from_vec_with_string_prefix_prepended(auto& map_to, const auto& vec_from, const std::string& prefix)
     {
+        auto abs_prefix = (prefix.empty() ? "" : (prefix + "_"));
         for (auto& var_str : vec_from) {
-            map_to[prefix + "_" + var_str];
+            map_to[abs_prefix + var_str];
         }
     }
 
@@ -280,5 +292,44 @@ namespace dz
             return true;
 
         return false;
-    };
+    }
+    inline static auto truthy(const std::string &s)
+    {
+        std::string u = to_upper(s);
+        static std::unordered_set<std::string> falsey_set = {
+            "0",
+            "FALSE",
+            "OFF",
+            "NO",
+            "N",
+            "IGNORE",
+            "NOTFOUND",
+        };
+        auto falsey_it = falsey_set.find(u);
+        if (s.empty() || falsey_it != falsey_set.end() || (u.size() > 9 && u.rfind("-NOTFOUND") == u.size() - 9))
+            return false;
+        return true;
+    }
+
+    static size_t get_range_min(const std::vector<std::vector<std::string>>& ranges)
+    {
+        size_t x = (std::numeric_limits<size_t>::max)();
+        for (auto& range_ns : ranges)
+        {
+            auto range_size = range_ns.size();
+            x = (std::min)(range_size, x);
+        }
+        return x;
+    }
+
+    static size_t get_range_max(const std::vector<std::vector<std::string>>& ranges)
+    {
+        size_t x = (std::numeric_limits<size_t>::lowest)();
+        for (auto& range_ns : ranges)
+        {
+            auto range_size = range_ns.size();
+            x = (std::max)(range_size, x);
+        }
+        return x;
+    }
 }
