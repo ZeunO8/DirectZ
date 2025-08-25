@@ -32,7 +32,11 @@ project(test-project VERSION 3.2.1.0 COMPAT_VERSION 3.2 DESCRIPTION "This is a t
 
 message(STATUS "WIN32: ${WIN32}")
 
-find_package(DZ_Vulkan REQUIRED COMPONENTS glslc)
+if(WIN32)
+    message(STATUS "Inside WIN32 if")
+    find_package(DZ_Vulkan REQUIRED COMPONENTS glslc)
+    message(STATUS "After WIN32 find_package(DZ_VULKAN) ")
+endif()
 
 add_library(test STATIC test.cpp)
 
