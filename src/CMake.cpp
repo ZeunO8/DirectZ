@@ -104,6 +104,12 @@ dz::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function
             new_cmd.arguments = new_arguments;
             auto old_marked_vars = context.marked_vars;
             auto old_context_vars = context.vars;
+            auto old_if_depth = context.if_depth;
+            auto old_valid_if_depth = context.valid_if_depth;
+            if (abs_con.new_scope)
+            {
+                context.valid_if_depth = context.if_depth = 0;
+            }
             insert_to_map_from_map(context.vars, all_keys_and_vals);
             if constexpr (requires { abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); } )
             {
@@ -118,6 +124,8 @@ dz::function<void(size_t, const dz::cmake::Command&)> abstractify_cmake_function
                 context.vars = old_context_vars;
                 context.restore_marked_vars(new_context_vars);
                 context.marked_vars = old_marked_vars;
+                context.valid_if_depth = old_valid_if_depth;
+                context.if_depth = old_if_depth;
             }
             else {
                 remove_to_map_from_map(context.vars, all_keys_and_vals);
