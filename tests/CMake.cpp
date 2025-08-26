@@ -81,6 +81,7 @@ int main() {
 // _set_component(dz::function)
 // )";
         o << R"(
+#[[
 function(te_ret_function OKAY)
     if("${OKAY}" STREQUAL "Pizza and Peace")
         message(STATUS "Okay to print: ${OKAY}")
@@ -113,6 +114,7 @@ function(te_ret_function OKAY)
     set(HOORAY TRUE PARENT_SCOPE)
 endfunction()
 te_ret_function("Non Pizza and P*ece")
+]]
 message(STATUS "And HOORAY is: ${HOORAY}")
 #[[
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/modules")

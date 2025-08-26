@@ -95,7 +95,7 @@ namespace dz::cmake
     }
 
     template <typename F>
-    std::pair<dz::function<void(size_t, const Command &)>, dz::function<void()>> abstractify_cmake_function(
+    auto abstractify_cmake_function(
         const std::shared_ptr<ParseContext> &context_sh_ptr,
         const std::string &prefix,
         const ValueVector &options,
@@ -105,95 +105,68 @@ namespace dz::cmake
         size_t parse_argv = 0,
         bool new_scope = true)
     {
-        struct abstract_context
+        return [=](auto cmd_arguments_size, const auto &cmd)
         {
-            std::shared_ptr<ParseContext> context_sh_ptr;
-            std::string prefix;
-            ValueVector options;
-            ValueVector one_value_keywords;
-            ValueVector multi_value_keywords;
-            F run_with_abstract_set;
-            size_t parse_argv;
-            bool new_scope;
-        };
-        auto abstract_context_ptr = new abstract_context{
-            .context_sh_ptr = context_sh_ptr,
-            .prefix = prefix,
-            .options = options,
-            .one_value_keywords = one_value_keywords,
-            .multi_value_keywords = multi_value_keywords,
-            .run_with_abstract_set = run_with_abstract_set,
-            .parse_argv = parse_argv,
-            .new_scope = new_scope,
-        };
-        return {
-            [abstract_context_ptr](auto cmd_arguments_size, const auto &cmd)
+            auto &context = *context_sh_ptr;
+
+            if ((cmd.name == "else" || cmd.name == "elseif") && (context.if_depth - 1) == context.valid_if_depth)
+                static_assert(true);
+            else if ((cmd.name != "endif") && context.if_depth != context.valid_if_depth)
             {
-                auto &abs_con = *abstract_context_ptr;
-                auto &context = *abs_con.context_sh_ptr;
+                if (cmd.name == "if")
+                    context.if_depth++;
+                return;
+            }
 
-                if ((cmd.name == "else" || cmd.name == "elseif") && (context.if_depth - 1) == context.valid_if_depth)
-                    static_assert(true);
-                else if ((cmd.name != "endif") && context.if_depth != context.valid_if_depth)
-                {
-                    if (cmd.name == "if")
-                        context.if_depth++;
-                    return;
-                }
+            auto [new_arguments, all_keys_and_vals, options_set, one_value_keywords_set, multi_value_keywords_set] = parse_all_keys_and_vals(
+                context,
+                prefix,
+                multi_value_keywords,
+                one_value_keywords,
+                options,
+                cmd_arguments_size,
+                cmd,
+                parse_argv);
 
-                auto [new_arguments, all_keys_and_vals, options_set, one_value_keywords_set, multi_value_keywords_set] = parse_all_keys_and_vals(
-                    context,
-                    abs_con.prefix,
-                    abs_con.multi_value_keywords,
-                    abs_con.one_value_keywords,
-                    abs_con.options,
-                    cmd_arguments_size,
-                    cmd,
-                    abs_con.parse_argv);
-
-                {
-                    Command new_cmd = cmd;
-                    new_cmd.arguments = new_arguments;
-                    auto old_marked_vars = context.marked_vars;
-                    auto old_context_vars = context.vars;
-                    auto old_if_depth = context.if_depth;
-                    auto old_valid_if_depth = context.valid_if_depth;
-                    if (abs_con.new_scope)
-                    {
-                        context.valid_if_depth = context.if_depth = 0;
-                    }
-                    insert_to_map_from_map(context.vars, all_keys_and_vals);
-                    if constexpr (requires { abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); })
-                    {
-                        abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
-                    }
-                    else if constexpr (requires { abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd); })
-                    {
-                        abs_con.run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
-                    }
-                    else if constexpr (requires { abs_con.run_with_abstract_set(); })
-                    {
-                        abs_con.run_with_abstract_set();
-                    }
-                    if (abs_con.new_scope)
-                    {
-                        auto new_context_vars = context.vars;
-                        context.vars = old_context_vars;
-                        context.restore_marked_vars(new_context_vars);
-                        context.marked_vars = old_marked_vars;
-                        context.valid_if_depth = old_valid_if_depth;
-                        context.if_depth = old_if_depth;
-                    }
-                    else
-                    {
-                        remove_to_map_from_map(context.vars, all_keys_and_vals);
-                    }
-                }
-            },
-            [abstract_context_ptr]()
             {
-                delete abstract_context_ptr;
-            }};
+                Command new_cmd = cmd;
+                new_cmd.arguments = new_arguments;
+                auto old_marked_vars = context.marked_vars;
+                auto old_context_vars = context.vars;
+                auto old_if_depth = context.if_depth;
+                auto old_valid_if_depth = context.valid_if_depth;
+                if (new_scope)
+                {
+                    context.valid_if_depth = context.if_depth = 0;
+                }
+                insert_to_map_from_map(context.vars, all_keys_and_vals);
+                if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set); })
+                {
+                    run_with_abstract_set(new_cmd.arguments.size(), new_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
+                }
+                else if constexpr (requires { run_with_abstract_set(new_cmd.arguments.size(), new_cmd); })
+                {
+                    run_with_abstract_set(new_cmd.arguments.size(), new_cmd);
+                }
+                else if constexpr (requires { run_with_abstract_set(); })
+                {
+                    run_with_abstract_set();
+                }
+                if (new_scope)
+                {
+                    auto new_context_vars = context.vars;
+                    context.vars = old_context_vars;
+                    context.restore_marked_vars(new_context_vars);
+                    context.marked_vars = old_marked_vars;
+                    context.valid_if_depth = old_valid_if_depth;
+                    context.if_depth = old_if_depth;
+                }
+                else
+                {
+                    remove_to_map_from_map(context.vars, all_keys_and_vals);
+                }
+            }
+        };
     }
 
     inline static auto identify_var(ParseContext &context, auto &var)
@@ -267,7 +240,7 @@ dz::cmake::foreach_Block::foreach_Block() : Block(Block::foreach)
 void dz::cmake::foreach_Block::Evaluate(Project &project, size_t cmd_arguments_size, const Command &cmd)
 {
     auto &context = *project.context_sh_ptr;
-    auto [context_function, context_deleter] = abstractify_cmake_function(project.context_sh_ptr, "___evaluate_foreach_impl", {"IN"}, {}, {"LISTS", "ITEMS", "ZIP_LISTS", "RANGE"}, [&](auto cmd_arguments_size, const Command &cmd, const ValueVector &options_set, const ValueVector &one_value_keywords_set, const ValueVector &multi_value_keywords_set)
+    auto context_function = abstractify_cmake_function(project.context_sh_ptr, "___evaluate_foreach_impl", {"IN"}, {}, {"LISTS", "ITEMS", "ZIP_LISTS", "RANGE"}, [&](auto cmd_arguments_size, const Command &cmd, const ValueVector &options_set, const ValueVector &one_value_keywords_set, const ValueVector &multi_value_keywords_set)
                                                                           {
             enum class ChosenLoopType {
                 In = 1,
@@ -346,7 +319,7 @@ void dz::cmake::foreach_Block::Evaluate(Project &project, size_t cmd_arguments_s
                 else
                     throw std::runtime_error("[cmake] -- Unsupported foreach arguments");
             }
-            auto [loop_function, loop_deleter] = abstractify_cmake_function(project.context_sh_ptr, "", { }, loop_vars, { },
+            auto loop_function = abstractify_cmake_function(project.context_sh_ptr, "", { }, loop_vars, { },
                 [&](auto cmd_arguments_size, const Command& cmd, const ValueVector& options_set, const ValueVector& one_value_keywords_set, const ValueVector& multi_value_keywords_set){
                     for (auto body_cmd : body)
                     {
@@ -490,10 +463,8 @@ void dz::cmake::foreach_Block::Evaluate(Project &project, size_t cmd_arguments_s
                     break;
                 }
             }
-            loop_deleter();
             return; }, 2, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -527,7 +498,7 @@ void dz::cmake::function_Block::Evaluate(Project &project, size_t cmd_arguments_
         context.evaluating_block_cmd_deque.pop_front();
         context.block_stack = old_block_stack;
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(project.context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___evaluate_function_impl, 0, true);
+    auto context_function = abstractify_cmake_function(project.context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___evaluate_function_impl, 0, true);
     auto block_cmd = cmd;
     block_cmd.arguments.clear();
     block_cmd.arguments.reserve(cmd_arguments_size + arguments.size());
@@ -689,9 +660,8 @@ dsl_fn_project_def(macro)
         macro_block.DefineArguments(1, cmd_arguments_size, cmd);
         context.block_stack.push(macro_block_sh_ptr);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___macro_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___macro_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -711,9 +681,8 @@ dsl_fn_project_def(endmacro)
             throw std::runtime_error("[cmake] -- endmacro() without opening macro()");
         context.block_stack.pop();
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endmacro_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endmacro_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -736,9 +705,8 @@ dsl_fn_project_def(function)
         function_block.DefineArguments(1, cmd_arguments_size, cmd);
         context.block_stack.push(function_block_sh_ptr);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___function_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___function_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -758,9 +726,8 @@ dsl_fn_project_def(endfunction)
             throw std::runtime_error("[cmake] -- endfunction() without opening function()");
         context.block_stack.pop();
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endfunction_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endfunction_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -792,9 +759,8 @@ dsl_fn_project_def(_return)
         if (block_i == eval_deque_size)
             throw std::runtime_error("[cmake] -- return() used and not within evaluable block");
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___return_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___return_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -812,9 +778,8 @@ dsl_fn_project_def(foreach)
         foreach_block.DefineArguments(0, cmd_arguments_size, cmd);
         context.block_stack.push(foreach_block_sh_ptr);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___foreach_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___foreach_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -850,9 +815,8 @@ dsl_fn_project_def(endforeach)
             context.block_stack = old_block_stack;
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endforeach_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endforeach_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -884,9 +848,8 @@ dsl_fn_project_def(_break)
         if (block_i == eval_deque_size)
             throw std::runtime_error("[cmake] -- break() used and not within evaluable block");
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___break_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___break_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -918,9 +881,8 @@ dsl_fn_project_def(_continue)
         if (block_i == eval_deque_size)
             throw std::runtime_error("[cmake] -- continue() used and not within evaluable block");
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___continue_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___continue_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -951,9 +913,8 @@ dsl_fn_project_def(_if)
         if (condition.Evaluate(*this) || is_elseif)
             context.valid_if_depth++;
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___if_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___if_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -968,9 +929,8 @@ dsl_fn_project_def(_else)
     {
         context.valid_if_depth++;
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___else_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___else_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -987,9 +947,8 @@ dsl_fn_project_def(endif)
         while (context.valid_if_depth > context.if_depth)
             context.valid_if_depth--;
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endif_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___endif_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1022,9 +981,8 @@ dsl_fn_project_def(add_library)
         if (in_vec(options_set, "STATIC"))
             target->setStatic();
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, add_library_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, add_library_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1048,9 +1006,8 @@ dsl_fn_project_def(add_executable)
         }
         targets[target_name] = target;
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, add_executable_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, add_executable_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1076,9 +1033,8 @@ dsl_fn_project_def(target_include_directories)
             it->second->addIncludeDir(arg);
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_include_directories_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_include_directories_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1104,9 +1060,8 @@ dsl_fn_project_def(target_link_libraries)
             it->second->addLinkLib(arg);
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_link_libraries_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, target_link_libraries_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1170,9 +1125,8 @@ dsl_fn_project_def(message)
             break;
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, message_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, message_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1239,9 +1193,8 @@ dsl_fn_project_def(get_filename_component)
 
         gfc_actions[mode](cmd_arguments_size, cmd, context, varName, p);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, get_filename_component_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, get_filename_component_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1274,9 +1227,8 @@ dsl_fn_project_def(project)
         if (in_vec(multi_value_keywords_set, "LANGUAGES"))
             languages = split_string(context.vars["___PROJECT_LANGUAGES"], ";");
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, project_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, project_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1337,9 +1289,8 @@ dsl_fn_project_def(list)
             list_actions[option](cmd_arguments_size, cmd, context);
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, list_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, list_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1416,9 +1367,8 @@ dsl_fn_project_def(cmake_policy)
             policy_actions[one_value_keyword](cmd_arguments_size, cmd, context);
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, policy_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, policy_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1451,9 +1401,8 @@ dsl_fn_project_def(set)
         if (parent_scope)
             context.mark_var(var_name);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, set_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, set_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1481,9 +1430,8 @@ dsl_fn_project_def(unset)
             return;
         vars.erase(var_it);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, unset_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, unset_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1544,9 +1492,8 @@ dsl_fn_project_def(find_path)
         context.vars[var_name] = (var_name + "-NOTFOUND");
         context.mark_var(var_name);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_path_impl);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_path_impl);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1627,9 +1574,8 @@ dsl_fn_project_def(find_library)
         context.vars[var_name] = (var_name + "-NOTFOUND");
         context.mark_var(var_name);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_library_impl);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_library_impl);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1705,9 +1651,8 @@ dsl_fn_project_def(find_program)
         context.vars[var_name + "_FOUND"] = "FALSE";
         context.mark_var(var_name);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_program_impl);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_program_impl);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1733,9 +1678,8 @@ dsl_fn_project_def(mark_as_advanced)
             context.mark_var(var_name, mark_bool || force_bool);
         }
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, mark_as_advanced_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, mark_as_advanced_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -1782,9 +1726,8 @@ dsl_fn_project_def(cmake_parse_arguments)
 
         insert_to_map_from_map(context.vars, new_all_keys_and_vals);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, cmake_parse_arguments_impl, 0, false);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, cmake_parse_arguments_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
@@ -2044,9 +1987,8 @@ dsl_fn_project_def(find_package)
         }
         dz::cmake::CommandParser::parseContentWithProject(*this, config_content);
     };
-    auto [context_function, context_deleter] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_package_impl);
+    auto context_function = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, find_package_impl);
     context_function(cmd_arguments_size, cmd);
-    context_deleter();
     return;
 }
 
