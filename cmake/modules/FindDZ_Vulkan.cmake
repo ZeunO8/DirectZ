@@ -341,5 +341,66 @@ else()
     set(Vulkan_dxc_exe_FOUND FALSE)
 endif()
 
+function(_Vulkan_set_library_component_found component)
+    cmake_parse_arguments(PARSE_ARGV 1 _ARG
+            "NO_WARNING"
+            ""
+            "DEPENDENT_COMPONENTS")
+
+    set(all_dependent_component_found TRUE)
+    foreach(dependent_component IN LISTS _ARG_DEPENDENT_COMPONENTS)
+        if(NOT Vulkan_${dependent_component}_FOUND)
+            set(all_dependent_component_found FALSE)
+            break()
+        endif()
+    endforeach()
+
+    if(all_dependent_component_found AND (Vulkan_${component}_LIBRARY OR Vulkan_${component}_DEBUG_LIBRARY))
+        set(Vulkan_${component}_FOUND TRUE PARENT_SCOPE)
+
+        # For Windows Vulkan SDK, third party tools binaries are provided with different MSVC ABI:
+        #   - Release binaries uses a runtime library
+        #   - Debug binaries uses a debug runtime library
+        # This lead to incompatibilities in linking for some configuration types due to CMake-default or project-configured selected MSVC ABI.
+        if(WIN32 AND NOT _ARG_NO_WARNING)
+            if(NOT Vulkan_${component}_LIBRARY)
+                message(WARNING
+                        "Library ${component} for Release configuration is missing, imported target Vulkan::${component} may not be able to link when targeting this build configuration due to incompatible MSVC ABI.")
+            endif()
+            if(NOT Vulkan_${component}_DEBUG_LIBRARY)
+                message(WARNING
+                        "Library ${component} for Debug configuration is missing, imported target Vulkan::${component} may not be able to link when targeting this build configuration due to incompatible MSVC ABI. Consider re-installing the Vulkan SDK and request debug libraries to fix this warning.")
+            endif()
+        endif()
+    else()
+        set(Vulkan_${component}_FOUND FALSE PARENT_SCOPE)
+    endif()
+endfunction()
+
+_Vulkan_set_library_component_found(glslang-spirv NO_WARNING)
+_Vulkan_set_library_component_found(glslang-oglcompiler NO_WARNING)
+_Vulkan_set_library_component_found(glslang-osdependent NO_WARNING)
+_Vulkan_set_library_component_found(glslang-machineindependent NO_WARNING)
+_Vulkan_set_library_component_found(glslang-genericcodegen NO_WARNING)
+_Vulkan_set_library_component_found(glslang
+        DEPENDENT_COMPONENTS
+        glslang-spirv
+        glslang-oglcompiler
+        glslang-osdependent
+        glslang-machineindependent
+        glslang-genericcodegen)
+_Vulkan_set_library_component_found(shaderc_combined)
+_Vulkan_set_library_component_found(SPIRV-Tools)
+_Vulkan_set_library_component_found(volk)
+_Vulkan_set_library_component_found(dxc)
+
+if(Vulkan_MoltenVK_INCLUDE_DIR AND Vulkan_MoltenVK_LIBRARY)
+    set(Vulkan_MoltenVK_FOUND TRUE)
+else()
+    set(Vulkan_MoltenVK_FOUND FALSE)
+endif()
+
+set(Vulkan_LIBRARIES ${Vulkan_LIBRARY})
+set(Vulkan_INCLUDE_DIRS ${Vulkan_INCLUDE_DIR})
 
 cmake_policy(POP)

@@ -13,6 +13,12 @@
 #include <deque>
 #include <dz/function.hpp>
 
+#define dsl_fn_def(NAME) void ___##NAME(size_t cmd_arguments_size, const Command& cmd)
+#define dsl_fn_project_def(NAME) void dz::cmake::Project::___##NAME(size_t cmd_arguments_size, const Command& cmd)
+#define dsl_entry(NAME) { #NAME, { this, &Project::___##NAME } }
+#define dsL_entry_key(NAME, FUNC) { #NAME, { this, &Project::___##FUNC } }
+#define dsL_entry_str(STR, FUNC) { STR, { this, &Project::___##FUNC } }
+
 namespace dz::cmake
 {
     struct Project;
@@ -55,6 +61,8 @@ namespace dz::cmake
 
     struct foreach_Block : Block
     {
+        Command foreach_cmd;
+
         foreach_Block();
         void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) override;
     };
@@ -201,8 +209,16 @@ namespace dz::cmake
         std::unordered_map<std::string, std::shared_ptr<Block>> block_map;
         std::stack<std::shared_ptr<Block>> block_stack;
 
-        Block* evaluating_block = nullptr;
-        const Command* evaluating_block_cmd = nullptr;
+        std::deque<Block*> evaluating_block_deque;
+        std::deque<const Command*> evaluating_block_cmd_deque;
+
+        bool just_triggered_break = false;
+        bool just_triggered_return = false;
+        bool just_triggered_continue = false;
+
+        // Block* returning_from_block = nullptr;
+        // Block* continuing_in_block = nullptr;
+        // Block* breaking_out_of_block = nullptr;
 
         ParseContext();
 
@@ -248,57 +264,35 @@ namespace dz::cmake
     private:
         ValueVector determine_find_package_dirs(const std::string &pkg);
 
-        void ___macro(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___endmacro(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___function(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___endfunction(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___foreach(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___endforeach(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___if(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___else(size_t cmd_arguments_size, const Command& cmd);
-
-        void ___endif(size_t cmd_arguments_size, const Command& cmd);
-
-        void add_library(size_t cmd_arguments_size, const Command &cmd);
-
-        void add_executable(size_t cmd_arguments_size, const Command &cmd);
-
-        void target_include_directories(size_t cmd_arguments_size, const Command &cmd);
-
-        void target_link_libraries(size_t cmd_arguments_size, const Command &cmd);
-
-        void find_package(size_t cmd_arguments_size, const Command &cmd);
-
-        void message(size_t cmd_arguments_size, const Command &cmd);
-
-        void get_filename_component(size_t cmd_arguments_size, const Command &cmd);
-
-        void project(size_t cmd_arguments_size, const Command &cmd);
-
-        void list(size_t cmd_arguments_size, const Command &cmd);
-
-        void cmake_policy(size_t cmd_arguments_size, const Command &cmd);
-
-        void set(size_t cmd_arguments_size, const Command &cmd);
-
-        void unset(size_t cmd_arguments_size, const Command &cmd);
-
-        void find_path(size_t cmd_arguments_size, const Command &cmd);
-
-        void find_library(size_t cmd_arguments_size, const Command &cmd);
-
-        void find_program(size_t cmd_arguments_size, const Command &cmd);
-
-        void mark_as_advanced(size_t cmd_arguments_size, const Command &cmd);
-
-
+        dsl_fn_def(macro);
+        dsl_fn_def(endmacro);
+        dsl_fn_def(function);
+        dsl_fn_def(endfunction);
+        dsl_fn_def(_return);
+        dsl_fn_def(foreach);
+        dsl_fn_def(endforeach);
+        dsl_fn_def(_break);
+        dsl_fn_def(_continue);
+        dsl_fn_def(_if);
+        dsl_fn_def(_else);
+        dsl_fn_def(endif);
+        dsl_fn_def(add_library);
+        dsl_fn_def(add_executable);
+        dsl_fn_def(target_include_directories);
+        dsl_fn_def(target_link_libraries);
+        dsl_fn_def(find_package);
+        dsl_fn_def(message);
+        dsl_fn_def(get_filename_component);
+        dsl_fn_def(project);
+        dsl_fn_def(list);
+        dsl_fn_def(cmake_policy);
+        dsl_fn_def(set);
+        dsl_fn_def(unset);
+        dsl_fn_def(find_path);
+        dsl_fn_def(find_library);
+        dsl_fn_def(find_program);
+        dsl_fn_def(mark_as_advanced);
+        dsl_fn_def(cmake_parse_arguments);
     };
 
     struct CommandParser
