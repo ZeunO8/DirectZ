@@ -1,3 +1,5 @@
+message(STATUS "FetchContent: stb")
+
 FetchContent_Declare(stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
     GIT_TAG master

@@ -2,6 +2,8 @@
 #      Platform-independent LLVM + LLDB + Clang Setup
 # ================================================
 
+message(STATUS "find_package(LLVM)")
+
 # Find LLVM using either LLVM_DIR, CMAKE_PREFIX_PATH or fallback to find_package
 find_package(LLVM REQUIRED CONFIG)
 

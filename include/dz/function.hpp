@@ -5,7 +5,7 @@
 
 namespace dz
 {
-    inline static Arena function_arena = Arena(16384);
+    inline static Arena<16384> function_arena = {};
 
     template <typename>
     struct function;
@@ -16,9 +16,11 @@ namespace dz
     private:
         static constexpr size_t MAX_SBO_SIZE = (sizeof(void*) * 4);
         using TOAFunction = TReturn (*)(function<TReturn(Args...)> &, Args...);
+        using DestroyFunction = void (*)(function<TReturn(Args...)> &);
 
         size_t* ref_count = 0;
-        TOAFunction bound_a = 0;
+        TOAFunction invoke = 0;
+        DestroyFunction destroy = 0;
         alignas(void*) char sbo[MAX_SBO_SIZE] = {0};
         bool arena_allocated = false;
         char* storage = nullptr;
@@ -39,8 +41,11 @@ namespace dz
         {
             if (arena_allocated)
             {
-                if (*ref_count == 1)
+                if (*ref_count == 1) {
+                    if (destroy)
+                        destroy(*this);
                     function_arena.arena_free(storage, storage_size);
+                }
             }
             if (ref_count)
             {
@@ -69,20 +74,31 @@ namespace dz
             struct adapter
             {
                 TOFunction f;
+                adapter(TOFunction f):
+                    f(f)
+                {}
 
                 static TReturn invoke(function &self, Args... args)
                 {
                     auto &a = *reinterpret_cast<adapter *>(self.storage);
                     return (a.f)(args...);
                 }
+
+                static void destroy(function &self)
+                {
+                    auto& a_ptr = (adapter*&)(self.storage);
+                    a_ptr->~adapter();
+                }
             };
 
             constexpr auto adapter_size = sizeof(adapter);
             ensure_storage(adapter_size);
 
-            memcpy(storage, &f, sizeof(TOFunction));
+            auto& adapter_ptr = (adapter*&)storage;
+            ::new (adapter_ptr) adapter(f);
 
-            bound_a = &adapter::invoke;
+            invoke = &adapter::invoke;
+            destroy = &adapter::destroy;
         }
 
         template <typename TObject, typename TOFunction>
@@ -108,13 +124,13 @@ namespace dz
             int offset = sizeof(TObject*);
             memcpy(storage + offset, &f, sizeof(TOFunction));
 
-            bound_a = &adapter::invoke;
+            invoke = &adapter::invoke;
         }
 
         TReturn operator()(Args... args) const
         {
-            if (bound_a)
-                return bound_a((function&)(*this), args...);
+            if (invoke)
+                return invoke((function&)(*this), args...);
             else if constexpr (std::is_same_v<TReturn, void>)
                 return;
             else if constexpr (requires { TReturn(0); })
@@ -136,7 +152,7 @@ namespace dz
             ref_count = o.ref_count;
             *(ref_count)++;
             arena_allocated = o.arena_allocated;
-            bound_a = o.bound_a;
+            invoke = o.invoke;
             storage_size = o.storage_size;
             if (arena_allocated)
                 storage = o.storage;
@@ -159,12 +175,12 @@ namespace dz
 
 		constexpr explicit operator bool() const noexcept
 		{
-			return bound_a;
+			return invoke;
 		}
 
 		constexpr bool operator!() const noexcept
 		{
-			return !bound_a;
+			return !invoke;
 		}
 
         ~function()

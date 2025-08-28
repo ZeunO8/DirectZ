@@ -1,3 +1,4 @@
+message(STATUS "FetchContent: imgui")
 FetchContent_Declare(imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui.git
   GIT_TAG docking
@@ -27,6 +28,7 @@ target_include_directories(imgui PRIVATE
 target_compile_features(imgui PRIVATE cxx_std_20)
 set_target_properties(imgui PROPERTIES DEBUG_POSTFIX "d")
 
+message(STATUS "FetchContent: imguizmo")
 FetchContent_Declare(imguizmo
   GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
   GIT_TAG master

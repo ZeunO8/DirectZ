@@ -1,3 +1,5 @@
+message(STATUS "find_package(Vulkan)")
+
 if(ANDROID)
     set(VULKAN_LIB_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/lib/${ANDROID_TRIPLET}/${ANDROID_PLATFORM_LEVEL}/libvulkan.so")
     set(VULKAN_INCLUDE_PATH "${ANDROID_NDK}/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include")

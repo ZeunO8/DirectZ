@@ -104,7 +104,7 @@ namespace dz
     {
         std::vector<std::vector<std::string>> split;
         split.reserve(ranges.size());
-        for (auto& str : ranges)
+        for (auto &str : ranges)
         {
             split.push_back(split_string(str, split_str));
         }
@@ -125,7 +125,7 @@ namespace dz
         return joined_str;
     }
 
-    inline static bool is_quoted(const auto& var_value)
+    inline static bool is_quoted(const auto &var_value)
     {
         return (var_value.size() >= 2 && var_value[0] == '"' && var_value[var_value.size() - 1] == '"');
     }
@@ -191,34 +191,36 @@ namespace dz
         return env_map;
     }
 
-    inline static auto in_vec(const auto vec, const auto& val)
+    inline static auto in_vec(const auto vec, const auto &val)
     {
         auto vec_begin = vec.begin();
         auto vec_end = vec.end();
         return std::find(vec_begin, vec_end, val) != vec_end;
     }
 
-    inline static auto in_map(const auto& map, const auto& val)
+    inline static auto in_map(const auto &map, const auto &val)
     {
         return map.find(val) != map.end();
     }
 
-    inline static auto insert_to_map_from_vec_with_string_prefix_prepended(auto& map_to, const auto& vec_from, const std::string& prefix)
+    inline static auto insert_to_map_from_vec_with_string_prefix_prepended(auto &map_to, const auto &vec_from, const std::string &prefix)
     {
         auto abs_prefix = (prefix.empty() ? "" : (prefix + "_"));
-        for (auto& var_str : vec_from) {
+        for (auto &var_str : vec_from)
+        {
             map_to[abs_prefix + var_str];
         }
     }
 
-    inline static auto insert_to_map_from_map(auto& map_to, const auto& map_from)
+    inline static auto insert_to_map_from_map(auto &map_to, const auto &map_from)
     {
         map_to.insert(map_from.begin(), map_from.end());
     }
 
-    inline static auto remove_to_map_from_map(auto& map_to, const auto& map_from)
+    inline static auto remove_to_map_from_map(auto &map_to, const auto &map_from)
     {
-        for (auto& [key, val] : map_from) {
+        for (auto &[key, val] : map_from)
+        {
             map_to.erase(key);
         }
     }
@@ -241,7 +243,7 @@ namespace dz
         return end_pos != std::string::npos;
     }
 
-    inline static bool is_numeric(const auto& var_value)
+    inline static bool is_numeric(const auto &var_value)
     {
         try
         {
@@ -311,10 +313,10 @@ namespace dz
         return true;
     }
 
-    static size_t get_range_min(const std::vector<std::vector<std::string>>& ranges)
+    static size_t get_range_min(const std::vector<std::vector<std::string>> &ranges)
     {
         size_t x = (std::numeric_limits<size_t>::max)();
-        for (auto& range_ns : ranges)
+        for (auto &range_ns : ranges)
         {
             auto range_size = range_ns.size();
             x = (std::min)(range_size, x);
@@ -322,10 +324,10 @@ namespace dz
         return x;
     }
 
-    static size_t get_range_max(const std::vector<std::vector<std::string>>& ranges)
+    static size_t get_range_max(const std::vector<std::vector<std::string>> &ranges)
     {
         size_t x = (std::numeric_limits<size_t>::lowest)();
-        for (auto& range_ns : ranges)
+        for (auto &range_ns : ranges)
         {
             auto range_size = range_ns.size();
             x = (std::max)(range_size, x);

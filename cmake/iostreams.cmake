@@ -1,3 +1,5 @@
+message(STATUS "FetchContent: iostreams")
+
 FetchContent_Declare(iostreams
     GIT_REPOSITORY https://github.com/ZeunO8/iostreams.git
     GIT_TAG main

@@ -81,6 +81,15 @@ int main() {
 // _set_component(dz::function)
 // )";
         o << R"(
+foreach(J RANGE 4)
+    message(STATUS "J: ${J}")
+    foreach(I RANGE 2)
+        message(STATUS "    I: ${I}")
+        foreach(K RANGE 1)
+            message(STATUS "        K: ${K}")
+        endforeach()
+    endforeach()
+endforeach()
 #[[
 function(te_ret_function OKAY)
     if("${OKAY}" STREQUAL "Pizza and Peace")
@@ -114,8 +123,8 @@ function(te_ret_function OKAY)
     set(HOORAY TRUE PARENT_SCOPE)
 endfunction()
 te_ret_function("Non Pizza and P*ece")
-]]
 message(STATUS "And HOORAY is: ${HOORAY}")
+]]
 #[[
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/modules")
 

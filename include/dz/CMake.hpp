@@ -12,12 +12,19 @@
 #include <filesystem>
 #include <deque>
 #include <dz/function.hpp>
+#include <functional>
 
-#define dsl_fn_def(NAME) void ___##NAME(size_t cmd_arguments_size, const Command& cmd)
-#define dsl_fn_project_def(NAME) void dz::cmake::Project::___##NAME(size_t cmd_arguments_size, const Command& cmd)
-#define dsl_entry(NAME) { #NAME, { this, &Project::___##NAME } }
-#define dsL_entry_key(NAME, FUNC) { #NAME, { this, &Project::___##FUNC } }
-#define dsL_entry_str(STR, FUNC) { STR, { this, &Project::___##FUNC } }
+#define dsl_some_abstract_arguments_real size_t, const dz::cmake::Command &
+#define dsl_some_abstract_arguments size_t cmd_arguments_size, const Command &cmd
+#define DSL_Fn dz::function<void(dsl_some_abstract_arguments_real)>
+#define DSL_Map std::unordered_map<std::string, DSL_Fn>
+#define dsl_fn_def(NAME) void ___##NAME(dsl_some_abstract_arguments)
+#define dsl_fn_project_def(NAME) void dz::cmake::Project::___##NAME(dsl_some_abstract_arguments)
+#define dsl_entry(NAME) { #NAME, DSL_Fn(this, &Project::___##NAME) }
+#define dsL_entry_key(NAME, FUNC) { #NAME, DSL_Fn(this, &Project::___##FUNC) }
+#define dsL_entry_str(STR, FUNC) { STR, DSL_Fn(this, &Project::___##FUNC) }
+#define dsl_all_abstract_arguments dsl_some_abstract_arguments, const dz::cmake::ValueVector &options_set, const dz::cmake::ValueVector &one_value_keywords_set, const dz::cmake::ValueVector &multi_value_keywords_set
+#define dsl_all_abstract_arguments_real dsl_some_abstract_arguments_real, const dz::cmake::ValueVector &, const dz::cmake::ValueVector &, const dz::cmake::ValueVector &
 
 namespace dz::cmake
 {
@@ -35,8 +42,15 @@ namespace dz::cmake
 
     struct Command : Evaluable
     {
+        const std::string* content_ptr = nullptr;
+        size_t pos = -1;
         std::string name;
         ValueVector arguments;
+        Command() = default;
+        Command(const std::string* content_ptr, size_t pos, const std::string& name, const std::string& args);
+        Command(const Command& other);
+        Command& operator=(const Command& other);
+        bool operator==(const Command& other);
         void Evaluate(Project& project) override;
         void Varize(Project& project) override;
     };
@@ -62,8 +76,19 @@ namespace dz::cmake
     struct foreach_Block : Block
     {
         Command foreach_cmd;
+        std::shared_ptr<long long> i_ptr;
+        std::function<void(foreach_Block&)> loop_block_function;
+        std::function<void()> clear_loop_block_function;
+        std::function<bool(foreach_Block&)> loop_test_function;
+        std::function<void(foreach_Block&)> loop_increment_function;
 
-        foreach_Block();
+        foreach_Block(
+            const std::shared_ptr<long long>& i_ptr,
+            const std::function<void(foreach_Block&)>& loop_block_function,
+            const std::function<void()>& clear_loop_block_function,
+            const std::function<bool(foreach_Block&)>& loop_test_function,
+            const std::function<void(foreach_Block&)>& loop_increment_function
+        );
         void Evaluate(Project& project, size_t cmd_arguments_size, const Command& cmd) override;
     };
 
@@ -92,6 +117,10 @@ namespace dz::cmake
         Literal,
         Group,
         Strequal,
+        Less,
+        Greater,
+        LessEqual,
+        GreaterEqual,
         Equal,
         IdentifierOrLiteral,
         InList,
@@ -191,6 +220,9 @@ namespace dz::cmake
 
     struct ParseContext
     {
+        const std::string* content_ptr = nullptr;
+        size_t pos = 0;
+
         std::shared_ptr<Project> root_project;
 
         std::unordered_map<std::string, std::shared_ptr<Policy>> policy_set_map;
@@ -206,6 +238,7 @@ namespace dz::cmake
         int if_depth = 0;
         int valid_if_depth = 0;
 
+        bool recording_cmds_to_block_top = false;
         std::unordered_map<std::string, std::shared_ptr<Block>> block_map;
         std::stack<std::shared_ptr<Block>> block_stack;
 
@@ -233,10 +266,8 @@ namespace dz::cmake
 
     struct Project
     {
-        using DSL_Fn = dz::function<void(size_t, const Command &)>;
-        using DSL_Map = std::unordered_map<std::string, DSL_Fn>;
         
-        using DSL_Fn_With_Context = dz::function<void(size_t, const Command &, ParseContext&)>;
+        using DSL_Fn_With_Context = std::function<void(size_t, const Command &, ParseContext&)>;
         using DSL_Map_With_Context = std::unordered_map<std::string, DSL_Fn_With_Context>;
 
         std::string name;
@@ -313,13 +344,11 @@ namespace dz::cmake
 
         static void envize_str(std::string &str, ParseContext &parse_context);
 
-    private:
+        static void tokenize(const std::string &s, ValueVector &out);
 
         static void skipWhitespaceAndComments(const std::string &s, size_t &pos);
 
         static void trim(std::string &s);
-
-        static void tokenize(const std::string &s, ValueVector &out);
 
         static size_t findMatchingParen(const std::string &s, size_t open);
     };

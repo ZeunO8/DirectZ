@@ -1,3 +1,5 @@
+message(STATUS "FetchContent: zlib")
+
 set(ZLIB_INSTALL OFF)
 set(ZLIB_BUILD_SHARED OFF)
 set(ZLIB_BUILD_TESTING OFF)
