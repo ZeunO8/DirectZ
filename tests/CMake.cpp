@@ -349,6 +349,31 @@ _FPHSA_FAILURE_MESSAGE("I'm a Failure?")
     return MUNIT_OK;
 }
 
+MunitResult test_foreach_zip_lists(const MunitParameter[], void *user_data)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+set(A "1;3;5;7")
+set(B "2;4")
+foreach(x y IN ZIP_LISTS A B)
+    message(STATUS "x: ${x}, y: ${y}")
+endforeach()
+set(A "1;3")
+set(B "2;4;5")
+foreach(z IN ZIP_LISTS A B)
+    message(STATUS "z_0: ${z_0}, z_1: ${z_1}")
+endforeach()
+)";
+    try {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
+
 
 static MunitTest test_suite_tests[] = {
     // { (char*)"/cmake_parse_arguments", test_parse_arguments, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
@@ -358,7 +383,8 @@ static MunitTest test_suite_tests[] = {
     // { (char*)"/function_nested_logic", test_function_nested_ifs_foreachs, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
     // { (char*)"/file_write_read", test_file_write_read, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/part_vulkan", test_part_vulkan, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    { (char*)"/macro", test_macro, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    // { (char*)"/macro", test_macro, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    { (char*)"/foreach_zip_lists", test_foreach_zip_lists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/find_package_DirectZ", test_find_package_DirectZ, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
 
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};

@@ -625,7 +625,7 @@ dz::cmake::Project::Project(const std::shared_ptr<ParseContext> &context_sh_ptr)
 dsl_fn_project_def(macro)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___MACRO";
+    static std::string prefix = "___MACRO___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -651,7 +651,7 @@ dsl_fn_project_def(macro)
 dsl_fn_project_def(endmacro)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ENDMACRO";
+    static std::string prefix = "___ENDMACRO___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -677,7 +677,7 @@ dsl_fn_project_def(endmacro)
 dsl_fn_project_def(function)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___FUNCTION";
+    static std::string prefix = "___FUNCTION___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -703,7 +703,7 @@ dsl_fn_project_def(function)
 dsl_fn_project_def(endfunction)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ENDFUNCTION";
+    static std::string prefix = "___ENDFUNCTION___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -733,7 +733,7 @@ dsl_fn_project_def(endfunction)
 dsl_fn_project_def(_return)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___RETURN";
+    static std::string prefix = "___RETURN___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -776,7 +776,7 @@ dsl_fn_project_def(foreach)
             auto foreach_block_ptr = dynamic_cast<foreach_Block *>(block_ptr);
             if (foreach_block_ptr->foreach_cmd == cmd)
             {
-                prefix = "___evaluate_foreach_impl_" + std::to_string(context.evaluating_block_deque.size());
+                prefix = "___evaluate_foreach_impl____" + std::to_string(context.evaluating_block_deque.size());
             }
             else
             {
@@ -791,7 +791,7 @@ dsl_fn_project_def(foreach)
     else
     {
     _default_prefix:
-        prefix = "___evaluate_foreach_impl_" + std::to_string(context.evaluating_block_deque.size() + 1);
+        prefix = "___evaluate_foreach_impl____" + std::to_string(context.evaluating_block_deque.size() + 1);
     }
     static ValueVector options = {"IN"};
     static ValueVector one_value_keywords = {};
@@ -826,7 +826,7 @@ dsl_fn_project_def(foreach)
                 {
                     In = 1,
                     Range = 2,
-                    ZipIn = 3
+                    ZipLists = 3
                 };
                 auto &context = *context_sh_ptr;
 
@@ -872,26 +872,15 @@ dsl_fn_project_def(foreach)
                         {
                             auto &arg = all_lists[arg_l];
                             loop_ranges.push_back(arg);
+                            if (arg_l > 0)
+                            {
+                                if (loop_ranges.size() <= cmd.arguments.size())
+                                    loop_vars.push_back(cmd.arguments[arg_l]);
+                            }
                         }
                         if (zip_lists_set)
                         {
-                            loop_vars.clear();
-                            if (cmd_arguments_size == 1)
-                            {
-                                auto loop_var = cmd.arguments[0];
-                                for (size_t range_i = 0; range_i < loop_ranges.size(); range_i++)
-                                {
-                                    loop_vars.push_back(loop_var + "_" + std::to_string(range_i));
-                                }
-                            }
-                            else if (cmd_arguments_size == loop_ranges.size())
-                                for (size_t range_i = 0; range_i < loop_ranges.size(); range_i++)
-                                {
-                                    loop_vars.push_back(cmd.arguments[range_i]);
-                                }
-                            else
-                                throw std::runtime_error("[cmake] -- Unsupported ZIP_LIST loop var range");
-                            chose_loop = ChosenLoopType::ZipIn;
+                            chose_loop = ChosenLoopType::ZipLists;
                         }
                         else if (items_set)
                             chose_loop = ChosenLoopType::In;
@@ -1080,47 +1069,76 @@ dsl_fn_project_def(foreach)
                         });
                     break;
                 }
-                case ChosenLoopType::ZipIn:
+                case ChosenLoopType::ZipLists:
                 {
-                    //         auto& first_loop_var = loop_vars.front();
-                    //         auto loop_ranges_split = split_ranges(loop_ranges, ";");
-                    //         auto range_min = get_range_min(loop_ranges_split);
-                    //         auto range_max = get_range_max(loop_ranges_split);
-                    //         for (auto i = 0; i < range_max; i++)
-                    //         {
-                    //             std::vector<std::pair<std::string, std::string>> cur_loop_vars;
-                    //             for (auto loop_range_i = 0; i < loop_ranges_split.size(); loop_range_i++)
-                    //             {
-                    //                 auto& loop_range = loop_ranges_split[loop_range_i];
-                    //                 std::string loop_val;
-                    //                 if (i < loop_range.size())
-                    //                 {
-                    //                     loop_val = loop_range[i];
-                    //                 }
-                    //                 if (loop_vars.size() == 1)
-                    //                 {
-                    //                     cur_loop_vars.push_back({first_loop_var + "_" + std::to_string(loop_range_i), loop_val});
-                    //                 }
-                    //                 else if (loop_vars.size() == loop_ranges_split.size())
-                    //                 {
-                    //                     cur_loop_vars.push_back({loop_vars[loop_range_i], loop_val});
-                    //                 }
-                    //             }
-                    //             Command loop_cmd;
-                    //             for (auto& [cur_var, cur_val] : cur_loop_vars)
-                    //             {
-                    //                 loop_cmd.arguments.push_back(cur_var);
-                    //                 loop_cmd.arguments.push_back(cur_val);
+                    auto looking_for_loop_vars = loop_vars;
+                    if (loop_vars.empty())
+                        throw std::runtime_error("[cmake] -- no <loop_variable> provided to foreach(<loop_variable>... IN ZIP_LISTS <list>...)");
+                    else if (loop_vars.size() != 1 && loop_vars.size() != loop_ranges.size())
+                        throw std::runtime_error("[cmake] -- incompatible <loop_variable>... range provided to foreach(<loop_variable>... IN ZIP_LISTS <list>...)");
+                    else if (loop_vars.size() == 1)
+                    {
+                        auto loop_var = loop_vars.front();
+                        looking_for_loop_vars.clear();
+                        for (size_t i = 0; i < loop_ranges.size(); i++)
+                            looking_for_loop_vars.push_back(loop_var + "_" + std::to_string(i));
+                    }
 
-                    //             }
-                    //             loop_function(loop_cmd.arguments.size(), loop_cmd);
-                    //             if (context.just_triggered_return)
-                    //                 return;
-                    //             else if (context.just_triggered_break) {
-                    //                 context.just_triggered_break = false;
-                    //                 return;
-                    //             }
-                    //         }
+                    auto [set_scope_function, clear_scope_function] = abstractify_scope(context_sh_ptr, "", {}, looking_for_loop_vars, {}, 0, false);
+
+                    auto context_ptr = &context;
+
+                    foreach_block_sh_ptr = std::make_shared<foreach_Block>(
+                        std::make_shared<long long>(0),
+                        [loop_vars, set_scope_function, loop_ranges, context_ptr](foreach_Block &foreach_block) mutable
+                        {
+                            auto &i = *foreach_block.i_ptr;
+                            size_t loop_var_i = 0;
+                            Command loop_cmd;
+                            for (auto& loop_range_id : loop_ranges)
+                            {
+                                auto &context = *context_ptr;
+                                CommandParser::varize_str(loop_range_id, context);
+                                auto loop_range = identify_var(context, loop_range_id);
+                                auto loop_split = split_string(loop_range, ";");
+                                std::string loop_val = i < loop_split.size() ? loop_split[i] : "";
+                                std::string loop_var = (loop_vars.size() == loop_ranges.size()) ?
+                                    loop_vars[loop_var_i] :
+                                    (loop_vars[0] + "_" + std::to_string(loop_var_i));
+                                loop_cmd.arguments.push_back(loop_var);
+                                loop_cmd.arguments.push_back(loop_val);
+                                loop_var_i++;
+                            }
+                            set_scope_function(loop_cmd.arguments.size(), loop_cmd);
+                            return;
+                        },
+                        [clear_scope_function]() mutable
+                        {
+                            clear_scope_function();
+                            return;
+                        },
+                        [loop_ranges, context_ptr](foreach_Block &foreach_block) mutable
+                        {
+                            auto& context = *context_ptr;
+                            auto &i = *foreach_block.i_ptr;
+                            bool one_lt = false;
+                            for (auto& loop_range_id : loop_ranges)
+                            {
+                                CommandParser::varize_str(loop_range_id, context);
+                                auto loop_range = identify_var(context, loop_range_id);
+                                auto loop_split = split_string(loop_range, ";");
+                                if (i < loop_split.size()) {
+                                    one_lt = true;
+                                    break;
+                                }
+                            }
+                            return one_lt;
+                        },
+                        [loop_ranges, context_ptr](foreach_Block &foreach_block) mutable
+                        {
+                            (*foreach_block.i_ptr)++;
+                            return;
+                        });
                     break;
                 }
                 }
@@ -1143,7 +1161,7 @@ dsl_fn_project_def(foreach)
 dsl_fn_project_def(endforeach)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ENDFOREACH";
+    static std::string prefix = "___ENDFOREACH___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1182,7 +1200,7 @@ dsl_fn_project_def(endforeach)
 dsl_fn_project_def(_break)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___BREAK";
+    static std::string prefix = "___BREAK___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1216,7 +1234,7 @@ dsl_fn_project_def(_break)
 dsl_fn_project_def(_continue)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___CONTINUE";
+    static std::string prefix = "___CONTINUE___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1250,7 +1268,7 @@ dsl_fn_project_def(_continue)
 dsl_fn_project_def(_if)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___IF";
+    static std::string prefix = "___IF___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1283,7 +1301,7 @@ dsl_fn_project_def(_if)
 dsl_fn_project_def(_else)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ELSE";
+    static std::string prefix = "___ELSE___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1300,7 +1318,7 @@ dsl_fn_project_def(_else)
 dsl_fn_project_def(endif)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ENDIF";
+    static std::string prefix = "___ENDIF___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1324,7 +1342,7 @@ dsl_fn_project_def(endif)
 dsl_fn_project_def(add_library)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ADD_LIBRARY";
+    static std::string prefix = "___ADD_LIBRARY___";
     static ValueVector options = {
         "SHARED",
         "STATIC",
@@ -1359,7 +1377,7 @@ dsl_fn_project_def(add_library)
 dsl_fn_project_def(add_executable)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___ADD_EXECUTABLE";
+    static std::string prefix = "___ADD_EXECUTABLE___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1385,7 +1403,7 @@ dsl_fn_project_def(add_executable)
 dsl_fn_project_def(target_include_directories)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___TARGET_INCLUDE_DIRECTORIES";
+    static std::string prefix = "___TARGET_INCLUDE_DIRECTORIES___";
     static ValueVector options = {
         "PRIVATE",
         "PUBLIC"};
@@ -1413,7 +1431,7 @@ dsl_fn_project_def(target_include_directories)
 dsl_fn_project_def(target_link_libraries)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___TARGET_LINK_LIBRARIES";
+    static std::string prefix = "___TARGET_LINK_LIBRARIES___";
     static ValueVector options = {
         "PRIVATE",
         "PUBLIC"};
@@ -1448,7 +1466,7 @@ dsl_fn_project_def(message)
         {"AUTHOR_WARNING", CMakeMessageType::AUTHOR_WARNING},
     };
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___MESSAGE";
+    static std::string prefix = "___MESSAGE___";
     static ValueVector options = {
         "STATUS",
         "WARNING",
@@ -1507,7 +1525,7 @@ dsl_fn_project_def(message)
 dsl_fn_project_def(get_filename_component)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___GET_FILE_NAME_COMPONENT";
+    static std::string prefix = "___GET_FILE_NAME_COMPONENT___";
     static ValueVector options = {
         "ABSOLUTE",
         "REALPATH",
@@ -1576,7 +1594,7 @@ dsl_fn_project_def(get_filename_component)
 dsl_fn_project_def(project)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___PROJECT";
+    static std::string prefix = "___PROJECT___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {
         "VERSION",
@@ -1592,15 +1610,15 @@ dsl_fn_project_def(project)
         name = cmd.arguments[0];
 
         if (in_vec(one_value_keywords_set, "VERSION"))
-            version = context.vars["___PROJECT_VERSION"];
+            version = context.vars["___PROJECT____VERSION"];
         if (in_vec(one_value_keywords_set, "COMPAT_VERSION"))
-            compat_version = context.vars["___PROJECT_COMPAT_VERSION"];
+            compat_version = context.vars["___PROJECT____COMPAT_VERSION"];
         if (in_vec(one_value_keywords_set, "DESCRIPTION"))
-            description = context.vars["___PROJECT_DESCRIPTION"];
+            description = context.vars["___PROJECT____DESCRIPTION"];
         if (in_vec(one_value_keywords_set, "HOMEPAGE_URL"))
-            homepage_url = context.vars["___PROJECT_HOMEPAGE_URL"];
+            homepage_url = context.vars["___PROJECT____HOMEPAGE_URL"];
         if (in_vec(multi_value_keywords_set, "LANGUAGES"))
-            languages = split_string(context.vars["___PROJECT_LANGUAGES"], ";");
+            languages = split_string(context.vars["___PROJECT____LANGUAGES"], ";");
     };
     auto [context_function, context_clear] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, project_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
@@ -1611,7 +1629,7 @@ dsl_fn_project_def(project)
 dsl_fn_project_def(list)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___LIST";
+    static std::string prefix = "___LIST___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
@@ -1726,7 +1744,7 @@ dsl_fn_project_def(list)
 dsl_fn_project_def(cmake_policy)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___CMAKE_POLICY";
+    static std::string prefix = "___CMAKE_POLICY___";
     static ValueVector options = {
         "PUSH",
         "POP",
@@ -1805,7 +1823,7 @@ dsl_fn_project_def(cmake_policy)
 dsl_fn_project_def(set)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___SET";
+    static std::string prefix = "___SET___";
     static ValueVector options = {
         "PARENT_SCOPE"};
     static ValueVector one_value_keywords = {};
@@ -1814,19 +1832,19 @@ dsl_fn_project_def(set)
     {
         if (cmd_arguments_size < 2)
             return;
-        auto parent_scope = context.vars["___SET_PARENT_SCOPE"] == "TRUE";
+        auto parent_scope = context.vars["___SET____PARENT_SCOPE"] == "TRUE";
         auto &var_name = cmd.arguments[0];
         if (var_name.empty())
             return;
         auto &vars = context_sh_ptr->vars;
         auto &var = vars[var_name];
+        var.clear();
         for (size_t i = 1; i < cmd_arguments_size; i++)
         {
             if (!var.empty())
                 var += ";";
-            auto val = cmd.arguments[i];
-            val = dequote(val);
-            var += dequote(val);
+            auto val = dequote(cmd.arguments[i]);
+            var += val;
         }
         if (parent_scope)
             context.mark_var(var_name);
@@ -1840,7 +1858,7 @@ dsl_fn_project_def(set)
 dsl_fn_project_def(unset)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___UNSET";
+    static std::string prefix = "___UNSET___";
     static ValueVector options = {
         "CACHE",
         "PARENT_SCOPE"};
@@ -1850,8 +1868,8 @@ dsl_fn_project_def(unset)
     {
         if (cmd_arguments_size < 2)
             return;
-        auto parent_scope = context.vars["___UNSET_PARENT_SCOPE"] == "TRUE";
-        auto cache = context.vars["___UNSET_CACHE"] == "TRUE";
+        auto parent_scope = context.vars["___UNSET____PARENT_SCOPE"] == "TRUE";
+        auto cache = context.vars["___UNSET____CACHE"] == "TRUE";
         auto &var_name = cmd.arguments[0];
         if (var_name.empty())
             return;
@@ -1870,7 +1888,7 @@ dsl_fn_project_def(unset)
 dsl_fn_project_def(find_path)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___FIND_PATH";
+    static std::string prefix = "___FIND_PATH___";
     static ValueVector options = {
         "REQUIRED",
         "OPTIONAL",
@@ -1900,13 +1918,13 @@ dsl_fn_project_def(find_path)
         auto &var_name = cmd.arguments[0];
         if (cmd_arguments_size > 2)
             throw std::runtime_error(R"([cmake] -- find_path arguments count should never be > 2)");
-        auto names = split_string(context.vars["___FIND_PATH_NAMES"], ";");
+        auto names = split_string(context.vars["___FIND_PATH____NAMES"], ";");
         if (cmd_arguments_size == 2)
         {
             auto &one_name = cmd.arguments[1];
             names.push_back(one_name);
         }
-        auto hints = split_string(context.vars["___FIND_PATH_HINTS"], ";");
+        auto hints = split_string(context.vars["___FIND_PATH____HINTS"], ";");
         for (auto &hint_dir : hints)
         {
             auto hint_path = std::filesystem::path(hint_dir);
@@ -1933,7 +1951,7 @@ dsl_fn_project_def(find_path)
 dsl_fn_project_def(find_library)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___FIND_LIBRARY";
+    static std::string prefix = "___FIND_LIBRARY___";
     static ValueVector options = {
         "REQUIRED",
         "OPTIONAL",
@@ -1976,16 +1994,16 @@ dsl_fn_project_def(find_library)
         auto &var_name = cmd.arguments[0];
         if (cmd_arguments_size > 2)
             throw std::runtime_error(R"([cmake] -- find_library arguments count should never be > 2)");
-        auto all_suffixes = split_string(context.vars["___FIND_LIBRARY_PATH_SUFFIXES"], ";");
+        auto all_suffixes = split_string(context.vars["___FIND_LIBRARY____PATH_SUFFIXES"], ";");
         all_suffixes.insert(all_suffixes.end(), default_suffixes.begin(), default_suffixes.end());
-        auto names = split_string(context.vars["___FIND_LIBRARY_NAMES"], ";");
+        auto names = split_string(context.vars["___FIND_LIBRARY____NAMES"], ";");
         if (cmd_arguments_size == 2)
         {
             auto &one_name = cmd.arguments[1];
             names.push_back(one_name);
         }
-        auto hints = split_string(context.vars["___FIND_LIBRARY_HINTS"], ";");
-        auto paths = split_string(context.vars["___FIND_LIBRARY_PATHS"], ";");
+        auto hints = split_string(context.vars["___FIND_LIBRARY____HINTS"], ";");
+        auto paths = split_string(context.vars["___FIND_LIBRARY____PATHS"], ";");
         hints.insert(hints.end(), paths.begin(), paths.end());
         for (auto &hint_dir : hints)
         {
@@ -2016,7 +2034,7 @@ dsl_fn_project_def(find_library)
 dsl_fn_project_def(find_program)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___FIND_PROGRAM";
+    static std::string prefix = "___FIND_PROGRAM___";
     static ValueVector options = {
         "REQUIRED",
         "OPTIONAL",
@@ -2052,16 +2070,16 @@ dsl_fn_project_def(find_program)
         auto &var_name = cmd.arguments[0];
         if (cmd_arguments_size > 2)
             throw std::runtime_error(R"([cmake] -- find_library arguments count should never be > 2)");
-        auto all_suffixes = split_string(context.vars["___FIND_PROGRAM_PATH_SUFFIXES"], ";");
+        auto all_suffixes = split_string(context.vars["___FIND_PROGRAM____PATH_SUFFIXES"], ";");
         all_suffixes.insert(all_suffixes.end(), default_suffixes.begin(), default_suffixes.end());
-        auto names = split_string(context.vars["___FIND_PROGRAM_NAMES"], ";");
+        auto names = split_string(context.vars["___FIND_PROGRAM____NAMES"], ";");
         if (cmd_arguments_size == 2)
         {
             auto &one_name = cmd.arguments[1];
             names.push_back(one_name);
         }
-        auto hints = split_string(context.vars["___FIND_PROGRAM_HINTS"], ";");
-        auto paths = split_string(context.vars["___FIND_PROGRAM_PATHS"], ";");
+        auto hints = split_string(context.vars["___FIND_PROGRAM____HINTS"], ";");
+        auto paths = split_string(context.vars["___FIND_PROGRAM____PATHS"], ";");
         hints.insert(hints.end(), paths.begin(), paths.end());
         for (auto &hint_dir : hints)
         {
@@ -2094,7 +2112,7 @@ dsl_fn_project_def(find_program)
 dsl_fn_project_def(mark_as_advanced)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___MARK_AS_ADVANCED";
+    static std::string prefix = "___MARK_AS_ADVANCED___";
     static ValueVector options = {
         "CLEAR",
         "FORCE",
@@ -2103,9 +2121,9 @@ dsl_fn_project_def(mark_as_advanced)
     static ValueVector multi_value_keywords = {};
     auto mark_as_advanced_impl = [&](dsl_some_abstract_arguments)
     {
-        auto &clear = context.vars["___MARK_AS_ADVANCED_CLEAR"];
+        auto &clear = context.vars["___MARK_AS_ADVANCED____CLEAR"];
         auto mark_bool = clear != "TRUE";
-        auto &force = context.vars["___MARK_AS_ADVANCED_FORCE"];
+        auto &force = context.vars["___MARK_AS_ADVANCED____FORCE"];
         auto force_bool = force == "TRUE";
         for (size_t i = 0; i < cmd_arguments_size; i++)
         {
@@ -2122,7 +2140,7 @@ dsl_fn_project_def(mark_as_advanced)
 dsl_fn_project_def(cmake_parse_arguments)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___CMAKE_PARSE_COMMANDS";
+    static std::string prefix = "___CMAKE_PARSE_COMMANDS___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {"PARSE_ARGV"};
     static ValueVector multi_value_keywords = {};
@@ -2171,7 +2189,7 @@ dsl_fn_project_def(cmake_parse_arguments)
 dsl_fn_project_def(file)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___FILE";
+    static std::string prefix = "___FILE___";
     static ValueVector options = {
         "EXPAND_TILDE",
         "NEWLINE_CONSUME",
@@ -2205,8 +2223,8 @@ dsl_fn_project_def(file)
                  auto &variable = cmd.arguments[1];
                  auto offset_used = in_vec(one_value_keywords_set, "OFFSET");
                  auto limit_used = in_vec(one_value_keywords_set, "LIMIT");
-                 long long offset = offset_used ? std::stoll(dequote(context.vars["___FILE_OFFSET"])) : 0;
-                 long long limit = limit_used ? std::stoll(dequote(context.vars["___FILE_LIMIT"])) : -1;
+                 long long offset = offset_used ? std::stoll(dequote(context.vars["___FILE____OFFSET"])) : 0;
+                 long long limit = limit_used ? std::stoll(dequote(context.vars["___FILE____LIMIT"])) : -1;
                  auto file_data = get_file_data(filename, offset, limit);
                  context.vars[variable] = file_data;
                  return;
@@ -2225,7 +2243,7 @@ dsl_fn_project_def(file)
                  if (regex_used)
                  {
                      filtered_split.reserve(file_split.size());
-                     std::regex rgx(dequote(context.vars["___FILE_REGEX"]));
+                     std::regex rgx(dequote(context.vars["___FILE____REGEX"]));
                      for (auto &str : file_split)
                      {
                          std::smatch match;
@@ -2405,7 +2423,7 @@ dsl_fn_project_def(file)
 dsl_fn_project_def(string)
 {
     auto &context = *context_sh_ptr;
-    static std::string prefix = "___STRING";
+    static std::string prefix = "___STRING___";
     static ValueVector options = {};
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
