@@ -1095,16 +1095,14 @@ dsl_fn_project_def(foreach)
                             auto &i = *foreach_block.i_ptr;
                             size_t loop_var_i = 0;
                             Command loop_cmd;
-                            for (auto& loop_range_id : loop_ranges)
+                            for (auto &loop_range_id : loop_ranges)
                             {
                                 auto &context = *context_ptr;
                                 CommandParser::varize_str(loop_range_id, context);
                                 auto loop_range = identify_var(context, loop_range_id);
                                 auto loop_split = split_string(loop_range, ";");
                                 std::string loop_val = i < loop_split.size() ? loop_split[i] : "";
-                                std::string loop_var = (loop_vars.size() == loop_ranges.size()) ?
-                                    loop_vars[loop_var_i] :
-                                    (loop_vars[0] + "_" + std::to_string(loop_var_i));
+                                std::string loop_var = (loop_vars.size() == loop_ranges.size()) ? loop_vars[loop_var_i] : (loop_vars[0] + "_" + std::to_string(loop_var_i));
                                 loop_cmd.arguments.push_back(loop_var);
                                 loop_cmd.arguments.push_back(loop_val);
                                 loop_var_i++;
@@ -1119,15 +1117,16 @@ dsl_fn_project_def(foreach)
                         },
                         [loop_ranges, context_ptr](foreach_Block &foreach_block) mutable
                         {
-                            auto& context = *context_ptr;
+                            auto &context = *context_ptr;
                             auto &i = *foreach_block.i_ptr;
                             bool one_lt = false;
-                            for (auto& loop_range_id : loop_ranges)
+                            for (auto &loop_range_id : loop_ranges)
                             {
                                 CommandParser::varize_str(loop_range_id, context);
                                 auto loop_range = identify_var(context, loop_range_id);
                                 auto loop_split = split_string(loop_range, ";");
-                                if (i < loop_split.size()) {
+                                if (i < loop_split.size())
+                                {
                                     one_lt = true;
                                     break;
                                 }
