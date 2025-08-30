@@ -1652,6 +1652,27 @@ dsl_fn_project_def(list)
                  }
                  return;
              }},
+            {"PREPEND", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 1)
+                     throw std::runtime_error("[cmake] -- arguments passed to list(PREPEND <var_name> <input>...) is less than required: (1)");
+                 auto arguments_data = cmd.arguments.data();
+                 auto &var_name = arguments_data[0];
+                 auto &var = context.vars[var_name];
+                 std::string to_prepend;
+                 for (size_t i = 1; i < cmd_arguments_size; i++)
+                 {
+                     auto val = arguments_data[i];
+                     val = dequote(val);
+                     if (!to_prepend.empty())
+                         to_prepend += ";";
+                     to_prepend += val;
+                 }
+                 if (!var.empty() && !to_prepend.empty())
+                     to_prepend += ";";
+                 var.insert(var.begin(), to_prepend.begin(), to_prepend.end());
+                 return;
+             }},
             {"REMOVE_ITEM", [](auto &context, dsl_all_abstract_arguments)
              {
                  if (cmd_arguments_size < 1)
@@ -2497,16 +2518,33 @@ dsl_fn_project_def(string)
                  command_cmd_arguments_size--;
                  command_it->second(context, command_cmd_arguments_size, command_cmd, options_set, one_value_keywords_set, multi_value_keywords_set);
              }},
-            {"APPEND", [](auto &context, dsl_all_abstract_arguments) {
-                if (cmd_arguments_size < 2)
-                    throw std::runtime_error("[cmake] -- arguments passed to string(APPEND <output_variable> <input> [<input>...]) is less than required: (2)");
-                auto& output_variable = cmd.arguments[0];
-                auto& output_val = context.vars[output_variable];
-                auto arguments_data = cmd.arguments.data();
-                auto arguments_size = cmd.arguments.size();
-                for (size_t arg_i = 1; arg_i < arguments_size; arg_i++)
-                    output_val += dequote(arguments_data[arg_i]);
-                return;
+            {"APPEND", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 2)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(APPEND <output_variable> <input> [<input>...]) is less than required: (2)");
+                 auto &output_variable = cmd.arguments[0];
+                 auto &output_val = context.vars[output_variable];
+                 auto arguments_data = cmd.arguments.data();
+                 auto arguments_size = cmd.arguments.size();
+                 std::string to_append;
+                 for (size_t arg_i = 1; arg_i < arguments_size; arg_i++)
+                     to_append += dequote(arguments_data[arg_i]);
+                 output_val.insert(output_val.end(), to_append.begin(), to_append.end());
+                 return;
+             }},
+            {"PREPEND", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 2)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(PREPEND <output_variable> <input> [<input>...]) is less than required: (2)");
+                 auto &output_variable = cmd.arguments[0];
+                 auto &output_val = context.vars[output_variable];
+                 auto arguments_data = cmd.arguments.data();
+                 auto arguments_size = cmd.arguments.size();
+                 std::string to_prepend;
+                 for (size_t arg_i = 1; arg_i < arguments_size; arg_i++)
+                     to_prepend += dequote(arguments_data[arg_i]);
+                 output_val.insert(output_val.begin(), to_prepend.begin(), to_prepend.end());
+                 return;
              }},
         };
         if (cmd_arguments_size < 1)

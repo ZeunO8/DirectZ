@@ -374,6 +374,27 @@ endforeach()
     return MUNIT_OK;
 }
 
+MunitResult test_list_append_prepend(const MunitParameter[], void *user_data)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+set(A "1;3;5;7")
+message(STATUS "A Before APPEND: ${A}")
+list(APPEND A "9")
+message(STATUS "A Before PREPEND: ${A}")
+list(PREPEND A "-1")
+message(STATUS "A After PREPEND: ${A}")
+)";
+    try {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
+
 
 static MunitTest test_suite_tests[] = {
     // { (char*)"/cmake_parse_arguments", test_parse_arguments, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
@@ -385,6 +406,7 @@ static MunitTest test_suite_tests[] = {
     // { (char*)"/part_vulkan", test_part_vulkan, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/macro", test_macro, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     { (char*)"/foreach_zip_lists", test_foreach_zip_lists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    { (char*)"/list_append_prepend", test_list_append_prepend, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/find_package_DirectZ", test_find_package_DirectZ, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
 
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
