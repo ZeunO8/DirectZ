@@ -44,10 +44,11 @@ namespace dz::cmake
     {
         const std::string* content_ptr = nullptr;
         size_t pos = -1;
+        size_t end_pos = -1;
         std::string name;
         ValueVector arguments;
         Command() = default;
-        Command(const std::string* content_ptr, size_t pos, const std::string& name, const std::string& args);
+        Command(const std::string* content_ptr, size_t pos, size_t end_pos, const std::string& name, const std::string& args);
         Command(const Command& other);
         Command& operator=(const Command& other);
         bool operator==(const Command& other);
@@ -77,6 +78,7 @@ namespace dz::cmake
     {
         Command foreach_cmd;
         std::shared_ptr<long long> i_ptr;
+        std::shared_ptr<long long> range_i_ptr = std::make_shared<long long>(0);
         std::function<void(foreach_Block&)> loop_block_function;
         std::function<void()> clear_loop_block_function;
         std::function<bool(foreach_Block&)> loop_test_function;
@@ -124,7 +126,8 @@ namespace dz::cmake
         Equal,
         IdentifierOrLiteral,
         InList,
-        Defined
+        Defined,
+        Exists
     };
 
     struct ConditionNode
@@ -222,6 +225,7 @@ namespace dz::cmake
     {
         const std::string* content_ptr = nullptr;
         size_t pos = 0;
+        size_t parse_to_pos = -1;
 
         std::shared_ptr<Project> root_project;
 
@@ -237,6 +241,9 @@ namespace dz::cmake
 
         int if_depth = 0;
         int valid_if_depth = 0;
+        int macro_depth = 0;
+        int function_depth = 0;
+        int block_depth = 0;
 
         bool recording_cmds_to_block_top = false;
         std::unordered_map<std::string, std::shared_ptr<Block>> block_map;
@@ -324,17 +331,23 @@ namespace dz::cmake
         dsl_fn_def(find_program);
         dsl_fn_def(mark_as_advanced);
         dsl_fn_def(cmake_parse_arguments);
+        dsl_fn_def(file);
+        dsl_fn_def(string);
     };
 
     struct CommandParser
     {
         static std::shared_ptr<Project> parseFile(const std::string &path);
 
-        static void parseContentWithProject(Project &project, const std::string &content);
-
         static std::shared_ptr<Project> parseContent(const std::string &content);
 
+        static void parseContentWithProject(Project &project, const std::string &content);
+
         static std::shared_ptr<Project> parseContent(const std::string &content, const std::shared_ptr<ParseContext> &context_sh_ptr);
+
+        static void execute_context_til_break(ParseContext& context, Project& project);
+
+        static bool get_next_command(ParseContext& context, Project& project, Command& out_cmd);
 
         static void process_cmd(ParseContext& context, Project& project, Command& cmd);
 

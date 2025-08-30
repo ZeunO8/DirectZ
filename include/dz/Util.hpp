@@ -2,6 +2,7 @@
 #include <string>
 #include <stdlib.h>
 #include <iostream>
+#include <fstream>
 #include <unordered_map>
 #include <vector>
 #include <cctype>
@@ -161,7 +162,7 @@ namespace dz
         while (*var)
         {
             std::wstring w_entry(var);
-            std::string entry(w_entry.begin(), w_entry.end());
+            auto entry = wstring_to_string(w_entry);
             size_t pos = entry.find('=');
             if (pos != std::string::npos)
             {
@@ -214,14 +215,23 @@ namespace dz
 
     inline static auto insert_to_map_from_map(auto &map_to, const auto &map_from)
     {
-        map_to.insert(map_from.begin(), map_from.end());
+        for (auto& [key, val] : map_from)
+            map_to[key] = val;
     }
 
-    inline static auto remove_to_map_from_map(auto &map_to, const auto &map_from)
+    inline static auto remove_to_map_from_map(const auto& old_map_from, auto &map_to, const auto &map_from)
     {
         for (auto &[key, val] : map_from)
         {
-            map_to.erase(key);
+            auto old_it = old_map_from.find(key);
+            if (old_it == old_map_from.end())
+            {
+                auto to_it = map_to.find(key);
+                if (to_it != map_to.end())
+                {
+                    map_to.erase(to_it);
+                }
+            }
         }
     }
 
@@ -333,5 +343,18 @@ namespace dz
             x = (std::max)(range_size, x);
         }
         return x;
+    }
+
+    static std::string get_file_data(const std::filesystem::path& ipath, long long offset = 0, long long limit = -1)
+    {
+        std::ifstream ifst(ipath, std::ios::in, std::ios::binary);
+        ifst.seekg(0, std::ios::end);
+        auto length = (long long)(ifst.tellg());
+        auto real_limit = limit != -1 ? (std::min)(length, limit) : length;
+        ifst.seekg(offset, std::ios::beg);
+        std::string data;
+        data.resize(real_limit);
+        ifst.read(data.data(), real_limit);
+        return data;
     }
 }
