@@ -131,8 +131,31 @@ namespace dz
         return (var_value.size() >= 2 && var_value[0] == '"' && var_value[var_value.size() - 1] == '"');
     }
 
+    inline static bool is_single_quoted(const auto &var_value)
+    {
+        return (var_value.size() >= 2 && var_value[0] == '\'' && var_value[var_value.size() - 1] == '\'');
+    }
+
+    inline static std::string single_dequote(const std::string &quoted_str)
+    {
+        if (!is_single_quoted(quoted_str))
+            return quoted_str;
+        auto new_str = quoted_str;
+        if (new_str.empty())
+            assert(false);
+        if (new_str[0] == '\'')
+            new_str.erase(0, 1);
+        if (new_str.empty())
+            assert(false);
+        if (new_str[new_str.size() - 1] == '\'')
+            new_str.erase(new_str.size() - 1, 1);
+        return new_str;
+    }
+
     inline static std::string dequote(const std::string &quoted_str)
     {
+        if (is_single_quoted(quoted_str))
+            return single_dequote(quoted_str);
         if (!is_quoted(quoted_str))
             return quoted_str;
         auto new_str = quoted_str;
