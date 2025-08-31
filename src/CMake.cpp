@@ -416,6 +416,73 @@ dz::cmake::function_Block::function_Block() : Block(Block::function)
 {
 }
 
+namespace dz::cmake
+{
+    std::unordered_set<std::string> setup_block_argx(ParseContext &context, auto &all_cmd, auto &cmd)
+    {
+        std::unordered_set<std::string> setup_args;
+        auto argc = std::to_string(all_cmd.arguments.size());
+        setup_args.insert("ARGC");
+        context.vars["ARGC"] = argc;
+        auto argv = join_string_vec(all_cmd.arguments, ";");
+        setup_args.insert("ARGV");
+        context.vars["ARGV"] = argv;
+        auto argn = join_string_vec(cmd.arguments, ";");
+        setup_args.insert("ARGN");
+        context.vars["ARGN"] = argn;
+        size_t arg_i = 0;
+        for (auto &arg : all_cmd.arguments)
+        {
+            auto argv_str = ("ARGV" + std::to_string(arg_i));
+            setup_args.insert(argv_str);
+            context.vars[argv_str] = arg;
+            arg_i++;
+        }
+        return setup_args;
+    }
+
+    void teardown_block_argx(ParseContext &context, const std::unordered_set<std::string> &arg_set, const VariableMap &old_vars)
+    {
+        for (auto &setup_arg : arg_set)
+        {
+            auto old_it = old_vars.find(setup_arg);
+            if (old_it != old_vars.end())
+            {
+                context.vars[setup_arg] = old_it->second;
+            }
+            else
+            {
+                auto var_it = context.vars.find(setup_arg);
+                if (var_it != context.vars.end())
+                {
+                    context.vars.erase(var_it);
+                }
+            }
+        }
+    }
+
+    void evaluate_block(ParseContext &context, Project &project, auto &block, auto &all_cmd, auto &cmd)
+    {
+        if (block.body.empty())
+            return;
+        context.evaluating_block_deque.push_front(&block);
+        context.evaluating_block_cmd_deque.push_front(&all_cmd);
+        auto old_parse_to_pos = context.parse_to_pos;
+        auto old_pos = context.pos;
+        auto &body_front = block.body.front();
+        auto old_content_ptr = context.content_ptr;
+        context.pos = body_front.pos;
+        context.content_ptr = body_front.content_ptr;
+        context.parse_to_pos = block.body.back().end_pos;
+        dz::cmake::CommandParser::execute_context_til_break(context, project);
+        context.parse_to_pos = old_parse_to_pos;
+        context.pos = old_pos;
+        context.content_ptr = old_content_ptr;
+        context.evaluating_block_deque.pop_front();
+        context.evaluating_block_cmd_deque.pop_front();
+    }
+}
+
 void dz::cmake::function_Block::Evaluate(Project &project, size_t cmd_arguments_size, const Command &cmd)
 {
     auto &context = *project.context_sh_ptr;
@@ -423,21 +490,13 @@ void dz::cmake::function_Block::Evaluate(Project &project, size_t cmd_arguments_
     static ValueVector options = {};
     auto one_value_keywords = arguments;
     static ValueVector multi_value_keywords = {};
+    auto all_cmd = cmd;
     auto ___evaluate_function_impl = [&](dsl_all_abstract_arguments)
     {
-        if (body.empty())
-            return;
-        context.evaluating_block_deque.push_front(this);
-        context.evaluating_block_cmd_deque.push_front(&cmd);
-        auto old_parse_to_pos = context.parse_to_pos;
-        auto old_pos = context.pos;
-        context.pos = body.front().pos;
-        context.parse_to_pos = body.back().end_pos;
-        dz::cmake::CommandParser::execute_context_til_break(context, project);
-        context.parse_to_pos = old_parse_to_pos;
-        context.pos = old_pos;
-        context.evaluating_block_deque.pop_front();
-        context.evaluating_block_cmd_deque.pop_front();
+        auto old_vars = context.vars;
+        auto arg_set = setup_block_argx(context, all_cmd, cmd);
+        evaluate_block(context, project, *this, all_cmd, cmd);
+        teardown_block_argx(context, arg_set, old_vars);
     };
     auto [context_function, context_clear] = abstractify_cmake_function(project.context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___evaluate_function_impl, 0, true);
     auto block_cmd = cmd;
@@ -472,23 +531,15 @@ void dz::cmake::macro_Block::Evaluate(Project &project, size_t cmd_arguments_siz
     static ValueVector options = {};
     auto one_value_keywords = arguments;
     static ValueVector multi_value_keywords = {};
+    auto all_cmd = cmd;
     auto ___evaluate_macro_impl = [&](dsl_all_abstract_arguments)
     {
-        if (body.empty())
-            return;
-        context.evaluating_block_deque.push_front(this);
-        context.evaluating_block_cmd_deque.push_front(&cmd);
-        auto old_parse_to_pos = context.parse_to_pos;
-        auto old_pos = context.pos;
-        context.pos = body.front().pos;
-        context.parse_to_pos = body.back().end_pos;
-        dz::cmake::CommandParser::execute_context_til_break(context, project);
-        context.parse_to_pos = old_parse_to_pos;
-        context.pos = old_pos;
-        context.evaluating_block_deque.pop_front();
-        context.evaluating_block_cmd_deque.pop_front();
+        auto old_vars = context.vars;
+        auto arg_set = setup_block_argx(context, all_cmd, cmd);
+        evaluate_block(context, project, *this, all_cmd, cmd);
+        teardown_block_argx(context, arg_set, old_vars);
     };
-    auto [context_function, context_clear] = abstractify_cmake_function(project.context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___evaluate_macro_impl, 0, true);
+    auto [context_function, context_clear] = abstractify_cmake_function(project.context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, ___evaluate_macro_impl, 0, false);
     auto block_cmd = cmd;
     block_cmd.arguments.clear();
     block_cmd.arguments.reserve(cmd_arguments_size + arguments.size());
