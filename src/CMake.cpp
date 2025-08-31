@@ -1544,7 +1544,7 @@ dsl_fn_project_def(message)
             if (!i && cmake_msg_type != CMakeMessageType::UNSET)
                 concat += "-- ";
             auto arg = dequote(cmd.arguments[i]);
-            replaceAll(arg, "\n", "\n[cmake]");
+            replaceAll(arg, "\n", "\n[cmake] ");
             concat += arg;
             if (i < cmd_arguments_size - 1)
             {
