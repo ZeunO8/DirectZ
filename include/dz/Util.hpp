@@ -215,11 +215,15 @@ namespace dz
         return env_map;
     }
 
-    inline static auto in_vec(const auto vec, const auto &val)
+    inline static auto in_vec(const auto vec, const auto &val, long long* output_index_ptr = nullptr)
     {
         auto vec_begin = vec.begin();
         auto vec_end = vec.end();
-        return std::find(vec_begin, vec_end, val) != vec_end;
+        auto found_it = std::find(vec_begin, vec_end, val);
+        auto found = found_it != vec_end;
+        if (found && output_index_ptr)
+            *output_index_ptr = std::distance(vec_begin, found_it);
+        return found;
     }
 
     inline static auto in_map(const auto &map, const auto &val)
