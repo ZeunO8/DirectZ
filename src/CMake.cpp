@@ -3360,14 +3360,22 @@ void dz::cmake::CommandParser::process_cmd(ParseContext &context, Project &proje
             if (cmd.name == "endforeach" || cmd.name == "endif")
                 goto _eval;
             else
+            {
+                if (cmd.name == "if")
+                    context.if_depth++;
                 return;
+            }
         }
         else if (context.just_triggered_return)
         {
             if (cmd.name == "endfunction" || cmd.name == "endif")
                 goto _eval;
             else
+            {
+                if (cmd.name == "if")
+                    context.if_depth++;
                 return;
+            }
         }
         else if (context.just_triggered_continue)
         {
@@ -3379,7 +3387,11 @@ void dz::cmake::CommandParser::process_cmd(ParseContext &context, Project &proje
             else if (cmd.name == "endif")
                 goto _eval;
             else
+            {
+                if (cmd.name == "if")
+                    context.if_depth++;
                 return;
+            }
         }
     }
     else if (!context.block_stack.empty())
