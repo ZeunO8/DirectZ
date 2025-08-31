@@ -256,6 +256,8 @@ namespace dz::cmake
         bool just_triggered_return = false;
         bool just_triggered_continue = false;
 
+        std::unordered_map<std::string, bool> loaded_modules;
+
         // Block* returning_from_block = nullptr;
         // Block* continuing_in_block = nullptr;
         // Block* breaking_out_of_block = nullptr;
@@ -333,6 +335,7 @@ namespace dz::cmake
         dsl_fn_def(cmake_parse_arguments);
         dsl_fn_def(file);
         dsl_fn_def(string);
+        dsl_fn_def(include);
     };
 
     struct CommandParser

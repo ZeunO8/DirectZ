@@ -5,8 +5,14 @@
 #include <cassert>
 #include <regex>
 
+#include "CMakeModules/FindPackageHandleStandardArgs.cmake.cpp"
+#include "CMakeModules/FindPackageMessage.cmake.cpp"
+
 namespace dz::cmake
 {
+    std::unordered_map<std::filesystem::path, const std::string *> cmake_modules = {
+        {"/___builtin___/cmake/Modules/FindPackageHandleStandardArgs.cmake", &FindPackageHandleStandardArgs},
+        {"/___builtin___/cmake/Modules/FindPackageMessage.cmake", &FindPackageMessage}};
     Command::Command(const std::string *content_ptr, size_t pos, size_t end_pos, const std::string &name, const std::string &args) : content_ptr(content_ptr),
                                                                                                                                      pos(pos),
                                                                                                                                      end_pos(end_pos),
@@ -2565,6 +2571,102 @@ dsl_fn_project_def(string)
     return;
 }
 
+dsl_fn_project_def(include)
+{
+    auto &context = *context_sh_ptr;
+    static std::string prefix = "___INCLUDE___";
+    static ValueVector options = {};
+    static ValueVector one_value_keywords = {};
+    static ValueVector multi_value_keywords = {};
+    auto include_impl = [&](dsl_all_abstract_arguments)
+    {
+        if (cmd_arguments_size < 1)
+            throw std::runtime_error("[cmake] -- arguments passed to include(<include_name>) is less than required: (1)");
+        auto include_name = cmd.arguments[0];
+        auto &loaded = context.loaded_modules[include_name];
+        if (loaded)
+            return;
+        auto load = [&](const std::string &path_str, const std::string &file_path_str, auto &content)
+        {
+            auto old_pos = context.pos;
+            auto old_content_ptr = context.content_ptr;
+            auto &current_list_dir = context.vars["CMAKE_CURRENT_LIST_DIR"];
+            auto &current_list_file = context.vars["CMAKE_CURRENT_LIST_FILE"];
+            auto old_current_list_dir = current_list_dir;
+            auto old_current_list_file = current_list_file;
+            context.pos = 0;
+            context.content_ptr = &content;
+            current_list_dir = path_str;
+            current_list_file = file_path_str;
+            CommandParser::execute_context_til_break(context, *this);
+            context.pos = old_pos;
+            context.content_ptr = old_content_ptr;
+            current_list_dir = old_current_list_dir;
+            current_list_file = old_current_list_file;
+        };
+        std::filesystem::path builtin_path("/___builtin___/cmake/Modules");
+        auto module_path = (builtin_path / include_name).string();
+        auto module_it = cmake_modules.find(module_path);
+        if (module_it != cmake_modules.end())
+        {
+            auto module_content_ptr = module_it->second;
+            load(builtin_path.string(), module_path, *module_content_ptr);
+            return;
+        }
+        auto cmake_module_path = (builtin_path / (include_name + ".cmake")).string();
+        auto cmake_module_it = cmake_modules.find(cmake_module_path);
+        if (cmake_module_it != cmake_modules.end())
+        {
+            auto module_content_ptr = cmake_module_it->second;
+            load(builtin_path.string(), cmake_module_path, *module_content_ptr);
+            return;
+        }
+        if (std::filesystem::exists(include_name))
+        {
+            auto content = get_file_data(include_name);
+            load(std::filesystem::absolute(".").string(), include_name, content);
+            return;
+        }
+        auto cmake_name = include_name + ".cmake";
+        if (std::filesystem::exists(cmake_name))
+        {
+            auto content = get_file_data(cmake_name);
+            load(std::filesystem::absolute(".").string(), cmake_name, content);
+            return;
+        }
+        static std::string _MODULE_PATH_STR = "CMAKE_MODULE_PATH";
+        dz::cmake::ValueVector _module_path_split;
+        auto _mod_it = context.vars.find(_MODULE_PATH_STR);
+        if (_mod_it != context.vars.end())
+        {
+            _module_path_split = split_string(_mod_it->second, ";");
+        }
+        for (auto &module_path_str : _module_path_split)
+        {
+            std::filesystem::path module_path(module_path_str);
+            auto include_module_path = module_path / include_name;
+            if (std::filesystem::exists(include_module_path))
+            {
+                auto content = get_file_data(include_module_path);
+                load(module_path_str, include_module_path.string(), content);
+                return;
+            }
+            auto cmake_module_path = module_path / cmake_name;
+            if (std::filesystem::exists(cmake_module_path))
+            {
+                auto content = get_file_data(cmake_module_path);
+                load(module_path_str, cmake_module_path.string(), content);
+                return;
+            }
+        }
+        return;
+    };
+    auto [context_function, context_clear] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, include_impl, 0, false);
+    context_function(cmd_arguments_size, cmd);
+    context_clear();
+    return;
+}
+
 void dz::cmake::Project::print()
 {
     std::cout << "Project Name: " << name << std::endl;
@@ -2633,6 +2735,7 @@ namespace dz::cmake
             dsl_entry(cmake_parse_arguments),
             dsl_entry(file),
             dsl_entry(string),
+            dsl_entry(include),
         };
         return map;
     }
