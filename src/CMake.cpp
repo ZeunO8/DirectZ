@@ -691,7 +691,7 @@ dsl_fn_project_def(macro)
     {
         if (!cmd_arguments_size)
             throw std::runtime_error("[cmake] -- macro requires <name>");
-        auto &macro_name = cmd.arguments[0];
+        auto macro_name = to_lower(cmd.arguments[0]);
         auto macro_block_sh_ptr = std::make_shared<macro_Block>();
         context.block_map[macro_name] = macro_block_sh_ptr;
         context.recording_cmds_to_block_top = true;
@@ -743,7 +743,7 @@ dsl_fn_project_def(function)
     {
         if (!cmd_arguments_size)
             throw std::runtime_error("[cmake] -- function requires <name>");
-        auto &function_name = cmd.arguments[0];
+        auto function_name = to_lower(cmd.arguments[0]);
         auto function_block_sh_ptr = std::make_shared<function_Block>();
         context.block_map[function_name] = function_block_sh_ptr;
         context.recording_cmds_to_block_top = true;
