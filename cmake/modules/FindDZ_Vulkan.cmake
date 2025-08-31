@@ -425,4 +425,33 @@ if(Vulkan_INCLUDE_DIR)
     endif()
 endif()
 
+if(Vulkan_MoltenVK_FOUND)
+    set(Vulkan_MoltenVK_VERSION "")
+    if(Vulkan_MoltenVK_INCLUDE_DIR)
+        set(VK_MVK_MOLTENVK_H ${Vulkan_MoltenVK_INCLUDE_DIR}/MoltenVK/vk_mvk_moltenvk.h)
+        if(EXISTS ${VK_MVK_MOLTENVK_H})
+            file(STRINGS  ${VK_MVK_MOLTENVK_H} _Vulkan_MoltenVK_VERSION_MAJOR REGEX "^#define MVK_VERSION_MAJOR ")
+            string(REGEX MATCHALL "[0-9]+" _Vulkan_MoltenVK_VERSION_MAJOR "${_Vulkan_MoltenVK_VERSION_MAJOR}")
+            file(STRINGS  ${VK_MVK_MOLTENVK_H} _Vulkan_MoltenVK_VERSION_MINOR REGEX "^#define MVK_VERSION_MINOR ")
+            string(REGEX MATCHALL "[0-9]+" _Vulkan_MoltenVK_VERSION_MINOR "${_Vulkan_MoltenVK_VERSION_MINOR}")
+            file(STRINGS  ${VK_MVK_MOLTENVK_H} _Vulkan_MoltenVK_VERSION_PATCH REGEX "^#define MVK_VERSION_PATCH ")
+            string(REGEX MATCHALL "[0-9]+" _Vulkan_MoltenVK_VERSION_PATCH "${_Vulkan_MoltenVK_VERSION_PATCH}")
+            set(Vulkan_MoltenVK_VERSION "${_Vulkan_MoltenVK_VERSION_MAJOR}.${_Vulkan_MoltenVK_VERSION_MINOR}.${_Vulkan_MoltenVK_VERSION_PATCH}")
+            unset(_Vulkan_MoltenVK_VERSION_MAJOR)
+            unset(_Vulkan_MoltenVK_VERSION_MINOR)
+            unset(_Vulkan_MoltenVK_VERSION_PATCH)
+        endif()
+    endif()
+endif()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(Vulkan
+        REQUIRED_VARS
+        Vulkan_LIBRARY
+        Vulkan_INCLUDE_DIR
+        VERSION_VAR
+        Vulkan_VERSION
+        HANDLE_COMPONENTS
+)
+
 cmake_policy(POP)
