@@ -3602,22 +3602,36 @@ void dz::cmake::CommandParser::tokenize(const std::string &s, dz::cmake::ValueVe
 
 void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_context, bool dequite)
 {
-    size_t off = 0;
     replaceAll(str, "\\n", "\n");
     replaceAll(str, "\\\"", "\"");
     auto &vars = parse_context.vars;
+    size_t i = 0;
     while (true)
     {
-        static std::string start_var = "${";
-        static std::string end_var = "}";
-        auto start_pos = str.find(start_var, off);
-        if (start_pos == std::string::npos)
+        size_t start = str.find("${", i);
+        if (start == std::string::npos)
         {
             break;
         }
-        auto var_start_pos = start_pos + start_var.size();
-        auto end_pos = str.find(end_var);
-        if (end_pos == std::string::npos)
+        size_t scan = start + 2;
+        int depth = 1;
+        while (scan < str.size() && depth > 0)
+        {
+            if (str[scan] == '$' && scan + 1 < str.size() && str[scan + 1] == '{')
+            {
+                depth++;
+                scan += 2;
+                continue;
+            }
+            if (str[scan] == '}')
+            {
+                depth--;
+                scan++;
+                continue;
+            }
+            scan++;
+        }
+        if (depth != 0)
         {
             throw std::runtime_error(R"([cmake] CMake Error:
 [cmake]   Syntax error
@@ -3628,57 +3642,70 @@ void dz::cmake::CommandParser::varize_str(std::string &str, ParseContext &parse_
 [cmake] 
 [cmake]   There is an unterminated variable reference.)");
         }
-        auto var_len = end_pos - var_start_pos;
-        auto block_len = (end_pos - start_pos) + 1;
-        auto block = str.substr(start_pos, block_len);
-        auto var = str.substr(var_start_pos, var_len);
-        auto var_it = vars.find(var);
-        if (var_it == vars.end())
+        size_t end = scan - 1;
+        std::string inner = str.substr(start + 2, end - (start + 2));
+        if (inner.find("${") != std::string::npos)
         {
-            replaceAll(str, block, "");
+            varize_str(inner, parse_context, dequite);
         }
-        else
-        {
-            auto var_val = dequote(var_it->second);
-            replaceAll(str, block, var_val);
-        }
+        auto it = vars.find(inner);
+        std::string repl = (it == vars.end()) ? std::string() : (dequote(it->second));
+        str.replace(start, end - start + 1, repl);
+        i = start + repl.size();
     }
     envize_str(str, parse_context);
 }
 
 void dz::cmake::CommandParser::envize_str(std::string &str, ParseContext &parse_context)
 {
-    size_t off = 0;
     auto &env = parse_context.env;
+    size_t i = 0;
     while (true)
     {
-        static std::string start_var = "$ENV{";
-        static std::string end_var = "}";
-        auto start_pos = str.find(start_var, off);
-        if (start_pos == std::string::npos)
+        size_t start = str.find("$ENV{", i);
+        if (start == std::string::npos)
         {
             break;
         }
-        auto var_start_pos = start_pos + start_var.size();
-        auto end_pos = str.find(end_var);
-        if (end_pos == std::string::npos)
+        size_t scan = start + 5;
+        int depth = 1;
+        while (scan < str.size() && depth > 0)
         {
-            break;
+            if (str[scan] == '$' && scan + 4 < str.size() && str.compare(scan, 5, "$ENV{") == 0)
+            {
+                depth++;
+                scan += 5;
+                continue;
+            }
+            if (str[scan] == '}')
+            {
+                depth--;
+                scan++;
+                continue;
+            }
+            scan++;
         }
-        auto var_len = end_pos - var_start_pos;
-        auto block_len = (end_pos - start_pos) + 1;
-        auto block = str.substr(start_pos, block_len);
-        auto var = str.substr(var_start_pos, var_len);
-        auto env_it = env.find(var);
-        if (env_it == env.end())
+        if (depth != 0)
         {
-            replaceAll(str, block, "");
+            throw std::runtime_error(R"([cmake] CMake Error:
+[cmake]   Syntax error
+[cmake] 
+[cmake]   when parsing environment reference
+[cmake] 
+[cmake]     )" + str + R"(
+[cmake] 
+[cmake]   There is an unterminated environment reference.)");
         }
-        else
+        size_t end = scan - 1;
+        std::string inner = str.substr(start + 5, end - (start + 5));
+        if (inner.find("$ENV{") != std::string::npos)
         {
-            auto var_val = dequote(env_it->second);
-            replaceAll(str, block, var_val);
+            envize_str(inner, parse_context);
         }
+        auto it = env.find(inner);
+        std::string repl = (it == env.end()) ? std::string() : (dequote(it->second));
+        str.replace(start, end - start + 1, repl);
+        i = start + repl.size();
     }
 }
 
