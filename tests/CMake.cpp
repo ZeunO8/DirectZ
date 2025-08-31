@@ -395,6 +395,63 @@ message(STATUS "A After PREPEND: ${A}")
     return MUNIT_OK;
 }
 
+MunitResult test_include(const MunitParameter[], void *user_data)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+include(FindPackageHandleStandardArgs)
+set(Vulkan_LIBRARY "vulkan-1.lib")
+set(Vulkan_INCLUDE_DIR "C:/VulkanSDK/1.4.313.2/Include")
+set(Vulkan_VERSION "1.4.313")
+set(VERSION_VAR ${Vulkan_VERSION})
+set(HANDLE_COMPONENTS FALSE)
+set(CMAKE_FIND_PACKAGE_NAME Vulkan)
+find_package_handle_standard_args(Vulkan
+        REQUIRED_VARS
+        Vulkan_LIBRARY
+        Vulkan_INCLUDE_DIR
+        VERSION_VAR
+        Vulkan_VERSION
+        HANDLE_COMPONENTS
+)
+message(STATUS "Vulkan_FOUND: ${Vulkan_FOUND}")
+message(STATUS "VULKAN_FOUND: ${VULKAN_FOUND}")
+)";
+    try {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
+
+MunitResult test_function_argx(const MunitParameter[], void *user_data)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+function(my-function X Y)
+    message(STATUS "X: ${X}, Y: ${Y}")
+    message(STATUS "ARGC: ${ARGC}")
+    message(STATUS "ARGV: ${ARGV}")
+    message(STATUS "ARGN: ${ARGN}")
+    foreach(I RANGE ${ARGC})
+        message(STATUS "ARGV${I}: ${ARGV${I}}")
+    endforeach()
+endfunction()
+my-function(1 2 3)
+)";
+    try {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
+
 
 static MunitTest test_suite_tests[] = {
     // { (char*)"/cmake_parse_arguments", test_parse_arguments, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
@@ -405,8 +462,10 @@ static MunitTest test_suite_tests[] = {
     // { (char*)"/file_write_read", test_file_write_read, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/part_vulkan", test_part_vulkan, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/macro", test_macro, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    { (char*)"/foreach_zip_lists", test_foreach_zip_lists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    { (char*)"/list_append_prepend", test_list_append_prepend, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    // { (char*)"/foreach_zip_lists", test_foreach_zip_lists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    // { (char*)"/list_append_prepend", test_list_append_prepend, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    { (char*)"/include", test_include, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    // { (char*)"/function_argx", test_function_argx, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/find_package_DirectZ", test_find_package_DirectZ, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
 
     {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
