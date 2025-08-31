@@ -350,7 +350,7 @@ namespace dz
         return true;
     }
 
-    static size_t get_range_min(const std::vector<std::vector<std::string>> &ranges)
+    inline static size_t get_range_min(const std::vector<std::vector<std::string>> &ranges)
     {
         size_t x = (std::numeric_limits<size_t>::max)();
         for (auto &range_ns : ranges)
@@ -361,7 +361,7 @@ namespace dz
         return x;
     }
 
-    static size_t get_range_max(const std::vector<std::vector<std::string>> &ranges)
+    inline static size_t get_range_max(const std::vector<std::vector<std::string>> &ranges)
     {
         size_t x = (std::numeric_limits<size_t>::lowest)();
         for (auto &range_ns : ranges)
@@ -372,7 +372,7 @@ namespace dz
         return x;
     }
 
-    static std::string get_file_data(const std::filesystem::path& ipath, long long offset = 0, long long limit = -1)
+    inline static std::string get_file_data(const std::filesystem::path& ipath, long long offset = 0, long long limit = -1)
     {
         std::ifstream ifst(ipath, std::ios::in, std::ios::binary);
         ifst.seekg(0, std::ios::end);
