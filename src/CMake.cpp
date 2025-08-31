@@ -2666,6 +2666,51 @@ dsl_fn_project_def(string)
                  output_val.insert(output_val.begin(), to_prepend.begin(), to_prepend.end());
                  return;
              }},
+            {"TOLOWER", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 2)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(TOLOWER <string> <output_variable>) is less than required: (2)");
+                 auto string = dequote(cmd.arguments[0]);
+                 auto &output_variable = cmd.arguments[1];
+                 auto &output_val = context.vars[output_variable];
+                 output_val = to_lower(string);
+                 return;
+             }},
+            {"TOUPPER", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 2)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(TOUPPER <string> <output_variable>) is less than required: (2)");
+                 auto string = dequote(cmd.arguments[0]);
+                 auto &output_variable = cmd.arguments[1];
+                 auto &output_val = context.vars[output_variable];
+                 output_val = to_upper(string);
+                 return;
+             }},
+            {"REPLACE", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 4)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(REPLACE <match_string> <replace_string> <output_variable> <input> [<input>...]) is less than required: (4)");
+                 auto match_string = dequote(cmd.arguments[0]);
+                 auto replace_string = dequote(cmd.arguments[1]);
+                 auto &output_variable = cmd.arguments[2];
+                 std::string input;
+                 for (size_t arg_i = 3; arg_i < cmd_arguments_size; arg_i++)
+                     input += dequote(cmd.arguments[arg_i]);
+                 replaceAll(input, match_string, replace_string);
+                 auto &output_val = context.vars[output_variable];
+                 output_val = input;
+                 return;
+             }},
+            {"STRIP", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 2)
+                     throw std::runtime_error("[cmake] -- arguments passed to string(STRIP <string> <output_variable>) is less than required: (2)");
+                 auto string = dequote(cmd.arguments[0]);
+                 auto &output_variable = cmd.arguments[1];
+                 auto &output_val = context.vars[output_variable];
+                 output_val = trim_string(string);
+                 return;
+             }},
         };
         if (cmd_arguments_size < 1)
             throw std::runtime_error("[cmake] -- no arguments passed to string()");
