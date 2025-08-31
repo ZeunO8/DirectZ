@@ -648,6 +648,7 @@ dz::cmake::VariableMap dz::cmake::ParseContext::generate_default_system_vars_map
         {"ANDROID", "TRUE"},
 #endif
         {"CMAKE_CURRENT_LIST_DIR", std::filesystem::absolute(".").string()},
+        {"CMAKE_CURRENT_LIST_FILE", (std::filesystem::absolute(".") / "CMakeLists.txt").string()},
         {"CMAKE_SYSTEM_NAME",
 #if defined(_WIN32)
          "Windows"
