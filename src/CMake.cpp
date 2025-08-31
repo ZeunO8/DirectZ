@@ -1800,7 +1800,69 @@ dsl_fn_project_def(list)
                      joined = join_string_vec(list_split, glue);
                  }
                  context.vars[output_variable] = joined;
-             }}};
+             }},
+            {"FIND", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 3)
+                     throw std::runtime_error("[cmake] -- arguments passed to list(FIND <list> <value> <output_variable>) is less than required: (3)");
+                 auto &list = cmd.arguments[0];
+                 auto value = dequote(cmd.arguments[1]);
+                 auto &output_variable = cmd.arguments[2];
+                 auto list_it = context.vars.find(list);
+                 long long found_index = -1;
+                 if (list_it != context.vars.end())
+                 {
+                     auto &list_val = list_it->second;
+                     auto list_split = split_string(list_val, ";");
+                     in_vec(list_split, value, &found_index);
+                 }
+                 context.vars[output_variable] = std::to_string(found_index);
+             }},
+            {"GET", [](auto &context, dsl_all_abstract_arguments)
+             {
+                 if (cmd_arguments_size < 3)
+                     throw std::runtime_error("[cmake] -- arguments passed to list(GET <list> <element index> [<element index> ...] <output variable>) is less than required: (3)");
+                 auto arguments_data = cmd.arguments.data();
+                 auto &list = arguments_data[0];
+                 std::vector<long long> indices;
+                 size_t arg_i = 1;
+                 for (; arg_i < (cmd_arguments_size - 1); arg_i++)
+                 {
+                     try
+                     {
+                         indices.push_back(std::stoll(dequote(arguments_data[arg_i])));
+                     }
+                     catch (...)
+                     {
+                         throw std::runtime_error("[cmake] -- list(GET) index is not an integer: " + arguments_data[arg_i]);
+                     }
+                 }
+                 auto &output_variable = arguments_data[arg_i];
+                 auto list_it = context.vars.find(list);
+                 if (list_it == context.vars.end())
+                 {
+                     context.vars[output_variable] = "";
+                     return;
+                 }
+                 std::string output_get_str;
+                 auto list_split = split_string(list_it->second, ";");
+                 auto list_split_size = list_split.size();
+                 for (auto &index : indices)
+                 {
+                     if (index < 0)
+                         index = list_split_size + index;
+
+                     if (index < 0 || index >= list_split_size)
+                         throw std::runtime_error("[cmake] -- list(GET) index out of range");
+
+                     if (!output_get_str.empty())
+                         output_get_str += ";";
+                     output_get_str += list_split[index];
+                 }
+                 context.vars[output_variable] = output_get_str;
+                 return;
+             }},
+        };
         if (cmd_arguments_size < 1)
             throw std::runtime_error("[cmake] -- no arguments passed to list()");
         auto action = cmd.arguments[0];
