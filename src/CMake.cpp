@@ -349,6 +349,7 @@ void dz::cmake::Command::Evaluate(Project &project)
 
     auto cmd_arguments_size = arguments.size();
 
+    name = to_lower(name);
     auto block_it = context.block_map.find(name);
     if (block_it != context.block_map.end())
     {
@@ -357,7 +358,6 @@ void dz::cmake::Command::Evaluate(Project &project)
         return;
     }
 
-    name = to_lower(name);
     auto cmd_it = project.dsl_map.find(name);
     if (cmd_it == project.dsl_map.end())
     {
