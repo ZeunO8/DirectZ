@@ -205,8 +205,7 @@ namespace dz::cmake
         const ValueVector &getArguments() const override { return sources; }
         void addIncludeDir(const std::string &dir) { includeDirs.push_back(dir); }
         void addLinkLib(const std::string &lib) { linkLibs.push_back(lib); }
-        void setShared() { linkType = LinkType::Shared; }
-        void setStatic() { linkType = LinkType::Static; }
+        void setLinkType(LinkType _linkType) { linkType = _linkType; }
 
         std::string GetTypeStr()
         {
@@ -240,6 +239,8 @@ namespace dz::cmake
         ValueVector sources;
         ValueVector includeDirs;
         ValueVector linkLibs;
+        bool isInterface = false;
+        bool isImported = false;
     };
 
     struct Policy

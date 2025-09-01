@@ -1414,16 +1414,66 @@ dsl_fn_project_def(add_library)
             return;
         auto &target_name = cmd.arguments[0];
         auto target = std::make_shared<Target>(Target::Type::Library, target_name);
+        targets[target_name] = target;
         for (size_t i = 1; i < cmd_arguments_size; ++i)
         {
-            auto &arg = cmd.arguments[i];
-            target->addArgument(arg);
+            auto arg = dequote(cmd.arguments[i]);
+            auto arg_split = split_string(arg, ";");
+            for (auto& src : arg_split)
+            {
+                target->addArgument(src);
+            }
         }
-        targets[target_name] = target;
-        if (in_vec(options_set, "SHARED"))
-            target->setShared();
-        if (in_vec(options_set, "STATIC"))
-            target->setStatic();
+
+        bool hasShared = in_vec(options_set, "SHARED");
+        bool hasStatic = in_vec(options_set, "STATIC");
+        bool hasModule = in_vec(options_set, "MODULE");
+        bool hasInterface = in_vec(options_set, "INTERFACE");
+        bool hasImported = in_vec(options_set, "IMPORTED");
+        bool hasUnknown = in_vec(options_set, "UNKNOWN");
+
+        int linkTypeCount = (hasShared ? 1 : 0) + (hasStatic ? 1 : 0) + (hasModule ? 1 : 0) + (hasUnknown ? 1 : 0);
+        if (linkTypeCount > 1)
+        {
+            throw std::runtime_error("[cmake] -- add_library() cannot specify multiple link types");
+        }
+
+        if (hasInterface)
+            target->isInterface = true;
+        if (hasImported)
+            target->isImported = true;
+        if (hasUnknown)
+        {
+            if (!hasImported)
+            {
+                throw std::runtime_error("[cmake] -- A target can only be UNKNOWN if also IMPORTED");
+            }
+            target->setLinkType(Target::LinkType::Unknown);
+        }
+        else if (hasShared)
+        {
+            target->setLinkType(Target::LinkType::Shared);
+        }
+        else if (hasStatic)
+        {
+            target->setLinkType(Target::LinkType::Static);
+        }
+        else if (hasModule)
+        {
+            target->setLinkType(Target::LinkType::Module);
+        }
+        else
+        {
+            bool buildShared = false;
+            auto it = context.vars.find("BUILD_SHARED_LIBS");
+            if (it != context.vars.end())
+                buildShared = truthy(it->second);
+
+            if (buildShared)
+                target->setLinkType(Target::LinkType::Shared);
+            else
+                target->setLinkType(Target::LinkType::Static);
+        }
     };
     auto [context_function, context_clear] = abstractify_cmake_function(context_sh_ptr, prefix, options, one_value_keywords, multi_value_keywords, add_library_impl, 0, false);
     context_function(cmd_arguments_size, cmd);
