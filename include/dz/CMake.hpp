@@ -196,6 +196,8 @@ namespace dz::cmake
         {
             Shared,
             Static,
+            Unknown,
+            Module,
         };
         Target(Type t, const std::string &n) : targetType(t), name(n) {}
         std::string getName() const override { return name; }
