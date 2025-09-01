@@ -112,22 +112,47 @@ namespace dz::cmake
 
     enum class ConditionOp
     {
-        And,
-        Or,
-        Not,
+        Group,
         Identifier,
         Literal,
-        Group,
-        Strequal,
-        Less,
-        Greater,
-        LessEqual,
-        GreaterEqual,
-        Equal,
-        IdentifierOrLiteral,
-        InList,
-        Defined,
-        Exists
+    
+        // Binary Ops
+        EQUAL,
+        LESS,
+        LESS_EQUAL,
+        GREATER,
+        GREATER_EQUAL,
+        STREQUAL,
+        STRLESS,
+        STRLESS_EQUAL,
+        STRGREATER,
+        STRGREATER_EQUAL,
+        VERSION_EQUAL,
+        VERSION_LESS,
+        VERSION_LESS_EQUAL,
+        VERSION_GREATER,
+        VERSION_GREATER_EQUAL,
+        PATH_EQUAL,
+        IN_LIST,
+        IS_NEWER_THAN,
+        MATCHES,
+        AND,
+        OR,
+        
+        // Unary Ops
+        COMMAND,
+        POLICY,
+        TARGET,
+        TEST,
+        EXISTS,
+        IS_READABLE,
+        IS_WRITABLE,
+        IS_EXECUTABLE,
+        IS_DIRECTORY,
+        IS_SYMLINK,
+        IS_ABSOLUTE,
+        DEFINED,
+        NOT,
     };
 
     struct ConditionNode
