@@ -331,7 +331,7 @@ namespace dz::cmake
 
     inline static bool isNot(const auto &condition_node)
     {
-        if (condition_node.op == ConditionOp::Not)
+        if (condition_node.op == ConditionOp::NOT)
             return true;
         if (condition_node.op == ConditionOp::Identifier || condition_node.op == ConditionOp::Literal)
         {
@@ -564,18 +564,43 @@ void dz::cmake::macro_Block::Evaluate(Project &project, size_t cmd_arguments_siz
 void dz::cmake::ConditionNode::ParseConditions(Project &project, size_t cmd_arguments_size, const Command &cmd)
 {
     static std::unordered_map<std::string, ConditionOp> condition_op_map = {
-        {"AND", ConditionOp::And},
-        {"NOT", ConditionOp::Not},
-        {"OR", ConditionOp::Or},
-        {"STREQUAL", ConditionOp::Strequal},
-        {"LESS", ConditionOp::Less},
-        {"GREATER", ConditionOp::Greater},
-        {"LESS_EQUAL", ConditionOp::LessEqual},
-        {"GREATER_EQUAL", ConditionOp::GreaterEqual},
-        {"EQUAL", ConditionOp::Equal},
-        {"IN_LIST", ConditionOp::InList},
-        {"DEFINED", ConditionOp::Defined},
-        {"EXISTS", ConditionOp::Exists},
+        // Binary Ops
+        { "EQUAL", ConditionOp::EQUAL },
+        { "LESS", ConditionOp::LESS },
+        { "LESS_EQUAL", ConditionOp::LESS_EQUAL },
+        { "GREATER", ConditionOp::GREATER },
+        { "GREATER_EQUAL", ConditionOp::GREATER_EQUAL },
+        { "STREQUAL", ConditionOp::STREQUAL },
+        { "STRLESS", ConditionOp::STRLESS },
+        { "STRLESS_EQUAL", ConditionOp::STRLESS_EQUAL },
+        { "STRGREATER", ConditionOp::STRGREATER },
+        { "STRGREATER_EQUAL", ConditionOp::STRGREATER_EQUAL },
+        { "VERSION_EQUAL", ConditionOp::VERSION_EQUAL },
+        { "VERSION_LESS", ConditionOp::VERSION_LESS },
+        { "VERSION_LESS_EQUAL", ConditionOp::VERSION_LESS_EQUAL },
+        { "VERSION_GREATER", ConditionOp::VERSION_GREATER },
+        { "VERSION_GREATER_EQUAL", ConditionOp::VERSION_GREATER_EQUAL },
+        { "PATH_EQUAL", ConditionOp::PATH_EQUAL },
+        { "IN_LIST", ConditionOp::IN_LIST },
+        { "IS_NEWER_THAN", ConditionOp::IS_NEWER_THAN },
+        { "MATCHES", ConditionOp::MATCHES },
+        { "AND", ConditionOp::AND },
+        { "OR", ConditionOp::OR },
+        
+        // Unary Ops
+        { "COMMAND", ConditionOp::COMMAND },
+        { "POLICY", ConditionOp::POLICY },
+        { "TARGET", ConditionOp::TARGET },
+        { "TEST", ConditionOp::TEST },
+        { "EXISTS", ConditionOp::EXISTS },
+        { "IS_READABLE", ConditionOp::IS_READABLE },
+        { "IS_WRITABLE", ConditionOp::IS_WRITABLE },
+        { "IS_EXECUTABLE", ConditionOp::IS_EXECUTABLE },
+        { "IS_DIRECTORY", ConditionOp::IS_DIRECTORY },
+        { "IS_SYMLINK", ConditionOp::IS_SYMLINK },
+        { "IS_ABSOLUTE", ConditionOp::IS_ABSOLUTE },
+        { "DEFINED", ConditionOp::DEFINED },
+        { "NOT", ConditionOp::NOT },
     };
 
     auto &context = *project.context_sh_ptr;
@@ -662,7 +687,9 @@ dz::cmake::VariableMap dz::cmake::ParseContext::generate_default_system_vars_map
          "Android"
 #endif
         },
-        {"CMAKE_SIZEOF_VOID_P", std::to_string(sizeof(void *))}};
+        {"CMAKE_SIZEOF_VOID_P", std::to_string(sizeof(void *))},
+        {"CMAKE_VERSION", "5.1.8"} //  forever one ate
+    };
 }
 
 dz::cmake::VariableMap dz::cmake::ParseContext::get_env_map()
@@ -1405,7 +1432,9 @@ dsl_fn_project_def(add_library)
         "STATIC",
         "MODULE",
         "INTERFACE",
-        "IMPORTED"};
+        "IMPORTED",
+        "UNKNOWN",
+    };
     static ValueVector one_value_keywords = {};
     static ValueVector multi_value_keywords = {};
     auto add_library_impl = [&](dsl_all_abstract_arguments)
@@ -3153,9 +3182,9 @@ bool dz::cmake::ConditionNode::BoolVar(const std::string &var) const
     case CN_OP:                   \
         term = (lhs OP rhs);      \
         break
-#define condition_case_numeric(CN_OP, OP)            \
+#define condition_case_cast_compare(CN_OP, OP, CAST)            \
     case CN_OP:                                      \
-        term = (std::stoll(lhs) OP std::stoll(rhs)); \
+        term = (CAST(lhs) OP CAST(rhs)); \
         break
 
 bool dz::cmake::ConditionNode::Evaluate(Project &project) const
@@ -3170,7 +3199,7 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
         size_t i = 0;
         bool have = false;
         bool result = false;
-        ConditionOp logic = ConditionOp::Or;
+        ConditionOp logic = ConditionOp::OR;
         while (i < children_size)
         {
             bool invert = false;
@@ -3183,9 +3212,47 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
                 break;
             bool term = false;
             auto cur_child_op = children[i]->op;
-            if (
-                cur_child_op == ConditionOp::Defined ||
-                cur_child_op == ConditionOp::Exists)
+            ConditionOp mid_child_op;
+
+            static std::unordered_set<ConditionOp> unary_ops = {
+                ConditionOp::COMMAND, // True if the given name is a command, macro or function that can be invoked.
+                ConditionOp::POLICY, // True if the given name is an existing policy
+                ConditionOp::TARGET, // True if the given name is an existing logical target name created by a call to the add_executable(), add_library(), or add_custom_target() command that has already been invoked (in any directory).
+                ConditionOp::TEST, // True if the given name is an existing test name created by the add_test() command.
+                ConditionOp::EXISTS, // True if the named file or directory exists and is readable
+                ConditionOp::IS_READABLE, // True if the named file or directory is readable.
+                ConditionOp::IS_WRITABLE, // True if the named file or directory is writable.
+                ConditionOp::IS_EXECUTABLE, // True if the named file or directory is executable.
+                ConditionOp::IS_DIRECTORY, // True if path is a directory.
+                ConditionOp::IS_SYMLINK, // True if the given path is a symbolic link.
+                ConditionOp::IS_ABSOLUTE, // True if the given path is an absolute path.
+                ConditionOp::DEFINED, // True if a variable, cache variable or environment variable with given <name> is defined. The value of the variable does not matter.
+                ConditionOp::NOT, // True if the condition is not true.
+            };
+            static std::unordered_set<ConditionOp> binary_ops = {
+                ConditionOp::EQUAL, // True if the given string or variable's value parses as a real number (like a C double) and equal to that on the right.
+                ConditionOp::LESS, // True if the given string or variable's value parses as a real number (like a C double) and less than that on the right.
+                ConditionOp::LESS_EQUAL, // True if the given string or variable's value parses as a real number (like a C double) and less than or equal to that on the right.
+                ConditionOp::GREATER, // True if the given string or variable's value parses as a real number (like a C double) and greater than that on the right.
+                ConditionOp::GREATER_EQUAL, // True if the given string or variable's value parses as a real number (like a C double) and greater than or equal to that on the right.
+                ConditionOp::STREQUAL, // True if the given string or variable's value is lexicographically equal to the string or variable on the right.
+                ConditionOp::STRLESS, // True if the given string or variable's value is lexicographically less than the string or variable on the right.
+                ConditionOp::STRLESS_EQUAL, // True if the given string or variable's value is lexicographically less than or equal to the string or variable on the right.
+                ConditionOp::STRGREATER, // True if the given string or variable's value is lexicographically greater than the string or variable on the right.
+                ConditionOp::STRGREATER_EQUAL, // True if the given string or variable's value is lexicographically less than or equal to the string or variable on the right.
+                ConditionOp::VERSION_EQUAL, // Component-wise integer version number comparison
+                ConditionOp::VERSION_LESS, // Component-wise integer version number comparison
+                ConditionOp::VERSION_LESS_EQUAL, // Component-wise integer version number comparison
+                ConditionOp::VERSION_GREATER, // Component-wise integer version number comparison
+                ConditionOp::VERSION_GREATER_EQUAL, // Component-wise integer version number comparison
+                ConditionOp::PATH_EQUAL, // Lexicographically compares two CMake paths component-by-component without accessing the filesystem.
+                ConditionOp::IN_LIST, // True if the given element is contained in the named list variable.
+                ConditionOp::IS_NEWER_THAN, // True if file1 is newer than file2 or if one of the two files doesn't exist.
+                ConditionOp::MATCHES, // True if the given string or variable's value matches the given regular expression.
+                ConditionOp::AND, // True if both conditions would be considered true individually.
+                ConditionOp::OR, // True if either condition would be considered true individually.
+            };
+            if (unary_ops.find(cur_child_op) != unary_ops.end())
             {
                 i += 1;
                 if (i >= children_size)
@@ -3194,61 +3261,68 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
                 auto &r_child_val = r_child.value;
                 switch (cur_child_op)
                 {
-                case ConditionOp::Defined:
+                case ConditionOp::DEFINED:
                 {
                     auto var_it = vars.find(r_child_val);
                     term = (var_it != vars.end());
                     break;
                 }
-                case ConditionOp::Exists:
+                case ConditionOp::EXISTS:
                 {
                     term = std::filesystem::exists(r_child_val);
                     break;
                 }
+                case ConditionOp::TARGET:
+                {
+                    auto target_it = project.targets.find(r_child_val);
+                    term = (target_it != project.targets.end());
+                    break;
+                }
                 }
             }
-            else if (i + 1 < children_size)
+            else if (i + 1 < children_size && binary_ops.find((mid_child_op = children[i + 1]->op)) != binary_ops.end())
             {
-                auto mid_op = children[i + 1]->op;
-                switch (mid_op)
+                auto &l_child = *children[i];
+                auto lhs = identify_child(context, l_child);
+                i += 2;
+                if (i >= children_size)
+                    break;
+                auto &r_child = *children[i];
+                auto rhs = identify_child(context, r_child);
+                switch (mid_child_op)
                 {
-                case ConditionOp::Strequal:
-                case ConditionOp::Equal:
-                case ConditionOp::Less:
-                case ConditionOp::Greater:
-                case ConditionOp::LessEqual:
-                case ConditionOp::GreaterEqual:
+                case ConditionOp::STREQUAL:
+                case ConditionOp::EQUAL:
+                case ConditionOp::LESS:
+                case ConditionOp::GREATER:
+                case ConditionOp::LESS_EQUAL:
+                case ConditionOp::GREATER_EQUAL:
+                case ConditionOp::VERSION_EQUAL:
+                case ConditionOp::VERSION_LESS_EQUAL:
+                case ConditionOp::VERSION_LESS:
+                case ConditionOp::VERSION_GREATER_EQUAL:
+                case ConditionOp::VERSION_GREATER:
                 {
-                    auto &l_child = *children[i];
-                    auto lhs = identify_child(context, l_child);
-                    i += 2;
-                    if (i >= children_size)
-                        break;
-                    auto &r_child = *children[i];
-                    auto rhs = identify_child(context, r_child);
-                    switch (mid_op)
+                    switch (mid_child_op)
                     {
-                        condition_case(ConditionOp::Strequal, ==);
-                        condition_case(ConditionOp::Equal, ==);
-                        condition_case_numeric(ConditionOp::Less, <);
-                        condition_case_numeric(ConditionOp::Greater, >);
-                        condition_case_numeric(ConditionOp::LessEqual, <=);
-                        condition_case_numeric(ConditionOp::GreaterEqual, >=);
+                        condition_case(ConditionOp::STREQUAL, ==);
+                        condition_case(ConditionOp::EQUAL, ==);
+                        condition_case_cast_compare(ConditionOp::LESS, <, std::stoll);
+                        condition_case_cast_compare(ConditionOp::GREATER, >, std::stoll);
+                        condition_case_cast_compare(ConditionOp::LESS_EQUAL, <=, std::stoll);
+                        condition_case_cast_compare(ConditionOp::GREATER_EQUAL, >=, std::stoll);
+                        condition_case_cast_compare(ConditionOp::VERSION_LESS, <, Version);
+                        condition_case_cast_compare(ConditionOp::VERSION_GREATER, >, Version);
+                        condition_case_cast_compare(ConditionOp::VERSION_LESS_EQUAL, <=, Version);
+                        condition_case_cast_compare(ConditionOp::VERSION_GREATER_EQUAL, >=, Version);
                     }
                     break;
                 }
-                case ConditionOp::InList:
+                case ConditionOp::IN_LIST:
                 {
-                    auto &l_child = *children[i];
-                    auto lhs = identify_child(context, l_child);
-                    i += 2;
-                    if (i >= children_size)
-                        break;
-                    auto &r_child = *children[i];
-                    auto var = identify_child(context, r_child);
-                    auto var_split = split_string(var, ";");
-                    auto f_it = std::find(var_split.begin(), var_split.end(), lhs);
-                    term = (f_it != var_split.end());
+                    auto rhs_split = split_string(rhs, ";");
+                    auto f_it = std::find(rhs_split.begin(), rhs_split.end(), lhs);
+                    term = (f_it != rhs_split.end());
                     break;
                 }
                 default:
@@ -3271,17 +3345,17 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
             }
             else
             {
-                if (logic == ConditionOp::And)
+                if (logic == ConditionOp::AND)
                 {
                     result = result && term;
                 }
-                else
+                else if (logic == ConditionOp::OR)
                 {
                     result = result || term;
                 }
             }
             ++i;
-            if (i < children_size && (children[i]->op == ConditionOp::And || children[i]->op == ConditionOp::Or))
+            if (i < children_size && (children[i]->op == ConditionOp::AND || children[i]->op == ConditionOp::OR))
             {
                 logic = children[i]->op;
                 ++i;
@@ -3300,20 +3374,20 @@ bool dz::cmake::ConditionNode::Evaluate(Project &project) const
     {
         return truthy(value);
     }
-    case ConditionOp::Not:
+    case ConditionOp::NOT:
     {
         if (children.empty())
             return false;
         return !children[0]->Evaluate(project);
     }
-    case ConditionOp::And:
-    case ConditionOp::Or:
+    case ConditionOp::AND:
+    case ConditionOp::OR:
     {
         if (children.size() < 2)
             return false;
         bool a = children[0]->Evaluate(project);
         bool b = children[1]->Evaluate(project);
-        if (op == ConditionOp::And)
+        if (op == ConditionOp::AND)
         {
             return a && b;
         }

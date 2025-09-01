@@ -119,6 +119,7 @@ namespace dz
 
 #include "Compiler/Clang.cpp"
 
+#include "Version.cpp"
 #include "CMake.cpp"
 
 template<typename T>

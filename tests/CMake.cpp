@@ -1,9 +1,9 @@
 #include <dz/CMake.hpp>
 #include <dz/Util.hpp>
+#include "Unit.hpp"
 #include <filesystem>
-#include <munit.h>
 
-MunitResult test_parse_arguments(const MunitParameter[], void *user_data)
+test_src_def(cmake_parse_arguments)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -27,7 +27,7 @@ MunitResult test_parse_arguments(const MunitParameter[], void *user_data)
     return MUNIT_OK;
 }
 
-MunitResult test_function_nested_foreach(const MunitParameter[], void *user_data)
+test_src_def(function_nested_foreach)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -79,7 +79,7 @@ runforeach(3)
     return MUNIT_OK;
 }
 
-MunitResult test_function_scope(const MunitParameter[], void *user_data)
+test_src_def(function_scope)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -106,7 +106,7 @@ _set_component(dz::function)
     return MUNIT_OK;
 }
 
-MunitResult test_recursive_function_foreach(const MunitParameter[], void *user_data)
+test_src_def(recursive_function_foreach)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -142,7 +142,7 @@ te_fun(1 "RF")
     return MUNIT_OK;
 }
 
-MunitResult test_function_nested_ifs_foreachs(const MunitParameter[], void *user_data)
+test_src_def(function_nested_ifs_foreachs)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -190,7 +190,7 @@ message(STATUS "And HOORAY is: ${HOORAY}")
     return MUNIT_OK;
 }
 
-MunitResult test_file_write_read(const MunitParameter[], void *user_data)
+test_src_def(file_write_read)
 {
     std::cout << std::endl;
     static std::string cmakelists =
@@ -225,7 +225,7 @@ endforeach()
     return MUNIT_OK;
 }
 
-MunitResult test_find_package_DirectZ(const MunitParameter[], void *user_data)
+test_src_def(find_package_DirectZ)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -276,7 +276,7 @@ target_link_libraries(test PRIVATE DirectZ "${Vulkan_LIBRARY}")
     return MUNIT_OK;
 }
 
-MunitResult test_part_vulkan(const MunitParameter[], void *user_data)
+test_src_def(part_vulkan)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -315,7 +315,7 @@ endif()
     return MUNIT_OK;
 }
 
-MunitResult test_macro(const MunitParameter[], void *user_data)
+test_src_def(macro)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -349,7 +349,7 @@ _FPHSA_FAILURE_MESSAGE("I'm a Failure?")
     return MUNIT_OK;
 }
 
-MunitResult test_foreach_zip_lists(const MunitParameter[], void *user_data)
+test_src_def(foreach_zip_lists)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -374,7 +374,7 @@ endforeach()
     return MUNIT_OK;
 }
 
-MunitResult test_list_append_prepend(const MunitParameter[], void *user_data)
+test_src_def(list_append_prepend)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -395,7 +395,7 @@ message(STATUS "A After PREPEND: ${A}")
     return MUNIT_OK;
 }
 
-MunitResult test_include(const MunitParameter[], void *user_data)
+test_src_def(include)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -427,7 +427,7 @@ message(STATUS "VULKAN_FOUND: ${VULKAN_FOUND}")
     return MUNIT_OK;
 }
 
-MunitResult test_function_argx(const MunitParameter[], void *user_data)
+test_src_def(function_argx)
 {
     std::cout << std::endl;
     static std::string cmakelists = R"(
@@ -452,8 +452,99 @@ my-function(1 2 3)
     return MUNIT_OK;
 }
 
+test_src_def(imported_unknown)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+set(MY_LIBRARIES "super-maxitaxibaxi-raxona-t-time.lib")
+if(NOT TARGET my-target)
+    add_library(my-target UNKNOWN IMPORTED)
+    get_filename_component(_my_lib_extension ${MY_LIBRARIES} LAST_EXT)
+    if(_my_lib_extension STREQUAL ".framework" AND CMAKE_VERSION VERSION_LESS 3.28)
+        set_target_properties(Vulkan::Vulkan PROPERTIES
+                # Prior to 3.28 must reference library just inside the framework.
+                IMPORTED_LOCATION "${Vulkan_LIBRARIES}/vulkan")
+    else()
+        set_target_properties(Vulkan::Vulkan PROPERTIES
+                IMPORTED_LOCATION "${Vulkan_LIBRARIES}")
+    endif()
+    set_target_properties(Vulkan::Vulkan PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${Vulkan_INCLUDE_DIRS}")
+    unset(_my_lib_extension)
+endif()
+)";
+    try {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
+
+test_src_def(version_multiple)
+{
+    std::cout << std::endl;
+    static std::string cmakelists = R"(
+set(VERSION_START 0.0.0.3)
+set(VERSION_START_COPY 0.0.0.3)
+set(VERSION_TODDL 0.0.5.1)
+set(VERSION_MIQTE 0.2.0.0)
+set(VERSION_MIDTANK 0.4.1.9)
+set(VERSION_MULTONK 0.47.3.0)
+set(VERSION_CECOJ 1.0.0.0)
+set(VERSION_MAQ 32.0.0.8)
+
+# List of all versions
+set(VERSIONS ${VERSION_START} ${VERSION_START_COPY} ${VERSION_TODDL} ${VERSION_MIQTE} ${VERSION_MIDTANK} ${VERSION_MULTONK} ${VERSION_CECOJ} ${VERSION_MAQ})
+
+# Iterate over all version pairs to perform comparisons
+foreach(V1 IN LISTS VERSIONS)
+    foreach(V2 IN LISTS VERSIONS)
+        if(V1 VERSION_LESS V2)
+            message(STATUS "${V1} VERSION_LESS ${V2}")
+        elseif(V1 VERSION_EQUAL V2)
+            message(STATUS "${V1} VERSION_EQUAL ${V2}")
+        elseif(V1 VERSION_GREATER V2)
+            message(STATUS "${V1} VERSION_GREATER ${V2}")
+        elseif(V1 VERSION_GREATER_EQUAL V2)
+            message(STATUS "${V1} VERSION_GREATER_EQUAL ${V2}")
+        elseif(V1 VERSION_LESS_EQUAL V2)
+            message(STATUS "${V1} VERSION_LESS_EQUAL ${V2}")
+        endif()
+    endforeach()
+endforeach()
+
+)";
+    try
+    {
+        auto project = dz::cmake::CommandParser::parseContent(cmakelists);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return MUNIT_FAIL;
+    }
+    return MUNIT_OK;
+}
 
 static MunitTest test_suite_tests[] = {
+    // test_suite_simple_def(cmake_parse_arguments),
+    // test_suite_simple_def(function_nested_foreach),
+    // test_suite_simple_def(function_scope),
+    // test_suite_simple_def(recursive_function_foreach),
+    // test_suite_simple_def(function_nested_ifs_foreachs),
+    // test_suite_simple_def(file_write_read),
+    // test_suite_simple_def(part_vulkan),
+    // test_suite_simple_def(macro),
+    // test_suite_simple_def(foreach_zip_lists),
+    // test_suite_simple_def(list_append_prepend),
+    // test_suite_simple_def(include),
+    // test_suite_simple_def(function_argx),
+    // test_suite_simple_def(imported_unknown),
+    test_suite_simple_def(version_multiple),
+    // test_suite_simple_def(find_package_DirectZ),
     // { (char*)"/cmake_parse_arguments", test_parse_arguments, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
     // { (char*)"/function_nested_foreach", test_function_nested_foreach, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
     // { (char*)"/function_scope", test_function_scope, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
@@ -464,14 +555,15 @@ static MunitTest test_suite_tests[] = {
     // { (char*)"/macro", test_macro, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/foreach_zip_lists", test_foreach_zip_lists, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/list_append_prepend", test_list_append_prepend, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
-    { (char*)"/include", test_include, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
+    // { (char*)"/include", test_include, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/function_argx", test_function_argx, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL},
     // { (char*)"/find_package_DirectZ", test_find_package_DirectZ, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL },
 
-    {NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL}};
+    test_suite_end
+};
 
 static const MunitSuite test_suite = {
-    (char *)"/CMake.cpp",
+    (char *)"/CMake.cpp/",
     test_suite_tests,
     NULL,
     1,
