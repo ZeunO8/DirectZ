@@ -36,6 +36,7 @@
 #include <dz/Process.hpp>
 #include <dz/GlobalUID.hpp>
 #include <dz/GlobalGUID.hpp>
+#include <dz/Version.hpp>
 
 using namespace dz;
 
